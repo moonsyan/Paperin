@@ -36,7 +36,7 @@ export const createEditorAdapter = (
       return () => listeners.delete(listener)
     },
     notify: (markdown) => {
-      for (const listener of listeners) listener(markdown)
+      listeners.forEach((listener) => listener(markdown))
     },
   }
 }
