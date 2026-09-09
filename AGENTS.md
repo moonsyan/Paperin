@@ -108,6 +108,7 @@ Shared (side-effect-free DTOs, state, constants)
 6. 执行相关测试，再执行 `npm run typecheck`、`npm run test`、`npm run build`。
 7. UI、IPC、文件、编辑器和打包变更执行 `npm run dev` 或 `npm run smoke` 人工验证。
 8. 查看 `git diff` 和 `git status`，确认没有构建产物、密钥、用户数据或无关改动。
+9. 做完一个功能，验证后马上提交git。
 
 ## 完成定义
 
