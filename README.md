@@ -1,8 +1,6 @@
 # LastFileHome
 
-MarkdownSoft 的下一代重构项目目录。
-
-当前目录先承载新的界面方向和技术决策，原项目继续作为稳定参考。设计 Demo 位于 [`design/quiet-workspace`](./design/quiet-workspace/)，直接打开 `index.html` 即可预览，也可以运行 `node build.mjs` 重新生成演示页面。
+MarkdownSoft 的下一代本地优先 Markdown 工作台。项目基于 Electron、React、TypeScript 和 Milkdown，知识库始终是工作区上下文，当前文件是编辑焦点。
 
 ## 当前方向
 
@@ -12,3 +10,15 @@ MarkdownSoft 的下一代重构项目目录。
 - 文件仍然是用户真实持有的 Markdown 文件，应用状态与正文文件分离保存。
 
 技术评估见 [`docs/TECH-STACK.md`](./docs/TECH-STACK.md)，重构阶段划分见 [`docs/REFACTOR-ROADMAP.md`](./docs/REFACTOR-ROADMAP.md)。
+
+## 开发
+
+```bash
+npm install
+npm run dev
+npm run typecheck
+npm run test
+npm run build
+```
+
+旧项目能力与新项目迁移状态见 [`docs/compatibility-matrix.md`](./docs/compatibility-matrix.md)。

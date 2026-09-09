@@ -1,0 +1,90 @@
+/* ====== 命令面板（快速打开） ====== */
+.palette-dialog {
+  width: 560px;
+  max-width: 94vw;
+  flex-direction: column;
+}
+
+.palette-input-row {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.palette-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: .88rem;
+}
+
+.palette-results {
+  max-height: 380px;
+  overflow-y: auto;
+  padding: 6px;
+}
+.palette-results::-webkit-scrollbar { width: 4px; }
+.palette-results::-webkit-scrollbar-thumb { background: var(--text-4); border-radius: 2px; }
+
+.palette-group {
+  font-size: .68rem;
+  font-weight: 600;
+  color: var(--text-3);
+  padding: 8px 8px 4px;
+}
+
+.palette-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+  font-size: .82rem;
+  color: var(--text-1);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+.palette-item.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.palette-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+/* 键盘导航时避免按钮默认焦点环与 active 背景双重呈现：
+   焦点由面板统一用 active 高亮表达，鼠标点击后焦点回落到输入框 */
+.palette-item:focus {
+  outline: none;
+}
+
+.palette-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-item-dir {
+  flex-shrink: 0;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .7rem;
+  color: var(--text-3);
+}
+
+.palette-hint {
+  display: flex;
+  gap: 14px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  font-size: .68rem;
+  color: var(--text-3);
+}

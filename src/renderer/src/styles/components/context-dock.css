@@ -1,0 +1,121 @@
+.context-dock {
+  position: relative;
+  width: var(--context-dock-w, 312px);
+  min-width: var(--context-dock-w, 312px);
+  display: flex;
+  flex-direction: row-reverse;
+  background: var(--bg-sidebar);
+  border-left: 1px solid var(--border);
+  transition: width 200ms var(--ease), min-width 200ms var(--ease), opacity 150ms var(--ease);
+  overflow: hidden;
+}
+
+.context-dock-hidden {
+  width: 0;
+  min-width: 0;
+  border-left: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.context-dock-collapsed {
+  width: 44px;
+  min-width: 44px;
+}
+
+.context-dock-rail {
+  width: 44px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  border-left: 1px solid var(--border);
+}
+
+.context-dock-resizer {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 2;
+}
+
+.context-dock-resizer:hover,
+.context-dock-resizer:focus-visible {
+  background: var(--accent-bg);
+  outline: none;
+}
+
+.context-dock-content {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 12px 10px 18px;
+}
+
+.context-dock-section + .context-dock-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.context-dock-btn {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  transition: background 150ms var(--ease), color 150ms var(--ease);
+}
+
+.context-dock-btn svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.context-dock-btn:hover,
+.context-dock-btn.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.context-dock-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.context-dock-spacer { flex: 1; }
+
+@media (max-width: 1100px) {
+  .context-dock {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    box-shadow: var(--shadow-m);
+  }
+
+  .context-dock-hidden,
+  .context-dock-collapsed {
+    position: relative;
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .context-dock,
+  .context-dock-btn { transition: none; }
+}

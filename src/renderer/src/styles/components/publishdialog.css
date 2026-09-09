@@ -1,0 +1,64 @@
+/* ====== 发布弹窗（PublishDialog） ====== */
+.publish-dialog {
+  width: min(520px, 92vw);
+}
+
+.publish-dialog-body {
+  padding: 14px 22px 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.publish-template-seg {
+  margin-top: -6px;
+}
+
+.publish-template-desc {
+  margin: 6px 2px 10px;
+  font-size: 12px;
+  color: var(--text-3);
+  min-height: 1.4em;
+}
+
+.publish-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.publish-actions button {
+  flex: 1;
+  padding: 9px 14px;
+  font-size: 13px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), opacity var(--dur) var(--ease);
+}
+
+.publish-actions button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.publish-primary {
+  color: var(--bg-surface);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.publish-primary:hover:not(:disabled) { filter: brightness(1.06); }
+
+.publish-secondary {
+  color: var(--text-1);
+  background: var(--bg-surface);
+}
+
+.publish-secondary:hover:not(:disabled) { background: var(--bg-hover); }
+
+.publish-hint {
+  margin: 10px 2px 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-3);
+}

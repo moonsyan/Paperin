@@ -1,0 +1,207 @@
+import { TextSelection } from '@milkdown/kit/prose/state'
+import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
+import type { EditorView } from '@milkdown/kit/prose/view'
+import {
+  buildSearchRegex,
+  collectHits,
+  searchKey,
+  searchState,
+} from './plugins/searchHighlight'
+import type { SearchHit } from './plugins/searchHighlight'
+import { collapsedRangeAt, sectionFoldKey } from './plugins/sectionFold'
+
+export interface SearchResult {
+  count: number
+  current: number
+}
+
+export interface SearchController {
+  start: (
+    query: string,
+    useRegex: boolean,
+    caseSensitive: boolean,
+    wholeWord?: boolean,
+  ) => SearchResult
+  next: (backwards: boolean) => number
+  replaceCurrent: (replacement: string) => SearchResult
+  replaceAll: (replacement: string) => number
+  end: () => void
+}
+
+const updateHighlights = (view: EditorView): void => {
+  const decorations = searchState.hits.map((hit, index) =>
+    Decoration.inline(hit.from, hit.to, {
+      class: index === searchState.current ? 'search-hit current' : 'search-hit',
+    }),
+  )
+  view.dispatch(
+    view.state.tr.setMeta(searchKey, DecorationSet.create(view.state.doc, decorations)),
+  )
+}
+
+const clearHighlights = (view: EditorView): void => {
+  view.dispatch(view.state.tr.setMeta(searchKey, DecorationSet.empty))
+}
+
+/**
+ * 命中是否已失效:文档经 updateState 整体替换(切换文件)后,
+ * 模块级 hits 仍指向旧文档位置。越界命中会让 TextSelection.create 抛
+ * RangeError,或在恰好未越界时于新文档的错误位置替换文本(静默损坏)。
+ */
+const hitsStale = (view: EditorView): boolean => {
+  const size = view.state.doc.content.size
+  return (
+    searchState.hits.length > 0 &&
+    searchState.hits.some((hit) => hit.from > size || hit.to > size)
+  )
+}
+
+/** 命中越界时按上次查询重新收集,保证 next/替换永远作用于当前文档 */
+const ensureFreshHits = (view: EditorView): void => {
+  if (hitsStale(view)) refreshHits(view)
+}
+
+/**
+ * 命中位置当前文本是否仍与查询匹配。文档经整篇程序化替换（frontmatter
+ * 编辑、排版修复走 updateState/整体 setContent）后命中只做位置重映射、
+ * 不重新校验文本——不复核就会把替换词写到不再匹配的位置（静默损坏）。
+ */
+const hitTextStale = (view: EditorView, hit: SearchHit): boolean => {
+  const regex = buildSearchRegex(
+    searchState.lastQuery,
+    searchState.lastUseRegex,
+    searchState.lastCaseSensitive,
+    searchState.lastWholeWord,
+  )
+  if (!regex) return true
+  regex.lastIndex = 0
+  const slice = view.state.doc.textBetween(hit.from, hit.to, '\n', '\ufffc')
+  return !regex.test(slice)
+}
+
+/** 当前命中文本已与查询不符时按当前文档重新收集 */
+const ensureCurrentHitValid = (view: EditorView): void => {
+  const hit = searchState.hits[searchState.current]
+  if (hit && hitTextStale(view, hit)) refreshHits(view)
+}
+
+const refreshHits = (view: EditorView): SearchResult => {
+  const regex = buildSearchRegex(
+    searchState.lastQuery,
+    searchState.lastUseRegex,
+    searchState.lastCaseSensitive,
+    searchState.lastWholeWord,
+  )
+  if (!regex) {
+    searchState.hits = []
+    searchState.current = -1
+    clearHighlights(view)
+    return { count: 0, current: -1 }
+  }
+
+  searchState.hits = collectHits(view.state.doc, regex)
+  const selectionPosition = view.state.selection.from
+  searchState.current = searchState.hits.findIndex((hit) => hit.from >= selectionPosition)
+  if (searchState.current === -1 && searchState.hits.length > 0) searchState.current = 0
+  updateHighlights(view)
+  return { count: searchState.hits.length, current: searchState.current }
+}
+
+/**
+ * 搜索状态与 ProseMirror 装饰层的命令适配器。UI 仅通过 EditorHandle 调用它。
+ */
+export function createSearchController(getView: () => EditorView | null): SearchController {
+  return {
+    start: (query, useRegex, caseSensitive, wholeWord = false) => {
+      const view = getView()
+      if (!view) return { count: 0, current: -1 }
+      searchState.lastQuery = query
+      searchState.lastUseRegex = useRegex
+      searchState.lastCaseSensitive = caseSensitive
+      searchState.lastWholeWord = wholeWord
+      return refreshHits(view)
+    },
+
+    next: (backwards) => {
+      const view = getView()
+      if (!view || searchState.hits.length === 0) return searchState.current
+      ensureFreshHits(view)
+      if (searchState.hits.length === 0) return -1
+      ensureCurrentHitValid(view)
+      if (searchState.hits.length === 0) return -1
+      searchState.current = backwards
+        ? searchState.current <= 0
+          ? searchState.hits.length - 1
+          : searchState.current - 1
+        : (searchState.current + 1) % searchState.hits.length
+      const hit = searchState.hits[searchState.current]
+      const decorations = searchState.hits.map((item, index) =>
+        Decoration.inline(item.from, item.to, {
+          class: index === searchState.current ? 'search-hit current' : 'search-hit',
+        }),
+      )
+      // M12：命中在折叠小节内时先展开该小节，否则光标跳进不可见内容、滚动无效
+      // M14：嵌套折叠（折叠的 H1 内含折叠的 H2）只展开一个 ancestor 不够——
+      // 展开外层后命中点仍在内层隐藏区。循环展开所有包含命中的折叠：
+      // toggle meta 每次只处理一个折叠，逐个 dispatch，每次重查（折叠
+      // 状态经 dispatch 更新后 collapsedRangeAt 基于最新 state 判断）
+      const target = hit.from
+      let expanded = 0
+      let folded = collapsedRangeAt(view.state, target)
+      while (folded && expanded < 16) {
+        view.dispatch(view.state.tr.setMeta(sectionFoldKey, { toggle: folded.heading }))
+        expanded++
+        folded = collapsedRangeAt(view.state, target)
+      }
+      view.dispatch(
+        view.state.tr
+          .setMeta(searchKey, DecorationSet.create(view.state.doc, decorations))
+          .setSelection(TextSelection.create(view.state.doc, target))
+          .scrollIntoView(),
+      )
+      return searchState.current
+    },
+
+    replaceCurrent: (replacement) => {
+      const view = getView()
+      if (!view) return { count: searchState.hits.length, current: searchState.current }
+      ensureFreshHits(view)
+      ensureCurrentHitValid(view)
+      const hit = searchState.hits[searchState.current]
+      if (!hit) return { count: searchState.hits.length, current: searchState.current }
+      view.dispatch(view.state.tr.insertText(replacement, hit.from, hit.to).scrollIntoView())
+      return refreshHits(view)
+    },
+
+    replaceAll: (replacement) => {
+      const view = getView()
+      if (!view || searchState.hits.length === 0) return 0
+      ensureFreshHits(view)
+      if (searchState.hits.length === 0) return 0
+      // 任一命中的文本已与查询不符时先按当前文档重新收集——
+      // 替换词只允许写入真正匹配的范围，绝不落在失效位置上
+      if (searchState.hits.some((hit) => hitTextStale(view, hit))) {
+        refreshHits(view)
+        if (searchState.hits.length === 0) return 0
+      }
+      let transaction = view.state.tr
+      for (let index = searchState.hits.length - 1; index >= 0; index--) {
+        const hit = searchState.hits[index]
+        transaction = transaction.insertText(replacement, hit.from, hit.to)
+      }
+      view.dispatch(transaction.scrollIntoView())
+      const count = searchState.hits.length
+      searchState.hits = []
+      searchState.current = -1
+      clearHighlights(view)
+      return count
+    },
+
+    end: () => {
+      searchState.hits = []
+      searchState.current = -1
+      const view = getView()
+      if (view) clearHighlights(view)
+    },
+  }
+}

@@ -1,0 +1,155 @@
+/* ====== 多标签页栏（对标 Typora） ====== */
+.tabbar {
+  display: flex;
+  align-items: stretch;
+  height: 34px;
+  flex: 0 0 34px;
+  background: var(--bg-surface-2, var(--bg-surface));
+  border-bottom: 1px solid var(--border-1, rgba(128, 128, 128, 0.18));
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.tabbar::-webkit-scrollbar {
+  height: 0;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 0 8px 0 12px;
+  height: 100%;
+  cursor: pointer;
+  color: var(--text-2);
+  border-right: 1px solid var(--border-1, rgba(128, 128, 128, 0.12));
+  user-select: none;
+  white-space: nowrap;
+  position: relative;
+}
+.tab:hover {
+  background: var(--bg-elevated, var(--bg-surface));
+}
+.tab:focus-visible {
+  z-index: 1;
+  outline: 2px solid var(--accent, #4a8af0);
+  outline-offset: -2px;
+}
+.tab.active {
+  background: var(--bg-elevated, var(--bg-surface));
+  color: var(--text-1);
+  box-shadow: inset 0 -2px 0 var(--accent, #4a8af0);
+}
+.tab.preview .tab-name {
+  font-style: italic;
+}
+.tab.drag-over {
+  box-shadow: inset 2px 0 0 var(--accent, #4a8af0);
+}
+
+.tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+}
+
+.tab-pin {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tab-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-3);
+  flex: 0 0 auto;
+}
+
+.tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--text-3);
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+}
+.tab-close:hover {
+  background: rgba(128, 128, 128, 0.25);
+  color: var(--text-1);
+}
+.tab-close:focus-visible {
+  outline: 1px solid var(--accent, #4a8af0);
+  outline-offset: 1px;
+}
+
+/* ====== 标签页右键菜单（关闭 / 关闭其他 / 关闭全部） ====== */
+.tab-ctx-menu {
+  position: fixed;
+  z-index: 700;
+  min-width: 150px;
+  padding: 4px;
+  background: var(--bg-menu);
+  border: 1px solid var(--border-m);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-m);
+}
+.tab-ctx-item {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+  padding: 6px 12px;
+  font-size: .76rem;
+  color: var(--text-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 80ms;
+  white-space: nowrap;
+}
+.tab-ctx-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-1);
+}
+.tab-ctx-item.disabled {
+  color: var(--text-3);
+  cursor: default;
+  pointer-events: none;
+}
+.tab-ctx-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 3px 6px;
+}
+
+/* ====== 知识图谱内置标签（固定末尾） ====== */
+.tab.graph-tab {
+  user-select: none;
+}
+.tab-graph-icon {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.8;
+}

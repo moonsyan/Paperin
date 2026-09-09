@@ -1,0 +1,501 @@
+/* ==================== 知识图谱（编辑器区内置标签页视图） ==================== */
+
+.graph-tab-view {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-app);
+}
+
+.graph-tab-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.graph-tab-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.graph-tab-sub {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.graph-tab-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.graph-zoom-btn {
+  min-width: 28px;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 13px;
+  color: var(--text-2);
+  background: transparent;
+  border: 1px solid var(--border-m);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.graph-zoom-btn:hover {
+  color: var(--text-1);
+  background: var(--bg-hover);
+}
+
+.graph-zoom-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.graph-close-btn {
+  min-width: 28px;
+  height: 26px;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.graph-close-btn:hover {
+  color: var(--danger);
+  background: var(--bg-hover);
+}
+
+.graph-close-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.graph-canvas-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--bg-app);
+  overflow: hidden;
+}
+
+.graph-canvas {
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+
+.graph-canvas:active {
+  cursor: grabbing;
+}
+
+.graph-node {
+  cursor: pointer;
+}
+
+.graph-node-circle {
+  fill: var(--text-3);
+  stroke: var(--bg-app);
+  stroke-width: 1.5;
+  transition: fill var(--dur) var(--ease);
+}
+
+.graph-node:hover .graph-node-circle,
+.graph-node.neighbor .graph-node-circle {
+  fill: var(--accent);
+}
+
+.graph-node.active .graph-node-circle {
+  fill: var(--accent);
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+.graph-node.ghost .graph-node-circle {
+  /* 未解析链接同样用实心圆点（比普通笔记暗一档）：空心透明圈视觉噪，
+     混在实心节点里显得杂乱；悬停/邻接高亮时提到 text-3 */
+  fill: var(--text-4);
+  stroke: var(--bg-app);
+  stroke-width: 1.5;
+}
+
+.graph-node.ghost:hover .graph-node-circle,
+.graph-node.ghost.neighbor .graph-node-circle {
+  fill: var(--text-3);
+  stroke: var(--bg-app);
+}
+
+.graph-node.dimmed {
+  opacity: 0.22;
+}
+
+.graph-node-label {
+  font-size: 10.5px;
+  fill: var(--text-2);
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--bg-app);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+  user-select: none;
+}
+
+.graph-node:hover .graph-node-label,
+.graph-node.active .graph-node-label {
+  fill: var(--text-1);
+  font-weight: 600;
+}
+
+.graph-edge {
+  stroke: var(--border-m);
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.graph-edge.dimmed {
+  opacity: 0.15;
+}
+
+.graph-note,
+.graph-empty {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: var(--text-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 12px;
+  box-shadow: var(--shadow-s);
+  pointer-events: none;
+  max-width: calc(100% - 32px);
+}
+
+.graph-legend {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11.5px;
+  color: var(--text-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 10px;
+  box-shadow: var(--shadow-s);
+}
+
+.graph-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.graph-legend .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.graph-legend .dot.file {
+  background: var(--text-3);
+}
+
+.graph-legend .dot.ghost {
+  background: transparent;
+  border: 1.5px solid var(--text-4);
+}
+
+.graph-legend .dot.active {
+  background: var(--accent);
+}
+
+.graph-legend-hint {
+  color: var(--text-4);
+}
+
+/* ==================== 反向链接面板 ==================== */
+
+.backlinks-root {
+  padding: 6px 6px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.backlinks-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.backlinks-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+  text-transform: uppercase;
+}
+
+.backlinks-count {
+  font-weight: 500;
+  color: var(--text-3);
+  background: var(--bg-hover);
+  border-radius: 8px;
+  padding: 0 6px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.backlink-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 5px 8px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.backlink-row:hover {
+  background: var(--bg-hover);
+}
+
+.backlink-row:active {
+  background: var(--bg-active);
+}
+
+.backlink-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.backlink-name {
+  font-size: 12.5px;
+  color: var(--text-1);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backlink-row.unresolved .backlink-name {
+  color: var(--text-3);
+  font-style: italic;
+}
+
+.backlink-preview {
+  font-size: 11.5px;
+  color: var(--text-3);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backlinks-empty {
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.6;
+}
+
+.backlinks-note {
+  font-size: 11.5px;
+  color: var(--text-3);
+  padding: 2px 8px;
+}
+
+.backlinks-graph-btn {
+  margin: 0 6px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.backlinks-graph-btn:hover {
+  color: var(--accent-h);
+  background: var(--bg-hover);
+}
+
+.backlinks-graph-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* ==================== 未解析 wiki 链接（编辑器内） ==================== */
+
+.milkdown .wiki-link.wiki-link-unresolved {
+  color: var(--text-3);
+  border-bottom: 1px dashed var(--text-4);
+}
+
+.milkdown .wiki-link.wiki-link-unresolved:hover {
+  color: var(--text-2);
+}
+
+/* ====== 滤镜淡出（未命中搜索的节点/边） ====== */
+.graph-node.filtered {
+  opacity: 0.07;
+  pointer-events: none;
+}
+.graph-edge.filtered {
+  opacity: 0.04;
+}
+
+.graph-zoom-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ====== Obsidian 式设置面板（右侧滑出） ====== */
+.graph-settings {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  bottom: 44px;
+  width: 240px;
+  max-width: calc(100% - 24px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-m);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-m);
+  overflow-y: auto;
+  opacity: 0;
+  transform: translateX(12px);
+  pointer-events: none;
+  transition: opacity 140ms var(--ease), transform 140ms var(--ease);
+  z-index: 10;
+}
+
+.graph-settings.open {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.gs-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.gs-section:last-child {
+  border-bottom: none;
+}
+
+.gs-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--text-3);
+  text-transform: uppercase;
+}
+
+.gs-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  font-size: 12px;
+  color: var(--text-1);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-m);
+  border-radius: var(--radius);
+  outline: none;
+}
+
+.gs-search:focus {
+  border-color: var(--accent);
+}
+
+.gs-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  cursor: pointer;
+  user-select: none;
+}
+
+.gs-toggle:hover {
+  color: var(--text-1);
+}
+
+.gs-toggle input {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+.gs-slider {
+  display: grid;
+  grid-template-columns: 58px 1fr 32px;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+  cursor: default;
+}
+
+.gs-slider span {
+  white-space: nowrap;
+}
+
+.gs-slider input {
+  width: 100%;
+  height: 14px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.gs-slider em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-3);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

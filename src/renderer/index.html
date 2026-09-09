@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="./icon.png">
+  <!--
+    Y-M1：默认 default-src 'self'，自定义协议（mdimg）通过 registerSchemesAsPrivileged
+          的 bypassCSP 突破；外链字体走 Google Fonts。
+    Y-M2：Mermaid 渲染时会生成 <img src="data:image/svg+xml;..."> 用于图标资源，
+          默认 CSP 没有 img-src，回退到 default-src 'self' 直接拦截，
+          控制台报 "Loading the image data:image/svg+xml violates the Content
+          Security Policy directive: default-src 'self'"。这里显式放行
+          img-src 'self' data: blob:；与 Mermaid securityLevel='strict' 配合
+          后，外链 fetch 仅允许 data/blob 自包含资源，仍由 mermaid 自身做白名单。
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: mdimg:">
+  <title>MarkdownSoft</title>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="./src/main.tsx"></script>
+</body>
+</html>

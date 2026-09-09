@@ -1,0 +1,154 @@
+/* ====== Status Bar ====== */
+.statusbar {
+  height: 26px;
+  background: var(--bg-sidebar);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  font-size: .66rem;
+  color: var(--text-3);
+  flex-shrink: 0;
+  transition: background var(--dur) var(--ease);
+}
+
+.st-item {
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* 当前所在标题（过长时省略） */
+.st-heading {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-2);
+}
+
+.st-spacer { flex: 1; }
+
+.st-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #62C554;
+  transition: background 200ms;
+}
+.st-dot.unsaved { background: #F5BF4F; }
+
+/* 选中字数提示 */
+.st-selected { color: var(--accent); }
+
+/* ====== 字数目标 ====== */
+.st-goal { position: relative; }
+
+.st-goal-trigger {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 6px;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--text-2);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.st-goal-trigger:hover { background: var(--bg-hover); color: var(--text-1); }
+.st-goal-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+/* 未设置目标时的低调整入口 */
+.st-goal-empty { color: var(--text-3); }
+
+.st-goal-bar {
+  width: 44px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-active);
+  overflow: hidden;
+}
+.st-goal-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 160ms var(--ease);
+}
+
+/* 点击弹层外关闭 */
+.st-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+}
+
+.st-goal-pop {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 95;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+  padding: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-m);
+}
+
+.st-goal-label {
+  font-size: .68rem;
+  color: var(--text-2);
+}
+
+.st-goal-input {
+  width: 100%;
+  padding: 4px 6px;
+  font-family: inherit;
+  font-size: .72rem;
+  color: var(--text-1);
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.st-goal-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.st-goal-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.st-goal-actions button {
+  padding: 3px 8px;
+  font-family: inherit;
+  font-size: .68rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.st-goal-btn-primary {
+  color: var(--bg-surface);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.st-goal-btn-primary:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.st-goal-btn-plain {
+  color: var(--text-2);
+  background: transparent;
+}
+.st-goal-btn-plain:hover { color: var(--text-1); background: var(--bg-hover); }

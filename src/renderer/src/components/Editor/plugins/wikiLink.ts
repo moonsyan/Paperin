@@ -1,0 +1,372 @@
+import { schemaCtx } from '@milkdown/kit/core'
+import { Plugin, PluginKey } from '@milkdown/kit/prose/state'
+import { InputRule } from '@milkdown/kit/prose/inputrules'
+import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
+import type { EditorView } from '@milkdown/kit/prose/view'
+import type { Node as ProseNode } from '@milkdown/kit/prose/model'
+import { $inputRule, $node, $prose } from '@milkdown/kit/utils'
+
+/* ==================== Wiki 链接 [[target]] / [[target|alias]] 支持 ==================== */
+
+/* ---------- ProseMirror 节点定义 ---------- */
+
+export const wikiLinkSchema = $node('wiki_link', () => ({
+  group: 'inline',
+  inline: true,
+  atom: true,
+  selectable: true,
+  attrs: {
+    target: { default: '' },
+    alias: { default: '' },
+  },
+  parseMarkdown: {
+    match: (n) => n.type === 'wikiLink',
+    runner: (state, node, type) => {
+      const target = (node.target as string) || ''
+      const alias = (node.alias as string) || ''
+      state.addNode(type, { target, alias })
+    },
+  },
+  toMarkdown: {
+    match: (n) => n.type.name === 'wiki_link',
+    runner: (state, node) => {
+      const target = node.attrs.target as string
+      const alias = node.attrs.alias as string
+      // 以 html 节点原样输出 [[...]] 文本（html 处理器不做任何转义）：
+      // text 节点会被 mdast-util-to-markdown 的 safe() 转义成 \[\[...\]\]，
+      // 导致保存后 wiki 链接失效；wikiLink 无对应的 mdast 节点类型，直接 addNode 会抛错
+      state.addNode('html', undefined, alias ? `[[${target}|${alias}]]` : `[[${target}]]`)
+    },
+  },
+  toDOM: (node) => {
+    const target = node.attrs.target as string
+    const alias = node.attrs.alias as string
+    const display = alias || target
+    return [
+      'span',
+      {
+        class: 'wiki-link',
+        'data-target': target,
+        title: target,
+      },
+      display,
+    ]
+  },
+}))
+
+/* ---------- 输入规则：输入 [[target]] → wiki_link 节点 ---------- */
+
+export const wikiLinkInputRule = $inputRule((ctx) => {
+  const schema = ctx.get(schemaCtx)
+  // L12：target 用懒惰量词（与加载转换一致）——`[[a|b|c]]` 应解析为
+  // target='a'、alias='b|c'；贪婪量词会把整个 'a|b|c' 当作 target，
+  // 键入与加载两种路径解析结果不一致、点击跳转目标也不同
+  return new InputRule(
+    /\[\[([^\]|\n]+?)(?:\|([^\]\n]+?))?\]\]$/,
+    (state, match, start, end) => {
+      const type = schema.nodes.wiki_link
+      if (!type) return null
+      // C-6：反引号内输入 [[x]] 不转换（与 convertWikiText 一致），
+      // 否则链接节点被插进 code mark，往返后反引号内容被改写
+      if (state.selection.$from.marks().some((m) => m.type.name === 'code')) return null
+      const target = (match[1] ?? '').trim()
+      const alias = (match[2] ?? '').trim()
+      if (!target) return null
+      return state.tr.replaceRangeWith(
+        start,
+        end,
+        type.create({ target, alias }),
+      )
+    },
+  )
+})
+
+/* ---------- 文档加载后转换 [[...]] 文本为 wiki_link 节点 ---------- */
+
+/** 当前活跃的编辑器视图（仅一个编辑器实例；用于停止已销毁视图的链式转换） */
+let currentView: EditorView | null = null
+
+/** 扫描整个文档，将匹配 [[target]] 模式的文本替换为 wiki_link 节点 */
+function convertWikiText(view: EditorView) {
+  // 编辑器已销毁或已重建：停止链式 setTimeout 循环
+  if (currentView !== view) return
+  // L11：组合输入期间 dispatch 会打断 IME 提交（候选词被撤销/错位），
+  // 延迟到 compositionend 之后再继续转换
+  if (view.composing) {
+    setTimeout(() => convertWikiText(view), 50)
+    return
+  }
+  const { state, dispatch } = view
+  const type = state.schema.nodes.wiki_link
+  if (!type) return
+
+  // L5：先全文档扫描收集全部命中，再单事务内逆序替换。
+  // 此前每个链接一次 dispatch + 一次全文档扫描 + setTimeout(0) 链，
+  // 数百 [[...]] 的文档加载时每个事务都触发全部插件 apply 与 prism 重高亮，
+  // 卡顿数秒且与用户输入交错；逆序替换（先改靠后的位置）保证坐标不漂移
+  const hits: { start: number; end: number; target: string; alias: string }[] = []
+  const RE = /\[\[([^\]|\n]+?)(?:\|([^\]\n]+?))?\]\]/g
+
+  state.doc.descendants((node, pos) => {
+    // 只在文本节点中查找（跳过代码块和 frontmatter）
+    if (!node.isText) return
+    // C-6：行内代码（code mark）内的 [[...]] 是字面文本，转换会把 wiki_link
+    // 原子节点插进 code mark，序列化后反引号内容被改写为真实链接（内容静默损坏）
+    if (node.marks.some((m) => m.type.name === 'code')) return
+    // 跳过在代码块或 frontmatter 中的文本
+    const $pos = state.doc.resolve(pos)
+    let skip = false
+    for (let d = $pos.depth; d >= 0; d--) {
+      const n = $pos.node(d)
+      if (n.type.name === 'code_block' || n.type.name === 'frontmatter') {
+        skip = true
+        break
+      }
+    }
+    if (skip) return
+
+    const text = node.text ?? ''
+    RE.lastIndex = 0
+    let m: RegExpExecArray | null
+    while ((m = RE.exec(text))) {
+      const target = m[1]?.trim() ?? ''
+      if (!target) continue
+      hits.push({
+        start: pos + m.index,
+        end: pos + m.index + m[0].length,
+        target,
+        alias: (m[2] ?? '').trim(),
+      })
+    }
+  })
+
+  if (hits.length === 0) return
+  const tr = state.tr
+  for (let i = hits.length - 1; i >= 0; i--) {
+    const h = hits[i]
+    tr.replaceRangeWith(h.start, h.end, type.create({ target: h.target, alias: h.alias }))
+  }
+  // 自动转换不是用户操作，不进 undo 历史
+  // （否则多次 Ctrl+Z 会把 wiki 链接还原为文本，破坏用户输入记录）
+  tr.setMeta('addToHistory', false)
+  dispatch(tr)
+  // 转换事务创建的新节点不在旧装饰映射里，补一次未解析状态重算
+  const refresh = view.state.tr.setMeta(wikiLinkStatusKey, true)
+  refresh.setMeta('addToHistory', false)
+  dispatch(refresh)
+}
+
+export const wikiTextConvertPlugin = $prose(() => {
+  return new Plugin({
+    view(view) {
+      currentView = view
+      // 文档加载后批量转换
+      setTimeout(() => convertWikiText(view), 50)
+      return {
+        destroy() {
+          // 编辑器销毁后停止链式转换循环
+          if (currentView === view) currentView = null
+        },
+      }
+    },
+  })
+})
+
+/**
+ * 内容替换（切换文档）后重新转换 [[...]] 文本为 wiki_link 节点。
+ * wikiTextConvertPlugin 只在编辑器创建时运行一次，切换文档不会再次触发，
+ * 因此 Editor.replaceContent 替换内容后必须手动调用本函数。
+ */
+export function convertWikiTextInDoc(view: EditorView): void {
+  setTimeout(() => convertWikiText(view), 0)
+}
+
+/* ---------- 点击跳转插件 ---------- */
+
+let onWikiLinkClickHandler: ((target: string) => void) | null = null
+
+export function setWikiLinkClickHandler(fn: ((target: string) => void) | null) {
+  onWikiLinkClickHandler = fn
+}
+
+export const wikiLinkClickPlugin = $prose(() => {
+  return new Plugin({
+    props: {
+      handleClick(view: EditorView, _pos: number, event: MouseEvent) {
+        const target = event.target as HTMLElement
+        const link = target.closest('.wiki-link') as HTMLElement | null
+        if (!link) return false
+        const targetStr = link.getAttribute('data-target')
+        if (targetStr && onWikiLinkClickHandler) {
+          event.preventDefault()
+          event.stopPropagation()
+          onWikiLinkClickHandler(targetStr)
+          return true
+        }
+        return false
+      },
+    },
+  })
+})
+
+/* ---------- 未解析链接装饰 ---------- */
+
+const wikiLinkStatusKey = new PluginKey<DecorationSet>('wiki-link-status')
+
+/** 目标解析器（App 注入：结合工作区树与当前文件路径判断 target 是否可解析）；null = 未知，不标记 */
+let wikiTargetResolver: ((target: string) => boolean) | null = null
+
+export function setWikiTargetResolver(fn: ((target: string) => boolean) | null): void {
+  wikiTargetResolver = fn
+}
+
+function buildWikiStatusDecorations(doc: ProseNode): DecorationSet {
+  const resolver = wikiTargetResolver
+  if (!resolver) return DecorationSet.empty
+  const decos: Decoration[] = []
+  doc.descendants((node, pos) => {
+    if (node.type.name !== 'wiki_link') return
+    const target = node.attrs.target as string
+    if (!target || resolver(target)) return
+    decos.push(Decoration.node(pos, pos + node.nodeSize, { class: 'wiki-link-unresolved' }))
+  })
+  return decos.length > 0 ? DecorationSet.create(doc, decos) : DecorationSet.empty
+}
+
+/** 触发一次未解析状态重算（resolver 变化、内容替换/批量转换后由外层调用） */
+export function refreshWikiLinkStatus(view: EditorView): void {
+  if (view.isDestroyed) return
+  view.dispatch(view.state.tr.setMeta(wikiLinkStatusKey, true))
+}
+
+export const wikiLinkStatusPlugin = $prose(
+  () =>
+    new Plugin<DecorationSet>({
+      key: wikiLinkStatusKey,
+      state: {
+        init: () => DecorationSet.empty,
+        apply(tr, prev, _old, newState) {
+          if (tr.getMeta(wikiLinkStatusKey)) return buildWikiStatusDecorations(newState.doc)
+          // 文档变化时仅映射现有装饰（大文档避免每击键全扫）；
+          // 新建链接节点的状态由外层 refresh（resolver 变化/加载转换后）补齐
+          if (tr.docChanged) return prev.map(tr.mapping, tr.doc)
+          return prev
+        },
+      },
+      props: {
+        decorations(state) {
+          return wikiLinkStatusKey.getState(state)
+        },
+      },
+    }),
+)
+
+/* ---------- 自动补全插件 ---------- */
+
+export interface WikiAutocompleteState {
+  query: string
+  from: number
+  to: number
+  coords: { top: number; left: number; bottom: number }
+}
+
+export const wikiAutocompleteKey = new PluginKey<WikiAutocompleteState | null>(
+  'wiki-autocomplete',
+)
+
+let onAutocompleteChange: ((state: WikiAutocompleteState | null) => void) | null = null
+
+export function setWikiAutocompleteHandler(
+  fn: ((state: WikiAutocompleteState | null) => void) | null,
+) {
+  onAutocompleteChange = fn
+}
+
+export const wikiAutocompletePlugin = $prose(() => {
+  return new Plugin<WikiAutocompleteState | null>({
+    key: wikiAutocompleteKey,
+    state: {
+      init: () => null,
+      apply(tr, prev) {
+        const meta = tr.getMeta(wikiAutocompleteKey)
+        if (meta !== undefined) return meta as WikiAutocompleteState | null
+
+        if (tr.docChanged) {
+          const sel = tr.selection
+          const $pos = sel.$from
+          const textBefore = $pos.parent.textContent.slice(0, $pos.parentOffset)
+          const bracketIdx = textBefore.lastIndexOf('[[')
+          if (bracketIdx < 0) {
+            if (prev) return null
+            return prev
+          }
+
+          const query = textBefore.slice(bracketIdx + 2)
+          if (query.includes(']]')) {
+            if (prev) return null
+            return prev
+          }
+          if (query.length > 200) {
+            if (prev) return null
+            return prev
+          }
+
+          let inCodeOrFM = false
+          for (let d = $pos.depth; d >= 0; d--) {
+            const nodeType = $pos.node(d).type.name
+            if (nodeType === 'code_block' || nodeType === 'frontmatter') {
+              inCodeOrFM = true
+              break
+            }
+          }
+          if (inCodeOrFM) {
+            if (prev) return null
+            return prev
+          }
+
+          const from = sel.from - query.length - 2
+          const to = sel.from
+          return {
+            query,
+            from,
+            to,
+            coords: prev?.coords ?? { top: 0, left: 0, bottom: 0 },
+          }
+        }
+
+        return prev
+      },
+    },
+    view(_view) {
+      return {
+        update(view) {
+          const state = wikiAutocompleteKey.getState(view.state)
+          if (state) {
+            try {
+              const sel = view.state.selection
+              // M8/C-4：coordsAtPos 返回视口坐标，直接透传；浮层侧
+              //（Editor/index.tsx）换算到定位祖先(.editor-host)的容器坐标
+              const coords = view.coordsAtPos(sel.$from.pos)
+              const updated: WikiAutocompleteState = {
+                ...state,
+                coords: {
+                  top: coords.bottom,
+                  left: coords.left,
+                  bottom: coords.bottom,
+                },
+              }
+              if (onAutocompleteChange) onAutocompleteChange(updated)
+            } catch {
+              // coordsAtPos may fail
+            }
+          } else {
+            if (onAutocompleteChange) onAutocompleteChange(null)
+          }
+        },
+        destroy() {
+          if (onAutocompleteChange) onAutocompleteChange(null)
+        },
+      }
+    },
+  })
+})
