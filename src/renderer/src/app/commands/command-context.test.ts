@@ -23,4 +23,10 @@ describe('command context', () => {
     expect(isCommandAvailable(createCommandContext({ workspaceId: 'ws' }), { requires: 'document' })).toBe(false)
     expect(isCommandAvailable(createCommandContext({}), { requires: 'app' })).toBe(true)
   })
+
+  it('allows document-scoped actions for an external file without a workspace', () => {
+    const externalDocument = createCommandContext({ activeFileId: 'external-file' })
+    expect(externalDocument.source).toBe('document')
+    expect(isCommandAvailable(externalDocument, { requires: 'document' })).toBe(true)
+  })
 })

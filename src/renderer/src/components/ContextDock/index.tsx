@@ -1,181 +1,183 @@
-import type { CSSProperties, Dispatch, SetStateAction } from 'react'
-import type { BacklinkGraph } from '../../lib/backlinks'
-import type { WorkspaceTagIndexEntry } from '../../../../shared/tag-index'
-import type { DiagnosticRecord, WorkspaceIndex } from '../../../../shared/workspace-index'
-import type { TypographyIssue } from '../../lib/chinese-typography'
-import type { ContextDockPanel, ContextDockState } from './context-dock-state'
-import { hideContextDock, resizeContextDock, restoreContextDock, selectContextPanel, toggleContextDock } from './context-dock-state'
-import { OutlinePanel } from '../Sidebar/OutlinePanel'
-import { BacklinksPanel } from '../Sidebar/BacklinksPanel'
-import { TagsPanel } from '../Sidebar/TagsPanel'
-import { QualityPanel } from '../QualityPanel'
-import { FrontmatterProperties } from '../Editor/FrontmatterProperties'
-import type { SidebarViewModel } from '../Sidebar/sidebar-view-model'
+import { useEffect, useRef } from 'react'
+import type {
+  CSSProperties,
+  Dispatch,
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+  SetStateAction,
+} from 'react'
 
-export interface ContextDockProps {
+import { createDefaultPanelRegistry } from '../../app/panels/panel-registry'
+import {
+  ContextDockPanelContent,
+  ContextIcon,
+  isRenderableContextDockPanel,
+} from './ContextDockPanels'
+import {
+  MAX_CONTEXT_DOCK_WIDTH,
+  MIN_CONTEXT_DOCK_WIDTH,
+  hideContextDock,
+  resizeContextDock,
+  restoreContextDock,
+  selectContextPanel,
+  toggleContextDock,
+} from './context-dock-state'
+
+import type { PanelContext, PanelRegistry } from '../../app/panels/panel-registry'
+import type { ContextDockContentProps } from './ContextDockPanels'
+import type { ContextDockPanel, ContextDockState } from './context-dock-state'
+
+export interface ContextDockProps extends ContextDockContentProps {
   state: ContextDockState
   onStateChange: Dispatch<SetStateAction<ContextDockState>>
-  content: string
-  activeFileId: string
-  activeOutlineIndex?: number
-  onOutlineClick: (index: number) => void
-  linkGraph?: BacklinkGraph | null
-  workspaceIndex?: WorkspaceIndex | null
-  sidebarViewModel?: Pick<SidebarViewModel, 'generation' | 'activePath' | 'backlinks' | 'outgoing'> | null
-  activeLinkPath?: string | null
-  linksLoading?: boolean
-  linksTruncated?: boolean
-  onOpenLink?: (path: string, query: string) => void
-  onUnresolvedLinkClick?: (target: string) => void
-  onOpenGraphView?: () => void
-  tagsFiles?: WorkspaceTagIndexEntry[] | null
-  tagsLoading?: boolean
-  tagsTruncated?: boolean
-  tagFilter?: { tag: string; paths: string[] } | null
-  onToggleTagFilter?: (tag: string) => void
-  onOpenWorkspaceFile?: (path: string) => void
-  diagnostics?: DiagnosticRecord[]
-  indexLoading?: boolean
-  onRefreshIndex?: () => void
-  onCancelIndex?: () => void
-  onOpenDiagnostic?: (diagnostic: DiagnosticRecord) => void
-  typographyIssues?: TypographyIssue[]
-  onOpenTypographyIssue?: (issue: TypographyIssue) => void
-  onFixTypography?: () => void
-  properties: Record<string, string> | null
-  showProperties: boolean
-  onToggleProperties: () => void
-  onUpdateProperty: (key: string, value: string) => void
-  onDeleteProperty: (key: string) => void
-  onAddProperty: (key: string, value: string) => void
+  registry?: PanelRegistry
+  hasWorkspace?: boolean
+  hasActiveDocument?: boolean
 }
 
-const PANEL_LABELS: Record<ContextDockPanel, string> = {
-  outline: '大纲',
-  links: '关系',
-  tags: '标签',
-  properties: '属性',
-  quality: '检查',
-}
-
-const PANEL_ORDER: ContextDockPanel[] = ['outline', 'links', 'tags', 'properties', 'quality']
-
-function ContextIcon({ panel }: { panel: ContextDockPanel }): JSX.Element {
-  if (panel === 'outline') return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h14" /></svg>
-  if (panel === 'links') return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a4 4 0 0 0 5.7.3l2-2a4 4 0 0 0-5.7-5.7l-1.1 1.1M14 11a4 4 0 0 0-5.7-.3l-2 2A4 4 0 0 0 8 18.4l1.1-1.1" /></svg>
-  if (panel === 'tags') return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5v6l9 9 6-6-9-9zM8 8h.01" /></svg>
-  if (panel === 'properties') return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M8 9h8M8 13h5M8 17h3" /></svg>
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 13 4 4L19 7" /></svg>
-}
+const DEFAULT_PANEL_REGISTRY = createDefaultPanelRegistry()
 
 export function ContextDock({
   state,
   onStateChange,
-  content,
-  activeFileId,
-  activeOutlineIndex = -1,
-  onOutlineClick,
-  linkGraph = null,
-  workspaceIndex = null,
-  sidebarViewModel = null,
-  activeLinkPath = null,
-  linksLoading = false,
-  linksTruncated = false,
-  onOpenLink,
-  onUnresolvedLinkClick,
-  onOpenGraphView,
-  tagsFiles = null,
-  tagsLoading = false,
-  tagsTruncated = false,
-  tagFilter = null,
-  onToggleTagFilter,
-  onOpenWorkspaceFile,
-  diagnostics = [],
-  indexLoading = false,
-  onRefreshIndex,
-  onCancelIndex,
-  onOpenDiagnostic,
-  typographyIssues = [],
-  onOpenTypographyIssue,
-  onFixTypography,
-  properties,
-  showProperties,
-  onToggleProperties,
-  onUpdateProperty,
-  onDeleteProperty,
-  onAddProperty,
+  registry = DEFAULT_PANEL_REGISTRY,
+  hasWorkspace = true,
+  hasActiveDocument,
+  ...contentProps
 }: ContextDockProps): JSX.Element {
   const hidden = state.visibility === 'hidden'
   const collapsed = state.visibility === 'collapsed'
-  const setPanel = (panel: ContextDockPanel) => onStateChange((current) => selectContextPanel(current, panel))
+  const panelButtonRefs = useRef(new Map<string, HTMLButtonElement>())
+  const resizeCleanupRef = useRef<(() => void) | null>(null)
+  const activeFileId = hasActiveDocument === false ? '' : contentProps.activeFileId
+  const panelContext: PanelContext = { activeFileId, hasWorkspace }
+  const panels = registry
+    .list('sidebar.secondary', panelContext)
+    .filter(isRenderableContextDockPanel)
+  const activePanel = panels.find((panel) => panel.id === state.panel) ?? panels[0]
+  const effectivelyCollapsed = collapsed || panels.length === 0
 
-  const handleResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
+  useEffect(() => () => {
+    resizeCleanupRef.current?.()
+    resizeCleanupRef.current = null
+  }, [])
+
+  const handlePanelSelect = (panel: ContextDockPanel): void => {
+    onStateChange((current) => selectContextPanel(current, panel))
+  }
+
+  const handleResizeStart = (event: ReactPointerEvent<HTMLDivElement>): void => {
     if (hidden) return
     event.preventDefault()
+    resizeCleanupRef.current?.()
     const startX = event.clientX
     const startWidth = state.width
-    const handleMove = (moveEvent: PointerEvent) => {
+    const previousCursor = document.body.style.cursor
+    const previousUserSelect = document.body.style.userSelect
+    const handleMove = (moveEvent: PointerEvent): void => {
       onStateChange((current) => resizeContextDock(current, startWidth - (moveEvent.clientX - startX)))
     }
-    const handleEnd = () => {
+    const cleanup = (): void => {
       document.removeEventListener('pointermove', handleMove)
       document.removeEventListener('pointerup', handleEnd)
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
+      document.removeEventListener('pointercancel', handleEnd)
+      document.body.style.cursor = previousCursor
+      document.body.style.userSelect = previousUserSelect
+    }
+    const handleEnd = (): void => {
+      cleanup()
+      if (resizeCleanupRef.current === cleanup) resizeCleanupRef.current = null
     }
     document.body.style.cursor = 'col-resize'
     document.body.style.userSelect = 'none'
+    resizeCleanupRef.current = cleanup
     document.addEventListener('pointermove', handleMove)
-    document.addEventListener('pointerup', handleEnd, { once: true })
+    document.addEventListener('pointerup', handleEnd)
+    document.addEventListener('pointercancel', handleEnd)
   }
 
-  const handleResizeKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleResizeKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
     event.preventDefault()
     const delta = event.key === 'ArrowLeft' ? 16 : -16
     onStateChange((current) => resizeContextDock(current, current.width + delta))
   }
 
+  const handleContentKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
+    if (event.key !== 'Escape' || !activePanel) return
+    event.preventDefault()
+    event.stopPropagation()
+    onStateChange((current) => (
+      current.visibility === 'expanded' ? { ...current, visibility: 'collapsed' } : current
+    ))
+    panelButtonRefs.current.get(activePanel.id)?.focus()
+  }
+
+  const visibilityLabel = hidden
+    ? '显示上下文面板'
+    : collapsed
+      ? '展开上下文面板'
+      : '收起上下文面板'
+
   return (
     <aside
-      className={`context-dock context-dock-${state.visibility}`}
+      className={`context-dock context-dock-${state.visibility}${panels.length === 0 ? ' context-dock-empty' : ''}`}
       style={{ '--context-dock-w': `${state.width}px` } as CSSProperties}
-      aria-label="当前文档上下文"
-      aria-hidden={hidden}
+      aria-label={hidden ? '上下文面板已隐藏' : '当前文档上下文'}
     >
-      {!hidden && <div
-        className="context-dock-resizer"
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="调整上下文面板宽度"
-        tabIndex={0}
-        onPointerDown={handleResizeStart}
-        onKeyDown={handleResizeKeyDown}
-      />}
+      {!hidden && !effectivelyCollapsed && (
+        <div
+          className="context-dock-resizer"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="调整上下文面板宽度"
+          aria-valuemin={MIN_CONTEXT_DOCK_WIDTH}
+          aria-valuemax={MAX_CONTEXT_DOCK_WIDTH}
+          aria-valuenow={state.width}
+          tabIndex={0}
+          onPointerDown={handleResizeStart}
+          onKeyDown={handleResizeKeyDown}
+        />
+      )}
+
       <div className="context-dock-rail" role="toolbar" aria-label="文档上下文面板">
-        {PANEL_ORDER.map((panel) => (
-          <button
-            key={panel}
-            type="button"
-            className={`context-dock-btn ${state.panel === panel ? 'active' : ''}`}
-            aria-label={PANEL_LABELS[panel]}
-            aria-pressed={state.panel === panel && !collapsed}
-            title={PANEL_LABELS[panel]}
-            onClick={() => setPanel(panel)}
-          >
-            <ContextIcon panel={panel} />
-          </button>
-        ))}
+        {!hidden && panels.map((panel) => {
+          const active = activePanel?.id === panel.id
+          return (
+            <button
+              key={panel.id}
+              ref={(element) => {
+                if (element) panelButtonRefs.current.set(panel.id, element)
+                else panelButtonRefs.current.delete(panel.id)
+              }}
+              type="button"
+              className={`context-dock-btn ${active ? 'active' : ''}`}
+              aria-label={panel.title}
+              aria-controls={`context-dock-panel-${panel.id}`}
+              aria-pressed={active && !collapsed}
+              title={panel.title}
+              onClick={() => handlePanelSelect(panel.id)}
+            >
+              <ContextIcon panel={panel.id} />
+            </button>
+          )
+        })}
         <span className="context-dock-spacer" />
-        <button
-          type="button"
-          className="context-dock-btn"
-          aria-label={hidden ? '显示上下文面板' : collapsed ? '展开上下文面板' : '收起上下文面板'}
-          title={hidden ? '显示上下文面板' : collapsed ? '展开上下文面板' : '收起上下文面板'}
-          onClick={() => onStateChange((current) => hidden ? restoreContextDock(current) : toggleContextDock(current))}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d={hidden || collapsed ? 'm14 5-7 7 7 7' : 'm10 5 7 7-7 7'} /></svg>
-        </button>
+        {(hidden || panels.length > 0) && (
+          <button
+            type="button"
+            className="context-dock-btn"
+            aria-label={visibilityLabel}
+            title={visibilityLabel}
+            onClick={() => onStateChange((current) => (
+              hidden ? restoreContextDock(current) : toggleContextDock(current)
+            ))}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d={hidden || collapsed ? 'm14 5-7 7 7 7' : 'm10 5 7 7-7 7'} />
+            </svg>
+          </button>
+        )}
         {!hidden && (
           <button
             type="button"
@@ -189,66 +191,13 @@ export function ContextDock({
         )}
       </div>
 
-      {!hidden && !collapsed && (
-        <div className="context-dock-content">
-          <section className="context-dock-section context-dock-outline" aria-label="大纲">
-            <OutlinePanel
-              content={content}
-              docKey={activeFileId}
-              activeOutlineIndex={activeOutlineIndex}
-              onOutlineClick={onOutlineClick}
-            />
-          </section>
-
-          {state.panel !== 'outline' && (
-            <section className="context-dock-section context-dock-dynamic" aria-label={PANEL_LABELS[state.panel]}>
-              {state.panel === 'links' && (
-                <BacklinksPanel
-                  graph={workspaceIndex ? null : linkGraph}
-                  viewModel={sidebarViewModel}
-                  activeFilePath={activeLinkPath}
-                  loading={linksLoading}
-                  truncated={linksTruncated}
-                  onOpenLink={onOpenLink ?? (() => undefined)}
-                  onUnresolvedClick={onUnresolvedLinkClick ?? (() => undefined)}
-                  onOpenGraph={onOpenGraphView ?? (() => undefined)}
-                />
-              )}
-              {state.panel === 'tags' && (
-                <TagsPanel
-                  files={tagsFiles}
-                  loading={tagsLoading}
-                  truncated={tagsTruncated}
-                  activeTag={tagFilter?.tag ?? null}
-                  onToggleTag={onToggleTagFilter ?? (() => undefined)}
-                  onOpenFile={onOpenWorkspaceFile ?? (() => undefined)}
-                />
-              )}
-              {state.panel === 'properties' && (
-                <FrontmatterProperties
-                  properties={properties}
-                  show={showProperties}
-                  onToggle={onToggleProperties}
-                  onUpdateProperty={onUpdateProperty}
-                  onDeleteProperty={onDeleteProperty}
-                  onAddProperty={onAddProperty}
-                />
-              )}
-              {state.panel === 'quality' && (
-                <QualityPanel
-                  diagnostics={diagnostics}
-                  indexComplete={workspaceIndex?.complete ?? false}
-                  indexing={indexLoading}
-                  onRefresh={onRefreshIndex}
-                  onCancel={onCancelIndex}
-                  onOpenDiagnostic={onOpenDiagnostic}
-                  typographyIssues={typographyIssues}
-                  onOpenTypographyIssue={onOpenTypographyIssue}
-                  onFixTypography={onFixTypography}
-                />
-              )}
-            </section>
-          )}
+      {!hidden && !effectivelyCollapsed && activePanel && (
+        <div className="context-dock-content" onKeyDown={handleContentKeyDown}>
+          <ContextDockPanelContent
+            {...contentProps}
+            panel={activePanel}
+            panelContext={panelContext}
+          />
         </div>
       )}
     </aside>

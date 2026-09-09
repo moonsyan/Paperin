@@ -1761,6 +1761,8 @@ export default function App(): JSX.Element {
         <ContextDock
           state={contextDockState}
           onStateChange={setContextDockState}
+          hasWorkspace={workspace !== null}
+          hasActiveDocument={openFiles.length > 0}
           content={activeContent}
           activeFileId={activeFileId}
           activeOutlineIndex={cursorPos.headingIndex}

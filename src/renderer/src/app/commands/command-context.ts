@@ -51,7 +51,9 @@ export function isCommandAvailable(
 ): boolean {
   if (availability.requires === 'app') return true
   if (availability.requires === 'workspace') return context.hasWorkspace
-  return context.hasWorkspace && Boolean(context.activeFileId)
+  // External Markdown files are full document contexts even when no knowledge
+  // base is open. Requiring a workspace here would hide save/editor panels.
+  return Boolean(context.activeFileId)
 }
 
 /** 将注册表中的命令转换为命令面板条目；调用方可叠加旧静态命令保持兼容。 */

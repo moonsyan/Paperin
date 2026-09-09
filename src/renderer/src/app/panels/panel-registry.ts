@@ -1,4 +1,8 @@
+import type { ReactNode } from 'react'
+
+import { isPanelId } from '../../../../shared/panel-id'
 import { isCommandAvailable } from '../commands/command-context'
+
 import type { CommandScope } from '../commands/command-context'
 
 export type PanelSlot =
@@ -21,8 +25,8 @@ export interface PanelDefinition {
   order?: number
   scope?: CommandScope
   enabled?: (context: PanelContext) => boolean
-  /** 容器由 React 负责；注册表只保存窄化的渲染入口。 */
-  render?: (context: PanelContext) => unknown
+  /** 容器由 ContextDock 负责；入口只返回可渲染内容。 */
+  render?: (context: PanelContext) => ReactNode
 }
 
 export interface PanelRegistry {
@@ -41,6 +45,9 @@ export const createPanelRegistry = (): PanelRegistry => {
 
   return {
     register(panel) {
+      if (!isPanelId(panel.id)) {
+        throw new Error(`[panels] 面板 ID 无效：${panel.id}`)
+      }
       const duplicated = panels.has(panel.id)
       panels.set(panel.id, panel)
       if (!sequence.has(panel.id)) sequence.set(panel.id, nextSequence++)
@@ -77,10 +84,10 @@ export const createPanelRegistry = (): PanelRegistry => {
 /** 内置 ContextDock 面板的稳定注册；扩展面板可在应用装配层追加注册。 */
 export const createDefaultPanelRegistry = (): PanelRegistry => {
   const registry = createPanelRegistry()
-  registry.register({ id: 'outline', slot: 'sidebar.secondary', title: '大纲', order: 10 })
-  registry.register({ id: 'links', slot: 'sidebar.secondary', title: '关系', order: 20 })
-  registry.register({ id: 'tags', slot: 'sidebar.secondary', title: '标签', order: 30 })
-  registry.register({ id: 'properties', slot: 'sidebar.secondary', title: '属性', order: 40 })
-  registry.register({ id: 'quality', slot: 'sidebar.secondary', title: '检查', order: 50 })
+  registry.register({ id: 'outline', slot: 'sidebar.secondary', title: '大纲', order: 10, scope: 'document' })
+  registry.register({ id: 'links', slot: 'sidebar.secondary', title: '关系', order: 20, scope: 'workspace' })
+  registry.register({ id: 'tags', slot: 'sidebar.secondary', title: '标签', order: 30, scope: 'workspace' })
+  registry.register({ id: 'properties', slot: 'sidebar.secondary', title: '属性', order: 40, scope: 'document' })
+  registry.register({ id: 'quality', slot: 'sidebar.secondary', title: '检查', order: 50, scope: 'workspace' })
   return registry
 }

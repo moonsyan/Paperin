@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { createPanelRegistry, type PanelContext } from './panel-registry'
+import {
+  createDefaultPanelRegistry,
+  createPanelRegistry,
+  type PanelContext,
+} from './panel-registry'
 
 const context: PanelContext = {
   activeFileId: 'file',
@@ -33,5 +37,29 @@ describe('panel registry', () => {
     expect(() => registry.register({ id: 'outline', slot: 'sidebar.secondary', title: '新大纲' })).toThrow(/outline/)
     expect(registry.get('outline')?.title).toBe('新大纲')
     expect(registry.list('sidebar.secondary', context).map((panel) => panel.id)).toEqual(['outline'])
+  })
+
+  it('rejects panel ids that are unsafe to persist or use in DOM ids', () => {
+    const registry = createPanelRegistry()
+    expect(() => registry.register({
+      id: '../unsafe',
+      slot: 'sidebar.secondary',
+      title: '不安全面板',
+    })).toThrow(/ID 无效/)
+    expect(registry.list('sidebar.secondary', context)).toEqual([])
+  })
+
+  it('scopes default panels to the available document and workspace context', () => {
+    const registry = createDefaultPanelRegistry()
+    expect(
+      registry
+        .list('sidebar.secondary', { activeFileId: 'external', hasWorkspace: false })
+        .map((panel) => panel.id),
+    ).toEqual(['outline', 'properties'])
+    expect(
+      registry
+        .list('sidebar.secondary', { activeFileId: '', hasWorkspace: true })
+        .map((panel) => panel.id),
+    ).toEqual(['links', 'tags', 'quality'])
   })
 })

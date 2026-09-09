@@ -32,11 +32,20 @@ describe('工作区状态校验', () => {
     const invalid = parseWorkspaceLayout({
       schemaVersion: 2,
       sidebar: { width: 290, activeView: 'files', collapsedDirectories: [] },
-      contextDock: { width: 9999, visibility: 'broken', panel: 'unknown' },
+      contextDock: { width: 9999, visibility: 'broken', panel: '../unknown' },
     })
 
     expect(parsed.contextDock).toEqual({ visibility: 'collapsed', panel: 'quality', width: 380 })
     expect(invalid.contextDock).toEqual({ visibility: 'expanded', panel: 'outline', width: 312 })
+  })
+
+  it('保留安全的自定义上下文面板 ID', () => {
+    const parsed = parseWorkspaceLayout({
+      schemaVersion: 2,
+      sidebar: { width: 290, activeView: 'files', collapsedDirectories: [] },
+      contextDock: { width: 312, visibility: 'expanded', panel: 'plugin.details' },
+    })
+    expect(parsed.contextDock?.panel).toBe('plugin.details')
   })
 
   it('拒绝绝对路径和父目录越界路径', () => {

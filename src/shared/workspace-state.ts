@@ -1,3 +1,7 @@
+import { isPanelId } from './panel-id'
+
+import type { PanelId } from './panel-id'
+
 export const WORKSPACE_STATE_SCHEMA_VERSION = 1 as const
 export const WORKSPACE_LAYOUT_SCHEMA_VERSION = 2 as const
 export const MAX_WORKSPACE_TABS = 200
@@ -12,7 +16,7 @@ const THEME_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/i
 
 /** 侧栏视图（文件/大纲/链接/标签）— 布局持久化与 Sidebar 组件共用 */
 export type SidebarView = 'files' | 'outline' | 'links' | 'tags' | 'quality'
-export type ContextDockPanel = Exclude<SidebarView, 'files'> | 'properties'
+export type ContextDockPanel = PanelId
 export type ContextDockVisibility = 'expanded' | 'collapsed' | 'hidden'
 
 export interface ContextDockState {
@@ -189,9 +193,8 @@ export const parseWorkspaceLayout = (value: unknown): WorkspaceLayoutState => {
   }
 
   const dock = isRecord(source.contextDock) ? source.contextDock : null
-  const contextPanel = dock && typeof dock.panel === 'string' &&
-      ['outline', 'links', 'tags', 'properties', 'quality'].includes(dock.panel)
-    ? dock.panel as ContextDockPanel
+  const contextPanel = dock && isPanelId(dock.panel)
+    ? dock.panel
     : legacyActiveView === 'files' ? 'outline' : legacyActiveView
   const contextVisibility = dock && typeof dock.visibility === 'string' &&
       ['expanded', 'collapsed', 'hidden'].includes(dock.visibility)

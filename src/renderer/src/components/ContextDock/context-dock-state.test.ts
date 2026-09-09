@@ -46,7 +46,7 @@ describe('ContextDock state', () => {
   })
 
   it('normalizes invalid persisted values to safe defaults', () => {
-    expect(parseContextDockState({ visibility: 'broken', panel: 'unknown', width: 9999 })).toEqual(
+    expect(parseContextDockState({ visibility: 'broken', panel: '../unknown', width: 9999 })).toEqual(
       DEFAULT_CONTEXT_DOCK_STATE,
     )
     expect(parseContextDockState({ visibility: 'collapsed', panel: 'quality', width: 260 })).toEqual({
@@ -54,6 +54,17 @@ describe('ContextDock state', () => {
       panel: 'quality',
       width: 260,
     })
+  })
+
+  it('preserves safe custom panel ids across selection and persistence', () => {
+    const selected = selectContextPanel(DEFAULT_CONTEXT_DOCK_STATE, 'plugin.details')
+    expect(selected.panel).toBe('plugin.details')
+    expect(parseContextDockState({ ...selected, visibility: 'collapsed' })).toEqual({
+      visibility: 'collapsed',
+      panel: 'plugin.details',
+      width: 312,
+    })
+    expect(selectContextPanel(selected, '../unsafe')).toBe(selected)
   })
 
   it('clamps resized widths to the supported range', () => {

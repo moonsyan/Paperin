@@ -11,14 +11,16 @@
 }
 
 .context-dock-hidden {
-  width: 0;
-  min-width: 0;
-  border-left: 0;
-  opacity: 0;
-  pointer-events: none;
+  width: 44px;
+  min-width: 44px;
 }
 
 .context-dock-collapsed {
+  width: 44px;
+  min-width: 44px;
+}
+
+.context-dock-empty {
   width: 44px;
   min-width: 44px;
 }
@@ -53,12 +55,6 @@
   min-width: 0;
   overflow: auto;
   padding: 12px 10px 18px;
-}
-
-.context-dock-section + .context-dock-section {
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
 }
 
 .context-dock-btn {
@@ -109,7 +105,8 @@
   }
 
   .context-dock-hidden,
-  .context-dock-collapsed {
+  .context-dock-collapsed,
+  .context-dock-empty {
     position: relative;
     box-shadow: none;
   }
