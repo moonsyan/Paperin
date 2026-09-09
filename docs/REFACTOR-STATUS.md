@@ -23,6 +23,7 @@
 - 支持 UTF-8、UTF-8 BOM、UTF-16LE、UTF-16BE、GBK。
 - 已覆盖文档创建、dirty 计算、保存基线、mtime、路径迁移、中文路径和外部文件测试。
 - 已修复异步保存竞态：保存完成时保留保存开始后产生的新编辑，不用旧快照覆盖正文。
+- `useDocumentState` 已改用单一 `DocumentRecord` store；`contents`、`savedMap`、mtime 和 encoding 仅作为兼容投影，不再分别持有 React 状态。
 - 已补充 `docs/domain-model.md` 和 `docs/session-refactor.md`。
 
 ### 文档会话与编辑器边界
@@ -50,7 +51,7 @@
 ### 当前验证结果
 
 - `npm run typecheck`：通过。
-- `npm test`：通过，101 个测试文件、890 个测试。
+- `npm test`：通过，102 个测试文件、893 个测试。
 - `npm run build`：通过，Main、Preload、Renderer 均成功构建。
 - `npm run smoke`：通过；覆盖真实 Renderer → Preload → Main IPC → 磁盘链路，包含中文路径、保存冲突、重读、重命名、搜索和工作区状态读取。
 - 新增壳层、命令、面板和会话相关聚焦测试均通过。
@@ -59,7 +60,6 @@
 
 ### 高优先级
 
-- `DocumentSessionController` 尚未完全替换 `useDocumentSession` 内部的 `contents`、`savedMap`、`fileMtime`、`encodingMap` 等并行字典；目前仍是兼容性窄边界，需要继续整合真实 React 会话流程。
 - 新的 `WorkspaceShell` 已包裹现有页面，但顶栏、Sidebar、TabBar 和 ContextDock 仍保留旧布局组织方式，尚未完成完整 quiet-workspace UI 迁移。
 - `PanelRegistry` 已建立扩展协议，但现有 Sidebar/ContextDock 面板尚未全部由注册表驱动。
 - 系统关联打开、外部临时文件、多窗口重复路径和关闭外部文件规则仍需 Electron smoke/Playwright 固化。

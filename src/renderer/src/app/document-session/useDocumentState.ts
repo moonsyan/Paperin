@@ -1,9 +1,18 @@
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type { OpenFile } from '../../components/Sidebar'
 import { DEMO_FILES, DEFAULT_FILE_ID } from '../../data/demo-files'
 import { INITIAL_CONTENTS, INITIAL_FILES, INITIAL_SAVED } from '../constants'
-import type { DocumentEncoding, DocumentRecord } from './document-record'
+import {
+  applyContentMap,
+  applyEncodingMap,
+  applyModifiedTimeMap,
+  applySavedMap,
+  createDocumentRecordStore,
+  projectDocumentMaps,
+  selectOpenDocumentRecords,
+} from './document-record-store'
+import type { DocumentRecord } from './document-record'
 
 export interface ActiveDocumentState {
   activeFile: OpenFile | undefined
@@ -12,7 +21,7 @@ export interface ActiveDocumentState {
 }
 
 export interface DocumentState extends ActiveDocumentState {
-  /** 统一文档记录视图（id → DocumentRecord），由五字典派生 */
+  /** 当前打开文档的统一记录视图（id → DocumentRecord） */
   documents: Record<string, DocumentRecord>
   /** 当前活动文档的记录；无活动标签时为 undefined */
   activeDocument: DocumentRecord | undefined
@@ -55,13 +64,7 @@ export const getActiveDocumentState = (
   }
 }
 
-/**
- * DocumentRecord 镜像视图（Task 7 阶段 A）：由现有五字典 + 基线 ref 派生，
- * 作为统一文档记录的只读消费入口。字段口径：
- * - content 镜像 contents；savedContent 取 INITIAL_OR_SAVED（磁盘确认基线）；
- * - dirty 沿用 savedMap 权威口径（外部冲突等流程会显式维护），不做二次比较；
- * - draftState 统一 none：草稿恢复信号由恢复任务接入后再标注。
- */
+/** 兼容旧调用的纯构造器；真实 hook 已以 DocumentRecord store 为状态源。 */
 export const buildDocumentRecords = (
   openFiles: OpenFile[],
   contents: Record<string, string>,
@@ -70,63 +73,90 @@ export const buildDocumentRecords = (
   encodingMap: Record<string, string>,
   savedBaseline?: Record<string, string>,
 ): Record<string, DocumentRecord> => {
-  const records: Record<string, DocumentRecord> = {}
-  for (const file of openFiles) {
-    const encoding = encodingMap[file.id]
-    const baseline = savedBaseline?.[file.id] ?? ''
-    records[file.id] = {
-      id: file.id,
-      path: file.path,
-      name: file.name,
-      content: contents[file.id] ?? '',
-      savedContent: baseline,
-      modifiedTime: fileMtime[file.id],
-      encoding: (encoding as DocumentEncoding | undefined) ?? 'UTF-8',
-      dirty: savedMap[file.id] === false,
-      pinned: file.pinned === true,
-      preview: file.preview === true,
-      draftState: 'none',
-    }
-  }
-  return records
+  const baselines = savedBaseline ?? {}
+  return selectOpenDocumentRecords(
+    createDocumentRecordStore(
+      contents,
+      savedMap,
+      fileMtime,
+      encodingMap,
+      openFiles,
+      baselines,
+    ),
+    openFiles,
+    baselines,
+  )
 }
+
+const resolveStateAction = <T,>(action: SetStateAction<T>, previous: T): T =>
+  typeof action === 'function' ? (action as (value: T) => T)(previous) : action
 
 export const useDocumentState = (): DocumentState => {
   const [openFiles, setOpenFiles] = useState<OpenFile[]>(INITIAL_FILES)
-  const [contents, setContents] = useState<Record<string, string>>(INITIAL_CONTENTS)
-  const [savedMap, setSavedMap] = useState<Record<string, boolean>>(INITIAL_SAVED)
-  const [activeFileId, setActiveFileId] = useState(DEFAULT_FILE_ID)
-  const [docTitle, setDocTitle] = useState(DEMO_FILES[DEFAULT_FILE_ID].name)
-  const [fileMtime, setFileMtime] = useState<Record<string, number>>({})
-  const [encodingMap, setEncodingMap] = useState<Record<string, string>>({})
-
-  const activeFileIdRef = useRef(activeFileId)
-  const contentsRef = useRef(contents)
-  contentsRef.current = contents
   const openFilesRef = useRef(openFiles)
   openFilesRef.current = openFiles
+  const initialOrSavedRef = useRef<Record<string, string>>({ ...INITIAL_CONTENTS })
+  const [documentStore, setDocumentStore] = useState<Record<string, DocumentRecord>>(() =>
+    createDocumentRecordStore(
+      INITIAL_CONTENTS,
+      INITIAL_SAVED,
+      {},
+      {},
+      INITIAL_FILES,
+      initialOrSavedRef.current,
+    ),
+  )
+  const [activeFileId, setActiveFileId] = useState(DEFAULT_FILE_ID)
+  const [docTitle, setDocTitle] = useState(DEMO_FILES[DEFAULT_FILE_ID].name)
+
+  const { contents, savedMap, fileMtime, encodingMap } = useMemo(
+    () => projectDocumentMaps(documentStore),
+    [documentStore],
+  )
+
+  const activeFileIdRef = useRef(activeFileId)
+  activeFileIdRef.current = activeFileId
+  const contentsRef = useRef(contents)
+  contentsRef.current = contents
   const fileMtimeRef = useRef(fileMtime)
   fileMtimeRef.current = fileMtime
   const encodingMapRef = useRef(encodingMap)
   encodingMapRef.current = encodingMap
-  const initialOrSavedRef = useRef<Record<string, string>>({ ...INITIAL_CONTENTS })
+
+  const setContents: Dispatch<SetStateAction<Record<string, string>>> = useCallback((action) => {
+    setDocumentStore((previous) => {
+      const next = resolveStateAction(action, projectDocumentMaps(previous).contents)
+      return applyContentMap(previous, next, openFilesRef.current, initialOrSavedRef.current)
+    })
+  }, [])
+  const setSavedMap: Dispatch<SetStateAction<Record<string, boolean>>> = useCallback((action) => {
+    setDocumentStore((previous) => {
+      const next = resolveStateAction(action, projectDocumentMaps(previous).savedMap)
+      return applySavedMap(previous, next, openFilesRef.current, initialOrSavedRef.current)
+    })
+  }, [])
+  const setFileMtime: Dispatch<SetStateAction<Record<string, number>>> = useCallback((action) => {
+    setDocumentStore((previous) => {
+      const next = resolveStateAction(action, projectDocumentMaps(previous).fileMtime)
+      return applyModifiedTimeMap(previous, next, openFilesRef.current, initialOrSavedRef.current)
+    })
+  }, [])
+  const setEncodingMap: Dispatch<SetStateAction<Record<string, string>>> = useCallback((action) => {
+    setDocumentStore((previous) => {
+      const next = resolveStateAction(action, projectDocumentMaps(previous).encodingMap)
+      return applyEncodingMap(previous, next, openFilesRef.current, initialOrSavedRef.current)
+    })
+  }, [])
+
   const activeDocument = getActiveDocumentState(openFiles, contents, savedMap, activeFileId)
   const documents = useMemo(
-    () =>
-      buildDocumentRecords(
-        openFiles,
-        contents,
-        savedMap,
-        fileMtime,
-        encodingMap,
-        initialOrSavedRef.current,
-      ),
-    [openFiles, contents, savedMap, fileMtime, encodingMap],
+    () => selectOpenDocumentRecords(documentStore, openFiles, initialOrSavedRef.current),
+    [documentStore, openFiles],
   )
 
   return {
     ...activeDocument,
-    /** 统一文档记录视图（Task 4 DocumentRecord）；与五字典同步派生 */
+    /** contents/savedMap/mtime/encoding 均由同一 store 投影，不再独立持有。 */
     documents,
     activeDocument: documents[activeFileId],
     openFiles,
