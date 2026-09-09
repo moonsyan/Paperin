@@ -1,12 +1,16 @@
 import type { CmdKey } from '@milkdown/kit/core'
 import type { ReactNode } from 'react'
+import type { EditorAdapter } from './editor-adapter'
 import type { WikiSuggestion } from './WikiAutocomplete'
 import type { EditorImageHints } from './useImageInsertion'
 
-export interface EditorHandle {
+/**
+ * App-facing editor facade. The shared document lifecycle consumes the narrow
+ * EditorAdapter surface; view/export features use the additional methods below.
+ */
+export interface EditorHandle extends EditorAdapter {
   replaceContent: (markdown: string, onComplete?: () => void) => void
   updateContentPreservingHistory: (markdown: string) => void
-  getMarkdown: () => string | null
   getViewState: () => {
     selection: { anchor: number; head: number }
     scrollTop: number
@@ -16,11 +20,10 @@ export interface EditorHandle {
     scrollTop: number
   }) => void
   insertMd: (markdown: string) => void
-  runCommand: <T>(key: CmdKey<T>, payload?: T) => boolean
+  runMilkdownCommand: <T>(key: CmdKey<T>, payload?: T) => boolean
   getHtml: () => string
   getHeadings: () => { level: number; text: string }[]
   getPreviewHtml: () => string
-  focus: () => void
   focusEnd: () => void
   focusLine: (line: number) => void
   isReady: () => boolean

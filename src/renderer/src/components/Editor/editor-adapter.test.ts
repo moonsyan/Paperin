@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createEditorAdapter } from './editor-adapter'
+import { createEditorAdapter, createEditorSubscription } from './editor-adapter'
 
 describe('EditorAdapter', () => {
   it('keeps editor operations behind a narrow interface', () => {
@@ -25,5 +25,27 @@ describe('EditorAdapter', () => {
     expect(unsubscribe()).toBe(true)
     adapter.notify('后续')
     expect(listener).toHaveBeenCalledOnce()
+  })
+
+  it('clears component subscriptions when the editor unmounts', () => {
+    const subscription = createEditorSubscription()
+    const adapter = createEditorAdapter(
+      () => '',
+      () => undefined,
+      () => undefined,
+      () => false,
+      subscription,
+    )
+    const first = vi.fn()
+    const second = vi.fn()
+    adapter.subscribe(first)
+    adapter.subscribe(second)
+
+    subscription.notify('第一次')
+    subscription.clear()
+    subscription.notify('卸载后')
+
+    expect(first).toHaveBeenCalledTimes(1)
+    expect(second).toHaveBeenCalledTimes(1)
   })
 })

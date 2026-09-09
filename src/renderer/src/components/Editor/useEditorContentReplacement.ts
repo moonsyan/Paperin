@@ -14,11 +14,19 @@ import {
   parserCtx,
   prosePluginsCtx,
   schemaCtx,
+  type CmdKey,
 } from '@milkdown/kit/core'
 import { Slice, type Node as ProseNode } from '@milkdown/kit/prose/model'
 import { EditorState, TextSelection } from '@milkdown/kit/prose/state'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { callCommand, getHTML, getMarkdown, insert } from '@milkdown/kit/utils'
+import {
+  createCodeBlockCommand,
+  toggleEmphasisCommand,
+  toggleStrongCommand,
+} from '@milkdown/kit/preset/commonmark'
+import { toggleStrikethroughCommand } from '@milkdown/kit/preset/gfm'
+import { redoCommand, undoCommand } from '@milkdown/kit/plugin/history'
 import { createSearchController } from './searchController'
 import {
   refreshViewportRange,
@@ -34,6 +42,8 @@ import {
 import { sectionFoldKey } from './plugins/sectionFold'
 import { convertWikiTextInDoc } from './plugins/wikiLink'
 import { ensureFootnoteDefinitions } from '../../lib/footnote-normalize'
+import { createEditorAdapter } from './editor-adapter'
+import type { EditorCommand, EditorSubscription } from './editor-adapter'
 import type { EditorHandle, EditorProps } from './editor-types'
 
 interface UseEditorContentReplacementOptions {
@@ -46,6 +56,7 @@ interface UseEditorContentReplacementOptions {
   streamGenerationRef: MutableRefObject<number>
   notifyRef: MutableRefObject<EditorProps['onNotify']>
   resetOverlays: () => void
+  subscription: EditorSubscription
 }
 
 interface UseEditorContentReplacementResult {
@@ -134,6 +145,7 @@ export const useEditorContentReplacement = ({
   streamGenerationRef,
   notifyRef,
   resetOverlays,
+  subscription,
 }: UseEditorContentReplacementOptions): UseEditorContentReplacementResult => {
   /** IME 组合期间多次替换只保留最后一次，组合结束后再执行。 */
   const pendingReplaceRef = useRef<(() => void) | null>(null)
@@ -484,10 +496,41 @@ export const useEditorContentReplacement = ({
       return editor ? editor.ctx.get(editorViewCtx) : null
     })
 
+    const replaceContent = (markdown: string, onComplete?: () => void): void => {
+      replaceWhenNotComposing(() => applyReplaceContent(markdown, true, undefined, onComplete))
+    }
+    const readMarkdown = (): string | null => {
+      const editor = getReadyEditor()
+      return editor ? editor.action(getMarkdown()) : null
+    }
+    const focusEditor = (): void => {
+      containerRef.current?.querySelector<HTMLElement>('.milkdown .editor')?.focus()
+    }
+    const runMilkdownCommand = <T,>(key: CmdKey<T>, payload?: T): boolean => {
+      const editor = getReadyEditor()
+      if (!editor) return false
+      return editor.action(callCommand(key, payload))
+    }
+    const runAdapterCommand = (command: EditorCommand): boolean => {
+      switch (command) {
+        case 'undo': return runMilkdownCommand(undoCommand.key)
+        case 'redo': return runMilkdownCommand(redoCommand.key)
+        case 'bold': return runMilkdownCommand(toggleStrongCommand.key)
+        case 'italic': return runMilkdownCommand(toggleEmphasisCommand.key)
+        case 'strike': return runMilkdownCommand(toggleStrikethroughCommand.key)
+        case 'code': return runMilkdownCommand(createCodeBlockCommand.key)
+      }
+    }
+
     return {
-      replaceContent: (markdown, onComplete) => {
-        replaceWhenNotComposing(() => applyReplaceContent(markdown, true, undefined, onComplete))
-      },
+      ...createEditorAdapter(
+        readMarkdown,
+        replaceContent,
+        focusEditor,
+        runAdapterCommand,
+        subscription,
+      ),
+      replaceContent,
       updateContentPreservingHistory: (markdown) => {
         replaceWhenNotComposing(() => {
           const editor = getReadyEditor()
@@ -500,10 +543,6 @@ export const useEditorContentReplacement = ({
           // 各在合适时机恢复，避免流式过程中提前恢复导致跳动。
           applyReplaceContent(markdown, false, previousSelection, undefined, previousScroll)
         })
-      },
-      getMarkdown: () => {
-        const editor = getReadyEditor()
-        return editor ? editor.action(getMarkdown()) : null
       },
       consumeDirtyChange: () => {
         const changed = dirtyRef.current
@@ -547,11 +586,7 @@ export const useEditorContentReplacement = ({
       insertMd: (markdown) => {
         getReadyEditor()?.action(insert(markdown))
       },
-      runCommand: (key, payload) => {
-        const editor = getReadyEditor()
-        if (!editor) return false
-        return editor.action(callCommand(key, payload))
-      },
+      runMilkdownCommand,
       getHtml: () => getReadyEditor()?.action(getHTML()) ?? '',
       getHeadings: () => {
         const editor = getReadyEditor()
@@ -606,9 +641,6 @@ export const useEditorContentReplacement = ({
           if (removeSource) element.remove()
         })
         return clone.innerHTML
-      },
-      focus: () => {
-        containerRef.current?.querySelector<HTMLElement>('.milkdown .editor')?.focus()
       },
       focusEnd: () => {
         const editor = getReadyEditor()

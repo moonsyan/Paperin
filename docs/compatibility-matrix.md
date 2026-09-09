@@ -7,6 +7,7 @@
 | 外部修改冲突 | expected mtime 保存协议 | document save tests | 保留 | 外部编辑器冒烟 |
 | UTF-8/GBK/编码损失 | `file-io.ts` + iconv-lite | file-io tests | 保留 | 中文路径与不可映射字符 |
 | 多标签、dirty、关闭确认 | document-session + TabBar | TabBar、document-session、close-save | 保留 | 多窗口冒烟 |
+| 编辑器适配层 | Milkdown `EditorHandle` | adapter、快捷键与应用动作测试 | 已迁移 | 输入法与焦点人工验证 |
 | 草稿恢复与会话持久化 | settings store + draft hooks | draft/session tests | 保留 | 重启恢复 |
 | 工作区文件树、最近文件、收藏 | workspace hooks/components | workspace tests | 保留 | 5000 文件性能 |
 | 工作区壳层、当前文件来源与 dirty 上下文 | `WorkspaceShell` + `CurrentFileBanner` | 组件 Testing Library 契约测试 | 已迁移 | 多窗口、窄窗口与外部文件冒烟 |

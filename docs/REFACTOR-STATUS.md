@@ -28,7 +28,8 @@
 ### 文档会话与编辑器边界
 
 - 新增 `document-session-controller.ts`，为会话更新、保存确认和路径迁移提供窄化控制器测试边界。
-- 新增 `EditorAdapter` 类型和测试，约束编辑器通过 focus、Markdown 读写、命令和订阅进行交互。
+- 真实 Milkdown 组件已实现 `EditorAdapter`：通过稳定语义命令、Markdown 读写、聚焦和订阅提供窄化入口；卸载时会清理全部订阅。
+- Milkdown 专属命令键只保留在扩展 `EditorHandle` 内，应用通用命令不再直接依赖 Milkdown 命令对象。
 - 现有 Milkdown/ProseMirror 仍然是正文真实状态源。
 
 ### 工作区壳层
@@ -49,7 +50,7 @@
 ### 当前验证结果
 
 - `npm run typecheck`：通过。
-- `npm test`：通过，101 个测试文件、889 个测试。
+- `npm test`：通过，101 个测试文件、890 个测试。
 - `npm run build`：通过，Main、Preload、Renderer 均成功构建。
 - `npm run smoke`：通过；覆盖真实 Renderer → Preload → Main IPC → 磁盘链路，包含中文路径、保存冲突、重读、重命名、搜索和工作区状态读取。
 - 新增壳层、命令、面板和会话相关聚焦测试均通过。
@@ -59,7 +60,6 @@
 ### 高优先级
 
 - `DocumentSessionController` 尚未完全替换 `useDocumentSession` 内部的 `contents`、`savedMap`、`fileMtime`、`encodingMap` 等并行字典；目前仍是兼容性窄边界，需要继续整合真实 React 会话流程。
-- `EditorAdapter` 目前是接口和纯测试适配器，尚未由 Milkdown 组件正式实现并作为 App 的唯一编辑器入口。
 - 新的 `WorkspaceShell` 已包裹现有页面，但顶栏、Sidebar、TabBar 和 ContextDock 仍保留旧布局组织方式，尚未完成完整 quiet-workspace UI 迁移。
 - `PanelRegistry` 已建立扩展协议，但现有 Sidebar/ContextDock 面板尚未全部由注册表驱动。
 - 系统关联打开、外部临时文件、多窗口重复路径和关闭外部文件规则仍需 Electron smoke/Playwright 固化。

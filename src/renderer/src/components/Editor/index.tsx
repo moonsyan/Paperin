@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useRef, useState } from 'react'
 import { Editor as MilkdownCore, EditorStatus, editorViewCtx } from '@milkdown/kit/core'
 import { insert } from '@milkdown/kit/utils'
 import { Milkdown, MilkdownProvider } from '@milkdown/react'
+import { createEditorSubscription } from './editor-adapter'
 import { EditorOverlays } from './EditorOverlays'
 import { lineNumKey, setLineNumbersEnabled } from './plugins/codeLineNumbers'
 import { subscribeMermaidRender } from './plugins/mermaidCodeBlock'
@@ -46,8 +47,16 @@ const MilkdownInner = forwardRef<EditorHandle, EditorProps>(
     const contentRef = useRef<HTMLDivElement>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
     const initialRef = useRef(initialContent)
-    const changeRef = useRef(onChange)
-    changeRef.current = onChange
+    const onChangeRef = useRef(onChange)
+    onChangeRef.current = onChange
+    const subscriptionRef = useRef<ReturnType<typeof createEditorSubscription> | null>(null)
+    if (!subscriptionRef.current) subscriptionRef.current = createEditorSubscription()
+    const changeRef = useRef<(markdown: string) => void>(() => undefined)
+    changeRef.current = (markdown) => {
+      onChangeRef.current(markdown)
+      subscriptionRef.current?.notify(markdown)
+    }
+    useEffect(() => () => subscriptionRef.current?.clear(), [])
     // 3.4：文档自上次落账以来是否发生过变更（由 docChanged 同步置位）。
     // 供 App 在切文件时判断是否需要全量序列化，避免对大文档无条件 getMarkdown()。
     const dirtyRef = useRef(false)
@@ -161,6 +170,7 @@ const MilkdownInner = forwardRef<EditorHandle, EditorProps>(
       streamGenerationRef,
       notifyRef,
       resetOverlays,
+      subscription: subscriptionRef.current,
     })
 
     return (
