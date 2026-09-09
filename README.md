@@ -17,9 +17,11 @@ MarkdownSoft 的下一代本地优先 Markdown 工作台。项目基于 Electron
 ```bash
 npm install
 npm run dev
+npm run lint
 npm run typecheck
 npm run test
 npm run build
+npm run smoke
 ```
 
 旧项目能力与新项目迁移状态见 [`docs/compatibility-matrix.md`](./docs/compatibility-matrix.md)。

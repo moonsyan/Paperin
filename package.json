@@ -8,8 +8,8 @@
   "scripts": {
     "dev": "electron-vite dev",
     "typecheck": "tsc -p tsconfig.web.json --noEmit && tsc -p tsconfig.node.json --noEmit",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "eslint \"src/**/*.{ts,tsx}\" \"scripts/**/*.{js,mjs}\" \"*.{ts,mjs}\"",
+    "lint:fix": "npm run lint -- --fix",
     "build": "npm run typecheck && electron-vite build",
     "test": "vitest run --maxWorkers=1 --minWorkers=1",
     "test:ci": "vitest run --maxWorkers=1 --minWorkers=1",

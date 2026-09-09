@@ -50,6 +50,7 @@
 
 ### 当前验证结果
 
+- `npm run lint`：通过；ESLint 9 flat config 覆盖 Main、Preload、Shared、Renderer、脚本和根 TypeScript 配置。
 - `npm run typecheck`：通过。
 - `npm test`：通过，102 个测试文件、893 个测试。
 - `npm run build`：通过，Main、Preload、Renderer 均成功构建。
