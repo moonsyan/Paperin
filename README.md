@@ -10,6 +10,7 @@ MarkdownSoft 的下一代本地优先 Markdown 工作台。项目基于 Electron
 - 文件仍然是用户真实持有的 Markdown 文件，应用状态与正文文件分离保存。
 
 技术评估见 [`docs/TECH-STACK.md`](./docs/TECH-STACK.md)，重构阶段划分见 [`docs/REFACTOR-ROADMAP.md`](./docs/REFACTOR-ROADMAP.md)。
+当前实际完成度见 [`docs/REFACTOR-STATUS.md`](./docs/REFACTOR-STATUS.md)。
 
 ## 开发
 
