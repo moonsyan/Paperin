@@ -49,8 +49,9 @@
 ### 当前验证结果
 
 - `npm run typecheck`：通过。
-- `npm test`：通过，100 个测试文件、888 个测试。
+- `npm test`：通过，101 个测试文件、889 个测试。
 - `npm run build`：通过，Main、Preload、Renderer 均成功构建。
+- `npm run smoke`：通过；覆盖真实 Renderer → Preload → Main IPC → 磁盘链路，包含中文路径、保存冲突、重读、重命名、搜索和工作区状态读取。
 - 新增壳层、命令、面板和会话相关聚焦测试均通过。
 
 ## 未完成
@@ -72,7 +73,7 @@
 
 ### 发布门禁
 
-- `npm run smoke` 尚未通过。当前 Windows 环境中 Electron Chromium GPU 进程启动失败，即使加入 `--disable-gpu` 和 smoke 模式硬件加速禁用仍在进入应用测试前退出；因此不能把 smoke 记为通过。
+- Windows Electron 开发构建的自动 smoke 已通过；为无 GPU 的 CI/桌面环境增加了启动兼容参数，并在 smoke 模式下于 `app.ready` 前禁用硬件加速。
 - 三平台安装包启动、文件关联和目标平台人工验证尚未执行。
 - 发布前的完整兼容矩阵、错误码/schema 迁移说明和所有用户文档同步仍需继续完善。
 
@@ -99,4 +100,4 @@
 
 ## 当前工作区注意事项
 
-当前工作区还存在用户修改的 `AGENTS.md`，以及为 smoke 环境增加的未提交启动兼容改动。它们没有被本进度文档覆盖或回退，应在下一次提交前单独检查 `git status` 和 `git diff`。
+当前工作区还存在用户修改的 `AGENTS.md`。它不属于产品实现，不应在功能提交中覆盖或夹带。

@@ -50,7 +50,9 @@ const main = async () => {
     'utf-8',
   )
 
-  const child = spawn(electronBinary, [mainEntry, '--smoke', workspace], {
+  // CI/无桌面环境可能无法启动 Chromium GPU 进程；冒烟验证的是 IPC 与磁盘链路，
+  // 因此显式禁用 GPU，避免渲染器在进入测试场景前被运行环境终止。
+  const child = spawn(electronBinary, ['--disable-gpu', mainEntry, '--smoke', workspace], {
     cwd: projectRoot,
     stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, ELECTRON_ENABLE_LOGGING: '0' },

@@ -2,7 +2,7 @@
 
 | 能力 | 旧实现 | 现有测试/依据 | 第一批状态 | 后续验证 |
 |---|---|---|---|---|
-| 打开文件/目录/系统关联 | `src/main/ipc/file-handlers.ts`, `workspace-handlers.ts` | IPC 与窗口测试 | 保留 | Electron 冒烟 |
+| 打开文件/目录/系统关联 | `src/main/ipc/file-handlers.ts`, `workspace-handlers.ts` | IPC、窗口测试与 Electron smoke | 增量固化 | 文件关联与多窗口安装包验证 |
 | 保存、另存为、重命名、移动、回收站删除 | Main IPC + save queue | file-io、save-lock、close-save | 保留 | 冲突/权限手工验证 |
 | 外部修改冲突 | expected mtime 保存协议 | document save tests | 保留 | 外部编辑器冒烟 |
 | UTF-8/GBK/编码损失 | `file-io.ts` + iconv-lite | file-io tests | 保留 | 中文路径与不可映射字符 |

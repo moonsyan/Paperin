@@ -12,6 +12,9 @@ import { applySmokeUserData, parseSmokeWorkspace, runElectronSmoke } from './tes
 // 必须在下方任何 userData 读取之前切换到一次性临时目录
 const smokeWorkspace = parseSmokeWorkspace()
 if (smokeWorkspace) applySmokeUserData()
+// Electron smoke runs in headless/CI environments where Chromium's GPU DLL
+// may be unavailable; disable hardware acceleration before app readiness.
+if (smokeWorkspace) app.disableHardwareAcceleration()
 
 /* ==================== 主进程兜底日志 ==================== */
 
