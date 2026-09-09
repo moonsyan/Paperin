@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "scenario": {
+    "documents": 5000,
+    "bytesPerDoc": 2048
+  },
+  "baseline": {
+    "generatedAt": "2026-09-09T16:51:26.508Z",
+    "documents": 5000,
+    "bytesPerDoc": 2048,
+    "treeMs": 11.55,
+    "indexMs": 474.95,
+    "searchMs": 345.38,
+    "peakRssMb": 142.5,
+    "nodeVersion": "v24.19.0"
+  },
+  "targets": {
+    "treeMs": 200,
+    "indexMs": 2000,
+    "searchMs": 1500
+  },
+  "supplementalBaselines": {
+    "largeMarkdownFile": {
+      "generatedAt": "2026-09-09T16:51:26.793Z",
+      "documents": 1,
+      "bytesPerDoc": 5242880,
+      "treeMs": 1.12,
+      "indexMs": 36,
+      "searchMs": 23.29,
+      "peakRssMb": 56.9,
+      "nodeVersion": "v24.19.0"
+    }
+  }
+}

@@ -74,12 +74,19 @@ const main = async () => {
   child.on('close', async (code) => {
     clearTimeout(timeout)
     const normalized = normalize(output)
-    const pass = code === 0 && normalized.includes('SMOKE_PASS')
+    const unexpectedWarning = [
+      'Unsupported language detected',
+      'violates the following Content Security Policy',
+    ].find((message) => normalized.includes(message))
+    const pass = code === 0 && normalized.includes('SMOKE_PASS') && !unexpectedWarning
     console.error(output.trimEnd())
     await rm(smokeRoot, { recursive: true, force: true }).catch(() => undefined)
     if (pass) {
       console.log('Electron 冒烟通过')
       process.exit(0)
+    }
+    if (unexpectedWarning) {
+      console.error(`Electron 冒烟捕获未处理的渲染器告警：${unexpectedWarning}`)
     }
     console.error(`Electron 冒烟失败（exit=${code}）`)
     process.exit(1)

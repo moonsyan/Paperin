@@ -13,8 +13,10 @@
           Security Policy directive: default-src 'self'"。这里显式放行
           img-src 'self' data: blob:；与 Mermaid securityLevel='strict' 配合
           后，外链 fetch 仅允许 data/blob 自包含资源，仍由 mermaid 自身做白名单。
+    Y-M3：Vite 会把体积小于 assetInlineLimit 的 KaTeX 字体编译成 data:font；
+          只在 font-src 内放行 data:，不扩大脚本、连接或图片的权限。
   -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: mdimg:">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: mdimg:">
   <title>MarkdownSoft</title>
 </head>
 <body>

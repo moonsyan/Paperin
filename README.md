@@ -22,6 +22,8 @@ npm run typecheck
 npm run test
 npm run build
 npm run smoke
+npm run perf:regression
 ```
 
 旧项目能力与新项目迁移状态见 [`docs/compatibility-matrix.md`](./docs/compatibility-matrix.md)。
+合成性能场景、实测基线和脚本阈值说明见 [`docs/development/performance-baseline.md`](./docs/development/performance-baseline.md)。

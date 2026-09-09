@@ -13,13 +13,14 @@
 | 工作区壳层、当前文件来源与 dirty 上下文 | `WorkspaceShell` + `CurrentFileBanner` | 组件 Testing Library 契约测试 | 已迁移 | 多窗口、窄窗口与外部文件冒烟 |
 | 全文搜索与当前文档查找替换 | search IPC + renderer search | search/keyboard tests | 保留 | 搜索结果定位 |
 | 标签、Wiki 链接、反向链接、图谱 | shared indexes + panels | tag/link/graph tests | 保留 | 工作区往返 |
-| GFM、任务列表、表格、代码、公式、Mermaid、脚注、frontmatter | Milkdown plugins | editor plugin tests | 保留 | 中文与异常输入 |
+| GFM、任务列表、表格、代码、公式、Mermaid、脚注、frontmatter | Milkdown plugins | editor plugin tests | 保留 | Mermaid 由预览插件渲染，Prism 按纯文本处理其源码；覆盖中文与异常输入 |
+| Renderer CSP | `src/renderer/index.html` | Electron smoke | 保留 | `data:` 仅在 `font-src`/`img-src` 按已知内嵌资源放行；脚本与连接仍只允许显式来源 |
 | 图片、附件、图片协议 | attachment IPC + `mdimg://` | attachment/protocol tests | 保留 | 外部文件附件 |
 | HTML/PDF/DOCX/EPUB/LaTeX/发布 | export IPC/components | export tests | 保留 | 各平台打印 |
 | 七套主题、字体、Typewriter、快捷键 | renderer settings/styles | theme/menu/shortcut tests | 保留 | 小窗口与对比度 |
 | 质量检查与写作统计 | renderer panels/libs | diagnostics/stats tests | 保留 | 大工作区性能 |
 | 安全边界 | preload narrow bridge、trusted paths | trusted-paths、IPC guard tests | 保留 | 打包启动验证 |
-| 命令中心与面板插槽 | `app-command-registry`、MenuBar、CommandPalette、ContextDock | command registry tests、panel registry tests | 增量接入 | 命令可用性、快捷键冲突、面板焦点恢复 |
+| 命令中心与面板插槽 | `app-command-registry`、MenuBar、CommandPalette、ContextDock | command registry、panel registry、ContextDock Testing Library tests | ContextDock 已由注册表驱动 | Sidebar/StatusBar 插槽、快捷键冲突与跨窗口焦点 |
 
 ## 基线命令
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// 大工作区性能回归：复用 perf-baseline.mjs 的测量口径，对"1000 文档工作区"
-// 的首屏树 / 结构索引 / 简单搜索耗时做阈值断言。
+// 大工作区性能回归：复用 perf-baseline.mjs 的测量口径，对阈值文件声明的
+// 工作区场景执行首屏树 / 结构索引 / 简单搜索耗时断言。
 //
 // 用法：
-//   node scripts/perf-regression.mjs --documents 1000 --size 1048576
+//   node scripts/perf-regression.mjs
+//   node scripts/perf-regression.mjs --documents 5000 --size 2048
 //   node scripts/perf-regression.mjs --update-baseline   # 采集并把实际值写入基线文件
 //
 // 任一指标超过 docs/development/performance-baseline.json 的 targets 时
@@ -22,12 +23,20 @@ const readArg = (name) => {
   const i = args.indexOf(`--${name}`)
   return i !== -1 && args[i + 1] ? args[i + 1] : undefined
 }
-const DOCUMENTS = Number(readArg('documents') ?? 1000)
-const SIZE = Number(readArg('size') ?? readArg('bytes-per-doc') ?? 1048576)
+const DOCUMENTS_ARG = readArg('documents')
+const SIZE_ARG = readArg('size') ?? readArg('bytes-per-doc')
 const THRESHOLD_FILE = readArg('thresholds') ?? DEFAULT_THRESHOLD_FILE
 const UPDATE_BASELINE = args.includes('--update-baseline')
 
 const METRIC_KEYS = ['treeMs', 'indexMs', 'searchMs']
+
+const readPositiveInteger = (value, label) => {
+  const parsed = Number(value)
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error(`${label} 必须是正整数，当前值：${String(value)}`)
+  }
+  return parsed
+}
 
 const main = async () => {
   let thresholdDoc
@@ -46,10 +55,23 @@ const main = async () => {
     }
   }
 
-  const metrics = await measureWorkspacePerformance({ documents: DOCUMENTS, bytesPerDoc: SIZE })
+  const documents = readPositiveInteger(
+    DOCUMENTS_ARG ?? thresholdDoc?.scenario?.documents ?? 5000,
+    'documents',
+  )
+  const bytesPerDoc = readPositiveInteger(
+    SIZE_ARG ?? thresholdDoc?.scenario?.bytesPerDoc ?? 2048,
+    'bytesPerDoc',
+  )
+
+  const metrics = await measureWorkspacePerformance({ documents, bytesPerDoc })
   const { treeMs, indexMs, searchMs } = metrics
 
   if (UPDATE_BASELINE) {
+    thresholdDoc.scenario = {
+      documents: metrics.documents,
+      bytesPerDoc: metrics.bytesPerDoc,
+    }
     thresholdDoc.baseline = {
       generatedAt: metrics.generatedAt,
       documents: metrics.documents,

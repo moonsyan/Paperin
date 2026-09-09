@@ -16,7 +16,7 @@ import { commonmark } from '@milkdown/kit/preset/commonmark'
 import { gfm } from '@milkdown/kit/preset/gfm'
 import { history } from '@milkdown/kit/plugin/history'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
-import { prism } from '@milkdown/plugin-prism'
+import { prism, prismConfig } from '@milkdown/plugin-prism'
 import { math } from '@milkdown/plugin-math'
 import { $prose } from '@milkdown/kit/utils'
 import { useEditor } from '@milkdown/react'
@@ -50,6 +50,7 @@ import { tableColResizePlugin } from './plugins/tableColResize'
 import { taskListCheckboxPlugin } from './plugins/taskListCheckbox'
 import { linkClickPlugin } from './plugins/linkClick'
 import { mermaidPreviewPlugin } from './plugins/mermaidCodeBlock'
+import { configureCodeBlockRefractor } from './plugins/syntaxHighlighting'
 import { mathEditablePlugin } from './plugins/mathEditable'
 import { imagePlaceholderPlugin } from './plugins/imagePlaceholder'
 import { markdownPastePlugin } from './plugins/markdownPaste'
@@ -104,6 +105,9 @@ export const useMilkdownInstance = ({
             plugin: frontmatterRemarkPlugin,
             options: {},
           } as never)
+          ctx.set(prismConfig.key, {
+            configureRefractor: configureCodeBlockRefractor,
+          })
           ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
             // listener 的 markdownUpdated 带有 200ms 防抖，App 会把该快照与
             // 当前 EditorState 再核对，避免旧文件内容串入新文件。
