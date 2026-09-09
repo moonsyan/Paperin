@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>MarkdownSoft · 留白</title>
+  <link rel="icon" href="../../../resources/icon.png">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <!-- ICON_SPRITE -->
+  <a class="skip-link" href="#document-title">跳到正文</a>
+  <div class="workspace" id="workspace">
+    <aside class="sidebar" id="sidebar" aria-label="文档导航">
+      <div class="brand-row">
+        <img class="brand-icon" src="../../../resources/icon.png" alt="">
+        <span class="brand-name">MarkdownSoft</span>
+        <button class="icon-button" data-action="sidebar" title="收起导航 · Ctrl+J" aria-label="收起导航"><svg><use href="#i-sidebar-simple"/></svg></button>
+      </div>
+      <div class="space-name"><span class="space-label"><span class="space-glyph">S</span><span>我的工作空间</span></span><span class="local-label">本地</span></div>
+      <button class="search-trigger" data-action="search"><svg><use href="#i-magnifying-glass"/></svg><span>搜索文档或命令</span><kbd>Ctrl K</kbd></button>
+      <nav class="quick-nav" aria-label="快捷导航">
+        <button data-filter="recent"><svg><use href="#i-clock"/></svg><span>最近编辑</span><span class="nav-count" id="recent-count">4</span></button>
+        <button data-filter="favorites"><svg><use href="#i-star"/></svg><span>我的收藏</span><span class="nav-count" id="favorite-count">2</span></button>
+      </nav>
+      <div class="collection-heading"><button data-filter="all" id="collection-label">文件</button><button class="icon-button small" data-action="new" aria-label="新建文档" title="新建文档"><svg><use href="#i-plus"/></svg></button></div>
+      <nav class="document-tree" id="document-tree" aria-label="我的文档"></nav>
+      <div class="sidebar-bottom">
+        <button class="design-note" data-action="about"><span class="edition-mark">留白</span><span>界面概念演示</span><svg><use href="#i-arrow-up-right"/></svg></button>
+        <div class="sidebar-footer"><span><span class="status-dot"></span>独立演示空间</span><button class="icon-button" data-action="settings" title="外观设置" aria-label="外观设置"><svg><use href="#i-gear-six"/></svg></button></div>
+      </div>
+    </aside>
+    <button class="sidebar-scrim" id="sidebar-scrim" data-action="sidebar" aria-label="关闭文档导航" tabindex="-1"></button>
+    <section class="main-shell" aria-label="写作工作台">
+      <header class="topbar">
+        <button class="icon-button restore-sidebar" data-action="sidebar" title="展开导航 · Ctrl+J" aria-label="展开导航"><svg><use href="#i-sidebar-simple"/></svg></button>
+        <div class="workspace-context"><span class="context-dot"></span><span>知识库</span></div>
+        <div class="tabs" id="tabs" role="tablist" aria-label="打开的文档"></div>
+        <button class="icon-button new-tab" data-action="new" title="新建文档" aria-label="新建标签页"><svg><use href="#i-plus"/></svg></button>
+        <div class="document-actions">
+          <button class="focus-button" id="focus-button" data-action="focus" aria-pressed="false" title="专注写作"><svg><use href="#i-arrows-out-simple"/></svg><span>专注</span></button>
+          <button class="icon-button" id="outline-button" data-action="outline" aria-pressed="true" title="页边目录" aria-label="切换页边目录"><svg><use href="#i-sidebar-simple"/></svg></button>
+          <button class="icon-button" data-action="more" aria-label="更多文档操作" title="更多"><svg><use href="#i-dots-three"/></svg></button>
+        </div>
+      </header>
+      <main class="reading-area" id="reading-area">
+        <div class="document-layout">
+          <article class="document" id="document">
+            <div class="breadcrumb"><span id="breadcrumb-group">随笔与思考</span><svg><use href="#i-caret-right"/></svg><span id="breadcrumb-file">日常笔记</span></div>
+            <div class="document-kicker"><span class="page-mark" aria-hidden="true"></span><span id="document-category">随笔</span><button class="icon-button small" id="favorite-button" data-action="favorite" aria-pressed="true" aria-label="取消收藏" title="取消收藏"><svg><use href="#i-star"/></svg></button></div>
+            <h1 id="document-title" contenteditable="true" role="textbox" aria-label="文档标题" spellcheck="false"></h1>
+            <p class="document-subtitle" id="document-subtitle"></p>
+            <div class="document-meta"><span>9 月 9 日</span><span aria-hidden="true">·</span><span id="read-time">约 2 分钟读完</span></div>
+            <div class="document-body" id="document-body" contenteditable="true" role="textbox" aria-label="文档正文，可直接编辑" aria-multiline="true" spellcheck="false"></div>
+            <div class="document-end"><span></span><svg><use href="#i-bookmark-simple"/></svg><span></span></div>
+          </article>
+          <aside class="page-margin" id="page-margin" aria-label="当前文档目录">
+            <div class="margin-inner"><div class="margin-heading">此页目录</div><nav id="outline" aria-label="章节导航"></nav><div class="margin-rule"></div><button class="margin-link" data-action="related"><svg><use href="#i-link-simple"/></svg><span>关联笔记</span><span id="relation-count">1</span></button><div class="related-links" id="related-links" hidden></div></div>
+          </aside>
+        </div>
+      </main>
+      <footer class="statusbar"><span class="save-state" id="save-state" role="status"><svg><use href="#i-check"/></svg><span id="save-message">已准备好写作</span></span><div><span id="word-count">0 字</span><span class="status-separator">·</span><span class="status-hint">本地保存</span><button class="icon-button small" data-action="theme" id="theme-button" title="切换明暗" aria-label="切换明暗主题"><svg><use href="#i-moon"/></svg></button></div></footer>
+    </section>
+  </div>
+  <dialog class="palette" id="palette" aria-labelledby="palette-label">
+    <form method="dialog" class="palette-search"><svg><use href="#i-magnifying-glass"/></svg><label class="sr-only" id="palette-label" for="palette-query">搜索文档或命令</label><input id="palette-query" placeholder="搜索文档，或输入 > 查找命令" autocomplete="off" maxlength="128"><button class="key-button" aria-label="关闭搜索">Esc</button></form>
+    <div class="palette-caption" id="palette-caption">你的文档</div><div class="palette-results" id="palette-results" role="listbox" aria-label="搜索结果"></div>
+    <div class="palette-footer"><span><kbd>↑</kbd><kbd>↓</kbd> 选择</span><span><kbd>Enter</kbd> 打开</span><span>输入 <b>&gt;</b> 执行命令</span></div>
+  </dialog>
+  <dialog class="more-menu" id="more-menu" aria-label="文档操作">
+    <div class="menu-caption">当前文档</div>
+    <button data-action="export"><svg><use href="#i-download-simple"/></svg><span>导出 Markdown</span></button>
+    <button data-action="favorite"><svg><use href="#i-star"/></svg><span>切换收藏</span></button>
+    <button data-action="search"><svg><use href="#i-magnifying-glass"/></svg><span>查找与命令</span><kbd>Ctrl K</kbd></button>
+    <hr>
+    <button data-action="settings"><svg><use href="#i-text-aa"/></svg><span>阅读与外观</span></button>
+    <button data-action="about"><svg><use href="#i-bookmark-simple"/></svg><span>关于「留白」</span></button>
+  </dialog>
+  <dialog class="settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
+    <div class="dialog-heading"><div><span class="dialog-eyebrow">让这里更像你的书桌</span><h2 id="settings-title">阅读与外观</h2></div><form method="dialog"><button class="icon-button" aria-label="关闭设置"><svg><use href="#i-x"/></svg></button></form></div>
+    <fieldset><legend>界面明暗</legend><div class="appearance-options"><button data-theme-choice="light"><div class="theme-sample light-sample"><span></span><i></i><i></i></div><span>雾白</span></button><button data-theme-choice="dark"><div class="theme-sample dark-sample"><span></span><i></i><i></i></div><span>夜松</span></button><button data-theme-choice="system"><div class="theme-sample system-sample"><span></span><i></i><i></i></div><span>跟随系统</span></button></div></fieldset>
+    <div class="setting-row"><label for="font-choice">正文字体</label><select id="font-choice"><option value="sans">清晰黑体</option><option value="serif">阅读宋体</option></select></div>
+    <div class="setting-row"><label for="font-size">文字大小</label><input id="font-size" type="range" min="15" max="21" value="16" step="1"><output id="font-size-value" for="font-size">16</output></div>
+    <p class="dialog-hint">这些偏好只应用于当前 Demo。</p>
+  </dialog>
+  <dialog class="about-dialog" id="about-dialog" aria-labelledby="about-title">
+    <div class="dialog-heading"><span class="edition-mark">留白</span><form method="dialog"><button class="icon-button" aria-label="关闭演示说明"><svg><use href="#i-x"/></svg></button></form></div>
+    <h2 id="about-title">少一些界面，<br>多一些自己的想法。</h2><p>这是 MarkdownSoft 的独立交互 Demo。保留熟悉的文档导航，把格式、设置与低频操作收进上下文里。</p>
+    <dl class="about-features"><div><dt>页边签</dt><dd>以松绿色细线标记当前文档与章节。</dd></div><div><dt>一条顶栏</dt><dd>标签、专注和更多，不再层层堆叠菜单。</dd></div><div><dt>安静地写</dt><dd>导航与目录可收起，正文保持适合阅读的宽度。</dd></div></dl>
+    <p class="demo-disclosure">示例内容可编辑，改动仅保存在此浏览器。此 Demo 不连接工作区文件，也未接入 Milkdown；导出会下载真实的 .md 文件。</p>
+    <button class="primary-button" data-action="close-about">开始体验</button>
+  </dialog>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script src="./demo.js"></script>
+</body>
+</html>
