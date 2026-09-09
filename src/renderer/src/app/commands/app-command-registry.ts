@@ -1,4 +1,5 @@
 import type { AppCommand, CommandContext } from './app-command'
+import { isCommandAvailable } from './command-context'
 
 export interface AppCommandRegistry {
   register(command: AppCommand): void
@@ -29,12 +30,14 @@ export const createAppCommandRegistry = (): AppCommandRegistry => {
     },
 
     list(context) {
-      return Array.from(commands.values()).filter((command) => command.enabled(context))
+      return Array.from(commands.values()).filter((command) =>
+        command.enabled(context) && (!command.scope || isCommandAvailable(context, { requires: command.scope })),
+      )
     },
 
     async execute(id, context) {
       const command = commands.get(id)
-      if (!command || !command.enabled(context)) return false
+      if (!command || !command.enabled(context) || (command.scope && !isCommandAvailable(context, { requires: command.scope }))) return false
       await command.execute(context)
       return true
     },

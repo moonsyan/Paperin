@@ -23,6 +23,8 @@ import { WorkspaceSearchDialog } from './components/WorkspaceSearchDialog'
 import { CommandPalette } from './components/CommandPalette'
 import { VersionHistoryDialog } from './components/VersionHistoryDialog'
 import { TabBar } from './components/TabBar'
+import { WorkspaceShell } from './components/WorkspaceShell'
+import { CurrentFileBanner, type CurrentFileSource } from './components/CurrentFileBanner'
 import { StartScreen } from './components/StartScreen'
 import { DEFAULT_SHORTCUTS, mergeShortcuts } from './data/shortcuts'
 import type { ShortcutMap } from './data/shortcuts'
@@ -60,6 +62,7 @@ import { PublishDialog } from './components/PublishDialog'
 import type { PublishOptions } from './lib/export-bundle'
 import { useDocumentSession } from './app/document-session/useDocumentSession'
 import { useAppActions } from './app/useAppActions'
+import { createCommandContext } from './app/commands/command-context'
 import { useGlobalShortcuts } from './app/useGlobalShortcuts'
 import { useWorkspaceState } from './app/useWorkspaceState'
 import { useWorkspaceController } from './app/workspace/useWorkspaceController'
@@ -1293,6 +1296,7 @@ export default function App(): JSX.Element {
     closePalette,
     closeVersionHistory,
     openOutlinePanel,
+    commandRegistry,
   } = useAppActions({
     editorRef,
     docTitle,
@@ -1498,6 +1502,14 @@ export default function App(): JSX.Element {
 
   /* ==================== 渲染 ==================== */
 
+  const currentFileSource: CurrentFileSource = (() => {
+    // 演示文档属于当前工作区体验；只有明确位于知识库根目录之外的路径才是外部文件。
+    if (!activeFile?.path || !workspace?.path) return 'workspace'
+    const filePath = activeFile.path.replace(/\\/g, '/').toLocaleLowerCase()
+    const rootPath = workspace.path.replace(/\\/g, '/').replace(/\/$/, '').toLocaleLowerCase()
+    return filePath === rootPath || filePath.startsWith(`${rootPath}/`) ? 'workspace' : 'external'
+  })()
+
   return (
     <div
       className={`app ${focusMode ? 'focus-mode' : ''} ${typewriter ? 'typewriter-mode' : ''}`}
@@ -1588,12 +1600,17 @@ export default function App(): JSX.Element {
         </div>
       </div>
 
-      {/* 工作区：侧栏 + 编辑器 */}
-      <div
-        className="workspace"
-        ref={editorAreaRef}
-        style={{ '--sidebar-w': `${sidebarWidth}px` } as CSSProperties}
+      {/* 工作区壳层持续提供知识库上下文；当前文件只是其中的焦点。 */}
+      <WorkspaceShell
+        workspaceName={workspace?.name ?? '未打开知识库'}
+        workspacePath={workspace?.path}
       >
+        {/* 工作区：侧栏 + 编辑器 */}
+        <div
+          className="workspace"
+          ref={editorAreaRef}
+          style={{ '--sidebar-w': `${sidebarWidth}px` } as CSSProperties}
+        >
         {/* L16：侧栏始终挂载，折叠只改宽度（保留滚动位置/重命名状态） */}
         <Sidebar
           collapsed={sidebarCollapsed}
@@ -1646,6 +1663,16 @@ export default function App(): JSX.Element {
           />
         )}
         <div className="editor-host">
+          {openFiles.length > 0 && (
+            <CurrentFileBanner
+              title={docTitle}
+              path={activeFile?.path}
+              workspacePath={workspace?.path}
+              workspaceName={workspace?.name ?? '本地工作区'}
+              source={currentFileSource}
+              dirty={!saved}
+            />
+          )}
           {/* 标签栏属于编辑器区域，不占用左侧文件树和大纲的顶部空间。 */}
           <TabBar
             openFiles={openFiles}
@@ -1782,7 +1809,8 @@ export default function App(): JSX.Element {
           onDeleteProperty={handleDeleteProperty}
           onAddProperty={handleAddProperty}
         />
-      </div>
+        </div>
+      </WorkspaceShell>
 
       {/* 底部状态栏 */}
       <StatusBar
@@ -1913,6 +1941,13 @@ export default function App(): JSX.Element {
           handleSelectDemoFile(id, pinned)
         }}
         onRunCommand={handleAction}
+        commandRegistry={commandRegistry}
+        commandContext={createCommandContext({
+          activeFileId,
+          workspaceId: workspace?.path,
+          hasWorkspace: workspace !== null,
+          hasUnsavedChanges: Object.values(documents).some((document) => document.dirty),
+        })}
       />
       <VersionHistoryDialog
         open={versionHistoryOpen}

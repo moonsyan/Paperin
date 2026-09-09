@@ -5,16 +5,16 @@
  * `AppCommand` 实现；`CommandContext` 携带入口判断所需的会话状态快照。
  */
 
-export interface CommandContext {
-  activeFileId: string
-  hasWorkspace: boolean
-  hasUnsavedChanges: boolean
-}
+export type { CommandContext } from './command-context'
+import type { CommandContext } from './command-context'
+import type { CommandScope } from './command-context'
 
 export interface AppCommand {
   id: string
   title: string
   shortcut?: string
+  keywords?: readonly string[]
+  scope?: CommandScope
   enabled: (context: CommandContext) => boolean
   execute: (context: CommandContext) => Promise<void> | void
 }

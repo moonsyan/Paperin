@@ -11,6 +11,9 @@ import {
   PALETTE_RESULT_LIMIT,
 } from '../../lib/command-palette'
 import type { PaletteCommand, PaletteEntry } from '../../lib/command-palette'
+import type { AppCommandRegistry } from '../../app/commands/app-command-registry'
+import type { CommandContext } from '../../app/commands/command-context'
+import { toPaletteCommands } from '../../app/commands/command-context'
 
 interface CommandPaletteProps {
   open: boolean
@@ -25,6 +28,9 @@ interface CommandPaletteProps {
   onSelectDemo: (id: string, pinned: boolean) => void
   /** 执行"> 动作模式"选中的命令（id 与菜单动作一致） */
   onRunCommand: (id: string) => void
+  /** 可选的应用注册表；旧宿主未传入时继续使用内置命令清单。 */
+  commandRegistry?: AppCommandRegistry | null
+  commandContext?: CommandContext
 }
 
 const MAX_QUERY_LENGTH = 256
@@ -101,6 +107,8 @@ export function CommandPalette({
   onSelectWorkspace,
   onSelectDemo,
   onRunCommand,
+  commandRegistry = null,
+  commandContext,
 }: CommandPaletteProps): JSX.Element | null {
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
@@ -112,9 +120,15 @@ export function CommandPalette({
 
   // 命令模式查询词：去掉 > 前缀
   const commandQuery = query.replace(/^\s*>/, '')
+  const commandEntries = useMemo(() => {
+    if (!commandRegistry || !commandContext) return COMMANDS
+    const registered = toPaletteCommands(commandRegistry.list(commandContext))
+    const known = new Set(registered.map((command) => command.id))
+    return [...registered, ...COMMANDS.filter((command) => !known.has(command.id))]
+  }, [commandContext, commandRegistry])
   const filteredCommands = useMemo(
-    () => filterCommands(COMMANDS, commandQuery),
-    [commandQuery],
+    () => filterCommands(commandEntries, commandQuery),
+    [commandEntries, commandQuery],
   )
 
   const workspaceEntries = useMemo(

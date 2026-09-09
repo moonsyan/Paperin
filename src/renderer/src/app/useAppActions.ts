@@ -547,6 +547,7 @@ export function useAppActions({
   return {
     handleAction,
     runCommand,
+    commandRegistry: commandRegistryRef.current,
     handleDocumentTitleBlur,
     handleDocumentTitleKeyDown,
     handleOpenBacklink,
