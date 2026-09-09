@@ -1,5 +1,5 @@
 export type DocumentSource = 'workspace' | 'external'
-export type DocumentEncoding = 'utf8' | 'gbk'
+export type DocumentEncoding = 'UTF-8' | 'UTF-8-BOM' | 'UTF-16LE' | 'UTF-16BE' | 'GBK'
 
 export interface DocumentRef {
   id: string
@@ -32,7 +32,7 @@ export const createDocumentSession = (
   content,
   savedContent: content,
   dirty: false,
-  encoding: options.encoding ?? 'utf8',
+  encoding: options.encoding ?? 'UTF-8',
   expectedMtime: options.expectedMtime,
 })
 
@@ -52,9 +52,10 @@ export const markDocumentSessionSaved = (
   encoding: DocumentEncoding = session.encoding,
 ): DocumentSession => ({
   ...session,
-  content,
+  // A save acknowledges the submitted snapshot. Preserve newer edits.
+  content: session.content === content ? content : session.content,
   savedContent: content,
-  dirty: false,
+  dirty: session.content !== content,
   expectedMtime,
   encoding,
 })

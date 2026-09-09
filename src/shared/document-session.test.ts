@@ -35,9 +35,18 @@ describe('document session domain model', () => {
       updateDocumentSession(session, '修改'),
       '修改',
       42,
-      'gbk',
+      'GBK',
     )
-    expect(saved).toMatchObject({ dirty: false, savedContent: '修改', expectedMtime: 42, encoding: 'gbk' })
+    expect(saved).toMatchObject({ dirty: false, savedContent: '修改', expectedMtime: 42, encoding: 'GBK' })
+  })
+
+  it('preserves edits made while a save was in flight', () => {
+    const saving = updateDocumentSession(createDocumentSession(ref, '原文'), '第一次')
+    const newer = updateDocumentSession(saving, '第二次')
+    const acknowledged = markDocumentSessionSaved(newer, '第一次', 42)
+    expect(acknowledged.content).toBe('第二次')
+    expect(acknowledged.savedContent).toBe('第一次')
+    expect(acknowledged.dirty).toBe(true)
   })
 
   it('migrates path without losing dirty content or source', () => {

@@ -14,7 +14,7 @@ describe('document session controller', () => {
     )
 
     expect(controller.update('新内容').dirty).toBe(true)
-    expect(controller.markSaved('新内容', 100, 'utf8').dirty).toBe(false)
+    expect(controller.markSaved('新内容', 100, 'UTF-8').dirty).toBe(false)
     expect(controller.migrate('archive/a.md').ref.path).toBe('archive/a.md')
     expect(controller.get().expectedMtime).toBe(100)
   })
