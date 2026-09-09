@@ -33,6 +33,7 @@ import './styles/components/versionhistory.css'
 import './styles/components/quality-panel.css'
 import './styles/components/publishdialog.css'
 import './styles/components/context-dock.css'
+import './styles/components/workspace-shell.css'
 
 // 平台标识：顶栏按平台避让系统窗口按钮区域
 document.documentElement.setAttribute(
