@@ -5,6 +5,7 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { CHANNELS } from '../../shared/ipc/channels'
 import { trustDirectory } from '../trusted-paths'
+import { runElectronPerformanceSmoke, type EvaluateSmokeStep } from './electron-performance-smoke'
 
 /**
  * Electron 级端到端冒烟（`--smoke <工作区>` 启动参数触发）。
@@ -33,15 +34,16 @@ export const applySmokeUserData = (): void => {
 }
 
 /** 在渲染层执行一段返回 Promise 的脚本并施加超时保护 */
-const evalStep = async (
+const evalStep: EvaluateSmokeStep = async (
   win: BrowserWindow,
   label: string,
   script: string,
+  timeoutMs = SMOKE_STEP_TIMEOUT_MS,
 ): Promise<Record<string, unknown>> => {
   const result = (await Promise.race([
     win.webContents.executeJavaScript(script),
     new Promise((_resolve, reject) =>
-      setTimeout(() => reject(new Error(`步骤超时：${label}`)), SMOKE_STEP_TIMEOUT_MS),
+      setTimeout(() => reject(new Error(`步骤超时：${label}`)), timeoutMs),
     ),
   ])) as Record<string, unknown>
   return result
@@ -72,6 +74,7 @@ export const runElectronSmoke = async (
   workspacePath: string,
   associatedFilePath?: string,
 ): Promise<void> => {
+  const performanceScenario = process.argv.includes('--perf-electron')
   const results: string[] = []
   const finish = async (code: 0 | 1, message: string): Promise<never> => {
     if (message) console.error(message.trimEnd())
@@ -84,7 +87,7 @@ export const runElectronSmoke = async (
   const watchdog = setTimeout(() => {
     console.error('SMOKE_FAIL 冒烟总超时')
     app.exit(1)
-  }, SMOKE_WATCHDOG_MS)
+  }, performanceScenario ? 390_000 : SMOKE_WATCHDOG_MS)
   watchdog.unref()
   try {
     // 冒烟工作区登记为信任根（等价于用户经对话框打开的授权路径）
@@ -228,6 +231,10 @@ export const runElectronSmoke = async (
     )
     if (!stateLoaded.ok) return await finish(1, `SMOKE_FAIL 工作区状态读取失败 ${JSON.stringify(stateLoaded)}`)
     results.push('工作区状态读取 ok')
+
+    if (performanceScenario) {
+      results.push(...await runElectronPerformanceSmoke(win, workspacePath, evalStep))
+    }
 
     console.log('SMOKE_PASS')
     return await finish(0, results.join('\n'))

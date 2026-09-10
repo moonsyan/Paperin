@@ -19,6 +19,10 @@ import { cacheSearchLines, getCachedSearchLines, runSharedRegexSearch } from './
 import { safeWorkspaceFileName } from './workspace-file-name'
 import { forgetSnapshots, moveSnapshots } from '../history/version-store'
 import { historyRoot } from './history-handlers'
+import { DEFAULT_WORKSPACE_INDEX_MAX_FILES } from '../indexing/workspace-index-service'
+
+/** 搜索和生产索引共享 5000 文档覆盖预算；命中数仍另有限制，避免结果传输失控。 */
+const WORKSPACE_SEARCH_MAX_FILES = DEFAULT_WORKSPACE_INDEX_MAX_FILES
 
 export interface WorkspaceHandlerDependencies {
   hasWorkspaceRoot(webContentsId: number): boolean
@@ -263,10 +267,12 @@ export const registerWorkspaceHandlers = ({
             }
           }
         }
-        // 目录树预算（深度 5 / 2000 节点）被触发时搜索只覆盖可见子集，
-        // 必须连同 500 文件上限一起反映到 truncated，否则用户会误以为没有更多匹配
+        // 搜索不复用 Renderer 的 2000 节点文件树预算：它需要与生产索引一致地
+        // 覆盖 5000 篇文档；深度过滤仍由 walkMarkdownTree 保留。
         const treeBudget = { nodes: 0, truncated: false }
-        const tree = await walkMarkdownTree(args.dir, 0, treeBudget)
+        const tree = await walkMarkdownTree(args.dir, 0, treeBudget, {
+          maxFiles: WORKSPACE_SEARCH_MAX_FILES + 1,
+        })
         const paths: string[] = []
         const flatten = (nodes: FolderTreeNode[]) => {
           for (const node of nodes) {
@@ -280,13 +286,13 @@ export const registerWorkspaceHandlers = ({
         flatten(tree)
         const needle = args.caseSensitive ? query : query.toLowerCase()
         const matches: { path: string; line: number; preview: string }[] = []
-        // 扫描覆盖截断（树预算/500 文件上限）与匹配数达上限是两件事：
+        // 扫描覆盖截断（树预算/5000 文件上限）与匹配数达上限是两件事：
         // 后者用作循环提前退出标志，不能与前者共用变量——否则工作区超限时
         // 初值即为 true，第一个文件扫完就会退出，搜索覆盖塌缩到 1 个文件
-        const scanTruncated = treeBudget.truncated || paths.length > 500
+        const scanTruncated = treeBudget.truncated || paths.length > WORKSPACE_SEARCH_MAX_FILES
         let matchCapped = false
         try {
-          for (const path of paths.slice(0, 500)) {
+          for (const path of paths.slice(0, WORKSPACE_SEARCH_MAX_FILES)) {
             const fileStat = await stat(path).catch(() => null)
             if (!fileStat || fileStat.size > 2 * 1024 * 1024) continue
             if (args.regex) {

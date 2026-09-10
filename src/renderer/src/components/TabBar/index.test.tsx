@@ -104,6 +104,18 @@ describe('TabBar', () => {
     expect(onSwitch).toHaveBeenCalledWith('b')
   })
 
+  it('键盘上下文菜单接管焦点，Escape 后恢复到触发标签', () => {
+    render(<TabBar {...baseProps} openFiles={[file('a', 'A.md'), file('b', 'B.md')]} />)
+    const tab = screen.getByTitle('B.md')
+    tab.focus()
+    fireEvent.keyDown(tab, { key: 'F10', shiftKey: true })
+    const menu = screen.getByRole('menu')
+    expect(document.activeElement).toBe(menu)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(document.activeElement).toBe(tab)
+  })
+
   it('知识图谱标签固定末尾且激活时文件标签失去激活态', () => {
     const onGraphTabClose = vi.fn()
     render(

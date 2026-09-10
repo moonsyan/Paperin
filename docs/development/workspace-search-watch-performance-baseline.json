@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "scenario": {
+    "documents": 5000,
+    "watcherEvents": 20000,
+    "watcherSamples": 5
+  },
+  "baseline": {
+    "generatedAt": "2026-09-10T13:30:22.439Z",
+    "searchP95Ms": 452.72,
+    "watcherStableP95Ms": 189.43,
+    "nodeVersion": "v24.19.0"
+  },
+  "targets": {
+    "searchP95Ms": 5000,
+    "watcherStableP95Ms": 5000
+  }
+}

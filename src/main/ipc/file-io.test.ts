@@ -108,4 +108,25 @@ describe('Markdown 目录树', () => {
       { name: '首页.md', path: join(directory, '首页.md') },
     ])
   })
+
+  it('后台文件预算不会被目录节点挤占', async () => {
+    const directory = await createTemporaryDirectory()
+    const first = join(directory, '一级')
+    const second = join(first, '二级')
+    await mkdir(second, { recursive: true })
+    await Promise.all([
+      writeFile(join(directory, '根.md'), '# 根'),
+      writeFile(join(first, '一级.md'), '# 一级'),
+      writeFile(join(second, '二级.md'), '# 二级'),
+    ])
+    const budget = { nodes: 0, truncated: false }
+
+    const tree = await walkMarkdownTree(directory, 0, budget, { maxFiles: 3 })
+    const paths = JSON.stringify(tree)
+
+    expect(paths).toContain('根.md')
+    expect(paths).toContain('一级.md')
+    expect(paths).toContain('二级.md')
+    expect(budget).toMatchObject({ files: 3, truncated: true })
+  })
 })

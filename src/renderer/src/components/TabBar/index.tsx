@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { OpenFile } from '../Sidebar'
 import { getTabNavigationTargetId, type DocumentTabNavigationKey } from '../../lib/document-tabs'
 import { clampMenuPosition } from '../../lib/menu-position'
+import { TabContextMenu, type TabContextMenuState } from './TabContextMenu'
 
 interface TabBarProps {
   openFiles: OpenFile[]
@@ -41,23 +42,12 @@ export function TabBar({ openFiles, activeFileId, savedMap, onSwitch, onClose, o
   const [overId, setOverId] = useState<string | null>(null)
   const tabRefs = useRef<Record<string, HTMLDivElement | null>>({})
   // 右键菜单：{ 触发标签 id, 屏幕坐标 }
-  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; fileId: string } | null>(null)
+  const [ctxMenu, setCtxMenu] = useState<TabContextMenuState | null>(null)
 
-  // 菜单打开期间：点击其它区域 / 右键其它区域 / Esc 关闭菜单
-  useEffect(() => {
-    if (!ctxMenu) return
-    const close = () => setCtxMenu(null)
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close()
-    }
-    document.addEventListener('click', close)
-    document.addEventListener('contextmenu', close)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('click', close)
-      document.removeEventListener('contextmenu', close)
-      document.removeEventListener('keydown', onKeyDown)
-    }
+  const dismissTabMenu = useCallback((restoreFocus: boolean) => {
+    const trigger = ctxMenu?.trigger
+    setCtxMenu(null)
+    if (restoreFocus && trigger?.isConnected) trigger.focus()
   }, [ctxMenu])
 
   // 切换/拖拽后把激活标签滚入可视区（标签多到溢出时，从侧栏点开文件
@@ -77,7 +67,7 @@ export function TabBar({ openFiles, activeFileId, savedMap, onSwitch, onClose, o
       event.preventDefault()
       const rect = event.currentTarget.getBoundingClientRect()
       const pos = clampMenuPosition(rect.left, rect.bottom, 180, 190)
-      setCtxMenu({ x: pos.x, y: pos.y, fileId })
+      setCtxMenu({ x: pos.x, y: pos.y, fileId, trigger: event.currentTarget })
       return
     }
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
@@ -156,7 +146,7 @@ export function TabBar({ openFiles, activeFileId, savedMap, onSwitch, onClose, o
                 e.preventDefault()
                 e.stopPropagation()
                 const pos = clampMenuPosition(e.clientX, e.clientY, 180, 190)
-                setCtxMenu({ x: pos.x, y: pos.y, fileId: file.id })
+                setCtxMenu({ x: pos.x, y: pos.y, fileId: file.id, trigger: e.currentTarget })
               }}
               onKeyDown={(event) => handleTabKeyDown(event, file.id)}
               title={preview ? '预览标签：双击左侧文件可固定' : (file.path ?? file.name)}
@@ -232,68 +222,18 @@ export function TabBar({ openFiles, activeFileId, savedMap, onSwitch, onClose, o
         )}
       </div>
 
-      {/* 标签页右键菜单：关闭 / 关闭其他 / 关闭全部 */}
       {ctxMenu && (
-        <div
-          className="tab-ctx-menu"
-          style={{ top: ctxMenu.y, left: ctxMenu.x }}
-          role="menu"
-          aria-label="标签页操作"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            className="tab-ctx-item"
-            role="menuitem"
-            onClick={() => {
-              onTogglePin(ctxMenu.fileId)
-              setCtxMenu(null)
-            }}
-          >
-            {openFiles.find((file) => file.id === ctxMenu.fileId)?.pinned
-              ? '取消固定标签页'
-              : '固定标签页'}
-          </button>
-          <div className="tab-ctx-sep" />
-          <button
-            type="button"
-            className="tab-ctx-item"
-            role="menuitem"
-            onClick={() => {
-              onClose(ctxMenu.fileId)
-              setCtxMenu(null)
-            }}
-          >
-            关闭
-          </button>
-          <button
-            type="button"
-            className={`tab-ctx-item ${canCloseOthers ? '' : 'disabled'}`}
-            role="menuitem"
-            aria-disabled={!canCloseOthers}
-            onClick={() => {
-              if (!canCloseOthers) return
-              onCloseOthers(ctxMenu.fileId)
-              setCtxMenu(null)
-            }}
-          >
-            关闭其他标签页
-          </button>
-          <div className="tab-ctx-sep" />
-          <button
-            type="button"
-            className={`tab-ctx-item ${canCloseAll ? '' : 'disabled'}`}
-            role="menuitem"
-            aria-disabled={!canCloseAll}
-            onClick={() => {
-              if (!canCloseAll) return
-              onCloseAll()
-              setCtxMenu(null)
-            }}
-          >
-            关闭全部标签页
-          </button>
-        </div>
+        <TabContextMenu
+          state={ctxMenu}
+          pinned={openFiles.find((file) => file.id === ctxMenu.fileId)?.pinned === true}
+          canCloseOthers={canCloseOthers}
+          canCloseAll={canCloseAll}
+          onDismiss={dismissTabMenu}
+          onTogglePin={onTogglePin}
+          onCloseTab={onClose}
+          onCloseOthers={onCloseOthers}
+          onCloseAll={onCloseAll}
+        />
       )}
     </>
   )

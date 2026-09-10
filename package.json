@@ -17,6 +17,8 @@
     "perf:large-file": "node scripts/perf-baseline.mjs --documents 1 --bytes-per-doc 5242880",
     "perf:regression": "node scripts/perf-regression.mjs",
     "perf:production": "vitest run --config vitest.performance.config.ts",
+    "perf:electron": "node scripts/smoke-electron.mjs --performance",
+    "perf:workspace-search-watch": "vitest run --config vitest.performance.config.ts src/main/ipc/workspace-search-watch-production.perf.ts",
     "preview": "electron-vite preview",
     "smoke": "node scripts/smoke-electron.mjs",
     "build:win": "electron-vite build && electron-builder --win",

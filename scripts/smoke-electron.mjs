@@ -5,6 +5,7 @@
 // 用法：
 //   npm run build && node scripts/smoke-electron.mjs
 //   npm run build && npm run smoke   # 等价入口
+//   npm run build && npm run perf:electron  # 5 MiB / 20 标签真实 Electron 性能门禁
 //
 // 场景：打开临时工作区 → 新建文档 → 保存并校验磁盘 → 外部修改 + 过期
 // mtime 保存必须 CONFLICT → 重读 → 重命名 → 工作区搜索 → 状态读取。
@@ -25,6 +26,22 @@ const electronBinary =
     ? join(projectRoot, 'node_modules', 'electron', 'dist', 'Electron.app', 'Contents', 'MacOS', 'Electron')
     : join(projectRoot, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
 const mainEntry = join(projectRoot, 'out', 'main', 'index.js')
+const performanceScenario = process.argv.includes('--performance')
+const LARGE_DOCUMENT_BYTES = 5 * 1024 * 1024
+
+const createLargeMarkdown = () => {
+  const header = '# 5 MiB 性能文档\n\nPERF_LARGE_DOCUMENT_ORIGINAL\n\n'
+  const tail = '\nPERF_LARGE_DOCUMENT_TAIL\n'
+  // 固定为 256 个约 20 KiB 的真实段落：既让尺寸达到 5 MiB，又避免用
+  // 数万短段落把本该测“文档大小”的门禁变成“极端节点数量”基准。
+  const paragraphCount = 256
+  const prefix = '真实 Milkdown 性能验证段落：中文 Markdown 内容用于验证大文档的打开、编辑、保存和导出路径。\n'
+  const fillerSize = Math.ceil((LARGE_DOCUMENT_BYTES - Buffer.byteLength(header) - Buffer.byteLength(tail)) / paragraphCount) - Buffer.byteLength(prefix) - 2
+  const filler = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    .repeat(Math.ceil(fillerSize / 36))
+    .slice(0, fillerSize)
+  return `${header}${`${prefix}${filler}\n\n`.repeat(paragraphCount)}${tail}`
+}
 
 const main = async () => {
   try {
@@ -53,12 +70,32 @@ const main = async () => {
   // 临时标签而不是被加入知识库索引。
   const associatedFile = join(smokeRoot, '系统关联临时文档.md')
   await writeFile(associatedFile, '# 系统关联\n\n外部临时内容。\n', 'utf-8')
+  if (performanceScenario) {
+    await writeFile(join(workspace, '5MiB-性能文档.md'), createLargeMarkdown(), 'utf-8')
+    await Promise.all(
+      Array.from({ length: 19 }, async (_, index) => {
+        const number = String(index + 1).padStart(2, '0')
+        await writeFile(
+          join(workspace, `性能标签-${number}.md`),
+          `# 性能标签 ${number}\n\nPERF_TAB_${number}\n`,
+          'utf-8',
+        )
+      }),
+    )
+  }
 
   // CI/无桌面环境可能无法启动 Chromium GPU 进程；冒烟验证的是 IPC 与磁盘链路，
   // 因此显式禁用 GPU，避免渲染器在进入测试场景前被运行环境终止。
   const child = spawn(
     electronBinary,
-    ['--disable-gpu', mainEntry, '--smoke', workspace, associatedFile],
+    [
+      '--disable-gpu',
+      mainEntry,
+      '--smoke',
+      workspace,
+      ...(performanceScenario ? ['--perf-electron'] : []),
+      associatedFile,
+    ],
     {
       cwd: projectRoot,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -75,9 +112,9 @@ const main = async () => {
   })
 
   const timeout = setTimeout(() => {
-    console.error('SMOKE_FAIL 冒烟脚本总超时（150s）')
+    console.error(`SMOKE_FAIL 冒烟脚本总超时（${performanceScenario ? '420s' : '150s'}）`)
     child.kill()
-  }, 150_000)
+  }, performanceScenario ? 420_000 : 150_000)
 
   child.on('close', async (code) => {
     clearTimeout(timeout)

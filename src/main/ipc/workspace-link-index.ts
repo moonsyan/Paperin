@@ -20,10 +20,9 @@ export { collectAttachmentBaseNames, extractLinksFromMarkdown }
 
 /* ==================== 工作区链接索引（反链/图谱数据源） ==================== */
 
-// 与全文搜索同量级的规模守卫：目录树深度/节点预算沿用 walkMarkdownTree
-// 自带限制；文件数与单文件大小上限对齐搜索（500/2MB 放宽一档，
-// 索引是后台一次性扫描且有 mtime 缓存，不与逐键交互争抢；
-// 2000 覆盖常见大型 Obsidian 库）
+// 目录树深度/节点预算沿用 walkMarkdownTree；链接索引维持独立的 2000 文件
+// 后台预算，低于全文搜索的 5000 文件覆盖，避免图谱构建与逐键搜索争抢 IO。
+// 单文件大小上限同为 2MB，2000 覆盖常见大型 Obsidian 库。
 const MAX_INDEX_FILES = 2000
 const MAX_INDEX_FILE_SIZE = 2 * 1024 * 1024
 const MAX_LINKS_TOTAL = 20_000

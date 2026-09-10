@@ -35,12 +35,12 @@ export const createWorkspaceFileWatcher = (
   const debounceMs = deps.debounceMs ?? 250
   let stopCurrent: (() => void) | null = null
   let timer: ReturnType<typeof setTimeout> | null = null
-  let pending: string[] = []
+  let pending = new Set<string>()
 
   const flush = (): void => {
     timer = null
-    const paths = pending
-    pending = []
+    const paths = Array.from(pending)
+    pending = new Set<string>()
     if (paths.length === 0) return
     onChangeRef.current?.(paths)
   }
@@ -51,7 +51,7 @@ export const createWorkspaceFileWatcher = (
   const handleChange = (paths: string[]): void => {
     const markdown = paths.filter((p) => isMarkdownPath(p) && !isFilteredPath(p))
     if (markdown.length === 0) return
-    pending.push(...markdown)
+    markdown.forEach((path) => pending.add(path))
     if (timer) clearTimeout(timer)
     timer = setTimeout(flush, debounceMs)
   }
@@ -71,7 +71,7 @@ export const createWorkspaceFileWatcher = (
         clearTimeout(timer)
         timer = null
       }
-      pending = []
+      pending = new Set<string>()
     },
   }
 }

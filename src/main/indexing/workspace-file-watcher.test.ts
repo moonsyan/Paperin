@@ -51,6 +51,17 @@ describe('workspace-file-watcher', () => {
     ])
   })
 
+  it('去抖批次按路径去重，避免文件监听风暴放大刷新载荷', async () => {
+    const { fire, onChange } = setup()
+    fire(['D:/notes/a.md', 'D:/notes/a.md'])
+    fire(['D:/notes/b.md', 'D:/notes/a.md'])
+
+    await vi.advanceTimersByTimeAsync(250)
+
+    expect(onChange).toHaveBeenCalledOnce()
+    expect(onChange).toHaveBeenCalledWith(['D:/notes/a.md', 'D:/notes/b.md'])
+  })
+
   it('过滤隐藏目录、node_modules 与非 Markdown 文件', async () => {
     const { fire, onChange } = setup()
     fire([

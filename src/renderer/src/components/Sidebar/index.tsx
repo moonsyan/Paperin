@@ -53,7 +53,7 @@ export function Sidebar({
 
   // L16：折叠时不卸载组件，只把宽度缩到 0（保留滚动位置/重命名状态）。
   // inert 阻止 Tab 聚焦到被裁切的内容（React 18 不识别 inert prop，用 ref 设置）。
-  const sidebarRef = useRef<HTMLDivElement>(null)
+  const sidebarRef = useRef<HTMLElement>(null)
   useEffect(() => {
     const el = sidebarRef.current
     if (!el) return
@@ -390,9 +390,11 @@ export function Sidebar({
   /* ==================== 渲染：大纲 ==================== */
 
   return (
-    <div
+    <aside
       ref={sidebarRef}
+      id="workspace-file-sidebar"
       className={`sidebar ${collapsed ? 'collapsed' : ''}`}
+      aria-label="文件侧栏"
       aria-hidden={collapsed}
     >
       <div className="sidebar-body">
@@ -433,6 +435,6 @@ export function Sidebar({
           onDeleteFile={onDeleteFile}
         />
       )}
-    </div>
+    </aside>
   )
 }

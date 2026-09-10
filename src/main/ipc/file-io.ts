@@ -18,6 +18,18 @@ export interface FolderTreeNode {
 export interface TreeBudget {
   nodes: number
   truncated: boolean
+  /** 后台扫描可用的文件计数；未设置 maxFiles 时不参与默认 UI 树预算。 */
+  files?: number
+}
+
+/**
+ * 调用方可为后台扫描扩大节点预算，但工作区文件树仍保持默认上限，避免
+ * 把完整大库意外塞进 Renderer。深度限制是安全/交互约束，不应由搜索放宽。
+ */
+export interface TreeWalkLimits {
+  maxNodes?: number
+  /** 文件数量预算；与 maxNodes 分离，避免目录节点挤占后台搜索的文件覆盖量。 */
+  maxFiles?: number
 }
 
 export class UnsupportedEncodingError extends Error {
@@ -182,8 +194,13 @@ export const walkMarkdownTree = async (
   dir: string,
   depth: number,
   budget: TreeBudget,
+  limits: TreeWalkLimits = {},
 ): Promise<FolderTreeNode[]> => {
-  if (depth > MAX_TREE_DEPTH || budget.truncated) return []
+  const maxNodes = limits.maxNodes ?? (limits.maxFiles === undefined ? MAX_TREE_NODES : Number.POSITIVE_INFINITY)
+  const maxFiles = limits.maxFiles
+  const reachedFileLimit = (): boolean =>
+    maxFiles !== undefined && (budget.files ?? 0) >= maxFiles
+  if (depth > MAX_TREE_DEPTH || budget.truncated || reachedFileLimit()) return []
   let entries: Dirent[]
   try {
     entries = await readdir(dir, { withFileTypes: true })
@@ -201,21 +218,23 @@ export const walkMarkdownTree = async (
 
   const nodes: FolderTreeNode[] = []
   for (const entry of dirs) {
-    if (budget.truncated) break
-    const children = await walkMarkdownTree(join(dir, entry.name), depth + 1, budget)
+    if (budget.truncated || reachedFileLimit()) break
+    const children = await walkMarkdownTree(join(dir, entry.name), depth + 1, budget, limits)
     if (children.length === 0) continue
     nodes.push({ name: entry.name, path: join(dir, entry.name), children })
     budget.nodes++
-    if (budget.nodes >= MAX_TREE_NODES) {
+    if (budget.nodes >= maxNodes) {
       budget.truncated = true
       break
     }
   }
-  if (budget.truncated) return nodes
+  if (budget.truncated || reachedFileLimit()) return nodes
   for (const entry of files) {
+    if (reachedFileLimit()) break
     nodes.push({ name: entry.name, path: join(dir, entry.name) })
     budget.nodes++
-    if (budget.nodes >= MAX_TREE_NODES) {
+    budget.files = (budget.files ?? 0) + 1
+    if (budget.nodes >= maxNodes || reachedFileLimit()) {
       budget.truncated = true
       break
     }

@@ -17,6 +17,7 @@ const baseProps = {
 describe('Sidebar file-only view', () => {
   it('shows opened files outside the workspace in an external group', () => {
     render(<Sidebar {...baseProps} openFiles={[{ id: 'file-D:/draft/out.md', name: 'out.md', path: 'D:/draft/out.md' }]} />)
+    expect(screen.getByRole('complementary', { name: '文件侧栏' })).toBeTruthy()
     expect(screen.getByRole('group', { name: '外部文件' })).toBeTruthy()
     expect(screen.getByRole('treeitem', { name: 'out.md' })).toBeTruthy()
     expect(screen.queryByRole('tablist')).toBeNull()
