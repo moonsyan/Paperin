@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "scenario": {
+    "documents": 5000,
+    "bytesPerDoc": 2048
+  },
+  "baseline": {
+    "generatedAt": "2026-09-10T13:00:21.884Z",
+    "documents": 5000,
+    "bytesPerDoc": 2048,
+    "coldIndexMs": 1075.25,
+    "warmRefreshMs": 97.46,
+    "incrementalRefreshMs": 96.34,
+    "peakRssMb": 131.8,
+    "nodeVersion": "v24.19.0"
+  },
+  "targets": {
+    "coldIndexMs": 15000,
+    "warmRefreshMs": 5000,
+    "incrementalRefreshMs": 5000
+  }
+}

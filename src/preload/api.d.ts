@@ -23,6 +23,7 @@ export interface DesktopAPI {
     setSpellcheck(enabled: boolean, language?: string): Promise<{ ok: boolean; error?: { code: string; message?: string } }>
     newWindow(): Promise<{ ok: boolean; error?: { code: string; message?: string } }>
     newWindowWithFile(path: string): Promise<{ ok: boolean; error?: { code: string; message?: string } }>
+    onOpenFile(listener: (path: string) => void): () => void
     setUnsaved(unsaved: boolean): void
   }
   document: {

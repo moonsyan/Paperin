@@ -44,6 +44,7 @@ import { useWorkspaceTags } from './hooks/useWorkspaceTags'
 import { useWritingStats } from './hooks/useWritingStats'
 import { useRecentFiles } from './hooks/useRecentFiles'
 import { useEditorViewState } from './hooks/useEditorViewState'
+import { useSystemFileOpen } from './hooks/useSystemFileOpen'
 import {
   useDocumentSessionPersistence,
   type SessionData,
@@ -61,6 +62,7 @@ import {
 import { PublishDialog } from './components/PublishDialog'
 import type { PublishOptions } from './lib/export-bundle'
 import { useDocumentSession } from './app/document-session/useDocumentSession'
+import { classifyDocumentSource } from './app/document-session/document-source'
 import { useAppActions } from './app/useAppActions'
 import { createCommandContext } from './app/commands/command-context'
 import { useGlobalShortcuts } from './app/useGlobalShortcuts'
@@ -129,7 +131,7 @@ export default function App(): JSX.Element {
     contentFont,
     setContentFont,
   } = useEditorViewState()
-  const [focusOutlineTick, setFocusOutlineTick] = useState(0)
+  const [, setFocusOutlineTick] = useState(0)
   const [workspaceIndex, setWorkspaceIndex] = useState<WorkspaceIndex | null>(null)
   const [indexLoading, setIndexLoading] = useState(false)
 
@@ -396,6 +398,10 @@ export default function App(): JSX.Element {
     setSearchCurrent,
     setSearchMode,
   })
+
+  // The preload queues early association events until settings/session restore
+  // finishes, then this uses the same guarded/de-duplicating path as tree clicks.
+  useSystemFileOpen(handleSelectWorkspaceFile, settingsReady)
 
   const contextDockViewModel = useMemo(
     () => workspaceIndex
@@ -1502,13 +1508,11 @@ export default function App(): JSX.Element {
 
   /* ==================== 渲染 ==================== */
 
-  const currentFileSource: CurrentFileSource = (() => {
-    // 演示文档属于当前工作区体验；只有明确位于知识库根目录之外的路径才是外部文件。
-    if (!activeFile?.path || !workspace?.path) return 'workspace'
-    const filePath = activeFile.path.replace(/\\/g, '/').toLocaleLowerCase()
-    const rootPath = workspace.path.replace(/\\/g, '/').replace(/\/$/, '').toLocaleLowerCase()
-    return filePath === rootPath || filePath.startsWith(`${rootPath}/`) ? 'workspace' : 'external'
-  })()
+  const currentFileSource: CurrentFileSource = classifyDocumentSource(
+    activeFile?.path,
+    workspace?.path,
+    window.desktopAPI?.platform === 'win32',
+  )
 
   return (
     <div
@@ -1619,14 +1623,10 @@ export default function App(): JSX.Element {
             workspace={workspace}
             openFiles={openFiles}
             activeFileId={activeFileId}
-            content={activeContent}
             onSelectDemoFile={handleSelectDemoFile}
             onSelectWorkspaceFile={(path, pinned) =>
               void handleSelectWorkspaceFile(path, pinned)
             }
-            onOutlineClick={handleOutlineClick}
-            focusOutlineTick={focusOutlineTick}
-            activeOutlineIndex={cursorPos.headingIndex}
             onCreateFile={(dir) => void handleCreateFile(dir)}
             onRenameFile={(path, name) => void handleRenameFile(path, name)}
             onDeleteFile={(path) => void handleDeleteFile(path)}

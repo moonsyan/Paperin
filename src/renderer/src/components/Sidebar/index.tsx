@@ -1,6 +1,4 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
-import type { DemoFolder } from '../../data/demo-files'
-import type { FolderTreeNode } from '../../../../preload/api'
 import { isImeComposing } from '../../lib/keyboard'
 import {
   buildDemoFileTree,
@@ -10,162 +8,26 @@ import {
   findNodeByKey,
   type UiNode,
 } from './fileTree'
-import { OutlinePanel } from './OutlinePanel'
-import { BacklinksPanel } from './BacklinksPanel'
-import { TagsPanel } from './TagsPanel'
 import { filterTreeByPaths } from './fileTree'
 import { clampMenuPosition } from '../../lib/menu-position'
-import type { BacklinkGraph } from '../../lib/backlinks'
-import type { WorkspaceTagIndexEntry } from '../../../../shared/tag-index'
-import type { SidebarView } from '../../../../shared/workspace-state'
-import type { DiagnosticRecord, WorkspaceIndex } from '../../../../shared/workspace-index'
-import type { TypographyIssue } from '../../lib/chinese-typography'
-import { QualityPanel } from '../QualityPanel'
-import { buildSidebarViewModel } from './sidebar-view-model'
+import type { SidebarProps } from './types'
+import { collectExternalOpenFiles } from './sidebar-file-model'
+import { SidebarContextMenu, type SidebarContextMenuState } from './SidebarContextMenu'
+import { ChevronIcon, FileIcon, FolderIcon } from './SidebarIcons'
 
-/** 打开中的文档（含真实文件的磁盘路径） */
-export interface OpenFile {
-  id: string
-  name: string
-  /** 磁盘路径（真实文件才有，演示文件为空） */
-  path?: string
-  /** 侧栏单击打开的临时预览标签；双击或首次修改后转为固定标签 */
-  preview?: boolean
-  /** 用户明确固定的标签；固定标签位于普通标签之前，批量关闭时保留 */
-  pinned?: boolean
-}
+export type { OpenFile, SidebarProps, WorkspaceInfo } from './types'
 
-/** 已打开的工作区文件夹 */
-export interface WorkspaceInfo {
-  path: string
-  name: string
-  tree: FolderTreeNode[]
-}
-
-interface SidebarProps {
-  /** 演示文件树结构 */
-  demoTree: DemoFolder[]
-  /** 演示文件名映射（id → 显示名） */
-  demoFileNames: Record<string, string>
-  /** 打开的工作区文件夹（可为空） */
-  workspace: WorkspaceInfo | null
-  /** 当前打开的所有文件（用于展示树外的外部文件） */
-  openFiles: OpenFile[]
-  /** 当前激活的文件 ID */
-  activeFileId: string
-  /** 当前文档 Markdown（用于生成大纲） */
-  content: string
-  /** 点击演示文件；固定标签由双击触发 */
-  onSelectDemoFile: (id: string, pinned: boolean) => void
-  /** 点击工作区/磁盘文件（传路径）；固定标签由双击触发 */
-  onSelectWorkspaceFile: (path: string, pinned: boolean) => void
-  /** 点击大纲标题（index 为标题在文档中的顺序） */
-  onOutlineClick: (index: number) => void
-  /** 该值变化时自动切到大纲 Tab（用于"视图 → 大纲面板"菜单） */
-  focusOutlineTick?: number
-  /** 当前光标所在标题索引（大纲跟随高亮，-1 无） */
-  activeOutlineIndex?: number
-  /** 工作区文件操作（仅工作区模式下有效） */
-  onCreateFile?: (dirPath: string) => void
-  onRenameFile?: (path: string, newName: string) => void
-  onDeleteFile?: (path: string) => void
-  /** 拖拽移动文件/文件夹到目标目录（U5） */
-  onMoveFile?: (path: string, targetDir: string) => void
-  /** 右键在新窗口打开文件（U7） */
-  onOpenInNewWindow?: (path: string) => void
-  /** 初始折叠键列表（持久化恢复）；null = 无记录，由 collapseFoldersOnOpen 决定初始态（on 全折叠 / off 全展开） */
-  initialCollapsedKeys?: string[] | null
-  /** 折叠键变化回调 */
-  onCollapsedKeysChange?: (keys: string[]) => void
-  /** 默认打开文件夹全部折叠：开启后折叠某文件夹会一并折叠其子文件夹，且初始全部折叠 */
-  collapseFoldersOnOpen?: boolean
-  /** 当前活动标签页 */
-  activeTab?: SidebarView
-  /** 标签页切换回调 */
-  onActiveTabChange?: (tab: SidebarView) => void
-  /** 反链面板数据（工作区链接图谱；null = 未建索引/无工作区） */
-  linkGraph?: BacklinkGraph | null
-  /** 反链面板针对的当前文件路径（null = 演示文件/未保存文档） */
-  activeLinkPath?: string | null
-  /** 链接索引是否在加载 */
-  linksLoading?: boolean
-  /** 链接索引是否被规模守卫截断 */
-  linksTruncated?: boolean
-  /** 点击反链/出链条目打开对应文件（query 接力文档内搜索） */
-  onOpenLink?: (path: string, query: string) => void
-  /** 点击未解析目标 */
-  onUnresolvedLinkClick?: (target: string) => void
-  /** 打开知识图谱视图 */
-  onOpenGraphView?: () => void
-  /** 逐文件标签索引（null = 未建索引/无工作区） */
-  tagsFiles?: WorkspaceTagIndexEntry[] | null
-  /** 标签索引是否在加载 */
-  tagsLoading?: boolean
-  /** 标签索引是否被规模守卫截断 */
-  tagsTruncated?: boolean
-  /** 当前标签筛选（null = 未筛选）；文件树只显示含该标签的文件 */
-  tagFilter?: { tag: string; paths: string[] } | null
-  /** 点击标签切换文件树筛选 */
-  onToggleTagFilter?: (tag: string) => void
-  /** 清除标签筛选 */
-  onClearTagFilter?: () => void
-  workspaceIndex?: WorkspaceIndex | null
-  diagnostics?: DiagnosticRecord[]
-  indexLoading?: boolean
-  onRefreshIndex?: () => void
-  onCancelIndex?: () => void
-  onOpenDiagnostic?: (diagnostic: DiagnosticRecord) => void
-  /** 当前文档中文排版问题（活动文档内容实时检查，非工作区索引） */
-  typographyIssues?: TypographyIssue[]
-  /** 点击排版问题定位到所在行 */
-  onOpenTypographyIssue?: (issue: TypographyIssue) => void
-  /** 一键修复当前文档排版问题 */
-  onFixTypography?: () => void
-  /**
-   * L16：折叠时不卸载组件（保留滚动位置/重命名状态），只缩到宽度 0。
-   * 折叠期间用 inert 阻止 Tab 聚焦被裁切的内容。
-   */
-  collapsed?: boolean
-}
-
-/* ==================== 小图标 ==================== */
-
-function ChevronIcon({ open }: { open: boolean }): JSX.Element {
-  return (
-    <svg className={`tree-chevron ${open ? 'open' : ''}`} viewBox="0 0 24 24">
-      <polyline points="9 6 15 12 9 18" />
-    </svg>
-  )
-}
-
-function FolderIcon(): JSX.Element {
-  return (
-    <svg className="tree-icon tree-icon-folder" viewBox="0 0 24 24">
-      <path d="M3 7a2 2 0 0 1 2-2h4.2a1 1 0 0 1 .8.4L11.6 7H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-    </svg>
-  )
-}
-
-function FileIcon(): JSX.Element {
-  return (
-    <svg className="tree-icon tree-icon-file" viewBox="0 0 24 24">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-    </svg>
-  )
-}
+/* Sidebar intentionally owns only the file tree. Secondary panels are registered
+ * in ContextDock so their lifecycle and keyboard focus remain independent. */
 
 export function Sidebar({
   demoTree,
   demoFileNames,
   workspace,
+  openFiles,
   activeFileId,
-  content,
   onSelectDemoFile,
   onSelectWorkspaceFile,
-  onOutlineClick,
-  focusOutlineTick: _focusOutlineTick = 0,
-  activeOutlineIndex = -1,
   onCreateFile,
   onRenameFile,
   onDeleteFile,
@@ -174,52 +36,15 @@ export function Sidebar({
   initialCollapsedKeys,
   onCollapsedKeysChange,
   collapseFoldersOnOpen = true,
-  activeTab: _controlledTab,
-  onActiveTabChange: _onActiveTabChange,
-  linkGraph = null,
-  activeLinkPath = null,
-  linksLoading = false,
-  linksTruncated = false,
-  onOpenLink,
-  onUnresolvedLinkClick,
-  onOpenGraphView,
-  tagsFiles = null,
-  tagsLoading = false,
-  tagsTruncated = false,
   tagFilter = null,
-  onToggleTagFilter,
   onClearTagFilter,
-  workspaceIndex = null,
-  diagnostics = [],
-  indexLoading = false,
-  onRefreshIndex,
-  onCancelIndex,
-  onOpenDiagnostic,
-  typographyIssues,
-  onOpenTypographyIssue,
-  onFixTypography,
   collapsed = false,
 }: SidebarProps): JSX.Element {
-  const activeTab = 'files' as SidebarView
-  const setActiveTab = useCallback((_tab: SidebarView) => undefined, [])
-  const sidebarViewModel = useMemo(
-    () => workspaceIndex ? buildSidebarViewModel(workspaceIndex, activeLinkPath, activeTab) : null,
-    [workspaceIndex, activeLinkPath, activeTab],
-  )
-  const sidebarTagFiles = useMemo(
-    () => {
-      if (!sidebarViewModel) return tagsFiles
-      if (sidebarViewModel.view !== 'tags') return tagsFiles
-      const tagPaths = new Set(sidebarViewModel.tags.flatMap((tag) => tag.paths))
-      return Array.from(tagPaths, (path) => ({ path, mtimeMs: 0, size: 0, tags: sidebarViewModel.tags.filter((tag) => tag.paths.includes(path)).map((tag) => tag.name) }))
-    },
-    [sidebarViewModel, tagsFiles],
-  )
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(
     () => new Set(initialCollapsedKeys ?? []),
   )
   // 右键菜单与内联重命名
-  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; node: UiNode } | null>(null)
+  const [ctxMenu, setCtxMenu] = useState<SidebarContextMenuState | null>(null)
   const [renamingKey, setRenamingKey] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   // 文件树拖拽移动（U5）：正在拖动的节点与当前悬停的投放目标
@@ -248,13 +73,34 @@ export function Sidebar({
     return true
   }
 
-  // 点击其他区域关闭右键菜单
+  const closeCtxMenu = useCallback((restoreFocus = false) => {
+    const trigger = ctxMenu?.trigger
+    setCtxMenu(null)
+    if (restoreFocus) trigger?.focus()
+  }, [ctxMenu])
+
+  // 点击其他区域关闭右键菜单；Escape 关闭并把焦点还给触发右键的行。
   useEffect(() => {
     if (!ctxMenu) return
-    const handler = () => setCtxMenu(null)
-    document.addEventListener('click', handler)
-    return () => document.removeEventListener('click', handler)
-  }, [ctxMenu])
+    const handleClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest('.tree-ctx-menu')) {
+        closeCtxMenu()
+      }
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        closeCtxMenu(true)
+      }
+    }
+    document.addEventListener('click', handleClick)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('click', handleClick)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [closeCtxMenu, ctxMenu])
+
 
   /* ==================== 文件树数据 ==================== */
 
@@ -285,6 +131,16 @@ export function Sidebar({
         ? filterTreeByPaths(workspaceNodes, new Set(tagFilter.paths))
         : workspaceNodes,
     [workspaceNodes, tagFilter],
+  )
+
+  const externalNodes = useMemo<UiNode[]>(
+    () => collectExternalOpenFiles(openFiles, workspace?.path ?? null).map((file) => ({
+      key: `external:${file.id}`,
+      name: file.name,
+      kind: 'file',
+      path: file.path,
+    })),
+    [openFiles, workspace?.path],
   )
 
   /** 收集当前渲染树的全部文件夹 key（演示树或工作区树，含嵌套子文件夹） */
@@ -367,7 +223,7 @@ export function Sidebar({
     if (!workspace || !node.path) return
     e.preventDefault()
     const pos = clampMenuPosition(e.clientX, e.clientY)
-    setCtxMenu({ x: pos.x, y: pos.y, node })
+    setCtxMenu({ x: pos.x, y: pos.y, node, trigger: e.currentTarget as HTMLElement })
   }
 
   const openTreeFile = (node: UiNode, pinned: boolean) => {
@@ -539,238 +395,43 @@ export function Sidebar({
       className={`sidebar ${collapsed ? 'collapsed' : ''}`}
       aria-hidden={collapsed}
     >
-      {/* Tab 切换 */}
-      <div className="sidebar-tabs" role="tablist" aria-label="侧栏视图">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'files'}
-          aria-controls="sidebar-files-panel"
-          className={`sidebar-tab ${activeTab === 'files' ? 'active' : ''}`}
-          onClick={() => setActiveTab('files')}
-        >
-          文件
-        </button>
-        <button type="button" role="tab" aria-selected={activeTab === 'quality'} aria-controls="sidebar-quality-panel" className={`sidebar-tab ${activeTab === 'quality' ? 'active' : ''}`} onClick={() => setActiveTab('quality')}>质量</button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'outline'}
-          aria-controls="sidebar-outline-panel"
-          className={`sidebar-tab ${activeTab === 'outline' ? 'active' : ''}`}
-          onClick={() => setActiveTab('outline')}
-        >
-          大纲
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'links'}
-          aria-controls="sidebar-links-panel"
-          className={`sidebar-tab ${activeTab === 'links' ? 'active' : ''}`}
-          onClick={() => setActiveTab('links')}
-        >
-          链接
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'tags'}
-          aria-controls="sidebar-tags-panel"
-          className={`sidebar-tab ${activeTab === 'tags' ? 'active' : ''}`}
-          onClick={() => setActiveTab('tags')}
-        >
-          标签
-        </button>
-      </div>
-
       <div className="sidebar-body">
-        {/* ===== 文件树面板 ===== */}
-        {activeTab === 'files' && (
-          <div
-            id="sidebar-files-panel"
-            className="panel active"
-            role="tabpanel"
-            aria-label="文件"
-          >
-            {/* 已打开工作区：只显示当前文件夹；否则显示演示树 + 外部文件 */}
+        <div className="panel active" role="tabpanel" aria-label="文件">
+          {tagFilter && (
+            <div className="tree-filter-banner">
+              <span className="tree-filter-label">#{tagFilter.tag}（{tagFilter.paths.length}）</span>
+              <button type="button" className="tree-filter-clear" onClick={() => onClearTagFilter?.()} aria-label="清除标签筛选" title="清除标签筛选">✕</button>
+            </div>
+          )}
+          <div role="tree" aria-label="文件列表">
             {workspace ? (
-              <div role="tree" aria-label="文件列表">
-                {tagFilter && (
-                  <div className="tree-filter-banner">
-                    <span className="tree-filter-label">
-                      #{tagFilter.tag}（{tagFilter.paths.length}）
-                    </span>
-                    <button
-                      type="button"
-                      className="tree-filter-clear"
-                      onClick={() => onClearTagFilter?.()}
-                      aria-label="清除标签筛选"
-                      title="清除标签筛选"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
-                {visibleWorkspaceNodes.length > 0 ? (
-                  visibleWorkspaceNodes.map((node) => renderTreeNode(node, 0))
-                ) : (
-                  <div className="tree-empty">
-                    {tagFilter ? '没有包含该标签的文件' : '文件夹为空，已新建空白文档'}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div role="tree" aria-label="文件列表">
-                {demoNodes.map((node) => renderTreeNode(node, 0))}
+              visibleWorkspaceNodes.length > 0
+                ? visibleWorkspaceNodes.map((node) => renderTreeNode(node, 0))
+                : <div className="tree-empty">{tagFilter ? '没有包含该标签的文件' : '文件夹为空，已新建空白文档'}</div>
+            ) : demoNodes.map((node) => renderTreeNode(node, 0))}
+            {externalNodes.length > 0 && (
+              <div className="tree-external-group" role="group" aria-label="外部文件">
+                <div className="tree-section-label">外部文件</div>
+                {externalNodes.map((node) => renderTreeNode(node, 0))}
               </div>
             )}
           </div>
-        )}
-
-        {/* ===== 大纲面板 ===== */}
-        {activeTab === 'outline' && (
-          <div
-            id="sidebar-outline-panel"
-            className="panel active"
-            role="tabpanel"
-            aria-label="大纲"
-          >
-            <OutlinePanel
-              content={content}
-              docKey={activeFileId}
-              activeOutlineIndex={activeOutlineIndex}
-              onOutlineClick={onOutlineClick}
-            />
-          </div>
-        )}
-
-        {/* ===== 反向链接面板 ===== */}
-        {activeTab === 'links' && (
-          <div
-            id="sidebar-links-panel"
-            className="panel active"
-            role="tabpanel"
-            aria-label="链接"
-          >
-            <BacklinksPanel
-              graph={workspaceIndex ? null : linkGraph}
-              viewModel={sidebarViewModel}
-              activeFilePath={activeLinkPath}
-              loading={linksLoading}
-              truncated={linksTruncated}
-              onOpenLink={(path, query) => onOpenLink?.(path, query)}
-              onUnresolvedClick={(target) => onUnresolvedLinkClick?.(target)}
-              onOpenGraph={() => onOpenGraphView?.()}
-            />
-          </div>
-        )}
-
-        {/* ===== 标签面板 ===== */}
-        {activeTab === 'tags' && (
-          <div
-            id="sidebar-tags-panel"
-            className="panel active"
-            role="tabpanel"
-            aria-label="标签"
-          >
-            <TagsPanel
-              files={sidebarTagFiles}
-              loading={tagsLoading}
-              truncated={tagsTruncated}
-              activeTag={tagFilter?.tag ?? null}
-              onToggleTag={(tag) => onToggleTagFilter?.(tag)}
-              onOpenFile={(path) => onSelectWorkspaceFile(path, false)}
-            />
-          </div>
-        )}
-        {activeTab === 'quality' && (
-          <div id="sidebar-quality-panel" className="panel active" role="tabpanel" aria-label="质量诊断">
-            <QualityPanel
-              diagnostics={sidebarViewModel?.diagnostics ?? diagnostics}
-              indexComplete={workspaceIndex?.complete ?? false}
-              indexing={indexLoading}
-              onRefresh={onRefreshIndex}
-              onCancel={onCancelIndex}
-              onOpenDiagnostic={onOpenDiagnostic}
-              typographyIssues={typographyIssues}
-              onOpenTypographyIssue={onOpenTypographyIssue}
-              onFixTypography={onFixTypography}
-            />
-          </div>
-        )}
+        </div>
       </div>
 
       {/* ===== 右键上下文菜单（工作区文件操作） ===== */}
       {ctxMenu && (
-        <div
-          className="tree-ctx-menu"
-          style={{ top: ctxMenu.y, left: ctxMenu.x }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {ctxMenu.node.kind === 'folder' && (
-            <div
-              className="tree-ctx-item"
-              onClick={() => {
-                if (ctxMenu.node.path) onCreateFile?.(ctxMenu.node.path)
-                setCtxMenu(null)
-              }}
-            >
-              新建文件
-            </div>
-          )}
-          {ctxMenu.node.kind === 'file' && (
-            <>
-              <div
-                className="tree-ctx-item"
-                onClick={() => {
-                  setRenamingKey(ctxMenu.node.key)
-                  setRenameValue(ctxMenu.node.name)
-                  setCtxMenu(null)
-                }}
-              >
-                重命名
-              </div>
-              <div
-                className="tree-ctx-item"
-                onClick={() => {
-                  if (ctxMenu.node.path) {
-                    void navigator.clipboard.writeText(ctxMenu.node.path)
-                  }
-                  setCtxMenu(null)
-                }}
-              >
-                复制路径
-              </div>
-              <div
-                className="tree-ctx-item"
-                onClick={() => {
-                  if (ctxMenu.node.path) onOpenInNewWindow?.(ctxMenu.node.path)
-                  setCtxMenu(null)
-                }}
-              >
-                在新窗口打开
-              </div>
-              <div className="tree-ctx-sep" />
-              <div
-                className="tree-ctx-item danger"
-                onClick={() => {
-                  if (
-                    ctxMenu.node.path &&
-                    window.confirm(
-                      `确定删除“${ctxMenu.node.name}”吗？\n文件将移入回收站，可恢复。`,
-                    )
-                  ) {
-                    onDeleteFile?.(ctxMenu.node.path)
-                  }
-                  setCtxMenu(null)
-                }}
-              >
-                删除
-              </div>
-            </>
-          )}
-        </div>
+        <SidebarContextMenu
+          state={ctxMenu}
+          onClose={closeCtxMenu}
+          onCreateFile={onCreateFile}
+          onStartRename={(node) => {
+            setRenamingKey(node.key)
+            setRenameValue(node.name)
+          }}
+          onOpenInNewWindow={onOpenInNewWindow}
+          onDeleteFile={onDeleteFile}
+        />
       )}
     </div>
   )

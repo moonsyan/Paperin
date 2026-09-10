@@ -50,5 +50,7 @@ export const CHANNELS = {
   WINDOW_SET_SPELLCHECK: 'window:set-spellcheck',
   WINDOW_NEW: 'window:new',
   WINDOW_NEW_WITH_FILE: 'window:new-with-file',
+  /** OS file association / macOS open-file forwarded from Main to Renderer. */
+  WINDOW_OPEN_FILE: 'window:open-file',
   WINDOW_SET_UNSAVED: 'window:set-unsaved',
 } as const

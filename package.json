@@ -16,6 +16,7 @@
     "perf:baseline": "node scripts/perf-baseline.mjs --documents 5000 --bytes-per-doc 2048",
     "perf:large-file": "node scripts/perf-baseline.mjs --documents 1 --bytes-per-doc 5242880",
     "perf:regression": "node scripts/perf-regression.mjs",
+    "perf:production": "vitest run --config vitest.performance.config.ts",
     "preview": "electron-vite preview",
     "smoke": "node scripts/smoke-electron.mjs",
     "build:win": "electron-vite build && electron-builder --win",
@@ -34,6 +35,18 @@
       "resources/icon.png",
       "!out/**/*.tsbuildinfo",
       "!**/*.map"
+    ],
+    "fileAssociations": [
+      {
+        "ext": [
+          "md",
+          "markdown"
+        ],
+        "name": "MarkdownSoft Markdown Document",
+        "description": "Markdown 文档",
+        "mimeType": "text/markdown",
+        "role": "Editor"
+      }
     ],
     "afterPack": "scripts/afterPack.js",
     "electronLanguages": [

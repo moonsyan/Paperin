@@ -66,6 +66,33 @@ describe('DocumentRecord store', () => {
     expect(next['file-b']).toBeUndefined()
   })
 
+  it('drops a closed external-file record without changing workspace records', () => {
+    const workspaceFile = FILE
+    const externalFile: OpenFile = {
+      id: 'file-D:/downloads/temporary.md',
+      name: 'temporary.md',
+      path: 'D:/downloads/temporary.md',
+    }
+    const records = createDocumentRecordStore(
+      { [workspaceFile.id]: '知识库', [externalFile.id]: '临时' },
+      { [workspaceFile.id]: true, [externalFile.id]: true },
+      {},
+      {},
+      [workspaceFile, externalFile],
+      {},
+    )
+
+    const next = applyContentMap(
+      records,
+      { [workspaceFile.id]: '知识库' },
+      [workspaceFile],
+      {},
+    )
+
+    expect(Object.keys(next)).toEqual([workspaceFile.id])
+    expect(next[workspaceFile.id].content).toBe('知识库')
+  })
+
   it('projects only open documents while preserving tab metadata', () => {
     const records = createDocumentRecordStore(
       { 'file-a': 'A', closed: 'C' },

@@ -174,9 +174,11 @@ describe('workspace-index-service：预算与进度', () => {
       files[`D:/notes/${i}.md`] = { content: MD(String(i)), mtimeMs: i, size: 10 }
     }
     const deps = createDeps(files)
+    const listMarkdownFiles = vi.spyOn(deps, 'listMarkdownFiles')
     const service = createWorkspaceIndexService(deps, { maxFiles: 5 })
 
     const result = await service.refresh('D:/notes')
+    expect(listMarkdownFiles).toHaveBeenCalledWith('D:/notes', 6)
     expect(result.truncated).toBe(true)
     expect(result.complete).toBe(false)
     expect(Object.keys(result.index.documents).length).toBe(5)

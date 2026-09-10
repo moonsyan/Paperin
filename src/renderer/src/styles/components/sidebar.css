@@ -181,6 +181,11 @@
   animation: ddIn 120ms var(--ease);
 }
 .tree-ctx-item {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
   padding: 6px 12px;
   font-size: .76rem;
   color: var(--text-2);
@@ -191,6 +196,11 @@
 .tree-ctx-item:hover {
   background: var(--bg-hover);
   color: var(--text-1);
+}
+.tree-ctx-item:focus-visible,
+.tree-ctx-menu:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 .tree-ctx-item.danger { color: #b06060; }
 .tree-ctx-item.danger:hover { background: rgba(176, 96, 96, .1); color: #a04c4c; }

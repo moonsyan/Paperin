@@ -1,12 +1,21 @@
 import { app, shell, BrowserWindow, Menu, protocol } from 'electron'
-import { join } from 'path'
+import { dirname, join } from 'path'
 import { appendFileSync, mkdirSync, readFileSync, renameSync, statSync } from 'fs'
+import { stat as statFile } from 'fs/promises'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { autoUpdater } from 'electron-updater'
 import { createWindow } from './window/window-manager'
 import { registerIpcHandlers } from './ipc/handlers'
-import { fetchAllowedImage } from './image-protocol'
+import { allowImageDirectory, fetchAllowedImage } from './image-protocol'
+import { schedulePersistTrust } from './session-trust'
 import { applySmokeUserData, parseSmokeWorkspace, runElectronSmoke } from './testing/electron-smoke'
+import { trustFileForSave } from './trusted-paths'
+import { CHANNELS } from '../shared/ipc/channels'
+import {
+  chooseSystemOpenDisposition,
+  collectSystemOpenFiles,
+  normalizeSystemOpenFile,
+} from './window/system-file-open'
 
 // 冒烟模式（--smoke <工作区>，供 scripts/smoke-electron.mjs 调用）：
 // 必须在下方任何 userData 读取之前切换到一次性临时目录
@@ -84,23 +93,86 @@ try {
 } catch {
   multiWindowMode = false
 }
+
+let systemOpenReady = false
+const pendingSystemOpenFiles: string[] = []
+
+const focusWindow = (window: BrowserWindow | undefined): void => {
+  if (!window || window.isDestroyed()) return
+  if (window.isMinimized()) window.restore()
+  window.focus()
+}
+
+/** Validate and authorize an OS-delivered path before exposing it to Renderer. */
+const routeSystemOpenFile = async (candidate: string): Promise<boolean> => {
+  const filePath = normalizeSystemOpenFile(candidate, process.platform)
+  if (!filePath) return false
+  const fileInfo = await statFile(filePath).catch(() => null)
+  if (!fileInfo?.isFile()) return false
+
+  // Association/open-file is an explicit OS user action. Grant only the file
+  // itself for read/write, plus its directory for relative image reads.
+  trustFileForSave(filePath)
+  allowImageDirectory(dirname(filePath))
+  schedulePersistTrust()
+
+  const windows = BrowserWindow.getAllWindows().filter((window) => !window.isDestroyed())
+  const disposition = chooseSystemOpenDisposition(multiWindowMode, windows.length > 0)
+  if (disposition === 'fresh-window') {
+    createWindow(true, filePath)
+    return true
+  }
+
+  const target = BrowserWindow.getFocusedWindow() ?? windows[0] ?? createWindow()
+  const deliver = (): void => {
+    if (target.isDestroyed()) return
+    target.webContents.send(CHANNELS.WINDOW_OPEN_FILE, filePath)
+    focusWindow(target)
+  }
+  if (target.webContents.isLoadingMainFrame()) {
+    target.webContents.once('did-finish-load', deliver)
+  } else {
+    deliver()
+  }
+  return true
+}
+
+const queueOrRouteSystemFiles = (paths: readonly string[]): void => {
+  if (!systemOpenReady) {
+    pendingSystemOpenFiles.push(...paths)
+    return
+  }
+  paths.forEach((path) => {
+    void routeSystemOpenFile(path)
+  })
+}
+
 if (!multiWindowMode) {
   const gotLock = app.requestSingleInstanceLock()
   if (!gotLock) {
     app.quit()
   } else {
     // 再次启动时聚焦已有窗口
-    app.on('second-instance', () => {
-      const win = BrowserWindow.getAllWindows()[0]
-      if (win) {
-        if (win.isMinimized()) win.restore()
-        win.focus()
+    app.on('second-instance', (_event, argv) => {
+      const files = collectSystemOpenFiles(argv, process.platform)
+      if (files.length > 0) {
+        queueOrRouteSystemFiles(files)
+        return
       }
+      focusWindow(BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0])
     })
   }
 }
 
-function initApp(): void {
+// macOS Finder delivers associated documents through open-file, sometimes
+// before ready. Queue them until IPC handlers and the first window are ready.
+app.on('open-file', (event, filePath) => {
+  event.preventDefault()
+  const normalized = normalizeSystemOpenFile(filePath, process.platform)
+  if (normalized) queueOrRouteSystemFiles([normalized])
+})
+
+async function initApp(): Promise<void> {
   // 安全设置
   // AUMID 仅在打包后指向应用 ID：开发态没有对应的开始菜单快捷方式，
   // Windows 解析不到任务栏图标会退回 electron.exe 默认图标；
@@ -121,12 +193,26 @@ function initApp(): void {
   // 注册 IPC 处理器
   registerIpcHandlers()
 
-  // 创建主窗口
-  createWindow()
+  const launchFiles = collectSystemOpenFiles(
+    [...process.argv, ...pendingSystemOpenFiles],
+    process.platform,
+  )
+  pendingSystemOpenFiles.length = 0
+  systemOpenReady = true
+
+  // A normal window restores the last workspace. In multi-window mode an OS
+  // association opens an isolated fresh window so shared session persistence
+  // cannot be overwritten by two renderer sessions.
+  if (!multiWindowMode || launchFiles.length === 0) createWindow()
+  let openedLaunchFile = false
+  for (const filePath of launchFiles) {
+    openedLaunchFile = await routeSystemOpenFile(filePath) || openedLaunchFile
+  }
+  if (multiWindowMode && launchFiles.length > 0 && !openedLaunchFile) createWindow()
 
   // 冒烟场景：窗口就绪后自动驱动"打开工作区→保存→冲突→重命名→搜索"主链路，
   // 以进程退出码报告结果（正常用户启动不带 --smoke，不进入此分支）
-  if (smokeWorkspace) void runElectronSmoke(smokeWorkspace)
+  if (smokeWorkspace) void runElectronSmoke(smokeWorkspace, launchFiles[0])
 
   // 自动更新：仅生产环境检查；未配置更新服务器时静默忽略
   if (!is.dev) {

@@ -47,7 +47,7 @@ export interface WorkspaceIndexCacheStore {
 }
 
 export interface WorkspaceIndexServiceDeps {
-  listMarkdownFiles(root: string): Promise<WorkspaceFileMeta[]>
+  listMarkdownFiles(root: string, limit?: number): Promise<WorkspaceFileMeta[]>
   readFileText(path: string): Promise<string>
   /** 解析相对资源引用到工作区内绝对路径；解析失败返回 null（MISSING_ASSET 诊断素材） */
   resolveResourcePath(root: string, target: string, sourcePath?: string): Promise<string | null>
@@ -77,6 +77,9 @@ interface WorkspaceIndexState {
 const SUPERSEDED = 'SUPERSEDED'
 const CANCELLED = 'CANCELLED'
 
+/** 产品预算覆盖阶段 5 的 5000 文件验收场景；第 5001 个文件触发截断。 */
+export const DEFAULT_WORKSPACE_INDEX_MAX_FILES = 5000
+
 const isAbortErrorLike = (error: unknown): boolean =>
   error instanceof Error && error.name === 'AbortError'
 
@@ -84,7 +87,7 @@ export const createWorkspaceIndexService = (
   deps: WorkspaceIndexServiceDeps,
   options?: { maxFiles?: number; maxFileSize?: number },
 ): WorkspaceIndexService => {
-  const MAX_FILES = options?.maxFiles ?? 2000
+  const MAX_FILES = options?.maxFiles ?? DEFAULT_WORKSPACE_INDEX_MAX_FILES
   const MAX_FILE_SIZE = options?.maxFileSize ?? 2 * 1024 * 1024
   const PROGRESS_INTERVAL = 50
 
@@ -141,7 +144,7 @@ export const createWorkspaceIndexService = (
     }
 
     try {
-      const files = await deps.listMarkdownFiles(root)
+      const files = await deps.listMarkdownFiles(root, MAX_FILES + 1)
       check()
       const withinBudget = files.slice(0, MAX_FILES)
       let truncated = files.length > MAX_FILES

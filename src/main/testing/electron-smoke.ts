@@ -3,6 +3,7 @@ import { mkdtempSync } from 'fs'
 import { readFile, rm, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
+import { CHANNELS } from '../../shared/ipc/channels'
 import { trustDirectory } from '../trusted-paths'
 
 /**
@@ -67,7 +68,10 @@ const waitForReadyWindow = async (): Promise<BrowserWindow> => {
 }
 
 /** 运行冒烟场景；任何步骤失败都以非零退出码结束进程 */
-export const runElectronSmoke = async (workspacePath: string): Promise<void> => {
+export const runElectronSmoke = async (
+  workspacePath: string,
+  associatedFilePath?: string,
+): Promise<void> => {
   const results: string[] = []
   const finish = async (code: 0 | 1, message: string): Promise<never> => {
     if (message) console.error(message.trimEnd())
@@ -87,6 +91,50 @@ export const runElectronSmoke = async (workspacePath: string): Promise<void> => 
     trustDirectory(workspacePath, { essential: true })
     const win = await waitForReadyWindow()
     const wsArg = JSON.stringify(workspacePath)
+
+    // 0. 启动 argv → Main 授权 → preload 窄事件 → Renderer 现有标签路径。
+    // 重发同一路径后标签数保持不变，覆盖关联打开的去重契约。
+    if (associatedFilePath) {
+      const expectedName = associatedFilePath.split(/[/\\]/).pop() ?? associatedFilePath
+      const association = await evalStep(
+        win,
+        '系统文件关联',
+        `(async () => {
+          const deadline = Date.now() + 10000
+          while (Date.now() < deadline) {
+            const banner = document.querySelector('.current-file-banner')
+            const title = document.querySelector('.current-file-banner-title')?.textContent
+            if (banner?.getAttribute('data-source') === 'external' && title === ${JSON.stringify(expectedName)}) {
+              return { ok: true, tabs: document.querySelectorAll('[role="tab"]').length }
+            }
+            await new Promise(resolve => setTimeout(resolve, 100))
+          }
+          const banner = document.querySelector('.current-file-banner')
+          return {
+            ok: false,
+            hash: window.location.hash,
+            hasOnOpenFile: typeof window.desktopAPI?.window?.onOpenFile === 'function',
+            source: banner?.getAttribute('data-source'),
+            title: document.querySelector('.current-file-banner-title')?.textContent,
+            tabs: document.querySelectorAll('[role="tab"]').length,
+          }
+        })()`,
+      )
+      if (!association.ok) {
+        return await finish(1, `SMOKE_FAIL 系统关联文件未进入外部标签 ${JSON.stringify(association)}`)
+      }
+      win.webContents.send(CHANNELS.WINDOW_OPEN_FILE, associatedFilePath)
+      await sleep(300)
+      const duplicate = await evalStep(
+        win,
+        '关联文件去重',
+        `Promise.resolve({ tabs: document.querySelectorAll('[role="tab"]').length })`,
+      )
+      if (duplicate.tabs !== association.tabs) {
+        return await finish(1, `SMOKE_FAIL 同路径关联打开产生重复标签 ${JSON.stringify(duplicate)}`)
+      }
+      results.push('系统文件关联 ok（外部临时标签，同路径去重）')
+    }
 
     // 1. 打开工作区
     const opened = await evalStep(

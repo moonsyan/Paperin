@@ -1,6 +1,5 @@
 import { app } from 'electron'
-import { dirname, join, resolve, sep } from 'path'
-import { stat } from 'fs/promises'
+import { dirname, join } from 'path'
 import { getSetting } from '../settings/settings-store'
 import { WorkspaceStateStore, WorkspaceStateStoreError } from '../settings/workspace-state-store'
 import { allowImageDirectory } from '../image-protocol'
@@ -26,8 +25,7 @@ import { registerWorkspaceStateHandlers } from './workspace-state-handlers'
 import { registerWorkspaceTagIndexHandlers } from './workspace-tag-index'
 import { registerWorkspaceIndexHandlers } from './workspace-index-handlers'
 import { createFileWorkspaceIndexCache, createWorkspaceIndexService } from '../indexing/workspace-index-service'
-import { readTextAutoEncoding, walkMarkdownTree } from './file-io'
-import type { FolderTreeNode } from './file-io'
+import { createWorkspaceIndexFilesystemDependencies } from '../indexing/workspace-index-filesystem'
 import { createFsWatchAdapter, createWorkspaceFileWatcher } from '../indexing/workspace-file-watcher'
 
 const workspaceStateStore = new WorkspaceStateStore()
@@ -86,37 +84,7 @@ export function registerIpcHandlers(): void {
   registerFileHandlers({ isTrustedPath: ensureTrusted })
 
   const workspaceIndexService = createWorkspaceIndexService({
-    listMarkdownFiles: async (root) => {
-      const budget = { nodes: 0, truncated: false }
-      const tree = await walkMarkdownTree(root, 0, budget)
-      const paths: string[] = []
-      const flatten = (nodes: FolderTreeNode[]): void => {
-        for (const node of nodes) {
-          if (node.children) {
-            flatten(node.children)
-            continue
-          }
-          paths.push(node.path)
-        }
-      }
-      flatten(tree)
-      const files = []
-      for (const path of paths) {
-        const fileStat = await stat(path).catch(() => null)
-        if (!fileStat?.isFile()) continue
-        files.push({ path, size: fileStat.size, mtimeMs: fileStat.mtimeMs })
-      }
-      return files
-    },
-    readFileText: async (path) => (await readTextAutoEncoding(path)).content,
-    resolveResourcePath: async (root, target, sourcePath) => {
-      if (/^(?:[a-z]+:|\\\\)/i.test(target)) return null
-      const candidate = resolve(sourcePath ? dirname(sourcePath) : root, target)
-      const rootPrefix = root.replace(/[\\/]+$/, '') + sep
-      if (candidate !== root && !candidate.startsWith(rootPrefix)) return null
-      const resourceStat = await stat(candidate).catch(() => null)
-      return resourceStat?.isFile() ? candidate : null
-    },
+    ...createWorkspaceIndexFilesystemDependencies(),
     cacheStore: createFileWorkspaceIndexCache(() => join(app.getPath('userData'), 'workspace-index-cache')),
   })
   const watchers = new Map<number, { root: string; watcher: ReturnType<typeof createWorkspaceFileWatcher> }>()

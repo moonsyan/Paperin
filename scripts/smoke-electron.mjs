@@ -49,14 +49,22 @@ const main = async () => {
     '# 既有文档\n\n冒烟预置内容。\n',
     'utf-8',
   )
+  // 位于工作区之外：作为系统文件关联启动参数，验证它进入现有窗口的
+  // 临时标签而不是被加入知识库索引。
+  const associatedFile = join(smokeRoot, '系统关联临时文档.md')
+  await writeFile(associatedFile, '# 系统关联\n\n外部临时内容。\n', 'utf-8')
 
   // CI/无桌面环境可能无法启动 Chromium GPU 进程；冒烟验证的是 IPC 与磁盘链路，
   // 因此显式禁用 GPU，避免渲染器在进入测试场景前被运行环境终止。
-  const child = spawn(electronBinary, ['--disable-gpu', mainEntry, '--smoke', workspace], {
-    cwd: projectRoot,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, ELECTRON_ENABLE_LOGGING: '0' },
-  })
+  const child = spawn(
+    electronBinary,
+    ['--disable-gpu', mainEntry, '--smoke', workspace, associatedFile],
+    {
+      cwd: projectRoot,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, ELECTRON_ENABLE_LOGGING: '0' },
+    },
+  )
 
   let output = ''
   child.stdout.on('data', (chunk) => {

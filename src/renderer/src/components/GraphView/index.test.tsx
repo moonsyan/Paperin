@@ -7,7 +7,7 @@
  * 四条路径都必须不抛错。jsdom 缺少 rAF/ResizeObserver，测试内打桩。
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { DEFAULT_GRAPH_SETTINGS, GraphView } from './index'
 import type { BacklinkGraph } from '../../lib/backlinks'
 
@@ -179,5 +179,57 @@ describe('GraphView 内置标签渲染', () => {
         />,
       ),
     ).not.toThrow()
+  })
+
+  it('通过 Escape 关闭活动图谱，设置搜索框输入时不关闭', () => {
+    const onClose = vi.fn()
+    render(
+      <GraphView
+        active
+        graph={graph}
+        activePath={null}
+        workspaceName="ws"
+        truncated={false}
+        onClose={onClose}
+        onOpenNode={noop}
+        onGhostClick={noop}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '图谱设置' }))
+    fireEvent.keyDown(screen.getByPlaceholderText('搜索笔记 / 路径…'), { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('保留已解析节点和 ghost 节点的点击回调', () => {
+    const onOpenNode = vi.fn()
+    const onGhostClick = vi.fn()
+    const { container } = render(
+      <GraphView
+        active
+        graph={graph}
+        activePath={null}
+        workspaceName="ws"
+        truncated={false}
+        onClose={noop}
+        onOpenNode={onOpenNode}
+        onGhostClick={onGhostClick}
+      />,
+    )
+
+    const resolved = container.querySelector('.graph-node:not(.ghost)')
+    const ghost = container.querySelector('.graph-node.ghost')
+    expect(resolved).not.toBeNull()
+    expect(ghost).not.toBeNull()
+    fireEvent.pointerDown(resolved as Element, { pointerId: 1, clientX: 0, clientY: 0 })
+    fireEvent.pointerUp(resolved as Element, { pointerId: 1, clientX: 0, clientY: 0 })
+    fireEvent.pointerDown(ghost as Element, { pointerId: 2, clientX: 0, clientY: 0 })
+    fireEvent.pointerUp(ghost as Element, { pointerId: 2, clientX: 0, clientY: 0 })
+
+    expect(onOpenNode).toHaveBeenCalledWith('D:/ws/a.md')
+    expect(onGhostClick).toHaveBeenCalledWith('不存在')
   })
 })

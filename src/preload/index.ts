@@ -2,6 +2,25 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { CHANNELS } from '../shared/ipc/channels'
 import type { WorkspaceIndexEvent } from '../shared/workspace-index'
 
+type SystemOpenFileListener = (path: string) => void
+const systemOpenFileListeners = new Set<SystemOpenFileListener>()
+const pendingSystemOpenFiles: string[] = []
+
+// Register eagerly so an association event sent as soon as the page loads is
+// retained until React has restored the existing workspace/session.
+ipcRenderer.on(CHANNELS.WINDOW_OPEN_FILE, (_event, path: unknown) => {
+  if (typeof path !== 'string' || !path) return
+  if (systemOpenFileListeners.size === 0) {
+    const key = process.platform === 'win32' ? path.toLocaleLowerCase('en-US') : path
+    const duplicate = pendingSystemOpenFiles.some((pending) =>
+      (process.platform === 'win32' ? pending.toLocaleLowerCase('en-US') : pending) === key,
+    )
+    if (!duplicate && pendingSystemOpenFiles.length < 20) pendingSystemOpenFiles.push(path)
+    return
+  }
+  systemOpenFileListeners.forEach((listener) => listener(path))
+})
+
 /**
  * 暴露给渲染进程的安全 API
  * 渲染进程通过 window.desktopAPI 访问
@@ -22,6 +41,13 @@ const desktopAPI = {
     /** 新建窗口并打开指定文件（fresh 模式） */
     newWindowWithFile: (path: string) =>
       ipcRenderer.invoke(CHANNELS.WINDOW_NEW_WITH_FILE, path),
+    /** Subscribe to OS file-association requests; queued startup requests flush once. */
+    onOpenFile: (listener: SystemOpenFileListener) => {
+      systemOpenFileListeners.add(listener)
+      const pending = pendingSystemOpenFiles.splice(0)
+      pending.forEach((path) => listener(path))
+      return () => systemOpenFileListeners.delete(listener)
+    },
     /** 同步未保存状态到主进程（关闭时弹原生确认框用） */
     setUnsaved: (unsaved: boolean) => ipcRenderer.send(CHANNELS.WINDOW_SET_UNSAVED, unsaved),
   },
