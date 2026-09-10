@@ -8,6 +8,7 @@ import { nextUntitled } from '../constants'
 import type { DocumentState } from './useDocumentState'
 import type { DocumentSaveQueueApi } from './useDocumentSaveQueue'
 import type { EditorHandle } from '../../components/Editor'
+import { shouldPreferCachedDocumentSnapshot } from './large-document-save'
 
 export interface UseDocumentSavingOptions {
   state: DocumentState
@@ -76,12 +77,18 @@ export function useDocumentSaving({
   const handleSaveAs = useCallback(async () => {
     if (!window.desktopAPI) return
     const oldId = activeFileId
-    // M1：与 handleSave 一致，从编辑器同步读取最新内容
-    const editorMd = editorRef.current?.isReady() ? editorRef.current.getMarkdown() : null
+    // 大文档保存优先使用 markdownUpdated 已落账的 ref 快照。同步调用
+    // getMarkdown() 会再次遍历整个 ProseMirror 文档，并可能把 Renderer
+    // 卡在 IPC 之前；普通文档仍读取编辑器，保留末次输入的低延迟语义。
+    const cachedContent = contentsRef.current[oldId] ?? contents[oldId] ?? ''
+    const editorMd =
+      !shouldPreferCachedDocumentSnapshot(cachedContent) && editorRef.current?.isReady()
+        ? editorRef.current.getMarkdown()
+        : null
     const content =
       editorMd != null
         ? toStoredImages(editorMd, dirOfFile(oldId))
-        : (contents[oldId] ?? '')
+        : cachedContent
     const result = await window.desktopAPI.document.saveAs(content)
     if (!result.ok || !result.data) {
       if (result.error?.code !== 'CANCELLED') {
@@ -183,17 +190,22 @@ export function useDocumentSaving({
       return
     }
     if (targetAlreadyOpen) setToast('已覆盖并切换到已打开的同名文件')
-  }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, clearDraft, contents, dirOfFile, draftPendingRef, editorRef, openFilesRef, recordHistory, recordRecent, replaceEditorContent, saveDraft, savedMap, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, setToast])
+  }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, clearDraft, contents, contentsRef, dirOfFile, draftPendingRef, editorRef, openFilesRef, recordHistory, recordRecent, replaceEditorContent, saveDraft, savedMap, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, setToast])
 
   const handleSave = useCallback(async () => {
     const file = openFiles.find((f) => f.id === activeFileId)
-    // M1：Milkdown onChange 经过防抖，contents state 可能滞后最后几键。
-    // 保存时直接从编辑器同步读取最新内容（回写 mdimg 相对路径），避免丢失末次输入
-    const editorMd = editorRef.current?.isReady() ? editorRef.current.getMarkdown() : null
+    // M1：普通文档从编辑器同步读取，避免防抖窗口内丢失最后几键。多 MiB
+    // 文档则使用 markdownUpdated 已落账的 ref 快照，避免同步序列化把保存
+    // 卡在 Renderer，导致 document.save IPC 永远无法开始。
+    const cachedContent = contentsRef.current[activeFileId] ?? contents[activeFileId] ?? ''
+    const editorMd =
+      !shouldPreferCachedDocumentSnapshot(cachedContent) && editorRef.current?.isReady()
+        ? editorRef.current.getMarkdown()
+        : null
     const content =
       editorMd != null
         ? toStoredImages(editorMd, dirOfFile(activeFileId))
-        : (contents[activeFileId] ?? '')
+        : cachedContent
     if (!file) return
     // 同步回填 state，保证后续 savedMap/INITIAL_OR_SAVED 比对基于最新内容
     if (contentsRef.current[activeFileId] !== content) {

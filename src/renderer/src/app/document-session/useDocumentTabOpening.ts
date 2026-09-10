@@ -45,6 +45,7 @@ export function useDocumentTabOpening({
 }: DocumentTabOpeningOptions): DocumentTabOpeningApi {
   const {
     activeFileIdRef,
+    contentsRef,
     initialOrSavedRef: initialOrSaved,
     openFiles,
     openFilesRef,
@@ -61,6 +62,7 @@ export function useDocumentTabOpening({
     openFilesRef.current = [...openFilesRef.current, file]
     setOpenFiles((previous) => [...previous, file])
     setContents((previous) => ({ ...previous, [file.id]: content }))
+    contentsRef.current = { ...contentsRef.current, [file.id]: content }
     setSavedMap((previous) => ({ ...previous, [file.id]: true }))
     initialOrSaved.current[file.id] = content
     activeFileIdRef.current = file.id
@@ -68,7 +70,7 @@ export function useDocumentTabOpening({
     setDocTitle(file.name)
     replaceEditorContent(file.id, content, 'initialize')
     focusEditorSoon()
-  }, [activeFileIdRef, focusEditorSoon, initialOrSaved, openFilesRef, replaceEditorContent, setActiveFileId, setContents, setDocTitle, setOpenFiles, setSavedMap])
+  }, [activeFileIdRef, contentsRef, focusEditorSoon, initialOrSaved, openFilesRef, replaceEditorContent, setActiveFileId, setContents, setDocTitle, setOpenFiles, setSavedMap])
 
   const handleNew = useCallback(() => {
     latestWorkspaceSelectionRef.current = ''
@@ -217,6 +219,7 @@ const openWorkspaceFile = async ({
   state.openFilesRef.current = [...state.openFilesRef.current, file]
   state.setOpenFiles((previous) => [...previous, file])
   state.setContents((previous) => ({ ...previous, [id]: content }))
+  state.contentsRef.current = { ...state.contentsRef.current, [id]: content }
   state.setSavedMap((previous) => ({ ...previous, [id]: true }))
   state.initialOrSavedRef.current[id] = content
   state.setFileMtime((previous) => ({ ...previous, [id]: result.data!.modifiedTime }))

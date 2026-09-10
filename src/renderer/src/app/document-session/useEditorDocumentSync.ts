@@ -6,6 +6,7 @@ import { initializeDocumentBaseline, isDocumentDirty } from '../../lib/document-
 import { isLargeDocument } from '../constants'
 import type { SetSearchMode } from '../useEditorSearch'
 import type { DocumentState } from './useDocumentState'
+import { shouldPreferCachedDocumentSnapshot } from './large-document-save'
 
 type ReplaceMode = 'ignore' | 'initialize' | 'update'
 
@@ -206,7 +207,10 @@ export const useEditorDocumentSync = ({
       closeSearchBar()
       return
     }
-    const markdown = editorRef.current.getMarkdown()
+    const cachedContent = contentsRef.current[fileId] ?? ''
+    const markdown = shouldPreferCachedDocumentSnapshot(cachedContent)
+      ? cachedContent
+      : editorRef.current.getMarkdown()
     if (markdown === null) {
       closeSearchBar()
       return

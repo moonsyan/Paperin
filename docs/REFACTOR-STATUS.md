@@ -75,7 +75,7 @@
 | `npm run smoke` | 通过：打开工作区、新建、保存、冲突、重读、重命名、搜索、状态读取 |
 | `npm run perf:workspace-search-watch` | 通过：5000 文件末尾搜索；20000 watcher 事件去重，搜索 P95 约 437ms、刷新 P95 约 192ms |
 | `npm run perf:production` | 通过：生产索引、搜索、监听门禁；本次冷索引 1375ms、暖刷新 99ms、增量刷新 105ms |
-| `npm run perf:electron` | 未通过：5 MiB 打开/DOM 编辑后，Milkdown 序列化超过 240s 仍未进入保存 IPC；未宣称 5 MiB/20 标签全链路完成 |
+| `npm run perf:electron` | 修复前未通过：5 MiB 打开/DOM 编辑后，Milkdown 序列化超过 240s 仍未进入保存 IPC；已加入 >1 MiB 快照保存策略，完整门禁待重新跑完 |
 
 测试输出仍包含部分既有脚注/数学异常输入用例的预期诊断，以及 Vite CJS API 的弃用提示；它们不导致失败，但后续应继续收敛测试噪声。
 
@@ -83,7 +83,7 @@
 
 ### 发布前高优先级
 
-- 优化 5 MiB 文档的 Milkdown 序列化/保存路径，使真实 Electron 门禁能够进入 `document.save` IPC；随后恢复 5 MiB 导出和 20 标签切换 P50/P95、内容一致性、监听释放与主/渲染进程内存的完整通过证据。
+- 优化 5 MiB 文档的保存/关闭路径：超过 1 MiB 时优先复用已落账快照，避免重复同步序列化；真实 Electron 门禁仍需重新跑完以确认 `document.save` IPC、导出和 20 标签切换 P50/P95、内容一致性、监听释放与主/渲染进程内存。
 - 完成 Windows 安装包启动、文件关联、保存、导出验证；macOS/Linux 安装包与更新流程仍需对应平台环境。
 
 ### 架构与维护性

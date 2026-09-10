@@ -13,6 +13,7 @@ import { useDocumentSaving } from './useDocumentSaving'
 import { useDocumentTabs } from './useDocumentTabs'
 import { useWorkspaceFolderOpen } from './useWorkspaceFolderOpen'
 import { useDocumentRestore } from './useDocumentRestore'
+import { shouldPreferCachedDocumentSnapshot } from './large-document-save'
 
 /**
  * 文档会话域门面：多标签状态（openFiles/contents/savedMap/mtime/编码）、
@@ -81,6 +82,8 @@ export function useDocumentSession({
   const liveContentOf = useCallback(
     (id: string): string => {
       if (id === activeFileIdRef.current && editorRef.current?.isReady()) {
+        const cachedContent = contentsRef.current[id] ?? ''
+        if (shouldPreferCachedDocumentSnapshot(cachedContent)) return cachedContent
         const md = editorRef.current.getMarkdown()
         if (md !== null) return toStoredImages(md, dirOfFile(id))
       }
