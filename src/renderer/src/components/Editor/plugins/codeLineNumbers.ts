@@ -2,7 +2,7 @@ import { Plugin, PluginKey, type Transaction } from '@milkdown/kit/prose/state'
 import type { Node as ProseNode } from '@milkdown/kit/prose/model'
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
 import { analyzeDecorationChange } from './decoOptimize'
-import { viewportChangedKey, streamInsertKey, readVisibleRange } from '../editorViewport'
+import { viewportChangedKey, streamInsertKey, readVisibleRange } from '../viewport/editorViewport'
 
 /* ==================== 代码块行号（装饰 widget，不修改文档） ==================== */
 

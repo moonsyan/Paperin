@@ -15,13 +15,13 @@ import {
   toggleStrongCommand,
 } from '@milkdown/kit/preset/commonmark'
 import { callCommand } from '@milkdown/kit/utils'
-import { isImeComposing } from '../../lib/keyboard'
+import { isImeComposing } from '../../../lib/keyboard'
 import { EditorOverlays, type CodePanelState, type FullscreenCodeState, type SelectionToolbarState, type TablePanelState } from './EditorOverlays'
 import { filterWikiSuggestions, type WikiSuggestion } from './WikiAutocomplete'
 import {
   setWikiAutocompleteHandler,
   type WikiAutocompleteState,
-} from './plugins/wikiLink'
+} from '../plugins/wikiLink'
 
 type EditorOverlaysProps = ComponentProps<typeof EditorOverlays>
 

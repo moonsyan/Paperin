@@ -1,7 +1,7 @@
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state'
 import type { EditorState } from '@milkdown/kit/prose/state'
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
-import { streamInsertKey } from '../editorViewport'
+import { streamInsertKey } from '../viewport/editorViewport'
 
 /* ==================== 块级上下文标记（光标所在块高亮，对标 Typora） ==================== */
 

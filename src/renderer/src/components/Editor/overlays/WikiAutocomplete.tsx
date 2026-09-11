@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { isImeComposing } from '../../lib/keyboard'
+import { isImeComposing } from '../../../lib/keyboard'
 
 export interface WikiSuggestion {
   name: string

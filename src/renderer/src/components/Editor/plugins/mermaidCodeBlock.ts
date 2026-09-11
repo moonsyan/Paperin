@@ -3,7 +3,7 @@ import type { Node as ProseNode } from '@milkdown/kit/prose/model'
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { analyzeDecorationChange } from './decoOptimize'
-import { viewportChangedKey, streamInsertKey, readVisibleRange } from '../editorViewport'
+import { viewportChangedKey, streamInsertKey, readVisibleRange } from '../viewport/editorViewport'
 
 const MERMAID_RENDER_DELAY = 420
 const MERMAID_RENDER_TIMEOUT = 4000

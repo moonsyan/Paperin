@@ -1,7 +1,8 @@
 import type { CmdKey } from '@milkdown/kit/core'
 import type { ReactNode } from 'react'
-import type { EditorAdapter } from './editor-adapter'
-import type { WikiSuggestion } from './WikiAutocomplete'
+import type { EditorAdapter } from './adapter/editor-adapter'
+import type { EditorViewState } from './content/editor-view-state'
+import type { WikiSuggestion } from './overlays/WikiAutocomplete'
 import type { EditorImageHints } from './useImageInsertion'
 
 /**
@@ -11,14 +12,8 @@ import type { EditorImageHints } from './useImageInsertion'
 export interface EditorHandle extends EditorAdapter {
   replaceContent: (markdown: string, onComplete?: () => void) => void
   updateContentPreservingHistory: (markdown: string) => void
-  getViewState: () => {
-    selection: { anchor: number; head: number }
-    scrollTop: number
-  } | null
-  restoreViewState: (state: {
-    selection: { anchor: number; head: number }
-    scrollTop: number
-  }) => void
+  getViewState: () => EditorViewState | null
+  restoreViewState: (state: EditorViewState) => void
   insertMd: (markdown: string) => void
   runMilkdownCommand: <T>(key: CmdKey<T>, payload?: T) => boolean
   getHtml: () => string

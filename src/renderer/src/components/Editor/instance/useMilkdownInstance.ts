@@ -23,21 +23,21 @@ import { useEditor } from '@milkdown/react'
 
 /* ==================== ProseMirror 插件与语法扩展（已拆分至 plugins/） ==================== */
 
-import { searchPlugin } from './plugins/searchHighlight'
-import { nodeAttrsPlugin } from './plugins/nodeAttrs'
-import { lineNumPlugin } from './plugins/codeLineNumbers'
-import { blockContextPlugin } from './plugins/blockContext'
-import { bracketMatchPlugin } from './plugins/bracketMatch'
-import { sectionFoldPlugin } from './plugins/sectionFold'
-import { sectionReorderPlugin } from './plugins/sectionReorder'
-import { customCodeFenceRule, customCodeFenceKeymap } from './plugins/customCodeFence'
+import { searchPlugin } from '../plugins/searchHighlight'
+import { nodeAttrsPlugin } from '../plugins/nodeAttrs'
+import { lineNumPlugin } from '../plugins/codeLineNumbers'
+import { blockContextPlugin } from '../plugins/blockContext'
+import { bracketMatchPlugin } from '../plugins/bracketMatch'
+import { sectionFoldPlugin } from '../plugins/sectionFold'
+import { sectionReorderPlugin } from '../plugins/sectionReorder'
+import { customCodeFenceRule, customCodeFenceKeymap } from '../plugins/customCodeFence'
 import {
   footnoteDefInputRule,
   footnoteRefInputRule,
   footnoteRefClickPlugin,
   footnoteOrphanAsRefPlugin,
-} from './plugins/footnote'
-import { frontmatterRemarkPlugin, frontmatterSchema, frontmatterKeymap } from './plugins/frontmatter'
+} from '../plugins/footnote'
+import { frontmatterRemarkPlugin, frontmatterSchema, frontmatterKeymap } from '../plugins/frontmatter'
 import {
   wikiLinkSchema,
   wikiLinkInputRule,
@@ -45,23 +45,23 @@ import {
   wikiLinkStatusPlugin,
   wikiAutocompletePlugin,
   wikiTextConvertPlugin,
-} from './plugins/wikiLink'
-import { tableColResizePlugin } from './plugins/tableColResize'
-import { taskListCheckboxPlugin } from './plugins/taskListCheckbox'
-import { linkClickPlugin } from './plugins/linkClick'
-import { mermaidPreviewPlugin } from './plugins/mermaidCodeBlock'
-import { configureCodeBlockRefractor } from './plugins/syntaxHighlighting'
-import { mathEditablePlugin } from './plugins/mathEditable'
-import { imagePlaceholderPlugin } from './plugins/imagePlaceholder'
-import { markdownPastePlugin } from './plugins/markdownPaste'
-import { ensureFootnoteDefinitions } from '../../lib/footnote-normalize'
-import { MAX_IMAGE_SIZE } from './useImageInsertion'
-import { collectActiveHeading } from './editorHeadings'
+} from '../plugins/wikiLink'
+import { tableColResizePlugin } from '../plugins/tableColResize'
+import { taskListCheckboxPlugin } from '../plugins/taskListCheckbox'
+import { linkClickPlugin } from '../plugins/linkClick'
+import { mermaidPreviewPlugin } from '../plugins/mermaidCodeBlock'
+import { configureCodeBlockRefractor } from '../plugins/syntaxHighlighting'
+import { mathEditablePlugin } from '../plugins/mathEditable'
+import { imagePlaceholderPlugin } from '../plugins/imagePlaceholder'
+import { markdownPastePlugin } from '../plugins/markdownPaste'
+import { ensureFootnoteDefinitions } from '../../../lib/footnote-normalize'
+import { MAX_IMAGE_SIZE } from '../useImageInsertion'
+import { collectActiveHeading } from '../navigation/editorHeadings'
 import {
   installViewportTracker,
   streamInsertKey,
-} from './editorViewport'
-import type { EditorProps } from './editor-types'
+} from '../viewport/editorViewport'
+import type { EditorProps } from '../editor-types'
 import type { MutableRefObject } from 'react'
 
 export interface MilkdownInstanceOptions {

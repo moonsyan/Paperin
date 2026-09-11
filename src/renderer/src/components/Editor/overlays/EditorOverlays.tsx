@@ -1,4 +1,4 @@
-import { isImeComposing } from '../../lib/keyboard'
+import { isImeComposing } from '../../../lib/keyboard'
 import { WikiAutocomplete, type WikiSuggestion } from './WikiAutocomplete'
 
 export interface CodePanelState {

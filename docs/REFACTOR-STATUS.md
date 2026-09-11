@@ -54,7 +54,9 @@
 - GraphView、Sidebar、系统打开和文档来源均有直接行为测试；拆分没有改变现有外部 API。
 - `useDocumentTabs` 已拆为打开、关闭、工作区视图恢复和纯关闭计划模块；入口 103 行，补充关闭计划测试和维护说明。
 - 窄窗口下 Sidebar 变为不挤压正文的抽屉；TabBar 上下文菜单接管焦点并在 Escape 后恢复触发标签，Sidebar/TabBar 组件测试覆盖这些行为。
-- `App.tsx` 已保留稳定入口，组合控制器移至 `app/AppComposition.tsx`；组合控制器仍约 2000 行，后续必须继续按职责拆分。
+- `App.tsx` 已保留稳定入口，组合控制器移至 `app/AppComposition.tsx`；组合控制器已从 2010 行收敛到约 440 行，只负责装配功能域 hook 与渲染视图组合。业务实现移入 `useAppSettings`、`useWorkspaceIndexes`、`useEditorFeatures`、`useGraphView`、`useAppLayout`、`useWritingMetrics`、`resolve-collection-entries`，视图拆为 `AppTopBar`、`AppWorkspace`、`AppDialogs`。
+- 编辑器目录已按功能域重排：`adapter/`（对外门面与命令映射）、`content/`（正文替换、位置换算、视图状态）、`viewport/`（视口虚拟化与导出快照）、`navigation/`（光标导航与标题枚举）、`overlays/`（浮动层与 Wiki 补全）、`instance/`（Milkdown 实例装配），原有 `plugins/` 不变。`useEditorContentReplacement.ts` 从 709 行降到约 340 行，大文档流式替换独立为 `useStreamingReplace`，新增纯函数模块均带直接测试。
+- 图谱打开的工作区校验与链接刷新收敛到 `useGraphView.openGraphView`，`useAppActions` 只保留委托，避免同一策略分散两处；主题持久化统一收进 `useAppSettings`。
 
 ### 合成性能基线
 
@@ -88,7 +90,7 @@
 
 ### 架构与维护性
 
-- `app/AppComposition.tsx`、编辑器 hooks 和部分 Main IPC 文件仍超过项目行数门禁；GraphView、Sidebar、标签会话已完成第一轮拆分，剩余历史巨型文件需要按控制器、视图和副作用边界继续拆解。
+- 仍超过项目行数门禁的文件：`src/main/ipc/file-handlers.ts`（654）、`src/renderer/src/lib/docx.ts`（613）、`app/useAppActions.ts`（552）、`hooks/useExports.ts`（506）、`app/workspace/useWorkspaceFiles.ts`（505）、`app/useAppSettings.ts`（496）、`Editor/overlays/useEditorOverlays.ts`（486）、`Editor/instance/useMilkdownInstance.ts`（485）。`AppComposition.tsx`（447）与 `useEditorContentReplacement.ts`（约 340）已完成第一轮拆分，需继续按命令域与导出域收敛。
 - Sidebar 主区域、`editor.margin` 和 `statusbar.end` 尚未全部消费 `PanelRegistry`；菜单、右键菜单和全部快捷键也未完全统一到命令注册表。
 - 搜索、图谱、反向链接、标签和质量检查的往返选择状态尚未统一到单一工作区视图模型。
 - 文档会话控制器尚未完全收口草稿恢复、关闭确认和所有保存分支；仍需逐项验证卸载取消和多窗口竞态。
@@ -118,7 +120,7 @@
 ## 建议继续顺序
 
 1. 先修复 5 MiB Milkdown 序列化/保存瓶颈，恢复 Electron 全链路性能门禁的通过证据。
-2. 以 `app/AppComposition.tsx`、编辑器 hooks 和剩余 Main IPC 巨型文件为拆分入口，继续收敛控制器和单职责组件。
+2. 以 `app/useAppActions.ts`、`hooks/useExports.ts`、`app/workspace/useWorkspaceFiles.ts`、`Editor/instance/useMilkdownInstance.ts`、`Editor/overlays/useEditorOverlays.ts` 和 `src/main/ipc/file-handlers.ts` 为下一批拆分入口，按功能域继续收敛控制器和单职责组件。
 3. 完成 quiet-workspace、小窗口、输入法、焦点和主题的人工/端到端验证。
 4. 逐项迁移低频功能到命令注册表、面板和新文档模型。
 5. 完成 Windows 安装包以及 macOS/Linux 安装包和更新流程验证。

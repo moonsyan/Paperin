@@ -56,9 +56,7 @@ function createOpts(overrides: Record<string, unknown> = {}) {
     setWsSearchOpen: vi.fn(),
     setPaletteOpen: vi.fn(),
     setVersionHistoryOpen: vi.fn(),
-    setGraphTabOpen: vi.fn(),
-    setGraphTabActive: vi.fn(),
-    refreshLinks: vi.fn(),
+    openGraphView: vi.fn(),
     getLayoutState: vi.fn(() => ({ activeView: 'files' as const, sidebarWidth: 260, typewriterMode: false })),
     setSidebarWidth: vi.fn(),
     setPublishOpen: vi.fn(),
@@ -327,29 +325,22 @@ describe('useAppActions', () => {
       expect(setVersionHistoryOpen).not.toHaveBeenCalled()
     })
 
-    it('graph + 有工作区 → handleOpenGraphView', () => {
-      const refreshLinks = vi.fn()
-      const setGraphTabOpen = vi.fn()
-      const setGraphTabActive = vi.fn()
-      const { result } = renderHook(() =>
-        useAppActions(createOpts({
-          refreshLinks, setGraphTabOpen, setGraphTabActive,
-          workspacePathRef: { current: '/ws' },
-        })),
-      )
+    it('graph → 委托 openGraphView（工作区校验与刷新在 useGraphView）', () => {
+      const openGraphView = vi.fn()
+      const { result } = renderHook(() => useAppActions(createOpts({ openGraphView })))
+
       act(() => result.current.handleAction('graph'))
-      expect(refreshLinks).toHaveBeenCalledOnce()
-      expect(setGraphTabOpen).toHaveBeenCalledWith(true)
-      expect(setGraphTabActive).toHaveBeenCalledWith(true)
+
+      expect(openGraphView).toHaveBeenCalledOnce()
     })
 
-    it('graph + 无工作区 → setToast', () => {
-      const setToast = vi.fn()
-      const { result } = renderHook(() =>
-        useAppActions(createOpts({ setToast, workspacePathRef: { current: undefined } })),
-      )
-      act(() => result.current.handleAction('graph'))
-      expect(setToast).toHaveBeenCalledWith('请先打开文件夹（工作区）后再查看知识图谱')
+    it('handleOpenGraphView 直接暴露 openGraphView', () => {
+      const openGraphView = vi.fn()
+      const { result } = renderHook(() => useAppActions(createOpts({ openGraphView })))
+
+      act(() => result.current.handleOpenGraphView())
+
+      expect(openGraphView).toHaveBeenCalledOnce()
     })
 
     it('outline → openOutlinePanel', () => {

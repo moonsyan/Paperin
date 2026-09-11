@@ -77,9 +77,8 @@ export interface UseAppActionsOptions {
   setWsSearchOpen: Dispatch<SetStateAction<boolean>>
   setPaletteOpen: Dispatch<SetStateAction<boolean>>
   setVersionHistoryOpen: Dispatch<SetStateAction<boolean>>
-  setGraphTabOpen: Dispatch<SetStateAction<boolean>>
-  setGraphTabActive: Dispatch<SetStateAction<boolean>>
-  refreshLinks: () => void
+  /** 打开图谱（含工作区校验与链接刷新，策略在 useGraphView） */
+  openGraphView: () => void
   /** 会话脏状态探针（可选）：命令注册表 enabled 判断使用；Task 7 会话迁移后接入真实脏状态 */
   getHasUnsavedChanges?: () => boolean
   /** 当前布局状态快照（布局预设应用时作为保持字段的现状来源） */
@@ -139,9 +138,7 @@ export function useAppActions({
   setWsSearchOpen,
   setPaletteOpen,
   setVersionHistoryOpen,
-  setGraphTabOpen,
-  setGraphTabActive,
-  refreshLinks,
+  openGraphView,
   getHasUnsavedChanges,
   getLayoutState,
   setSidebarWidth,
@@ -348,17 +345,6 @@ export function useAppActions({
     setContextDockState((current) => ({ ...current, panel, visibility: 'expanded' }))
   }, [setContextDockState])
 
-  /** 打开知识图谱视图 = 用户主动场景：绕过自动扫描限流，确保展示最新链接 */
-  const handleOpenGraphView = useCallback(() => {
-    if (!workspacePathRef.current) {
-      setToast('请先打开文件夹（工作区）后再查看知识图谱')
-      return
-    }
-    refreshLinks()
-    setGraphTabOpen(true)
-    setGraphTabActive(true)
-  }, [refreshLinks, setGraphTabActive, setGraphTabOpen, setToast, workspacePathRef])
-
   const handleAction = useCallback(
     (action: string) => {
       const ed = editorRef.current
@@ -455,7 +441,7 @@ export function useAppActions({
             openContextPanel('quality')
             break
           case 'graph':
-            handleOpenGraphView()
+            openGraphView()
             break
           // 帮助
           case 'shortcuts': setHelpView('shortcuts'); break
@@ -519,7 +505,7 @@ export function useAppActions({
       handleNewFromTemplate,
       handleOpen,
       handleOpenFolder,
-      handleOpenGraphView,
+      openGraphView,
       handleOpenVersionHistory,
       handleSaveAs,
       handleSelectWorkspaceFile,
@@ -551,7 +537,7 @@ export function useAppActions({
     handleDocumentTitleBlur,
     handleDocumentTitleKeyDown,
     handleOpenBacklink,
-    handleOpenGraphView,
+    handleOpenGraphView: openGraphView,
     closeSettings,
     closeHelp,
     closeImages,

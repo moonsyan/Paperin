@@ -5,7 +5,7 @@ import {
   type MouseEvent,
   type MutableRefObject,
 } from 'react'
-import { isImeComposing } from '../../lib/keyboard'
+import { isImeComposing } from '../../../lib/keyboard'
 import { getNodeExitTargetDirection } from './editor-navigation'
 
 type NavigationDirection = 'up' | 'down'

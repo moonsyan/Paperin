@@ -5,7 +5,7 @@ import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { selectAll } from '@milkdown/kit/prose/commands'
 import { analyzeDecorationChange } from './decoOptimize'
-import { viewportChangedKey, streamInsertKey, readVisibleRange } from '../editorViewport'
+import { viewportChangedKey, streamInsertKey, readVisibleRange } from '../viewport/editorViewport'
 import { isImeComposing } from '../../../lib/keyboard'
 
 /* ==================== 标题段落折叠（点击标题左侧折叠/展开，对标 Typora） ==================== */

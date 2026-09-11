@@ -45,3 +45,19 @@ const isInsideListItem = (doc: ProseNode, pos: number): boolean => {
   }
   return false
 }
+
+/**
+ * 枚举文档全部标题（含 h5/h6 与列表项内标题），用于导出目录等
+ * 需要完整清单的场景。口径比 collectActiveHeading 宽：后者只认
+ * 大纲可见的 h1-h4 且排除列表项内标题，用于光标所在章节高亮。
+ */
+export function collectAllHeadings(doc: ProseNode): { level: number; text: string }[] {
+  const headings: { level: number; text: string }[] = []
+  doc.descendants((node) => {
+    if (node.type.name === 'heading') {
+      headings.push({ level: node.attrs.level as number, text: node.textContent })
+    }
+    return true
+  })
+  return headings
+}

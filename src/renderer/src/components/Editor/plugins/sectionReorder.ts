@@ -3,7 +3,7 @@ import type { Transaction } from '@milkdown/kit/prose/state'
 import type { Node as PMNode } from '@milkdown/kit/prose/model'
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
 import type { EditorView } from '@milkdown/kit/prose/view'
-import { readVisibleRange } from '../editorViewport'
+import { readVisibleRange } from '../viewport/editorViewport'
 import { sectionFoldKey } from './sectionFold'
 
 /* ==================== 章节拖拽排序（标题悬浮手柄，同级之间排序） ==================== */
