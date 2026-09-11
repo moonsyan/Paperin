@@ -1,6 +1,6 @@
 # LastFileHome 已完成与未完成清单
 
-更新时间：2026-09-10（Asia/Shanghai）
+更新时间：2026-09-11（Asia/Shanghai）
 
 本文是当前 `master` 的唯一实时完成度记录。实施计划和路线图描述目标，不因代码存在而自动视为完成；本清单只记录已经验证的行为，以及仍需继续处理的工作。
 
@@ -57,6 +57,7 @@
 - `App.tsx` 已保留稳定入口，组合控制器移至 `app/AppComposition.tsx`；组合控制器已从 2010 行收敛到约 440 行，只负责装配功能域 hook 与渲染视图组合。业务实现移入 `useAppSettings`、`useWorkspaceIndexes`、`useEditorFeatures`、`useGraphView`、`useAppLayout`、`useWritingMetrics`、`resolve-collection-entries`，视图拆为 `AppTopBar`、`AppWorkspace`、`AppDialogs`。
 - 编辑器目录已按功能域重排：`adapter/`（对外门面与命令映射）、`content/`（正文替换、位置换算、视图状态）、`viewport/`（视口虚拟化与导出快照）、`navigation/`（光标导航与标题枚举）、`overlays/`（浮动层与 Wiki 补全）、`instance/`（Milkdown 实例装配），原有 `plugins/` 不变。`useEditorContentReplacement.ts` 从 709 行降到约 340 行，大文档流式替换独立为 `useStreamingReplace`，新增纯函数模块均带直接测试。
 - 图谱打开的工作区校验与链接刷新收敛到 `useGraphView.openGraphView`，`useAppActions` 只保留委托，避免同一策略分散两处；主题持久化统一收进 `useAppSettings`。
+- `hooks/useExports.ts` 从 506 行拆到 111 行入口，按导出域拆到 `hooks/exports/`：`useExportSession`（会话互斥 + 独占运行 + 活动文档守卫）、`useDocHtmlSnapshot`（DOM 快照 → HTML/发布模板）、`useInlineExportImages`（mdimg 内联）、`useHtmlPdfExport`、`useSourceExport`（Markdown/Pandoc）、`useDocxExport`、`usePublishFlow`（资源包 + 富文本）；纯函数 `rasterizeSvgToPngDataUrl` 与 HTML 模板 `renderExportDocHtml` 下沉到 `lib/svg-rasterize.ts`、`lib/export-doc-html.ts`，均带直接单测。入口 API 与 `AppComposition` 契约保持不变。
 
 ### 合成性能基线
 
@@ -71,7 +72,7 @@
 | --- | --- |
 | `npm run lint` | 通过 |
 | `npm run typecheck` | 通过 |
-| `npm run test` | 通过：116 个测试文件，945 项测试 |
+| `npm run test` | 通过：126 个测试文件，1007 项测试 |
 | `npm run build` | 通过：Main、Preload、Renderer 均成功构建 |
 | `npm run perf:regression` | 通过：5,000 文件合成场景未超阈值 |
 | `npm run smoke` | 通过：打开工作区、新建、保存、冲突、重读、重命名、搜索、状态读取 |
@@ -90,7 +91,7 @@
 
 ### 架构与维护性
 
-- 仍超过项目行数门禁的文件：`src/main/ipc/file-handlers.ts`（654）、`src/renderer/src/lib/docx.ts`（613）、`app/useAppActions.ts`（552）、`hooks/useExports.ts`（506）、`app/workspace/useWorkspaceFiles.ts`（505）、`app/useAppSettings.ts`（496）、`Editor/overlays/useEditorOverlays.ts`（486）、`Editor/instance/useMilkdownInstance.ts`（485）。`AppComposition.tsx`（447）与 `useEditorContentReplacement.ts`（约 340）已完成第一轮拆分，需继续按命令域与导出域收敛。
+- 仍超过项目行数门禁的文件：`src/main/ipc/file-handlers.ts`（654）、`src/renderer/src/lib/docx.ts`（613）、`app/useAppActions.ts`（552）、`app/workspace/useWorkspaceFiles.ts`（505）、`app/useAppSettings.ts`（496）、`Editor/overlays/useEditorOverlays.ts`（486）、`Editor/instance/useMilkdownInstance.ts`（485）。`AppComposition.tsx`（447）与 `useEditorContentReplacement.ts`（约 340）已完成第一轮拆分，需继续按命令域与导出域收敛。
 - Sidebar 主区域、`editor.margin` 和 `statusbar.end` 尚未全部消费 `PanelRegistry`；菜单、右键菜单和全部快捷键也未完全统一到命令注册表。
 - 搜索、图谱、反向链接、标签和质量检查的往返选择状态尚未统一到单一工作区视图模型。
 - 文档会话控制器尚未完全收口草稿恢复、关闭确认和所有保存分支；仍需逐项验证卸载取消和多窗口竞态。
@@ -120,7 +121,7 @@
 ## 建议继续顺序
 
 1. 先修复 5 MiB Milkdown 序列化/保存瓶颈，恢复 Electron 全链路性能门禁的通过证据。
-2. 以 `app/useAppActions.ts`、`hooks/useExports.ts`、`app/workspace/useWorkspaceFiles.ts`、`Editor/instance/useMilkdownInstance.ts`、`Editor/overlays/useEditorOverlays.ts` 和 `src/main/ipc/file-handlers.ts` 为下一批拆分入口，按功能域继续收敛控制器和单职责组件。
+2. 以 `app/useAppActions.ts`、`app/workspace/useWorkspaceFiles.ts`、`Editor/instance/useMilkdownInstance.ts`、`Editor/overlays/useEditorOverlays.ts` 和 `src/main/ipc/file-handlers.ts` 为下一批拆分入口，按功能域继续收敛控制器和单职责组件。
 3. 完成 quiet-workspace、小窗口、输入法、焦点和主题的人工/端到端验证。
 4. 逐项迁移低频功能到命令注册表、面板和新文档模型。
 5. 完成 Windows 安装包以及 macOS/Linux 安装包和更新流程验证。
