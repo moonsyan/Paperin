@@ -49,6 +49,7 @@ describe('AppTopBar（三区收缩）', () => {
     render(<AppTopBar {...createProps({ sidebarCollapsed: true })} />)
 
     const left = document.querySelector('.topbar-zone-left')
+    expect(left?.querySelector('.brand')).toBeNull()
     expect(left?.querySelector('.workspace-context-name')?.textContent).toBe('我的知识库')
   })
 
