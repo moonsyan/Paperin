@@ -34,6 +34,15 @@ const toUiNode = (node: FolderTreeNode): UiNode => ({
   children: node.children?.map(toUiNode),
 })
 
+/** 递归统计树中的文件叶子数（不含目录与外部文件）——
+ *  侧栏底部「N 个文档」必须统计叶子而不是根层数组长度 */
+export const countTreeFiles = (nodes: UiNode[]): number =>
+  nodes.reduce(
+    (total, node) =>
+      total + (node.kind === 'file' ? 1 : countTreeFiles(node.children ?? [])),
+    0,
+  )
+
 export const buildWorkspaceFileTree = (
   workspacePath: string,
   tree: FolderTreeNode[],

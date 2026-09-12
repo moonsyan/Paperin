@@ -47,4 +47,7 @@ export interface SidebarProps {
   onToggleFavorite?: (path: string) => void
   /** 底部区设置入口 */
   onOpenSettings?: () => void
+  /** 搜索触发框展示的快捷键组合（来自当前快捷键映射的 commandPalette 动作）；
+   *  未绑定传空串隐藏提示 */
+  searchShortcut?: string
 }

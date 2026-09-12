@@ -97,3 +97,10 @@ export function mergeShortcuts(saved: unknown): ShortcutMap {
   }
   return result
 }
+
+/** 把组合键映射渲染为界面提示（'Ctrl+P' → 'Ctrl P'）；
+ *  未绑定（空串）返回 null，调用方隐藏 <kbd> 而不是展示残缺文案 */
+export function formatShortcutHint(combo: string | undefined): string | null {
+  if (!combo) return null
+  return combo.split('+').join(' ')
+}

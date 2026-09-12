@@ -3,6 +3,7 @@ import {
   buildWorkspaceFileTree,
   collectFolderKeys,
   collectFolderKeysUnder,
+  countTreeFiles,
   findNodeByKey,
   type UiNode,
 } from './fileTree'
@@ -209,3 +210,30 @@ describe('「默认打开文件夹全部折叠」冒烟', () => {
 })
 
 
+
+describe('countTreeFiles', () => {
+  it('递归统计文件叶子数，不含目录与根数组长度', () => {
+    const tree = [
+      { key: 'r', name: '根', kind: 'folder' as const, children: [
+        { key: 'a', name: 'a.md', kind: 'file' as const },
+        { key: 'sub', name: '子', kind: 'folder' as const, children: [
+          { key: 'b', name: 'b.md', kind: 'file' as const },
+          { key: 'c', name: 'c.md', kind: 'file' as const },
+        ] },
+      ] },
+    ]
+    expect(countTreeFiles(tree)).toBe(3)
+  })
+
+  it('深层目录与空树', () => {
+    expect(countTreeFiles([])).toBe(0)
+    const deep = [{ key: '1', name: 'L1', kind: 'folder' as const, children: [
+      { key: '2', name: 'L2', kind: 'folder' as const, children: [
+        { key: '3', name: 'L3', kind: 'folder' as const, children: [
+          { key: 'f', name: 'deep.md', kind: 'file' as const },
+        ] },
+      ] },
+    ] }]
+    expect(countTreeFiles(deep)).toBe(1)
+  })
+})

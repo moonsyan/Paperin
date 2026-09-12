@@ -96,3 +96,24 @@ describe('SidebarFooter', () => {
     expect(onOpenSettings).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('SidebarQuickNav 搜索快捷键提示', () => {
+  const baseProps = {
+    view: null as null | 'recent' | 'favorites',
+    onViewChange: vi.fn(),
+    recentCount: 0,
+    favoriteCount: 0,
+    collectionName: '我的知识库',
+    collectionActive: true,
+  }
+
+  it('展示由快捷键映射渲染的组合键（默认快速打开 Ctrl+P）', () => {
+    render(<SidebarQuickNav {...baseProps} searchShortcutHint="Ctrl P" />)
+    expect(screen.getByText('Ctrl P')).toBeTruthy()
+  })
+
+  it('未绑定（null）时隐藏 <kbd>，不展示残缺文案', () => {
+    render(<SidebarQuickNav {...baseProps} />)
+    expect(document.querySelector('.search-trigger kbd')).toBeNull()
+  })
+})

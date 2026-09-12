@@ -27,6 +27,9 @@ export interface SidebarQuickNavProps {
   onCreateFile?: () => void
   /** 当前是否处于集合视图（快捷导航未选中时，标题为激活态） */
   collectionActive: boolean
+  /** 搜索触发框的快捷键提示（由快捷键映射渲染，默认快速打开 Ctrl+P）；
+   *  未绑定（null）时隐藏 <kbd> */
+  searchShortcutHint?: string | null
 }
 
 const SearchIcon = (): JSX.Element => (
@@ -65,6 +68,7 @@ export function SidebarQuickNav({
   collectionName,
   onCreateFile,
   collectionActive,
+  searchShortcutHint = null,
 }: SidebarQuickNavProps): JSX.Element {
   const toggle = (next: Exclude<QuickNavView, null>) => () => onViewChange(view === next ? null : next)
 
@@ -73,7 +77,7 @@ export function SidebarQuickNav({
       <button type="button" className="search-trigger" onClick={() => onOpenSearch?.()} aria-label="搜索文件与命令">
         <SearchIcon />
         <span>搜索文件与命令</span>
-        <kbd>Ctrl K</kbd>
+        {searchShortcutHint && <kbd>{searchShortcutHint}</kbd>}
       </button>
 
       <nav className="quick-nav" aria-label="快捷导航">

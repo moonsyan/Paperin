@@ -2,9 +2,11 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import {
   buildDemoFileTree,
   buildWorkspaceFileTree,
+  countTreeFiles,
   filterTreeByPaths,
   type UiNode,
 } from './fileTree'
+import { formatShortcutHint } from '../../data/shortcuts'
 import { clampMenuPosition } from '../../lib/menu-position'
 import type { SidebarProps } from './types'
 import { collectExternalOpenFiles } from './sidebar-file-model'
@@ -58,6 +60,7 @@ export function Sidebar({
   favorites = [],
   onToggleFavorite,
   onOpenSettings,
+  searchShortcut,
 }: SidebarProps): JSX.Element {
   // 右键菜单与内联重命名
   const [ctxMenu, setCtxMenu] = useState<SidebarContextMenuState | null>(null)
@@ -258,8 +261,8 @@ export function Sidebar({
 
   const collectionName = workspace ? workspace.name : '示例文档'
   const summary = workspace
-    ? `${workspaceNodes.length} 个文档`
-    : `${demoNodes.length} 个示例`
+    ? `${countTreeFiles(workspaceNodes)} 个文档`
+    : `${countTreeFiles(demoNodes)} 个示例`
 
   return (
     <aside
@@ -272,6 +275,7 @@ export function Sidebar({
       <SidebarQuickNav
         view={quickView}
         onViewChange={setQuickView}
+        searchShortcutHint={formatShortcutHint(searchShortcut)}
         recentCount={recentEntries.length}
         favoriteCount={favoriteEntries.length}
         onOpenSearch={onOpenSearch}

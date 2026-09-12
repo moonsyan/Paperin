@@ -49,6 +49,8 @@ export interface AppWorkspaceProps {
   collapseFoldersOnOpen: boolean
   // 侧栏五段式导航
   onOpenSearch: () => void
+  /** 搜索触发框快捷键提示（当前快捷键映射的 commandPalette 组合键） */
+  searchShortcut?: string
   recentFiles: Array<{ path: string; name: string }>
   favorites: string[]
   onToggleFavorite: (path: string) => void
@@ -144,7 +146,7 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
     searchMode, searchEpoch, searchCount, searchCurrent, searchPref, searchHandlers, onCloseSearch,
     openFiles, activeFileId, activeFilePath, activeContent,
     workspace, demoFileNames, currentCollapsedKeys, onCollapsedKeysChange, collapseFoldersOnOpen,
-    onOpenSearch, recentFiles, favorites, onToggleFavorite, onOpenSettings,
+    onOpenSearch, searchShortcut, recentFiles, favorites, onToggleFavorite, onOpenSettings,
     onSelectDemoFile, onSelectWorkspaceFile, onCreateFile, onRenameFile, onDeleteFile, onMoveFile, onOpenInNewWindow,
     graphTabOpen, graphTabActive, onGraphTabClose, onGraphOpenNode,
     linkGraph, linksTruncated, graphSettings, onGraphSettingsChange,
@@ -170,6 +172,7 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
     <div className="workspace" ref={editorAreaRef} style={{ '--sidebar-w': `${sidebarWidth}px` } as CSSProperties}>
       <Sidebar
         collapsed={sidebarCollapsed}
+        searchShortcut={searchShortcut}
         demoTree={DEMO_TREE}
         demoFileNames={demoFileNames}
         workspace={workspace}

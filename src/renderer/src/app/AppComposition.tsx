@@ -365,7 +365,7 @@ export function AppComposition(): JSX.Element {
           activeContent={activeContent}
           workspace={workspace} demoFileNames={demoFileNames}
           currentCollapsedKeys={currentCollapsedKeys} onCollapsedKeysChange={handleCollapsedKeysChange} collapseFoldersOnOpen={settings.collapseFoldersOnOpen}
-          onOpenSearch={() => setPaletteOpen(true)} recentFiles={recentFiles}
+          onOpenSearch={() => setPaletteOpen(true)} searchShortcut={settings.shortcuts.commandPalette} recentFiles={recentFiles}
           favorites={favorites} onToggleFavorite={handleToggleFavorite}
           onOpenSettings={() => setSettingsOpen(true)}
           onSelectDemoFile={handleSelectDemoFile} onSelectWorkspaceFile={(p, pinned) => void openWorkspaceFile(p, pinned)}
