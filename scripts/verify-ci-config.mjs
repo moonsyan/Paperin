@@ -19,7 +19,14 @@ const REQUIRED_STEPS = [
   'npm run build',
 ]
 
-const content = readFileSync(workflowPath, 'utf8')
+let content
+try {
+  content = readFileSync(workflowPath, 'utf8')
+} catch {
+  console.error(`未找到 CI workflow：${workflowPath}`)
+  console.error('质量门禁无法校验——恢复 CI 前不得宣称三平台验证已配置。')
+  process.exit(1)
+}
 
 const jobSections = JOBS.map((marker) => {
   const start = content.indexOf(marker)

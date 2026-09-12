@@ -1,0 +1,56 @@
+name: build
+
+# 三平台质量门禁流水线（scripts/verify-ci-config.mjs 校验其结构）。
+# 注意：当前仓库托管在 Gitee，本文件在 GitHub 托管或镜像时才会实际运行；
+# 平台安装验收（安装/升级/文件关联）不在本流水线内，见 docs/NEXT-DEVELOPMENT-PLAN.md T20。
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test:ci
+      - run: npm run build
+      # Windows runner 有桌面会话，可运行真实 Electron 冒烟（IPC + 磁盘链路）
+      - run: npm run smoke
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test:ci
+      - run: npm run build
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test:ci
+      - run: npm run build

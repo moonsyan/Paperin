@@ -19,7 +19,7 @@
 | Renderer CSP | `src/renderer/index.html` | Electron smoke | 保留 | `data:` 仅在 `font-src`/`img-src` 按已知内嵌资源放行；脚本与连接仍只允许显式来源 |
 | 图片、附件、图片协议 | attachment IPC + `mdimg://` | attachment/protocol tests | 保留 | 外部文件附件 |
 | HTML/PDF/DOCX/EPUB/LaTeX/发布 | export IPC/components | export tests | 保留 | 各平台打印 |
-| 九套主题、字体、Typewriter、快捷键 | renderer settings/styles | theme/menu/shortcut tests | 保留；雾白/夜松已加入 | 小窗口、实际文字使用对比度、快捷键提示同源 |
+| 九套主题、字体、Typewriter、快捷键 | renderer settings/styles | theme/menu/shortcut tests | 保留；雾白/夜松已加入；快捷键提示已由映射同源渲染（`formatShortcutHint`） | 小窗口、实际文字使用对比度 |
 | 质量检查与写作统计 | renderer panels/libs | diagnostics/stats tests | 保留 | 大工作区性能 |
 | 安全边界 | preload narrow bridge、trusted paths | trusted-paths、IPC guard tests | 保留 | 打包启动验证 |
 | 命令中心与面板插槽 | `app-command-registry`、MenuBar、CommandPalette、ContextDock | command registry、panel registry、ContextDock Testing Library tests | ContextDock 已由注册表驱动 | Sidebar/StatusBar 插槽、快捷键冲突与跨窗口焦点 |
