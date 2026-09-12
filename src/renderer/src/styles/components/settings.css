@@ -27,10 +27,10 @@
 
 .dialog-close {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 26px;
-  height: 26px;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -53,8 +53,8 @@
   outline-offset: 1px;
 }
 .dialog-close svg {
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
   stroke: currentColor;
   fill: none;
   stroke-width: 2;
@@ -62,21 +62,23 @@
 }
 
 /* ====== 设置弹窗 ====== */
+/* 整体比例：基准 640×440 相对 15px 界面字号偏小，放大 ~15%；
+ * min() 兜底小窗口（应用最小 680×480），避免弹窗溢出视口 */
 .settings-dialog {
-  width: 640px;
-  height: 440px;
+  width: min(740px, 94vw);
+  height: min(515px, calc(100vh - 40px));
 }
 
 /* 左侧导航 */
 .dialog-nav {
-  width: 168px;
+  width: 190px;
   flex-shrink: 0;
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
   padding: 14px 10px;
 }
 .dialog-nav-title {
-  font-size: .8rem;
+  font-size: .92rem;
   font-weight: 700;
   color: var(--text-1);
   padding: 4px 10px 12px;
@@ -89,7 +91,7 @@
   background: transparent;
   text-align: left;
   font-family: inherit;
-  font-size: .78rem;
+  font-size: .9rem;
   color: var(--text-2);
   border-radius: var(--radius);
   cursor: pointer;
@@ -120,7 +122,7 @@
 .dialog-body::-webkit-scrollbar-thumb { background: var(--text-4); border-radius: 2px; }
 
 .settings-section-title {
-  font-size: .68rem;
+  font-size: .78rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .05em;
@@ -133,7 +135,7 @@
  * 此前弹框按钮复用快捷键面板的微型芯片样式 .sc-btn（.66rem 小字 +
  * 3px 内边距），按钮被挤成一条、文字溢出——弹框动作按钮统一用本样式 */
 .dialog-btn {
-  font-size: .78rem;
+  font-size: .9rem;
   font-family: var(--font-ui);
   color: var(--text-2);
   background: var(--bg-surface);
@@ -212,7 +214,7 @@ button.dialog-btn.danger:hover { background: var(--danger-h); border-color: var(
 .settings-text-input {
   width: 220px;
   padding: 5px 10px;
-  font-size: .74rem;
+  font-size: .85rem;
   font-family: var(--font-ui);
   color: var(--text-1);
   background: var(--bg-surface);
@@ -312,14 +314,14 @@ button.search-regex:focus-visible {
   border-bottom: 1px solid var(--border);
 }
 .settings-label {
-  font-size: .8rem;
+  font-size: .92rem;
   color: var(--text-1);
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 .settings-hint {
-  font-size: .68rem;
+  font-size: .78rem;
   color: var(--text-3);
 }
 
@@ -358,22 +360,22 @@ button.search-regex:focus-visible {
   flex-shrink: 0;
 }
 .theme-card-name {
-  font-size: .78rem;
+  font-size: .9rem;
   font-weight: 600;
   color: var(--text-1);
 }
 .theme-card.on .theme-card-name { color: var(--accent); }
 .theme-card-desc {
-  font-size: .66rem;
+  font-size: .76rem;
   color: var(--text-3);
   margin-left: auto;
 }
 
-/* 开关 */
+/* 开关（随弹窗整体放大 ~13%，此前 30×17 偏小难点） */
 .switch {
-  width: 30px;
-  height: 17px;
-  border-radius: 9px;
+  width: 34px;
+  height: 19px;
+  border-radius: 10px;
   background: var(--text-4);
   position: relative;
   cursor: pointer;
@@ -383,8 +385,8 @@ button.search-regex:focus-visible {
 .switch::after {
   content: '';
   position: absolute;
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   background: #fff;
   top: 2px;
@@ -392,7 +394,7 @@ button.search-regex:focus-visible {
   transition: left var(--dur) var(--ease);
 }
 .switch.on { background: var(--accent); }
-.switch.on::after { left: 15px; }
+.switch.on::after { left: 17px; }
 
 /* 开关行整行可点击（扩大命中区，避免小开关难点） */
 .settings-row-toggle { cursor: pointer; }
@@ -426,7 +428,7 @@ button.sc-btn:focus-visible {
 }
 .seg-item {
   padding: 4px 12px;
-  font-size: .72rem;
+  font-size: .83rem;
   color: var(--text-3);
   cursor: pointer;
   transition: all var(--dur) var(--ease);
@@ -453,7 +455,7 @@ button.seg-item {
 }
 .zoom-btn {
   padding: 4px 12px;
-  font-size: .72rem;
+  font-size: .83rem;
   color: var(--text-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -467,13 +469,13 @@ button.seg-item {
 
 /* ====== 快捷键配置 ====== */
 .sc-tip {
-  font-size: .68rem;
+  font-size: .78rem;
   color: var(--text-3);
   line-height: 1.6;
   margin-bottom: 10px;
 }
 .sc-error {
-  font-size: .7rem;
+  font-size: .8rem;
   color: #b06060;
   background: rgba(176, 96, 96, .08);
   border: 1px solid rgba(176, 96, 96, .25);
@@ -490,7 +492,7 @@ button.seg-item {
 .sc-combo {
   min-width: 110px;
   text-align: center;
-  font-size: .68rem;
+  font-size: .78rem;
   font-family: var(--font-mono);
   color: var(--text-2);
   background: var(--bg-code);
@@ -507,7 +509,7 @@ button.seg-item {
   50% { opacity: .55; }
 }
 .sc-btn {
-  font-size: .66rem;
+  font-size: .76rem;
   color: var(--text-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -530,7 +532,7 @@ button.sc-btn {
 .sc-reset {
   display: inline-block;
   margin-top: 14px;
-  font-size: .7rem;
+  font-size: .8rem;
   color: var(--accent);
   cursor: pointer;
   text-decoration: underline;
@@ -592,7 +594,7 @@ button.sc-reset {
   background: var(--bg-main, transparent);
   color: var(--text-1);
   font-family: inherit;
-  font-size: .78rem;
+  font-size: .9rem;
 }
 .settings-search-input:focus-visible {
   outline: 2px solid var(--accent);
@@ -605,6 +607,6 @@ button.sc-reset {
 }
 .settings-search-empty {
   padding: 8px 10px;
-  font-size: .75rem;
+  font-size: .86rem;
   color: var(--text-3);
 }

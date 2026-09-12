@@ -52,6 +52,10 @@ body {
   flex-shrink: 0;
   transition: background var(--dur) var(--ease);
   -webkit-app-region: drag;
+  /* 浮于弹窗遮罩（.dialog-overlay z-600）之上：弹窗打开时顶栏保持正常配色，
+   * 右上角 text-3 灰色按钮不再被遮罩压暗得难以辨认（菜单亦可正常点按） */
+  position: relative;
+  z-index: 650;
 }
 /* Windows：右上角系统窗口按钮（titleBarOverlay）区域避让 */
 html[data-platform='win32'] .topbar {
