@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Dispatch, SetStateAction } from 'react'
+import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type { WorkspaceInfo } from '../components/Sidebar'
 
 // ---------------------------------------------------------------------------
@@ -11,6 +11,10 @@ export interface UseGraphViewOptions {
   /** 用户主动打开时强制刷新链接（绕过自动扫描限流，确保展示最新链接） */
   refreshLinks: () => void
   setToast: (message: string) => void
+  /** 可选闸门 ref：值为 false 时 auto-open 只出现标签、不激活（不盖住编辑器），
+   *  消费一次后自动复位为 true。会话恢复路径用它避免图谱盖住恢复的文档；
+   *  不传则保持"打开工作区即激活图谱"的既有行为。 */
+  autoOpenActivateRef?: MutableRefObject<boolean>
 }
 
 export interface UseGraphViewResult {
@@ -44,21 +48,28 @@ export function useGraphView({
   workspace,
   refreshLinks,
   setToast,
+  autoOpenActivateRef,
 }: UseGraphViewOptions): UseGraphViewResult {
   const [graphTabOpen, setGraphTabOpen] = useState(false)
   const [graphTabActive, setGraphTabActive] = useState(false)
   const workspacePath = workspace?.path
 
-  // 打开文件夹即自动展示整个工作区的知识图谱
+  // 打开文件夹即自动展示整个工作区的知识图谱。
+  // 会话恢复（重启应用）打开的工作区经闸门 ref 抑制激活：图谱标签照常出现，
+  // 但用户上次编辑的文档不被盖住——激活态留给用户点标签或命令时再进入
   const autoOpenRef = useRef<string | undefined>(undefined)
   useEffect(() => {
     if (workspacePath && autoOpenRef.current !== workspacePath) {
       autoOpenRef.current = workspacePath
       setGraphTabOpen(true)
-      setGraphTabActive(true)
+      const activate = autoOpenActivateRef ? autoOpenActivateRef.current : true
+      // 无论本次是否激活，闸门只消费一次并复位，后续打开文件夹恢复默认行为
+      //（即使本次 workspace 建立失败，下一次打开也只多一次"不激活"，可接受）
+      if (autoOpenActivateRef) autoOpenActivateRef.current = true
+      if (activate) setGraphTabActive(true)
     }
     if (!workspacePath) autoOpenRef.current = undefined
-  }, [workspacePath])
+  }, [workspacePath, autoOpenActivateRef])
 
   const openGraphView = useCallback(() => {
     if (!workspacePath) {

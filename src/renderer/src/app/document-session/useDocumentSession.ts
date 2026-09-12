@@ -49,6 +49,7 @@ export function useDocumentSession({
   setSearchCount,
   setSearchCurrent,
   setSearchMode,
+  restoringWorkspaceRef,
 }: DocumentSessionOptions) {
   const documentState = useDocumentState()
   const {
@@ -219,11 +220,22 @@ export function useDocumentSession({
 
   /* ==================== 会话恢复（启动初始化调用） ==================== */
 
+  // restore 打开工作区走 preserveActiveTab 分支；据此置闸门 ref，让
+  // useGraphView 的 auto-open 只出现标签不激活（避免图谱盖住恢复的文档）。
+  // 用户手动打开文件夹不经过此包装，保持"打开即激活图谱"的既有设计
+  const handleOpenFolderForRestore = useCallback(
+    (path?: string, silent?: boolean, preserveActiveTab?: boolean) => {
+      if (preserveActiveTab && restoringWorkspaceRef) restoringWorkspaceRef.current = false
+      return handleOpenFolder(path, silent, preserveActiveTab)
+    },
+    [handleOpenFolder, restoringWorkspaceRef],
+  )
+
   const { restoreFromSessionData } = useDocumentRestore({
     state: documentState,
     editorRef,
     setToast,
-    handleOpenFolder,
+    handleOpenFolder: handleOpenFolderForRestore,
     handleSelectWorkspaceFile: tabs.handleSelectWorkspaceFile,
     replaceEditorContent,
   })

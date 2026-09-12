@@ -89,4 +89,33 @@ describe('useGraphView', () => {
     expect(result.current.graphTabOpen).toBe(false)
     expect(result.current.graphTabActive).toBe(false)
   })
+
+  it('闸门 ref 为 false 时 auto-open 只出现标签不激活，消费一次后复位', () => {
+    const gate = { current: false }
+    const options = createOptions(workspaceAt('/ws'))
+    const { result, rerender } = renderHook(
+      ({ workspace }) => useGraphView({ ...options, workspace, autoOpenActivateRef: gate }),
+      { initialProps: { workspace: workspaceAt('/ws') as WorkspaceInfo | null } },
+    )
+
+    // 会话恢复场景：图谱标签出现，但不盖住恢复的文档
+    expect(result.current.graphTabOpen).toBe(true)
+    expect(result.current.graphTabActive).toBe(false)
+    // 消费一次即复位，下一次打开其他工作区恢复默认激活行为
+    expect(gate.current).toBe(true)
+
+    act(() => result.current.closeGraphView())
+    rerender({ workspace: workspaceAt('/ws-b') })
+
+    expect(result.current.graphTabOpen).toBe(true)
+    expect(result.current.graphTabActive).toBe(true)
+  })
+
+  it('未传闸门 ref 时保持打开工作区即激活的既有行为', () => {
+    const options = createOptions(workspaceAt('/ws'))
+    const { result } = renderHook(() => useGraphView(options))
+
+    expect(result.current.graphTabOpen).toBe(true)
+    expect(result.current.graphTabActive).toBe(true)
+  })
 })

@@ -102,6 +102,10 @@ export function AppComposition(): JSX.Element {
   const modalOpenRef = useRef(false)
   const fullscreenOpenRef = useRef(false)
   modalOpenRef.current = settingsOpen || helpView !== null || imagesOpen || pdfOptsOpen || publishOpen || wsSearchOpen || paletteOpen || versionHistoryOpen || confirmRequest !== null
+  // 图谱 auto-open 激活闸门：会话恢复打开工作区前置 false（图谱标签出现但
+  // 不盖住恢复的文档），useGraphView 消费一次后复位 true。默认 true = 手动
+  // 打开文件夹保持"自动展示图谱"的既有设计
+  const graphAutoActivateRef = useRef(true)
 
   const { sidebarWidth, setSidebarWidth, startSidebarResize, zoom, setZoom } = useAppLayout({
     modalOpenRef, fullscreenOpenRef, focusMode, setFocusMode, searchMode,
@@ -126,6 +130,7 @@ export function AppComposition(): JSX.Element {
     setWorkspaceStateReady, setWorkspaceSettings, setWorkspaceDocuments,
     setWorkspaceCollapsedKeys, setSidebarWidth, setSidebarActiveTab,
     setContextDockState, setSearchCount, setSearchCurrent, setSearchMode,
+    restoringWorkspaceRef: graphAutoActivateRef,
   })
 
   // === 设置 ===
@@ -151,7 +156,7 @@ export function AppComposition(): JSX.Element {
   } = useWorkspaceIndexes({ workspace, setToast, fileMtime })
 
   // === 图谱 ===
-  const { graphTabOpen, graphTabActive, setGraphTabActive, openGraphView, closeGraphView } = useGraphView({ workspace, refreshLinks, setToast })
+  const { graphTabOpen, graphTabActive, setGraphTabActive, openGraphView, closeGraphView } = useGraphView({ workspace, refreshLinks, setToast, autoOpenActivateRef: graphAutoActivateRef })
 
   /**
    * 打开文件的统一入口（覆盖图谱激活态）。

@@ -35,4 +35,7 @@ export interface DocumentSessionOptions {
   setSearchCount: Dispatch<SetStateAction<number>>
   setSearchCurrent: Dispatch<SetStateAction<number>>
   setSearchMode: SetSearchMode
+  /** 可选闸门：会话恢复路径打开工作区前置 false，通知图谱 auto-open 不激活
+   *  （useGraphView 消费一次后自动复位 true）。见 useGraphView.autoOpenActivateRef。 */
+  restoringWorkspaceRef?: MutableRefObject<boolean>
 }
