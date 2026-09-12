@@ -47,7 +47,7 @@ describe('工作区状态存储', () => {
       ...validLayout,
       schemaVersion: 2,
       sidebar: { ...validLayout.sidebar, activeView: 'files' },
-      contextDock: { width: 312, visibility: 'expanded', panel: 'outline' },
+      contextDock: { width: 312, visibility: 'expanded', panel: 'outline', compact: false },
     })
     expect(bundle.documents.documents).toEqual({})
   })
@@ -91,12 +91,12 @@ describe('工作区状态存储', () => {
     expect((await store.load(rootPath)).layout).toEqual({
       ...secondLayout,
       schemaVersion: 2,
-      contextDock: { width: 312, visibility: 'expanded', panel: 'outline' },
+      contextDock: { width: 312, visibility: 'expanded', panel: 'outline', compact: false },
     })
     expect(JSON.parse(await readFile(join(statePath, 'workspace.json'), 'utf-8'))).toEqual({
       ...secondLayout,
       schemaVersion: 2,
-      contextDock: { width: 312, visibility: 'expanded', panel: 'outline' },
+      contextDock: { width: 312, visibility: 'expanded', panel: 'outline', compact: false },
     })
   })
 

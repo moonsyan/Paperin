@@ -91,6 +91,7 @@ export function useWorkspaceState({
     visibility: 'expanded',
     panel: 'outline',
     width: 312,
+    compact: false,
   })
 
   /* ── 衍生值 ── */

@@ -23,6 +23,8 @@ export interface ContextDockState {
   width: number
   visibility: ContextDockVisibility
   panel: ContextDockPanel
+  /** 轻量大纲形态（T13）：仅大纲面板生效的窄栏展示；旧数据缺省 false */
+  compact: boolean
 }
 
 type UnknownRecord = Record<string, unknown>
@@ -93,6 +95,7 @@ export const DEFAULT_WORKSPACE_LAYOUT: WorkspaceLayoutState = {
     width: 312,
     visibility: 'expanded',
     panel: 'outline',
+    compact: false,
   },
 }
 
@@ -204,6 +207,8 @@ export const parseWorkspaceLayout = (value: unknown): WorkspaceLayoutState => {
       dock.width >= 260 && dock.width <= 420
     ? Math.round(dock.width)
     : 312
+  // 旧 schema 无 compact 字段：缺省 false（完整形态），向后兼容
+  const contextCompact = dock?.compact === true
 
   return {
     schemaVersion: WORKSPACE_LAYOUT_SCHEMA_VERSION,
@@ -223,6 +228,7 @@ export const parseWorkspaceLayout = (value: unknown): WorkspaceLayoutState => {
       width: contextWidth,
       visibility: contextVisibility,
       panel: contextPanel,
+      compact: contextCompact,
     },
   }
 }

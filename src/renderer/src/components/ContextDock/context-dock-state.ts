@@ -10,13 +10,24 @@ export interface ContextDockState {
   visibility: ContextDockVisibility
   panel: ContextDockPanel
   width: number
+  /**
+   * 轻量大纲形态（NEXT-UI-SPEC §5.2 / T13）：仅当活动面板为大纲时生效，
+   * 宽度钳制到 200–240px 的窄栏展示。是同一 dock 的呈现变化，
+   * 不创建第二套大纲状态、滚动监听或持久化机制。
+   */
+  compact: boolean
 }
 
 export const DEFAULT_CONTEXT_DOCK_STATE: ContextDockState = {
   visibility: 'expanded',
   panel: 'outline',
   width: 312,
+  compact: false,
 }
+
+/** 轻量形态的宽度钳制范围 */
+export const MIN_COMPACT_WIDTH = 200
+export const MAX_COMPACT_WIDTH = 240
 
 const CONTEXT_DOCK_VISIBILITIES: readonly ContextDockVisibility[] = [
   'expanded',
@@ -51,8 +62,16 @@ export const parseContextDockState = (value: unknown): ContextDockState => {
   const visibility = isContextDockVisibility(source.visibility)
     ? source.visibility
     : DEFAULT_CONTEXT_DOCK_STATE.visibility
-  return { visibility, panel, width: clampWidth(source.width) }
+  // 旧 schema 无 compact 字段：缺省 false（完整形态），向后兼容
+  const compact = source.compact === true
+  return { visibility, panel, width: clampWidth(source.width), compact }
 }
+
+/** 切换轻量/完整形态（仅大纲面板时有意义） */
+export const setDockCompact = (state: ContextDockState, compact: boolean): ContextDockState => ({
+  ...state,
+  compact,
+})
 
 export const selectContextPanel = (
   state: ContextDockState,

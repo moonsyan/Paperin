@@ -103,6 +103,7 @@ export const createWorkspaceLayoutSnapshot = ({
       width: 312,
       visibility: 'expanded',
       panel: 'outline',
+      compact: false,
     },
   }
 }

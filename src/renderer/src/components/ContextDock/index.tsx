@@ -15,11 +15,14 @@ import {
 } from './ContextDockPanels'
 import {
   MAX_CONTEXT_DOCK_WIDTH,
+  MAX_COMPACT_WIDTH,
   MIN_CONTEXT_DOCK_WIDTH,
+  MIN_COMPACT_WIDTH,
   hideContextDock,
   resizeContextDock,
   restoreContextDock,
   selectContextPanel,
+  setDockCompact,
   toggleContextDock,
 } from './context-dock-state'
 
@@ -56,6 +59,12 @@ export function ContextDock({
     .filter(isRenderableContextDockPanel)
   const activePanel = panels.find((panel) => panel.id === state.panel) ?? panels[0]
   const effectivelyCollapsed = collapsed || panels.length === 0
+  // 轻量大纲形态：仅大纲面板生效；宽度钳制到窄栏范围（用户宽度保留，
+  // 退出 compact 后恢复原值）
+  const compact = state.compact === true && activePanel?.id === 'outline'
+  const effectiveWidth = compact
+    ? Math.min(MAX_COMPACT_WIDTH, Math.max(MIN_COMPACT_WIDTH, state.width))
+    : state.width
 
   useEffect(() => () => {
     resizeCleanupRef.current?.()
@@ -121,8 +130,8 @@ export function ContextDock({
 
   return (
     <aside
-      className={`context-dock context-dock-${state.visibility}${panels.length === 0 ? ' context-dock-empty' : ''}`}
-      style={{ '--context-dock-w': `${state.width}px` } as CSSProperties}
+      className={`context-dock context-dock-${state.visibility}${panels.length === 0 ? ' context-dock-empty' : ''}${compact ? ' context-dock-compact' : ''}`}
+      style={{ '--context-dock-w': `${effectiveWidth}px` } as CSSProperties}
       aria-label={hidden ? '上下文面板已隐藏' : '当前文档上下文'}
     >
       {!hidden && !effectivelyCollapsed && (
@@ -132,8 +141,8 @@ export function ContextDock({
           aria-orientation="vertical"
           aria-label="调整上下文面板宽度"
           aria-valuemin={MIN_CONTEXT_DOCK_WIDTH}
-          aria-valuemax={MAX_CONTEXT_DOCK_WIDTH}
-          aria-valuenow={state.width}
+          aria-valuemax={compact ? MAX_COMPACT_WIDTH : MAX_CONTEXT_DOCK_WIDTH}
+          aria-valuenow={effectiveWidth}
           tabIndex={0}
           onPointerDown={handleResizeStart}
           onKeyDown={handleResizeKeyDown}
@@ -163,6 +172,21 @@ export function ContextDock({
           )
         })}
         <span className="context-dock-spacer" />
+        {/* 轻量大纲切换（T13）：仅大纲面板展开时可用；同一 dock 的呈现变化 */}
+        {!hidden && !effectivelyCollapsed && activePanel?.id === 'outline' && (
+          <button
+            type="button"
+            className={`context-dock-btn ${compact ? 'active' : ''}`}
+            aria-label={compact ? '切换为完整大纲' : '切换为轻量大纲'}
+            aria-pressed={compact}
+            title={compact ? '切换为完整大纲' : '切换为轻量大纲（窄栏）'}
+            onClick={() => onStateChange((current) => setDockCompact(current, !current.compact))}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 6h16M4 12h10M4 18h13" />
+            </svg>
+          </button>
+        )}
         {(hidden || panels.length > 0) && (
           <button
             type="button"

@@ -98,6 +98,25 @@
 
 .context-dock-spacer { flex: 1; }
 
+/* 轻量大纲形态（T13 / NEXT-UI-SPEC §5.2）：窄栏 200–240px，
+ * 隐藏章节字数（完整形态可见），标题允许换行不省略。同一 dock 的呈现变化。 */
+.context-dock-compact {
+  font-size: 13px;
+}
+
+.context-dock-compact .outline-words {
+  display: none;
+}
+
+.context-dock-compact .outline-text {
+  white-space: normal;
+  line-height: 1.4;
+}
+
+.context-dock-compact .outline-row {
+  padding-block: 3px;
+}
+
 @media (max-width: 1100px) {
   .context-dock {
     position: absolute;

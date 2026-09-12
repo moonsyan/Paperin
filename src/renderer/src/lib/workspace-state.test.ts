@@ -17,12 +17,12 @@ describe('渲染层工作区状态转换', () => {
       sidebarWidth: 290,
       sidebarActiveView: 'files',
       collapsedDirectories: [],
-      contextDock: { visibility: 'collapsed', panel: 'tags', width: 360 },
+      contextDock: { visibility: 'collapsed', panel: 'tags', width: 360, compact: false },
       caseInsensitive: true,
     })
 
     expect(snapshot.schemaVersion).toBe(2)
-    expect(snapshot.contextDock).toEqual({ visibility: 'collapsed', panel: 'tags', width: 360 })
+    expect(snapshot.contextDock).toEqual({ visibility: 'collapsed', panel: 'tags', width: 360, compact: false })
   })
 
   it('只把工作区内真实文件写入布局快照', () => {
@@ -39,7 +39,7 @@ describe('渲染层工作区状态转换', () => {
       sidebarWidth: 320,
       sidebarActiveView: 'files',
       collapsedDirectories: ['C:\\notes\\docs\\archive', 'C:\\other'],
-      contextDock: { visibility: 'expanded', panel: 'outline', width: 312 },
+      contextDock: { visibility: 'expanded', panel: 'outline', width: 312, compact: false },
       caseInsensitive: true,
     })
 

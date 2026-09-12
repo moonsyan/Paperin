@@ -371,6 +371,57 @@ button.search-regex:focus-visible {
   margin-left: auto;
 }
 
+/* 主题样张卡（T13 / NEXT-UI-SPEC §7）：data-theme 作用域内解析真实主题 token，
+ * 同一段中文样本展示标题/正文/链接/代码/选中/错误六种状态 */
+.theme-card-sample {
+  display: block;
+  flex-basis: 100%;
+  margin-top: 8px;
+  padding: 6px 9px;
+  border-radius: 6px;
+  background: var(--bg-app);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  line-height: 1.55;
+  pointer-events: none;
+}
+.theme-card-sample .tcs-title {
+  display: block;
+  font-weight: 600;
+  font-size: 12.5px;
+  margin-bottom: 2px;
+}
+.theme-card-sample .tcs-body {
+  display: block;
+  color: var(--text-2);
+}
+.theme-card-sample .tcs-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.theme-card-sample .tcs-code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  background: var(--bg-code, var(--bg-hover));
+  padding: 0 4px;
+  border-radius: 3px;
+}
+.theme-card-sample .tcs-states {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+.theme-card-sample .tcs-selected {
+  background: var(--accent-bg);
+  color: var(--text-1);
+  padding: 0 4px;
+  border-radius: 2px;
+}
+.theme-card-sample .tcs-error {
+  color: var(--danger);
+}
+
 /* 开关（随弹窗整体放大 ~13%，此前 30×17 偏小难点） */
 .switch {
   width: 34px;

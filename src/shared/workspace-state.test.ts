@@ -19,7 +19,7 @@ describe('工作区状态校验', () => {
 
     expect(files.schemaVersion).toBe(2)
     expect(files.sidebar.activeView).toBe('files')
-    expect(files.contextDock).toEqual({ visibility: 'expanded', panel: 'outline', width: 312 })
+    expect(files.contextDock).toEqual({ visibility: 'expanded', panel: 'outline', width: 312, compact: false })
     expect(links.contextDock?.panel).toBe('links')
   })
 
@@ -27,23 +27,30 @@ describe('工作区状态校验', () => {
     const parsed = parseWorkspaceLayout({
       schemaVersion: 2,
       sidebar: { width: 290, activeView: 'files', collapsedDirectories: [] },
-      contextDock: { width: 380, visibility: 'collapsed', panel: 'quality' },
+      contextDock: { width: 380, visibility: 'collapsed', panel: 'quality', compact: false },
     })
     const invalid = parseWorkspaceLayout({
       schemaVersion: 2,
       sidebar: { width: 290, activeView: 'files', collapsedDirectories: [] },
-      contextDock: { width: 9999, visibility: 'broken', panel: '../unknown' },
+      contextDock: { width: 9999, visibility: 'broken', panel: '../unknown', compact: false },
+    })
+    // compact 是独立布尔位：合法持久化值被保留（旧数据缺省 false）
+    const compacted = parseWorkspaceLayout({
+      schemaVersion: 2,
+      sidebar: { width: 290, activeView: 'files', collapsedDirectories: [] },
+      contextDock: { width: 380, visibility: 'collapsed', panel: 'quality', compact: true },
     })
 
-    expect(parsed.contextDock).toEqual({ visibility: 'collapsed', panel: 'quality', width: 380 })
-    expect(invalid.contextDock).toEqual({ visibility: 'expanded', panel: 'outline', width: 312 })
+    expect(parsed.contextDock).toEqual({ visibility: 'collapsed', panel: 'quality', width: 380, compact: false })
+    expect(invalid.contextDock).toEqual({ visibility: 'expanded', panel: 'outline', width: 312, compact: false })
+    expect(compacted.contextDock?.compact).toBe(true)
   })
 
   it('保留安全的自定义上下文面板 ID', () => {
     const parsed = parseWorkspaceLayout({
       schemaVersion: 2,
       sidebar: { width: 290, activeView: 'files', collapsedDirectories: [] },
-      contextDock: { width: 312, visibility: 'expanded', panel: 'plugin.details' },
+      contextDock: { width: 312, visibility: 'expanded', panel: 'plugin.details', compact: false },
     })
     expect(parsed.contextDock?.panel).toBe('plugin.details')
   })
@@ -108,7 +115,7 @@ describe('工作区状态校验', () => {
         activeView: 'files',
         collapsedDirectories: [],
       },
-      contextDock: { visibility: 'expanded', panel: 'outline', width: 312 },
+      contextDock: { visibility: 'expanded', panel: 'outline', width: 312, compact: false },
     })
   })
 

@@ -78,6 +78,20 @@ export function AppearancePanel({
             <span className="theme-card-dot" style={{ background: t.color }} />
             <span className="theme-card-name">{t.name}</span>
             <span className="theme-card-desc">{t.desc}</span>
+            {/* 真实主题样张（NEXT-UI-SPEC §7）：data-theme 作用域让卡片子树
+                解析该主题的真实 token，同一段中文样本覆盖标题/正文/链接/
+                代码/选中/错误状态。装饰性预览，对读屏隐藏。 */}
+            <span className="theme-card-sample" data-theme={t.id} aria-hidden="true">
+              <span className="tcs-title">标题样式</span>
+              <span className="tcs-body">
+                正文与<span className="tcs-link">链接</span>，以及
+                <span className="tcs-code">code</span>
+              </span>
+              <span className="tcs-states">
+                <span className="tcs-selected">选中</span>
+                <span className="tcs-error">错误状态</span>
+              </span>
+            </span>
           </button>
         ))}
       </div>
