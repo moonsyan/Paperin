@@ -84,12 +84,12 @@ const main = async () => {
     )
   }
 
-  // CI/无桌面环境可能无法启动 Chromium GPU 进程；冒烟验证的是 IPC 与磁盘链路，
-  // 因此显式禁用 GPU，避免渲染器在进入测试场景前被运行环境终止。
+  // CI/无桌面环境的 GPU 兼容由主进程冒烟模式自处理（app.disableHardwareAcceleration，
+  // 见 src/main/index.ts）；Electron CLI 不接受应用路径前的 Chromium 开关，
+  // 在这里传 --disable-gpu 会直接报 "bad option" 而非进入测试场景。
   const child = spawn(
     electronBinary,
     [
-      '--disable-gpu',
       mainEntry,
       '--smoke',
       workspace,
@@ -99,7 +99,13 @@ const main = async () => {
     {
       cwd: projectRoot,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, ELECTRON_ENABLE_LOGGING: '0' },
+      env: {
+        ...process.env,
+        ELECTRON_ENABLE_LOGGING: '0',
+        // Electron 宿主的终端（VSCode/WorkBuddy 等）会导出 ELECTRON_RUN_AS_NODE=1，
+        // 继承它会让 electron.exe 降级为纯 Node 运行主包（electron.app 为 undefined）。
+        ELECTRON_RUN_AS_NODE: undefined,
+      },
     },
   )
 

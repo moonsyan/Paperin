@@ -5,6 +5,7 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { CHANNELS } from '../../shared/ipc/channels'
 import { trustDirectory } from '../trusted-paths'
+import { buildAssociationProbeScript, buildTabCountProbeScript } from './smoke-probes'
 import { runElectronPerformanceSmoke, type EvaluateSmokeStep } from './electron-performance-smoke'
 
 /**
@@ -31,6 +32,15 @@ export const parseSmokeWorkspace = (argv = process.argv): string | null => {
 export const applySmokeUserData = (): void => {
   const dir = mkdtempSync(join(tmpdir(), 'mkeditor-smoke-user-'))
   app.setPath('userData', dir)
+  // 沙箱/CI 环境可能没有任何可用的 GPU 进程（软光栅也失败时 Chromium 直接
+  // FATAL 退出）；禁用 GPU 合成并把 GPU 工作并入浏览器进程，让冒烟只验证
+  // IPC 与磁盘链路
+  app.commandLine.appendSwitch('disable-gpu')
+  app.commandLine.appendSwitch('disable-gpu-compositing')
+  app.commandLine.appendSwitch('in-process-gpu')
+  // 受限环境（CI/容器/宿主沙箱）里渲染进程沙箱可能无法创建受限 token，
+  // 渲染器反复被杀导致窗口永远不就绪；冒烟验证的是 IPC 与磁盘链路
+  app.commandLine.appendSwitch('no-sandbox')
 }
 
 /** 在渲染层执行一段返回 Promise 的脚本并施加超时保护 */
@@ -99,40 +109,24 @@ export const runElectronSmoke = async (
     // 重发同一路径后标签数保持不变，覆盖关联打开的去重契约。
     if (associatedFilePath) {
       const expectedName = associatedFilePath.split(/[/\\]/).pop() ?? associatedFilePath
+      // 正文标记取关联文件首个非空非标题行——契约不写死内容，也不在日志输出正文
+      const associatedContent = await readFile(associatedFilePath, 'utf-8').catch(() => '')
+      const bodyMarker =
+        associatedContent
+          .split('\n')
+          .map((line) => line.trim())
+          .find((line) => line.length > 0 && !line.startsWith('#')) ?? ''
       const association = await evalStep(
         win,
         '系统文件关联',
-        `(async () => {
-          const deadline = Date.now() + 10000
-          while (Date.now() < deadline) {
-            const banner = document.querySelector('.current-file-banner')
-            const title = document.querySelector('.current-file-banner-title')?.textContent
-            if (banner?.getAttribute('data-source') === 'external' && title === ${JSON.stringify(expectedName)}) {
-              return { ok: true, tabs: document.querySelectorAll('[role="tab"]').length }
-            }
-            await new Promise(resolve => setTimeout(resolve, 100))
-          }
-          const banner = document.querySelector('.current-file-banner')
-          return {
-            ok: false,
-            hash: window.location.hash,
-            hasOnOpenFile: typeof window.desktopAPI?.window?.onOpenFile === 'function',
-            source: banner?.getAttribute('data-source'),
-            title: document.querySelector('.current-file-banner-title')?.textContent,
-            tabs: document.querySelectorAll('[role="tab"]').length,
-          }
-        })()`,
+        buildAssociationProbeScript(expectedName, bodyMarker),
       )
       if (!association.ok) {
         return await finish(1, `SMOKE_FAIL 系统关联文件未进入外部标签 ${JSON.stringify(association)}`)
       }
       win.webContents.send(CHANNELS.WINDOW_OPEN_FILE, associatedFilePath)
       await sleep(300)
-      const duplicate = await evalStep(
-        win,
-        '关联文件去重',
-        `Promise.resolve({ tabs: document.querySelectorAll('[role="tab"]').length })`,
-      )
+      const duplicate = await evalStep(win, '关联文件去重', buildTabCountProbeScript())
       if (duplicate.tabs !== association.tabs) {
         return await finish(1, `SMOKE_FAIL 同路径关联打开产生重复标签 ${JSON.stringify(duplicate)}`)
       }
