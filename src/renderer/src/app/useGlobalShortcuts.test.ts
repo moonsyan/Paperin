@@ -16,26 +16,11 @@ afterEach(() => {
 })
 
 function createOpts(overrides: Record<string, unknown> = {}) {
-  const noop = vi.fn()
   return {
     shortcutLookupRef: { current: {} as Record<string, string> },
     modalOpenRef: { current: false },
     fullscreenOpenRef: { current: false },
-    editorRef: { current: null },
-    activeFileIdRef: { current: 'f1' },
-    handleNew: noop,
-    handleOpen: noop,
-    handleOpenFolder: noop,
-    handleSave: noop,
-    handleSaveAs: noop,
-    handleCloseTab: noop,
-    openOutlinePanel: noop,
-    setPaletteOpen: vi.fn(),
-    setSearchMode: vi.fn(),
-    setSidebarCollapsed: vi.fn(),
-    setPreviewMode: vi.fn(),
-    setZoom: vi.fn(),
-    setFocusMode: vi.fn(),
+    dispatchAction: vi.fn(),
     ...overrides,
   } as Parameters<typeof useGlobalShortcuts>[0]
 }
@@ -57,30 +42,30 @@ describe('useGlobalShortcuts', () => {
   })
 
   it('模态框打开时不响应快捷键', () => {
-    const handleNew = vi.fn()
+    const dispatchAction = vi.fn()
     renderHook(() => useGlobalShortcuts(createOpts({
-      handleNew,
+      dispatchAction,
       modalOpenRef: { current: true },
       shortcutLookupRef: { current: { 'Ctrl+N': 'new' } },
     })))
     dispatchKey('Ctrl+N')
-    expect(handleNew).not.toHaveBeenCalled()
+    expect(dispatchAction).not.toHaveBeenCalled()
   })
 
   it('comboFromEvent 返回空串时不触发', () => {
-    const handleNew = vi.fn()
+    const dispatchAction = vi.fn()
     renderHook(() => useGlobalShortcuts(createOpts({
-      handleNew,
+      dispatchAction,
       shortcutLookupRef: { current: { 'Ctrl+N': 'new' } },
     })))
     dispatchKey('')
-    expect(handleNew).not.toHaveBeenCalled()
+    expect(dispatchAction).not.toHaveBeenCalled()
   })
 
   it('defaultPrevented 不触发', () => {
-    const handleNew = vi.fn()
+    const dispatchAction = vi.fn()
     renderHook(() => useGlobalShortcuts(createOpts({
-      handleNew,
+      dispatchAction,
       shortcutLookupRef: { current: { 'Ctrl+N': 'new' } },
     })))
     const event = new KeyboardEvent('keydown', { key: 'n', ctrlKey: true, bubbles: true })
@@ -88,192 +73,122 @@ describe('useGlobalShortcuts', () => {
     window.addEventListener('keydown', preventer, { capture: true })
     window.dispatchEvent(event)
     window.removeEventListener('keydown', preventer, { capture: true })
-    expect(handleNew).not.toHaveBeenCalled()
+    expect(dispatchAction).not.toHaveBeenCalled()
   })
 
   it('repeat 不触发', () => {
-    const handleNew = vi.fn()
+    const dispatchAction = vi.fn()
     renderHook(() => useGlobalShortcuts(createOpts({
-      handleNew,
+      dispatchAction,
       shortcutLookupRef: { current: { 'Ctrl+N': 'new' } },
     })))
     const event = new KeyboardEvent('keydown', { key: 'n', ctrlKey: true, repeat: true, bubbles: true })
     window.dispatchEvent(event)
-    expect(handleNew).not.toHaveBeenCalled()
+    expect(dispatchAction).not.toHaveBeenCalled()
   })
 
-  it('匹配快捷键表时调用对应 handler', () => {
-    const handleSave = vi.fn()
+  it('匹配快捷键表时经 dispatchAction 统一分发', () => {
+    const dispatchAction = vi.fn()
     renderHook(() => useGlobalShortcuts(createOpts({
-      handleSave,
+      dispatchAction,
       shortcutLookupRef: { current: { 'Ctrl+S': 'save' } },
     })))
     dispatchKey('Ctrl+S')
-    expect(handleSave).toHaveBeenCalledOnce()
+    expect(dispatchAction).toHaveBeenCalledWith('save')
   })
 
-  it('未匹配快捷键表时不调用任何 handler', () => {
-    const handleNew = vi.fn()
+  it('快捷键与菜单共享同一分发入口（全部动作走 dispatchAction）', () => {
+    const dispatchAction = vi.fn()
     renderHook(() => useGlobalShortcuts(createOpts({
-      handleNew,
+      dispatchAction,
+      shortcutLookupRef: {
+        current: {
+          'Ctrl+N': 'new',
+          'Ctrl+O': 'open',
+          'Ctrl+Shift+O': 'openFolder',
+          'Ctrl+Shift+S': 'saveAs',
+          'Ctrl+W': 'closeTab',
+          'Ctrl+J': 'toggleSidebar',
+          'Ctrl+Shift+L': 'outline',
+          'Ctrl+P': 'commandPalette',
+          'F11': 'focusMode',
+          'Ctrl+Shift+P': 'preview',
+          'Ctrl+=': 'zoomIn',
+        },
+      },
+    })))
+    dispatchKey('Ctrl+N')
+    dispatchKey('Ctrl+O')
+    dispatchKey('Ctrl+Shift+O')
+    dispatchKey('Ctrl+Shift+S')
+    dispatchKey('Ctrl+W')
+    dispatchKey('Ctrl+J')
+    dispatchKey('Ctrl+Shift+L')
+    dispatchKey('Ctrl+P')
+    dispatchKey('F11')
+    dispatchKey('Ctrl+Shift+P')
+    dispatchKey('Ctrl+=')
+    expect(dispatchAction.mock.calls.map(([action]) => action)).toEqual([
+      'new',
+      'open',
+      'openFolder',
+      'saveAs',
+      'closeTab',
+      'toggleSidebar',
+      'outline',
+      'commandPalette',
+      'focusMode',
+      'preview',
+      'zoomIn',
+    ])
+  })
+
+  it('未匹配快捷键表时不分发', () => {
+    const dispatchAction = vi.fn()
+    renderHook(() => useGlobalShortcuts(createOpts({
+      dispatchAction,
       shortcutLookupRef: { current: {} },
     })))
     dispatchKey('Ctrl+X')
-    expect(handleNew).not.toHaveBeenCalled()
+    expect(dispatchAction).not.toHaveBeenCalled()
   })
 
-  it('find → setSearchMode(find)', () => {
-    const setSearchMode = vi.fn()
+  it('find/replace 正常分发', () => {
+    const dispatchAction = vi.fn()
     renderHook(() => useGlobalShortcuts(createOpts({
-      setSearchMode,
-      shortcutLookupRef: { current: { 'Ctrl+F': 'find' } },
+      dispatchAction,
+      shortcutLookupRef: { current: { 'Ctrl+F': 'find', 'Ctrl+H': 'replace' } },
     })))
     dispatchKey('Ctrl+F')
-    expect(setSearchMode).toHaveBeenCalledWith('find')
-  })
-
-  it('replace → setSearchMode(replace)', () => {
-    const setSearchMode = vi.fn()
-    renderHook(() => useGlobalShortcuts(createOpts({
-      setSearchMode,
-      shortcutLookupRef: { current: { 'Ctrl+H': 'replace' } },
-    })))
     dispatchKey('Ctrl+H')
-    expect(setSearchMode).toHaveBeenCalledWith('replace')
+    expect(dispatchAction).toHaveBeenCalledWith('find')
+    expect(dispatchAction).toHaveBeenCalledWith('replace')
   })
 
   it('全屏模式下不触发 find/replace', () => {
-    const setSearchMode = vi.fn()
+    const dispatchAction = vi.fn()
     renderHook(() => useGlobalShortcuts(createOpts({
-      setSearchMode,
+      dispatchAction,
       fullscreenOpenRef: { current: true },
       shortcutLookupRef: { current: { 'Ctrl+F': 'find', 'Ctrl+H': 'replace' } },
     })))
     dispatchKey('Ctrl+F')
     dispatchKey('Ctrl+H')
-    expect(setSearchMode).not.toHaveBeenCalled()
+    expect(dispatchAction).not.toHaveBeenCalled()
   })
 
-  it('toggleSidebar → setSidebarCollapsed 取反', () => {
-    const setSidebarCollapsed = vi.fn()
+  it('可编辑目标内不触发快捷键', () => {
+    const dispatchAction = vi.fn()
     renderHook(() => useGlobalShortcuts(createOpts({
-      setSidebarCollapsed,
-      shortcutLookupRef: { current: { 'Ctrl+J': 'toggleSidebar' } },
-    })))
-    dispatchKey('Ctrl+J')
-    expect(setSidebarCollapsed).toHaveBeenCalledWith(expect.any(Function))
-  })
-
-  it('zoomIn → setZoom 递增', () => {
-    const setZoom = vi.fn()
-    renderHook(() => useGlobalShortcuts(createOpts({
-      setZoom,
-      shortcutLookupRef: { current: { 'Ctrl+=': 'zoomIn' } },
-    })))
-    dispatchKey('Ctrl+=')
-    expect(setZoom).toHaveBeenCalledWith(expect.any(Function))
-    expect(setZoom.mock.calls[0][0](1)).toBe(1.1)
-  })
-
-  it('zoomOut → setZoom 递减', () => {
-    const setZoom = vi.fn()
-    renderHook(() => useGlobalShortcuts(createOpts({
-      setZoom,
-      shortcutLookupRef: { current: { 'Ctrl+-': 'zoomOut' } },
-    })))
-    dispatchKey('Ctrl+-')
-    expect(setZoom).toHaveBeenCalledWith(expect.any(Function))
-    expect(setZoom.mock.calls[0][0](1)).toBe(0.9)
-  })
-
-  it('focusMode → setFocusMode 取反', () => {
-    const setFocusMode = vi.fn()
-    renderHook(() => useGlobalShortcuts(createOpts({
-      setFocusMode,
-      shortcutLookupRef: { current: { 'F11': 'focusMode' } },
-    })))
-    dispatchKey('F11')
-    expect(setFocusMode).toHaveBeenCalledWith(expect.any(Function))
-  })
-
-  it('preview → setPreviewMode 取反', () => {
-    const setPreviewMode = vi.fn()
-    renderHook(() => useGlobalShortcuts(createOpts({
-      setPreviewMode,
-      shortcutLookupRef: { current: { 'Ctrl+Shift+P': 'preview' } },
-    })))
-    dispatchKey('Ctrl+Shift+P')
-    expect(setPreviewMode).toHaveBeenCalledWith(expect.any(Function))
-  })
-
-  it('outline → openOutlinePanel', () => {
-    const openOutlinePanel = vi.fn()
-    renderHook(() => useGlobalShortcuts(createOpts({
-      openOutlinePanel,
-      shortcutLookupRef: { current: { 'Ctrl+Shift+L': 'outline' } },
-    })))
-    dispatchKey('Ctrl+Shift+L')
-    expect(openOutlinePanel).toHaveBeenCalledOnce()
-  })
-
-  it('commandPalette → setPaletteOpen(true)', () => {
-    const setPaletteOpen = vi.fn()
-    renderHook(() => useGlobalShortcuts(createOpts({
-      setPaletteOpen,
-      shortcutLookupRef: { current: { 'Ctrl+P': 'commandPalette' } },
-    })))
-    dispatchKey('Ctrl+P')
-    expect(setPaletteOpen).toHaveBeenCalledWith(true)
-  })
-
-  it('closeTab → handleCloseTab(activeFileIdRef)', () => {
-    const handleCloseTab = vi.fn()
-    renderHook(() => useGlobalShortcuts(createOpts({
-      handleCloseTab,
-      activeFileIdRef: { current: 'f2' },
-      shortcutLookupRef: { current: { 'Ctrl+W': 'closeTab' } },
-    })))
-    dispatchKey('Ctrl+W')
-    expect(handleCloseTab).toHaveBeenCalledWith('f2')
-  })
-
-  it('new → handleNew', () => {
-    const handleNew = vi.fn()
-    renderHook(() => useGlobalShortcuts(createOpts({
-      handleNew,
+      dispatchAction,
       shortcutLookupRef: { current: { 'Ctrl+N': 'new' } },
     })))
-    dispatchKey('Ctrl+N')
-    expect(handleNew).toHaveBeenCalledOnce()
-  })
-
-  it('open → handleOpen', () => {
-    const handleOpen = vi.fn()
-    renderHook(() => useGlobalShortcuts(createOpts({
-      handleOpen,
-      shortcutLookupRef: { current: { 'Ctrl+O': 'open' } },
-    })))
-    dispatchKey('Ctrl+O')
-    expect(handleOpen).toHaveBeenCalledOnce()
-  })
-
-  it('saveAs → handleSaveAs', () => {
-    const handleSaveAs = vi.fn()
-    renderHook(() => useGlobalShortcuts(createOpts({
-      handleSaveAs,
-      shortcutLookupRef: { current: { 'Ctrl+Shift+S': 'saveAs' } },
-    })))
-    dispatchKey('Ctrl+Shift+S')
-    expect(handleSaveAs).toHaveBeenCalledOnce()
-  })
-
-  it('openFolder → handleOpenFolder', () => {
-    const handleOpenFolder = vi.fn()
-    renderHook(() => useGlobalShortcuts(createOpts({
-      handleOpenFolder,
-      shortcutLookupRef: { current: { 'Ctrl+Shift+O': 'openFolder' } },
-    })))
-    dispatchKey('Ctrl+Shift+O')
-    expect(handleOpenFolder).toHaveBeenCalledOnce()
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+    mockedCombo.mockReturnValue('Ctrl+N')
+    const event = new KeyboardEvent('keydown', { key: 'n', ctrlKey: true, bubbles: true })
+    input.dispatchEvent(event)
+    expect(dispatchAction).not.toHaveBeenCalled()
+    input.remove()
   })
 })

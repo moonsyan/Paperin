@@ -611,10 +611,10 @@ describe('useAppActions', () => {
   })
 
   describe('handleExportPdf', () => {
-    it('打开 PDF 选项弹窗', () => {
+    it('exportPdf 命令打开 PDF 选项弹窗', () => {
       const setPdfOptsOpen = vi.fn()
       const { result } = renderHook(() => useAppActions(createOpts({ setPdfOptsOpen })))
-      act(() => result.current.handleExportPdf())
+      act(() => result.current.handleAction('exportPdf'))
       expect(setPdfOptsOpen).toHaveBeenCalledWith(true)
     })
   })

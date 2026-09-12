@@ -2,3 +2,5 @@ node_modules
 out
 release
 .superpowers
+# 智能体工作区：本地记忆日志与临时产物，不入库
+.workbuddy

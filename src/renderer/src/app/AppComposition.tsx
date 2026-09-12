@@ -94,7 +94,7 @@ export function AppComposition(): JSX.Element {
   } = useWorkspaceState({ theme, setTheme, settingsReady: false })
 
   // === 搜索 ===
-  const { searchMode, searchCount, setSearchCount, searchCurrent, setSearchCurrent, searchPref, setSearchPref, searchEpoch, setSearchEpoch, closeSearch: resetSearchState, handlers: searchHandlers } = useEditorSearch({ editorRef })
+  const { searchMode, setSearchMode, searchCount, setSearchCount, searchCurrent, setSearchCurrent, searchPref, setSearchPref, searchEpoch, setSearchEpoch, closeSearch: resetSearchState, handlers: searchHandlers } = useEditorSearch({ editorRef })
 
   // === 布局 ===
   const modalOpenRef = useRef(false)
@@ -123,7 +123,7 @@ export function AppComposition(): JSX.Element {
     recordRecent, workspacePathRef, workspaceDocumentsRef, setWorkspace,
     setWorkspaceStateReady, setWorkspaceSettings, setWorkspaceDocuments,
     setWorkspaceCollapsedKeys, setSidebarWidth, setSidebarActiveTab,
-    setContextDockState, setSearchCount, setSearchCurrent, setSearchMode: () => {},
+    setContextDockState, setSearchCount, setSearchCurrent, setSearchMode,
   })
 
   // === 设置 ===
@@ -224,11 +224,11 @@ export function AppComposition(): JSX.Element {
 
   // === 动作分发 ===
   const handleFullscreenChange = useCallback((open: boolean) => { fullscreenOpenRef.current = open }, [])
-  const { handleAction, runCommand, handleDocumentTitleBlur, handleDocumentTitleKeyDown, handleOpenBacklink, handleOpenGraphView, closeSettings, closeHelp, closeImages, closePdfOptions, closePublish, closeWorkspaceSearch, closePalette, closeVersionHistory, openOutlinePanel, commandRegistry } = useAppActions({
+  const { handleAction, handleDocumentTitleBlur, handleDocumentTitleKeyDown, handleOpenBacklink, handleOpenGraphView, closeSettings, closeHelp, closeImages, closePdfOptions, closePublish, closeWorkspaceSearch, closePalette, closeVersionHistory, commandRegistry } = useAppActions({
     editorRef, docTitle, setDocTitle, activeFileId, activeFileIdRef, openFiles, openFilesRef, setOpenFiles, demoFileNames, activeFilePath: activeFile?.path, workspacePathRef, focusEditorSoon, setToast,
     handleNew, handleOpen, handleOpenFolder, handleSelectWorkspaceFile, handleSave, handleSaveAs, handleCloseTab, handleCloseOtherTabs, handleCloseAllTabs, handleRenameFile,
     handleExportHtml, handleExportMarkdown, handleExportPandoc, handleExportDocx,
-    setSearchMode: () => {}, setFocusOutlineTick, setSidebarActiveTab, setContextDockState, setSearchPref, setSearchEpoch, setSidebarCollapsed, setFocusMode, setPreviewMode, setTypewriter, setZoom, centerCaret,
+    setSearchMode, setFocusOutlineTick, setSidebarActiveTab, setContextDockState, setSearchPref, setSearchEpoch, setSidebarCollapsed, setFocusMode, setPreviewMode, setTypewriter, setZoom, centerCaret,
     setSettingsOpen, setHelpView, setImagesOpen, setPdfOptsOpen, setPublishOpen, handleNewFromTemplate, setWsSearchOpen, setPaletteOpen, setVersionHistoryOpen, openGraphView,
     getHasUnsavedChanges: () => Object.values(documents).some((d) => d.dirty),
     getLayoutState: () => ({ activeView: sidebarActiveTab, sidebarWidth, typewriterMode: typewriter }),
@@ -242,11 +242,9 @@ export function AppComposition(): JSX.Element {
     for (const [action, combo] of Object.entries(settings.shortcuts)) { if (combo) lookup[combo] = action }
     shortcutLookupRef.current = lookup
   }, [settings.shortcuts])
-  const executeSaveCommand = useCallback(() => { void runCommand('save') }, [runCommand])
+  // 快捷键与菜单/命令面板共享同一分发入口（handleAction 内部走命令注册表）
   useGlobalShortcuts({
-    shortcutLookupRef, modalOpenRef, fullscreenOpenRef, editorRef, activeFileIdRef,
-    handleNew, handleOpen, handleOpenFolder, handleSave: executeSaveCommand, handleSaveAs, handleCloseTab,
-    openOutlinePanel, setPaletteOpen, setSearchMode: () => {}, setSidebarCollapsed, setPreviewMode, setZoom, setFocusMode,
+    shortcutLookupRef, modalOpenRef, fullscreenOpenRef, dispatchAction: handleAction,
   })
 
   // === 副作用 ===

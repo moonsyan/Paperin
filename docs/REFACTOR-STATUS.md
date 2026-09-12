@@ -1,6 +1,6 @@
 # LastFileHome 已完成与未完成清单
 
-更新时间：2026-09-11（Asia/Shanghai）
+更新时间：2026-09-12（Asia/Shanghai）
 
 本文是当前 `master` 的唯一实时完成度记录。实施计划和路线图描述目标，不因代码存在而自动视为完成；本清单只记录已经验证的行为，以及仍需继续处理的工作。
 
@@ -34,12 +34,16 @@
 - 文档级大纲/属性与工作区级关系/标签/检查会按上下文出现；持久化面板失效时回退至第一个可用面板。
 - 隐藏状态保留可访问恢复入口；Escape 收起并恢复按钮焦点；分隔器支持键盘调宽和数值 ARIA；拖拽取消或组件卸载会清理全局监听。
 - ContextDock 主组件和面板渲染组件分别保持在 250 行门禁以内。
+- 命令注册表已统一为唯一执行入口：`useActionDispatcher.ts` 从 289 行降到 73 行，switch/case 逐项迁入 `app/actions/commands/`（文件/搜索/视图/面板/帮助五个域工厂），菜单栏、右键菜单、快捷键与命令面板共享同一 `execute`；历史别名动作（如 `preview`/`focusMode`）在分发入口做别名归一，不再重复出现在命令面板。
+- `PanelRegistry` 插槽已全覆盖：Sidebar 主区域消费 `sidebar.primary`（内置 `files` 面板渲染文件树，扩展面板经 `render(context)` 追加），`editor.margin` 由新增 `EditorMargin` 宿主消费，`statusbar.end` 由 `StatusBar` 按注册顺序渲染内置片段与自定义面板。三处均支持缺省回退到应用级共享注册表。
+- Sidebar 折叠记录改用内容签名（而非数组引用）做 effect 守卫：调用方传入内联字面量等不稳定引用时不再触发无限更新循环，`useSidebarCollapse` 直接测试覆盖该回归。
 
 ### 运行时安全与告警
 
 - Renderer CSP 只在已有图片白名单之外，为构建内联的 KaTeX 字体在 `font-src` 放行 `data:`；脚本与连接来源未放宽。
 - Mermaid 源码通过 Refractor 纯文本别名交给既有预览插件处理，Prism 不再误报不支持语言。
 - CSP 有直接安全契约测试；Electron smoke 遇到 CSP violation 或 Prism unsupported 会失败。
+- `src/main/ipc/workspace-scope.test.ts` 的符号链接逃逸用例改为以「链接是否真正落盘」（`lstat().isSymbolicLink()`）判定前置条件，原实现只捕获 `symlink` 抛错——在 symlink 被静默忽略的受限沙箱中会误判为断言失败。真实 Electron 与 CI 环境仍执行完整 realpath 消解断言。
 
 ### 系统打开与生产索引
 
@@ -93,8 +97,7 @@
 ### 架构与维护性
 
 - 仍超过项目行数门禁的文件：`src/main/ipc/file-handlers.ts`（654）、`src/renderer/src/lib/docx.ts`（599）、`app/workspace/useWorkspaceFiles.ts`（505）、`app/useAppSettings.ts`（496）、`Editor/overlays/useEditorOverlays.ts`（486）、`Editor/instance/useMilkdownInstance.ts`（485）。`AppComposition.tsx`（447）与 `useEditorContentReplacement.ts`（约 340）已完成第一轮拆分，需继续按命令域与导出域收敛。
-- Sidebar 主区域、`editor.margin` 和 `statusbar.end` 尚未全部消费 `PanelRegistry`；菜单、右键菜单和全部快捷键也未完全统一到命令注册表。
-- 搜索、图谱、反向链接、标签和质量检查的往返选择状态尚未统一到单一工作区视图模型。
+- 搜索、图谱、反向链接、标签和质量检查的往返选择状态尚未统一到单一工作区视图模型；反链、工作区搜索结果与诊断跳转仍是三套各自独立的 seq 守卫。
 - 文档会话控制器尚未完全收口草稿恢复、关闭确认和所有保存分支；仍需逐项验证卸载取消和多窗口竞态。
 
 ### UI 与功能迁移
@@ -122,7 +125,7 @@
 ## 建议继续顺序
 
 1. 先修复 5 MiB Milkdown 序列化/保存瓶颈，恢复 Electron 全链路性能门禁的通过证据。
-2. 以 `app/workspace/useWorkspaceFiles.ts`、`app/useAppSettings.ts`、`Editor/instance/useMilkdownInstance.ts`、`Editor/overlays/useEditorOverlays.ts` 和 `src/main/ipc/file-handlers.ts` 为下一批拆分入口，按功能域继续收敛控制器和单职责组件；`useActionDispatcher.ts`（289 行）的 switch/case 逐项迁入 `useCommandRegistry`，使菜单/快捷键/命令面板全部共享同一 execute。
+2. 以 `app/workspace/useWorkspaceFiles.ts`、`app/useAppSettings.ts`、`Editor/instance/useMilkdownInstance.ts`、`Editor/overlays/useEditorOverlays.ts` 和 `src/main/ipc/file-handlers.ts` 为下一批拆分入口，按功能域继续收敛控制器和单职责组件。
 3. 完成 quiet-workspace、小窗口、输入法、焦点和主题的人工/端到端验证。
 4. 逐项迁移低频功能到命令注册表、面板和新文档模型。
 5. 完成 Windows 安装包以及 macOS/Linux 安装包和更新流程验证。

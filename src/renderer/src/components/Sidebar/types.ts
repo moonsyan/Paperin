@@ -1,5 +1,6 @@
 import type { DemoFolder } from '../../data/demo-files'
 import type { FolderTreeNode } from '../../../../preload/api'
+import type { PanelRegistry } from '../../app/panels/panel-registry'
 
 export interface OpenFile {
   id: string
@@ -34,4 +35,6 @@ export interface SidebarProps {
   tagFilter?: { tag: string; paths: string[] } | null
   onClearTagFilter?: () => void
   collapsed?: boolean
+  /** sidebar.primary 插槽的面板注册表；缺省消费应用级共享注册表 */
+  registry?: PanelRegistry
 }

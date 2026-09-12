@@ -7,7 +7,7 @@ import type {
   SetStateAction,
 } from 'react'
 
-import { createDefaultPanelRegistry } from '../../app/panels/panel-registry'
+import { sharedPanelRegistry } from '../../app/panels/shared-panel-registry'
 import {
   ContextDockPanelContent,
   ContextIcon,
@@ -35,7 +35,7 @@ export interface ContextDockProps extends ContextDockContentProps {
   hasActiveDocument?: boolean
 }
 
-const DEFAULT_PANEL_REGISTRY = createDefaultPanelRegistry()
+const DEFAULT_PANEL_REGISTRY = sharedPanelRegistry
 
 export function ContextDock({
   state,

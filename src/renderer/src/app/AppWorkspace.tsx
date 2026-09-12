@@ -5,6 +5,8 @@ import { ContextDock } from '../components/ContextDock'
 import type { ContextDockState } from '../components/ContextDock/context-dock-state'
 import { Editor } from '../components/Editor'
 import type { EditorHandle } from '../components/Editor'
+import { EditorMargin } from '../components/EditorMargin'
+import type { PanelContext } from '../app/panels/panel-registry'
 import { SearchBar } from '../components/SearchBar'
 import { GraphView } from '../components/GraphView'
 import type { GraphSettings } from '../components/GraphView'
@@ -165,6 +167,12 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
     activeOutlineIndex, onOutlineClick, focusEditorSoon,
   } = props
 
+  // editor.margin 插槽上下文：与 ContextDock 同一 PanelContext 口径
+  const editorMarginContext: PanelContext = {
+    activeFileId: openFiles.length > 0 ? activeFileId : '',
+    hasWorkspace: workspace !== null,
+  }
+
   return (
     <div className="workspace" ref={editorAreaRef} style={{ '--sidebar-w': `${sidebarWidth}px` } as CSSProperties}>
       <Sidebar
@@ -274,6 +282,7 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
               <div className="editor-inner preview-content" ref={previewContentRef} />
             </div>
           )}
+          <EditorMargin context={editorMarginContext} />
           {openFiles.length === 0 && (
             <StartScreen onNew={onNew} onOpen={onOpen} onOpenFolder={onOpenFolder} />
           )}

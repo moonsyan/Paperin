@@ -150,6 +150,22 @@ html[data-platform='darwin'] .topbar {
   min-width: 0;
 }
 
+/* 正文页边插槽（editor.margin）：默认无注册面板不渲染；扩展面板显示为正文右侧窄栏 */
+.editor-margin {
+  flex: 0 0 auto;
+  width: 180px;
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
+  background: var(--bg-surface);
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.editor-margin-panel {
+  min-width: 0;
+}
+
 /* ====== 开始界面（关闭所有标签页后显示） ====== */
 .start-screen {
   position: absolute;

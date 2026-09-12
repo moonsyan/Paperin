@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useEffect, useRef, useState, Fragment } from 'react'
+import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
+import { sharedPanelRegistry } from '../../app/panels/shared-panel-registry'
+import type { PanelContext, PanelRegistry } from '../../app/panels/panel-registry'
 
 interface StatusBarProps {
   saved: boolean
@@ -26,6 +28,8 @@ interface StatusBarProps {
   goalPercent?: number | null
   /** 保存/清除当前文档的字数目标覆盖；undefined = 移除覆盖（跟随全局） */
   onGoalChange?: (value: number | undefined) => void
+  /** statusbar.end 插槽的面板注册表；缺省消费应用级共享注册表 */
+  registry?: PanelRegistry
 }
 
 /** 目标弹层：打开时预填当前生效目标，Enter 保存、Escape 关闭 */
@@ -116,6 +120,7 @@ export function StatusBar({
   goalWords = null,
   goalPercent = null,
   onGoalChange,
+  registry = sharedPanelRegistry,
 }: StatusBarProps): JSX.Element {
   const [goalOpen, setGoalOpen] = useState(false)
   const closeGoal = () => setGoalOpen(false)
@@ -123,6 +128,80 @@ export function StatusBar({
     onGoalChange?.(value)
     closeGoal()
   }
+
+  const goalItem: ReactNode = (
+    <div className="st-item st-goal">
+      {goalPercent != null ? (
+        onGoalChange ? (
+          <button
+            type="button"
+            className="st-goal-trigger"
+            aria-haspopup="dialog"
+            aria-expanded={goalOpen}
+            title={`字数目标进度 ${goalPercent}%，点击设置本文档目标`}
+            onClick={() => setGoalOpen((v) => !v)}
+          >
+            <span className="st-goal-bar" aria-hidden="true">
+              <span className="st-goal-fill" style={{ width: `${goalPercent}%` }} />
+            </span>
+            目标 {goalPercent}%
+          </button>
+        ) : (
+          <span title={`字数目标进度 ${goalPercent}%`}>目标 {goalPercent}%</span>
+        )
+      ) : (
+        onGoalChange && (
+          <button
+            type="button"
+            className="st-goal-trigger st-goal-empty"
+            aria-haspopup="dialog"
+            aria-expanded={goalOpen}
+            title="设置本文档字数目标"
+            onClick={() => setGoalOpen((v) => !v)}
+          >
+            设置目标
+          </button>
+        )
+      )}
+      {goalOpen && onGoalChange && (
+        <>
+          {/* 点击弹层外任意区域关闭 */}
+          <div className="st-backdrop" onClick={closeGoal} aria-hidden="true" />
+          <GoalPopover currentGoal={goalWords} onDone={handleGoalDone} onClose={closeGoal} />
+        </>
+      )}
+    </div>
+  )
+
+  // statusbar.end 插槽：注册表决定条目的出现与顺序；条目自身的数据守卫
+  // （无数据不显示）保持不变。未识别的扩展面板经 render(context) 追加。
+  const builtInItems: Record<string, ReactNode> = {
+    'status.modified': typeof modifiedTime === 'number' && modifiedTime > 0 && (
+      <div className="st-item">修改于 {formatTime(modifiedTime)}</div>
+    ),
+    'status.cursor': typeof cursorLine === 'number' && typeof cursorCol === 'number' && (
+      <div className="st-item">
+        行 {cursorLine}, 列 {cursorCol}
+      </div>
+    ),
+    'status.selection': typeof selectedChars === 'number' && selectedChars > 0 && (
+      <div className="st-item st-selected">已选中 {selectedChars} 字</div>
+    ),
+    'status.section': typeof sectionWords === 'number' && (
+      <div className="st-item" title="光标所在章节字数（含子标题）">
+        本章 {sectionWords} 字
+      </div>
+    ),
+    'status.goal': (goalPercent != null || onGoalChange) && goalItem,
+    'status.words': <div className="st-item">{wordCount} 字</div>,
+    'status.lines': <div className="st-item">{lineCount} 行</div>,
+    'status.readtime': <div className="st-item">约 {readTime} 分钟</div>,
+    'status.encoding': <div className="st-item">{encoding === 'UTF-8-BOM' ? 'UTF-8 (BOM)' : encoding}</div>,
+    'status.language': <div className="st-item">Markdown</div>,
+  }
+
+  const panelContext: PanelContext = { activeFileId: '', hasWorkspace: true }
+  const endItems = registry.list('statusbar.end', panelContext)
 
   return (
     <div className="statusbar">
@@ -136,70 +215,17 @@ export function StatusBar({
         </div>
       ) : null}
       <div className="st-spacer" />
-      {typeof modifiedTime === 'number' && modifiedTime > 0 && (
-        <div className="st-item">修改于 {formatTime(modifiedTime)}</div>
-      )}
-      {typeof cursorLine === 'number' && typeof cursorCol === 'number' && (
-        <div className="st-item">
-          行 {cursorLine}, 列 {cursorCol}
-        </div>
-      )}
-      {typeof selectedChars === 'number' && selectedChars > 0 && (
-        <div className="st-item st-selected">已选中 {selectedChars} 字</div>
-      )}
-      {typeof sectionWords === 'number' && (
-        <div className="st-item" title="光标所在章节字数（含子标题）">
-          本章 {sectionWords} 字
-        </div>
-      )}
-      {(goalPercent != null || onGoalChange) && (
-        <div className="st-item st-goal">
-          {goalPercent != null ? (
-            onGoalChange ? (
-              <button
-                type="button"
-                className="st-goal-trigger"
-                aria-haspopup="dialog"
-                aria-expanded={goalOpen}
-                title={`字数目标进度 ${goalPercent}%，点击设置本文档目标`}
-                onClick={() => setGoalOpen((v) => !v)}
-              >
-                <span className="st-goal-bar" aria-hidden="true">
-                  <span className="st-goal-fill" style={{ width: `${goalPercent}%` }} />
-                </span>
-                目标 {goalPercent}%
-              </button>
-            ) : (
-              <span title={`字数目标进度 ${goalPercent}%`}>目标 {goalPercent}%</span>
-            )
-          ) : (
-            onGoalChange && (
-              <button
-                type="button"
-                className="st-goal-trigger st-goal-empty"
-                aria-haspopup="dialog"
-                aria-expanded={goalOpen}
-                title="设置本文档字数目标"
-                onClick={() => setGoalOpen((v) => !v)}
-              >
-                设置目标
-              </button>
-            )
-          )}
-          {goalOpen && onGoalChange && (
-            <>
-              {/* 点击弹层外任意区域关闭 */}
-              <div className="st-backdrop" onClick={closeGoal} aria-hidden="true" />
-              <GoalPopover currentGoal={goalWords} onDone={handleGoalDone} onClose={closeGoal} />
-            </>
-          )}
-        </div>
-      )}
-      <div className="st-item">{wordCount} 字</div>
-      <div className="st-item">{lineCount} 行</div>
-      <div className="st-item">约 {readTime} 分钟</div>
-      <div className="st-item">{encoding === 'UTF-8-BOM' ? 'UTF-8 (BOM)' : encoding}</div>
-      <div className="st-item">Markdown</div>
+      {endItems.map((panel) => {
+        if (panel.render) {
+          return (
+            <div key={panel.id} className="st-item st-custom" aria-label={panel.title}>
+              {panel.render(panelContext)}
+            </div>
+          )
+        }
+        const item = builtInItems[panel.id]
+        return item ? <Fragment key={panel.id}>{item}</Fragment> : null
+      })}
     </div>
   )
 }

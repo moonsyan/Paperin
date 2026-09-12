@@ -62,4 +62,26 @@ describe('panel registry', () => {
         .map((panel) => panel.id),
     ).toEqual(['links', 'tags', 'quality'])
   })
+
+  it('default registry covers all four panel slots', () => {
+    const registry = createDefaultPanelRegistry()
+    expect(registry.list('sidebar.primary', context).map((panel) => panel.id)).toEqual(['files'])
+    expect(registry.list('sidebar.secondary', context).map((panel) => panel.id)).toEqual([
+      'outline', 'links', 'tags', 'properties', 'quality',
+    ])
+    // editor.margin 默认无内置面板：作为扩展点由 EditorMargin 宿主消费
+    expect(registry.list('editor.margin', context)).toEqual([])
+    expect(registry.list('statusbar.end', context).map((panel) => panel.id)).toEqual([
+      'status.modified',
+      'status.cursor',
+      'status.selection',
+      'status.section',
+      'status.goal',
+      'status.words',
+      'status.lines',
+      'status.readtime',
+      'status.encoding',
+      'status.language',
+    ])
+  })
 })

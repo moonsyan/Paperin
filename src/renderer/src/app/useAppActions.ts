@@ -8,7 +8,7 @@ import { useActionDispatcher } from './actions/useActionDispatcher'
 export type { UseAppActionsOptions } from './actions/types'
 
 /**
- * 应用层动作集合入口：菜单/命令面板/快捷键共用的事件分发（handleAction）、
+ * 应用层动作集合入口：菜单/右键菜单/命令面板/快捷键共用的事件分发（handleAction）、
  * 弹窗关闭器、文档标题编辑、反链跳转等顶层交互动作。
  *
  * 只负责装配：命令注册表、动作分发、面板导航、标题编辑和弹窗关闭各自成域。
@@ -16,11 +16,12 @@ export type { UseAppActionsOptions } from './actions/types'
  *
  * 目录结构：
  * - actions/types.ts：入口参数
- * - actions/useCommandRegistry.ts：命令注册表 + runCommand（save、layout.preset.*）
+ * - actions/commands/：应用层动作命令工厂（文件/搜索/视图/面板/帮助域）
+ * - actions/useCommandRegistry.ts：命令注册表 + runCommand（save、layout.preset.*、全部应用动作）
  * - actions/useDocumentTitleEditing.ts：顶栏标题 blur / keydown
  * - actions/useDialogClosers.ts：8 个弹窗关闭器
  * - actions/usePanelNavigation.ts：ContextDock 面板、反链、版本历史
- * - actions/useActionDispatcher.ts：handleAction switch/case + 原生对话框动作的 L20 聚焦补偿
+ * - actions/useActionDispatcher.ts：handleAction 分发骨架（注册表 → 编辑器命令 → 参数化动作）
  */
 export function useAppActions(options: UseAppActionsOptions) {
   const {
@@ -78,6 +79,24 @@ export function useAppActions(options: UseAppActionsOptions) {
     setSidebarWidth,
   } = options
 
+  const {
+    openOutlinePanel,
+    openContextPanel,
+    handleOpenBacklink,
+    handleOpenVersionHistory,
+  } = usePanelNavigation({
+    setSidebarCollapsed,
+    setContextDockState,
+    setFocusOutlineTick,
+    setSearchMode,
+    setSearchPref,
+    setSearchEpoch,
+    handleSelectWorkspaceFile,
+    activeFilePath,
+    setVersionHistoryOpen,
+    setToast,
+  })
+
   const { commandRegistry, runCommand } = useCommandRegistry({
     handleSave,
     getLayoutState,
@@ -89,6 +108,41 @@ export function useAppActions(options: UseAppActionsOptions) {
     activeFileId,
     workspacePathRef,
     getHasUnsavedChanges,
+    actionHandlers: {
+      handleNew,
+      handleOpen,
+      handleOpenFolder,
+      handleSaveAs,
+      handleCloseTab,
+      handleCloseOtherTabs,
+      handleCloseAllTabs,
+      handleNewFromTemplate,
+      handleExportHtml,
+      handleExportMarkdown,
+      handleExportPandoc,
+      handleExportDocx,
+      setPdfOptsOpen,
+      openOutlinePanel,
+      openContextPanel,
+      handleOpenVersionHistory,
+      openGraphView,
+      setSearchMode,
+      setImagesOpen,
+      setPublishOpen,
+      setWsSearchOpen,
+      setPaletteOpen,
+      setSettingsOpen,
+      setHelpView,
+      setSidebarCollapsed,
+      setFocusMode,
+      setPreviewMode,
+      setTypewriter,
+      setZoom,
+      setToast,
+      centerCaret,
+      activeFileIdRef,
+      workspacePathRef,
+    },
   })
 
   const { handleDocumentTitleBlur, handleDocumentTitleKeyDown } = useDocumentTitleEditing({
@@ -124,63 +178,11 @@ export function useAppActions(options: UseAppActionsOptions) {
     setVersionHistoryOpen,
   })
 
-  const {
-    openOutlinePanel,
-    openContextPanel,
-    handleOpenBacklink,
-    handleOpenVersionHistory,
-  } = usePanelNavigation({
-    setSidebarCollapsed,
-    setContextDockState,
-    setFocusOutlineTick,
-    setSearchMode,
-    setSearchPref,
-    setSearchEpoch,
-    handleSelectWorkspaceFile,
-    activeFilePath,
-    setVersionHistoryOpen,
-    setToast,
-  })
-
-  const { handleAction, handleExportPdf } = useActionDispatcher({
+  const { handleAction } = useActionDispatcher({
     editorRef,
     commandRegistry,
     runCommand,
-    activeFileId,
-    activeFileIdRef,
-    workspacePathRef,
-    setToast,
-    centerCaret,
-    handleNew,
-    handleOpen,
-    handleOpenFolder,
-    handleSaveAs,
-    handleCloseTab,
-    handleCloseOtherTabs,
-    handleCloseAllTabs,
     handleSelectWorkspaceFile,
-    handleNewFromTemplate,
-    handleExportHtml,
-    handleExportMarkdown,
-    handleExportPandoc,
-    handleExportDocx,
-    setPdfOptsOpen,
-    openOutlinePanel,
-    openContextPanel,
-    handleOpenVersionHistory,
-    openGraphView,
-    setSearchMode,
-    setImagesOpen,
-    setPublishOpen,
-    setWsSearchOpen,
-    setPaletteOpen,
-    setSettingsOpen,
-    setHelpView,
-    setSidebarCollapsed,
-    setFocusMode,
-    setPreviewMode,
-    setTypewriter,
-    setZoom,
   })
 
   return {
@@ -199,7 +201,6 @@ export function useAppActions(options: UseAppActionsOptions) {
     closeWorkspaceSearch,
     closePalette,
     closeVersionHistory,
-    handleExportPdf,
     openOutlinePanel,
   }
 }

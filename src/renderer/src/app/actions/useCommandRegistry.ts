@@ -7,16 +7,17 @@ import type { AppCommandRegistry } from '../commands/app-command-registry'
 import { createAppCommandRegistry } from '../commands/app-command-registry'
 import { applyLayoutPreset, BUILT_IN_LAYOUT_PRESETS } from '../workspace/layout-preset'
 import type { AppliedLayoutState } from '../workspace/layout-preset'
+import { createAppActionCommands } from './commands'
+import type { ActionHandlers } from './commands'
 
 /**
- * 应用命令注册表：菜单 / 快捷键 / 命令面板共享同一 execute 契约。
+ * 应用命令注册表：菜单 / 右键菜单 / 快捷键 / 命令面板共享同一 execute 契约。
  *
- * 当前只承载两类注册：
+ * 承载三类注册：
  * - `save`：会话保存（走 saveImplRef 转发最新 handleSave）；
- * - `layout.preset.*`：布局预设，只改视图/宽度/开关，不动标签与文档内容。
- *
- * 其他动作（新建、导出、面板、视图切换等）仍在 useActionDispatcher 的 switch/case
- * 里分发；后续按域迁入本 hook 时，只需追加 register 调用即可，不必改 dispatcher。
+ * - `layout.preset.*`：布局预设，只改视图/宽度/开关，不动标签与文档内容；
+ * - 应用层动作命令（`createAppActionCommands`）：文件/搜索/视图/面板/帮助域，
+ *   处理器经 handlersRef 转发最新引用，注册只发生一次。
  *
  * StrictMode 双渲染保护：注册只发生一次，重复注册在开发期抛错，
  * 否则第二次渲染会命中开发期断言、整树被错误边界卸载。
@@ -32,6 +33,7 @@ export function useCommandRegistry({
   activeFileId,
   workspacePathRef,
   getHasUnsavedChanges,
+  actionHandlers,
   extraCommands,
 }: {
   handleSave: () => Promise<void>
@@ -44,6 +46,8 @@ export function useCommandRegistry({
   activeFileId: string
   workspacePathRef: MutableRefObject<string | undefined>
   getHasUnsavedChanges?: () => boolean
+  /** 应用层动作处理器：经 ref 转发，注册一次后始终读取最新引用 */
+  actionHandlers: ActionHandlers
   /** 追加注册（例如未来的 export.*、panel.* 命令），只在首次渲染时消费 */
   extraCommands?: readonly AppCommand[]
 }) {
@@ -61,6 +65,9 @@ export function useCommandRegistry({
   layoutStateRef.current = getLayoutState
   const typewriterSetterRef = useRef(setTypewriter)
   typewriterSetterRef.current = setTypewriter
+
+  const handlersRef = useRef(actionHandlers)
+  handlersRef.current = actionHandlers
 
   const registeredRef = useRef(false)
   if (!registeredRef.current) {
@@ -99,12 +106,16 @@ export function useCommandRegistry({
       })
     }
 
+    for (const command of createAppActionCommands(handlersRef)) {
+      registry.register(command)
+    }
+
     if (extraCommands) {
       for (const command of extraCommands) registry.register(command)
     }
   }
 
-  /** 统一命令执行入口：菜单、快捷键和命令面板最终都落到这里 */
+  /** 统一命令执行入口：菜单、右键菜单、快捷键和命令面板最终都落到这里 */
   const runCommand = useCallback(
     (id: string): Promise<boolean> => {
       const registry = commandRegistryRef.current

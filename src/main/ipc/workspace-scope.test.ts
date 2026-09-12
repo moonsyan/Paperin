@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import type { IpcMainInvokeEvent } from 'electron'
-import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'fs/promises'
+import { lstat, mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { isPathTrusted, trustDirectory } from '../trusted-paths'
@@ -88,10 +88,13 @@ describe('withinCallerWorkspace（工作区 IPC 的窗口绑定授权）', () =>
   it('符号链接指向根外时拒绝（realpath 消解）', async () => {
     await mkdir(join(tempRoot, 'link'), { recursive: true })
     const linkPath = join(tempRoot, 'link', '逃逸')
-    // Windows 创建目录符号链接需要开发者模式/管理员；环境不支持时跳过该用例
+    // Windows 创建目录符号链接需要开发者模式/管理员；环境不支持时跳过该用例。
+    // 注意：受限沙箱里 symlink 可能"静默 no-op"——不抛错但链接未落盘，
+    // 此时 realpath 会退回字面路径比较，用例失去意义，故以链接真正落盘为准。
     let symlinkCreated = true
     try {
       await symlink(outsideRoot, linkPath, 'dir')
+      symlinkCreated = (await lstat(linkPath)).isSymbolicLink()
     } catch {
       symlinkCreated = false
     }
