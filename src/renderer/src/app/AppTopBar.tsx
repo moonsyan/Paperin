@@ -90,7 +90,7 @@ export function AppTopBar({
           <img className="brand-icon" src="./icon.png" alt="" />
           <span className="brand-name">MarkdownSoft</span>
         </div>
-        <MenuBar onAction={onAction} recentFiles={recentFiles} shortcuts={shortcuts} isActionEnabled={isActionEnabled} />
+        <MenuBar compact onAction={onAction} recentFiles={recentFiles} shortcuts={shortcuts} isActionEnabled={isActionEnabled} />
         {/* 库名常驻展示在侧栏标题（NEXT-UI-SPEC §3.1）；侧栏收起时顶栏才显示简短库名 */}
         <WorkspaceContext workspaceName={workspaceName} workspacePath={workspacePath} showName={sidebarCollapsed} />
       </div>

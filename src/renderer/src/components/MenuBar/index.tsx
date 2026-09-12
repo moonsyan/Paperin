@@ -20,6 +20,8 @@ interface MenuBarProps {
    * 未登记的动作（编辑器命令、openRecent:* 等）由调用方返回 true。
    */
   isActionEnabled?: (action: string) => boolean
+  /** 收敛顶栏时使用单一“更多”入口；菜单内容与默认多入口完全相同。 */
+  compact?: boolean
 }
 
 interface MenuItemDef {
@@ -124,7 +126,7 @@ const MENU_LABELS: Record<string, string> = {
   help: '帮助',
 }
 
-export function MenuBar({ onAction, recentFiles = [], shortcuts, isActionEnabled }: MenuBarProps): JSX.Element {
+export function MenuBar({ onAction, recentFiles = [], shortcuts, isActionEnabled, compact = false }: MenuBarProps): JSX.Element {
   const [openKey, setOpenKey] = useState<string | null>(null)
   const [ddStyle, setDdStyle] = useState<CSSProperties>({})
   const barRef = useRef<HTMLDivElement>(null)
@@ -323,9 +325,64 @@ export function MenuBar({ onAction, recentFiles = [], shortcuts, isActionEnabled
     items[nextIndex]?.focus()
   }
 
+  const renderMenuItems = (key: string): JSX.Element[] => menus[key].map((item, i) =>
+    item.separator ? (
+      <div key={`${key}-sep-${i}`} className="dd-sep" />
+    ) : (
+      <button
+        type="button"
+        key={`${key}-item-${i}`}
+        className={`dd-item ${isItemEnabled(item) ? '' : 'is-disabled'}`}
+        role="menuitem"
+        disabled={!isItemEnabled(item)}
+        aria-disabled={isItemEnabled(item) ? undefined : true}
+        onClick={() => handleItemClick(key, item)}
+      >
+        <span className="dd-label">{item.label}</span>
+        {item.shortcut && <span className="sc">{item.shortcut}</span>}
+      </button>
+    ),
+  )
+
   return (
     <div className="menubar" ref={barRef}>
-      {Object.keys(menus).map((key) => (
+      {compact ? (
+        <div
+          className="menu-entry menu-entry-more"
+          onMouseEnter={(event) => {
+            const trigger = event.currentTarget.querySelector('button')
+            if (trigger) openMenu('more', trigger)
+          }}
+        >
+          <button
+            type="button"
+            className={`menu-item menu-item-more ${openKey === 'more' ? 'open' : ''}`}
+            aria-label="更多菜单"
+            aria-expanded={openKey === 'more'}
+            aria-haspopup="menu"
+            onClick={(event) => {
+              if (openKey === 'more') {
+                if (openByClickRef.current) setOpenKey(null)
+              } else {
+                openMenu('more', event.currentTarget, true)
+              }
+            }}
+            onKeyDown={(event) => handleMenuKeyDown(event, 'more')}
+          >
+            更多
+          </button>
+          {openKey === 'more' && (
+            <div className="dropdown dropdown-more show" style={ddStyle} role="menu" ref={dropdownRef} onKeyDown={handleDropdownKeyDown}>
+              {Object.keys(menus).map((key) => (
+                <div key={key} className="dropdown-more-group">
+                  <div className="dd-group-label">{MENU_LABELS[key]}</div>
+                  {renderMenuItems(key)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : Object.keys(menus).map((key) => (
         <div
           key={key}
           className="menu-entry"
@@ -360,24 +417,7 @@ export function MenuBar({ onAction, recentFiles = [], shortcuts, isActionEnabled
               ref={dropdownRef}
               onKeyDown={handleDropdownKeyDown}
             >
-            {menus[key].map((item, i) =>
-              item.separator ? (
-                <div key={i} className="dd-sep" />
-              ) : (
-                <button
-                  type="button"
-                  key={i}
-                  className={`dd-item ${isItemEnabled(item) ? '' : 'is-disabled'}`}
-                  role="menuitem"
-                  disabled={!isItemEnabled(item)}
-                  aria-disabled={isItemEnabled(item) ? undefined : true}
-                  onClick={() => handleItemClick(key, item)}
-                >
-                  <span className="dd-label">{item.label}</span>
-                  {item.shortcut && <span className="sc">{item.shortcut}</span>}
-                </button>
-              ),
-            )}
+            {renderMenuItems(key)}
             </div>
           )}
         </div>

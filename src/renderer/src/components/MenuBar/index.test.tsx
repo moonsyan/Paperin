@@ -26,6 +26,16 @@ function openFileMenu(byKeyboard: 'down' | 'up' | null = null) {
 }
 
 describe('MenuBar', () => {
+  it('紧凑模式只显示一个更多入口，但保留全部菜单动作', () => {
+    render(<MenuBar {...baseProps} compact />)
+    expect(screen.getByRole('button', { name: '更多菜单' })).not.toBeNull()
+    expect(screen.queryByText('文件')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '更多菜单' }))
+    expect(screen.getByText('保存')).not.toBeNull()
+    expect(screen.getByText('插入链接')).not.toBeNull()
+    expect(screen.getByText('知识图谱…')).not.toBeNull()
+  })
+
   it('渲染五个菜单标题，默认无下拉展开', () => {
     const { container } = render(<MenuBar {...baseProps} />)
     for (const label of ['文件', '编辑', '段落', '视图', '帮助']) {

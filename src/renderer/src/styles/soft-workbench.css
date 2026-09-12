@@ -83,6 +83,42 @@
   margin-inline: 8px;
 }
 
+/* 低频能力统一收进“更多”，保留原有菜单项、快捷键和命令分发。 */
+.menu-item-more {
+  width: 34px;
+  height: 32px;
+  padding: 0;
+  font-size: 0;
+  text-align: center;
+}
+
+.menu-item-more::after {
+  content: '⋯';
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: 2px;
+}
+
+.dropdown-more {
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(78vh, 680px);
+  overflow-y: auto;
+}
+
+.dropdown-more-group + .dropdown-more-group {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.dd-group-label {
+  padding: 3px 10px 4px;
+  color: var(--text-3);
+  font-size: .66rem;
+  font-weight: 650;
+  letter-spacing: .08em;
+}
+
 .workspace-context {
   gap: 8px;
   padding-right: 12px;
@@ -103,12 +139,13 @@
 }
 
 .current-file-banner {
-  max-width: 206px;
-  height: 28px;
-  padding-inline: 7px;
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--bg-surface) 68%, transparent);
-  border-color: color-mix(in srgb, var(--border) 78%, transparent);
+  /* 来源/保存状态仍保留在无障碍树和 title 中，视觉上交给路径条与状态栏。 */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .current-file-banner-source,
