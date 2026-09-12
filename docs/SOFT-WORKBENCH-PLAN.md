@@ -2,7 +2,9 @@
 
 日期：2026-09-13。审查起点：`58901d6`，`package.json` 版本 `0.6.0`，开始时工作区干净。
 
-本次交付是**产品评估、设计原型和迁移建议**，没有替换生产界面、接入模型或启用发布服务。实际实现进度仍以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准。原型位于 [design/soft-workbench](../design/soft-workbench/README.md)。
+本次交付包含**产品评估、设计原型和生产壳层视觉迁移**，没有接入模型或启用发布服务。实际实现进度仍以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准。原型位于 [design/soft-workbench](../design/soft-workbench/README.md)，生产视觉层位于 [soft-workbench.css](../src/renderer/src/styles/soft-workbench.css)。
+
+生产迁移只覆盖布局、间距、颜色层级和响应式呈现：继续使用现有 Sidebar、TabBar、Milkdown Editor、DocumentPathbar、ContextDock、StatusBar 及其状态/事件契约。文件读写、保存冲突、搜索、历史、导出、主题切换和快捷键没有迁移到原型的演示状态，也没有新增平行数据源。
 
 ## 1. 已确认的产品意图
 

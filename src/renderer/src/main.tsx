@@ -39,6 +39,8 @@ import './styles/components/quality-panel.css'
 import './styles/components/publishdialog.css'
 import './styles/components/context-dock.css'
 import './styles/components/workspace-shell.css'
+/* 生产壳层视觉迁移：沿用现有组件契约，仅收敛布局密度与雾白层级 */
+import './styles/soft-workbench.css'
 
 // 平台标识：顶栏按平台避让系统窗口按钮区域
 document.documentElement.setAttribute(

@@ -1,0 +1,336 @@
+/*
+ * Soft Workbench production skin
+ *
+ * This is a visual layer only. It deliberately targets the existing shell
+ * contracts (Sidebar, TabBar, Editor, ContextDock and StatusBar) so the file
+ * model, editor state, IPC actions and keyboard behaviour remain unchanged.
+ */
+
+:root {
+  --soft-content-width: 720px;
+  --soft-sidebar-width: 248px;
+  --soft-topbar-height: 58px;
+  --soft-pathbar-height: 38px;
+  --soft-statusbar-height: 30px;
+}
+
+.app {
+  background: var(--bg-app);
+}
+
+.topbar {
+  height: var(--soft-topbar-height);
+  padding-inline: 16px;
+  gap: 10px;
+  background: var(--bg-app);
+  border-bottom-color: color-mix(in srgb, var(--border) 82%, transparent);
+}
+
+.brand {
+  gap: 9px;
+  margin-right: 8px;
+}
+
+.brand-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+}
+
+.brand-name {
+  font-size: .82rem;
+  color: var(--text-1);
+  letter-spacing: .015em;
+}
+
+.topbar-zone-left,
+.topbar-zone-right {
+  gap: 6px;
+}
+
+.topbar-zone-center {
+  min-width: 120px;
+  margin-inline: 8px;
+}
+
+.workspace-context {
+  gap: 8px;
+  padding-right: 12px;
+  margin-right: 2px;
+  border-right-color: color-mix(in srgb, var(--border) 75%, transparent);
+}
+
+.workspace-context-dot {
+  width: 7px;
+  height: 7px;
+}
+
+.doc-title {
+  max-width: 176px;
+  padding: 5px 9px;
+  font-size: .76rem;
+  color: var(--text-2);
+}
+
+.act-group {
+  gap: 3px;
+  margin-left: 4px;
+}
+
+.act-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+}
+
+.workspace {
+  background: var(--bg-app);
+}
+
+.sidebar {
+  /* 保留用户拖拽/持久化的 --sidebar-w；248px 只作为缺省设计参考 */
+  width: var(--sidebar-w, var(--soft-sidebar-width));
+  background: var(--bg-sidebar);
+  border-right-color: color-mix(in srgb, var(--border) 90%, transparent);
+}
+
+.sidebar-nav {
+  padding: 18px 14px 0;
+}
+
+.search-trigger {
+  height: 38px;
+  padding-inline: 11px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-surface) 70%, transparent);
+  border-color: color-mix(in srgb, var(--border) 88%, transparent);
+}
+
+.quick-nav {
+  gap: 3px;
+  margin: 14px 0 18px;
+}
+
+.quick-nav-item {
+  height: 34px;
+  padding-inline: 10px;
+  border-radius: 7px;
+}
+
+.quick-nav-item.selected {
+  background: var(--accent-bg);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.collection-heading {
+  padding-inline: 4px;
+  padding-bottom: 7px;
+}
+
+.collection-name {
+  font-size: .68rem;
+  letter-spacing: .09em;
+}
+
+.sidebar-body {
+  padding-inline: 8px;
+}
+
+.tree-row {
+  min-height: 34px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  padding-right: 9px;
+  border-radius: 7px;
+  font-size: 13.5px;
+}
+
+.tree-row.active {
+  background: var(--accent-bg);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.sidebar-footer {
+  min-height: 46px;
+  padding-inline: 14px;
+  border-top-color: color-mix(in srgb, var(--border) 86%, transparent);
+}
+
+.editor-host {
+  background: var(--bg-surface);
+}
+
+.document-pathbar {
+  height: var(--soft-pathbar-height);
+  padding-inline: 28px;
+  gap: 4px;
+  background: var(--bg-surface);
+  border-bottom-color: color-mix(in srgb, var(--border) 78%, transparent);
+  font-size: 12.5px;
+}
+
+.pathbar-crumb-btn,
+.pathbar-reveal-btn {
+  border-radius: 6px;
+}
+
+.pathbar-reveal-btn {
+  padding-inline: 9px;
+  border-radius: 7px;
+}
+
+.editor-inner {
+  width: min(var(--ecw, var(--soft-content-width)), calc(100% - 56px));
+  padding: 54px 0 160px;
+}
+
+.editor-inner h1 {
+  margin-top: 0;
+  margin-bottom: 1.15rem;
+  font-size: clamp(2rem, 3.4vw, 2.65rem);
+  line-height: 1.25;
+  letter-spacing: -.045em;
+  font-weight: 680;
+}
+
+.editor-inner h2 {
+  margin-top: 2.35rem;
+  margin-bottom: .72rem;
+  padding-bottom: 0;
+  border-bottom: 0;
+  font-size: 1.38rem;
+  line-height: 1.45;
+  letter-spacing: -.02em;
+}
+
+.editor-inner h3 {
+  margin-top: 1.8rem;
+  margin-bottom: .55rem;
+  font-size: 1.12rem;
+}
+
+.editor-inner p {
+  margin-bottom: 1.1rem;
+  line-height: 2.02;
+}
+
+.editor-inner blockquote {
+  margin: 1.55rem 0 1.8rem;
+  padding: .9rem 1.25rem;
+  border-left-width: 2px;
+  border-left-color: var(--accent-line, var(--accent));
+  background: var(--bg-quote);
+}
+
+.editor-inner pre {
+  margin: 1.2rem 0;
+  border-radius: 9px;
+}
+
+.tabbar {
+  height: 42px;
+  flex-basis: 42px;
+  background: transparent;
+  border-bottom-color: color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.tab {
+  max-width: 236px;
+  gap: 7px;
+  padding-inline: 13px 9px;
+  border-right-color: color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.tab.active {
+  background: color-mix(in srgb, var(--accent-bg) 45%, transparent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.context-dock {
+  width: min(var(--context-dock-w, 312px), 300px);
+  min-width: min(var(--context-dock-w, 312px), 300px);
+  background: var(--bg-sidebar);
+  border-left-color: color-mix(in srgb, var(--border) 88%, transparent);
+}
+
+.context-dock-rail {
+  width: 46px;
+  padding: 12px 5px;
+  gap: 5px;
+  border-left-color: color-mix(in srgb, var(--border) 82%, transparent);
+}
+
+.context-dock-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+}
+
+.context-dock-content {
+  padding: 18px 14px 24px;
+}
+
+.statusbar {
+  height: var(--soft-statusbar-height);
+  padding-inline: 18px;
+  background: var(--bg-app);
+  border-top-color: color-mix(in srgb, var(--border) 80%, transparent);
+  font-size: .68rem;
+}
+
+.st-item {
+  padding-inline: 7px;
+}
+
+@media (max-width: 1100px) {
+  .editor-inner {
+    width: min(var(--ecw, var(--soft-content-width)), calc(100% - 42px));
+  }
+
+  .document-pathbar {
+    padding-inline: 20px;
+  }
+}
+
+@media (max-width: 820px) {
+  .topbar {
+    height: 54px;
+    padding-inline: 10px;
+  }
+
+  .topbar-zone-center {
+    margin-inline: 2px;
+  }
+
+  .document-pathbar {
+    height: 34px;
+    padding-inline: 12px;
+  }
+
+  .editor-inner {
+    width: calc(100% - 32px);
+    padding-top: 34px;
+  }
+}
+
+@media (max-width: 560px) {
+  .topbar-zone-right .doc-title,
+  .topbar-zone-right .theme-switcher {
+    display: none;
+  }
+
+  .editor-inner {
+    width: calc(100% - 24px);
+    padding-top: 26px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar,
+  .sidebar,
+  .context-dock,
+  .tab,
+  .act-btn {
+    transition: none;
+  }
+}
