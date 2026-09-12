@@ -13,6 +13,8 @@ const THEMES = [
   { id: 'github', name: '星夜', color: '#0d1117' },
   { id: 'atom', name: '原子', color: '#272B34' },
   { id: 'typewriter', name: '纸墨', color: '#FCF5E4' },
+  { id: 'mist', name: '雾白', color: '#F7F8F5' },
+  { id: 'pine', name: '夜松', color: '#202522' },
 ]
 
 export function ThemeSwitcher({ currentTheme, onThemeChange }: ThemeSwitcherProps): JSX.Element {

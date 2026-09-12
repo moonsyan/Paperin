@@ -37,4 +37,14 @@ export interface SidebarProps {
   collapsed?: boolean
   /** sidebar.primary 插槽的面板注册表；缺省消费应用级共享注册表 */
   registry?: PanelRegistry
+  /** 搜索触发框：打开命令面板（复用既有命令注册表） */
+  onOpenSearch?: () => void
+  /** 最近编辑列表（快捷导航视图数据） */
+  recentFiles?: Array<{ path: string; name: string }>
+  /** 我的收藏（绝对路径；工作区作用域由上层解析后传入） */
+  favorites?: string[]
+  /** 切换收藏（文件行右键菜单入口） */
+  onToggleFavorite?: (path: string) => void
+  /** 底部区设置入口 */
+  onOpenSettings?: () => void
 }

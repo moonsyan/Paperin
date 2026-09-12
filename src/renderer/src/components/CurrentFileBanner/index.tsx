@@ -25,6 +25,15 @@ const displayPath = (path: string | null | undefined, workspacePath: string | nu
   return normalizedPath
 }
 
+/**
+ * 当前文件上下文（原「当前文件」独立横条）。
+ *
+ * 收敛后不再占用一整条 52px 横向空间，而是作为顶栏右区的一枚紧凑标识：
+ * 只保留「来源 + 相对路径」两项在视觉上最重要的信息，文件名交给标签页，
+ * 保存状态交给状态栏与标签脏标记；工作区名与文件名保留在无障碍树中。
+ *
+ * `role="status"` / `data-source` / `data-dirty` 与可见文本均保持向后兼容。
+ */
 export function CurrentFileBanner({
   title,
   path = null,
@@ -45,21 +54,18 @@ export function CurrentFileBanner({
       aria-label={`当前文件：${title}，${sourceLabel}，${statusLabel}`}
       data-source={source}
       data-dirty={dirty ? 'true' : 'false'}
+      title={`${workspaceName ?? '本地工作区'} · ${sourceLabel} · ${pathLabel} · ${statusLabel}`}
     >
       <span className="current-file-banner-marker" aria-hidden="true" />
-      <div className="current-file-banner-copy">
-        <div className="current-file-banner-context">
-          <span className="current-file-banner-workspace">{workspaceName ?? '本地工作区'}</span>
-          <span className="current-file-banner-separator" aria-hidden="true">/</span>
-          <span className="current-file-banner-source">{sourceLabel}</span>
-        </div>
-        <strong className="current-file-banner-title" title={title}>{title}</strong>
-        <span className="current-file-banner-path" title={pathLabel}>{pathLabel}</span>
-      </div>
+      <span className="current-file-banner-source">{sourceLabel}</span>
+      <span className="current-file-banner-path" title={pathLabel}>{pathLabel}</span>
       <span className={`current-file-banner-status ${dirty ? 'is-dirty' : 'is-saved'}`}>
         <span className="current-file-banner-status-dot" aria-hidden="true" />
         {statusLabel}
       </span>
+      {/* 无障碍补充：工作区名与文件名在紧凑形态下不占视觉空间 */}
+      <span className="sr-only">{workspaceName ?? '本地工作区'}</span>
+      <span className="sr-only">{title}</span>
     </div>
   )
 }

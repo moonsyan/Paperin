@@ -19,7 +19,6 @@ import {
   createDocumentFromTemplate,
 } from '../lib/document-collection'
 import type { PublishOptions, PublishScope } from '../lib/export-bundle'
-import { extractMarkdownFiles } from '../lib/drop-markdown'
 import { normalizeWorkspaceRelativePath } from '../../../shared/workspace-state'
 import { resolveCollectionEntries } from './resolve-collection-entries'
 
@@ -35,14 +34,16 @@ import { useWorkspaceLayoutPersistence } from './workspace/useWorkspaceLayoutPer
 import { useEditorSearch } from './useEditorSearch'
 
 import { useAppSettings } from './useAppSettings'
+import { useSidebarFavorites } from './useSidebarFavorites'
+import { useMarkdownDrop } from './useMarkdownDrop'
 import { useWorkspaceIndexes } from './useWorkspaceIndexes'
 import { useEditorFeatures } from './useEditorFeatures'
 import { useGraphView } from './useGraphView'
 import { useAppLayout } from './useAppLayout'
 import { useWritingMetrics } from './useWritingMetrics'
-import { AppTopBar } from './AppTopBar'
 import { AppWorkspace } from './AppWorkspace'
 import { AppDialogs } from './AppDialogs'
+import { AppTopBarHost } from './TopBarSlots'
 
 import { DEMO_FILES } from '../data/demo-files'
 import { DEMO_FILE_IDS, FRESH_MODE, TITLEBAR_COLORS } from './constants'
@@ -283,6 +284,18 @@ export function AppComposition(): JSX.Element {
   }, [tagIndex])
 
   const closeSearch = useCallback(() => { resetSearchState(); focusEditorSoon() }, [resetSearchState, focusEditorSoon])
+
+  // 窗口级 Markdown 拖放（抽出后 AppComposition 只保留一行装配）
+  const markdownDrop = useMarkdownDrop({
+    onOpenFile: (path) => void handleSelectWorkspaceFile(path),
+    notify: setToast,
+  })
+
+  // === 侧栏收藏（quiet-workspace 快捷导航） ===
+  const { favorites, toggleFavorite: handleToggleFavorite } = useSidebarFavorites({
+    workspacePath: workspace?.path,
+    settingsReady,
+  })
   const imageDirs = useMemo(() => {
     const dirs: string[] = []
     if (activeFile?.path) dirs.push(`${activeFile.path.replace(/[\\/][^\\/]+$/, '')}/attachments`)
@@ -300,47 +313,43 @@ export function AppComposition(): JSX.Element {
   return (
     <div
       className={`app ${focusMode ? 'focus-mode' : ''} ${typewriter ? 'typewriter-mode' : ''}`}
-      onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) e.preventDefault() }}
-      onDrop={(e) => {
-        if (!e.dataTransfer.types.includes('Files')) return
-        e.preventDefault()
-        for (const file of extractMarkdownFiles(e.dataTransfer)) {
-          void window.desktopAPI.document.readDropped(file).then((result) => {
-            if (result.ok && result.data) void handleSelectWorkspaceFile(result.data.path)
-            else if (result.error?.code === 'TOO_LARGE') setToast(result.error.message ?? 'Markdown 文件超过 20MB，无法打开')
-            else if (result.error?.code !== 'INVALID_PATH') setToast('拖入文件读取失败')
-          })
-        }
-      }}
+      {...markdownDrop}
     >
-      <AppTopBar
+      <AppTopBarHost
         sidebarCollapsed={sidebarCollapsed} onToggleSidebar={() => setSidebarCollapsed((v) => !v)}
         focusMode={focusMode} onToggleFocusMode={() => setFocusMode((v) => !v)}
-        effectiveTheme={effectiveTheme} onThemeChange={handleThemeChange}
         settingsOpen={settingsOpen} onOpenSettings={() => setSettingsOpen(true)}
+        effectiveTheme={effectiveTheme} onThemeChange={handleThemeChange}
         onAction={handleAction} recentFiles={recentFiles} shortcuts={settings.shortcuts}
-        openFiles={openFiles} docTitle={docTitle} titleRef={titleRef}
+        docTitle={docTitle} titleRef={titleRef}
         onTitleBlur={handleDocumentTitleBlur} onTitleKeyDown={handleDocumentTitleKeyDown}
+        workspaceName={workspace?.name ?? '未打开知识库'} workspacePath={workspace?.path}
+        openFiles={openFiles} activeFileId={activeFileId} savedMap={savedMap}
+        onSwitchFile={(id) => { setGraphTabActive(false); switchFile(id) }}
+        onCloseTab={handleCloseTab} onCloseOtherTabs={handleCloseOtherTabs} onCloseAllTabs={handleCloseAllTabs}
+        onTogglePinnedTab={handleTogglePinnedTab} onReorderTabs={handleReorderTabs}
+        graphTabOpen={graphTabOpen} graphTabActive={graphTabActive}
+        onActivateGraphTab={() => setGraphTabActive(true)} onCloseGraphTab={closeGraphView}
+        filePath={activeFile?.path} fileSource={currentFileSource} fileDirty={!saved}
       />
 
-      <WorkspaceShell workspaceName={workspace?.name ?? '未打开知识库'} workspacePath={workspace?.path}>
+      <WorkspaceShell workspacePath={workspace?.path}>
         <AppWorkspace
           editorAreaRef={editorAreaRef} sidebarWidth={sidebarWidth} sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={() => setSidebarCollapsed((v) => !v)} onStartSidebarResize={startSidebarResize}
           searchMode={searchMode} searchEpoch={searchEpoch} searchCount={searchCount} searchCurrent={searchCurrent}
           searchPref={searchPref} searchHandlers={searchHandlers} onCloseSearch={closeSearch}
           openFiles={openFiles} activeFileId={activeFileId} activeFilePath={activeFile?.path}
-          activeContent={activeContent} docTitle={docTitle} saved={saved} savedMap={savedMap} currentFileSource={currentFileSource}
+          activeContent={activeContent}
           workspace={workspace} demoFileNames={demoFileNames}
           currentCollapsedKeys={currentCollapsedKeys} onCollapsedKeysChange={handleCollapsedKeysChange} collapseFoldersOnOpen={settings.collapseFoldersOnOpen}
+          onOpenSearch={() => setPaletteOpen(true)} recentFiles={recentFiles}
+          favorites={favorites} onToggleFavorite={handleToggleFavorite}
+          onOpenSettings={() => setSettingsOpen(true)}
           onSelectDemoFile={handleSelectDemoFile} onSelectWorkspaceFile={(p, pinned) => void handleSelectWorkspaceFile(p, pinned)}
           onCreateFile={(dir) => void handleCreateFile(dir)} onRenameFile={(p, n) => void handleRenameFile(p, n)}
           onDeleteFile={(p) => void handleDeleteFile(p)} onMoveFile={(p, d) => void handleMoveFile(p, d)} onOpenInNewWindow={handleOpenInNewWindow}
-          onSwitchFile={(id) => { setGraphTabActive(false); switchFile(id) }}
-          onCloseTab={handleCloseTab} onCloseOtherTabs={handleCloseOtherTabs} onCloseAllTabs={handleCloseAllTabs}
-          onTogglePinnedTab={handleTogglePinnedTab} onReorderTabs={handleReorderTabs}
-          graphTabOpen={graphTabOpen} graphTabActive={graphTabActive}
-          onGraphTabSwitch={() => setGraphTabActive(true)} onGraphTabClose={closeGraphView}
+          graphTabOpen={graphTabOpen} graphTabActive={graphTabActive} onGraphTabClose={closeGraphView}
           onGraphOpenNode={(path) => { setGraphTabActive(false); void reveal({ path }) }}
           linkGraph={linkGraph} linksTruncated={linksTruncated} graphSettings={settings.graphSettings} onGraphSettingsChange={settings.setGraphSettings}
           editorRef={editorRef} onEditorChange={handleEditorChange} onCursorChange={handleCursorChange}

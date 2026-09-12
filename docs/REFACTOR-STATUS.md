@@ -41,6 +41,16 @@
 - Sidebar 折叠记录改用内容签名（而非数组引用）做 effect 守卫：调用方传入内联字面量等不稳定引用时不再触发无限更新循环，`useSidebarCollapse` 直接测试覆盖该回归。
 - 往返选择状态已统一到单一工作区视图模型 `app/workspace/useWorkspaceViewModel.ts`：反链/出链跳转、工作区搜索结果、知识图谱节点、质量诊断四处「打开文件并接力定位」共用同一次 `reveal` 调用与同一条「最后一次点选获胜」seq 判定。此前三套独立 seq 守卫语义不一致（诊断跳转完全没有守卫，旧请求迟到返回会覆盖新选择）。搜索接力选项在各调用点显式声明：反链跳转打开查找栏并强制非正则，工作区搜索与诊断跳转保持静默；未显式指定的正则/大小写开关沿用当前偏好，不再被跳转动作隐式重置。
 
+### quiet-workspace 视觉迁移
+
+- 顶栏四层 chrome 收敛为单条 52px 三区顶栏：左区（侧栏切换 + 品牌 + 菜单 + 工作区上下文点）· 中区（标签栏）· 右区（当前文件标识 + 文档标题 + 操作组）。此前垂直堆叠为顶栏 42px + 工作区上下文条 38px + 当前文件条 52px + 标签栏 34px ≈ 166px，正文首屏因此被压掉约 114px。
+- `WorkspaceShell` 不再自绘上下文横条，改为只提供 `role="region"` 与 open/empty 状态；工作区名与「本地/未打开」标由新增 `WorkspaceContext` 呈现在顶栏左区，完整路径保留在 title 与无障碍名中（不再三处重复表达）。
+- `CurrentFileBanner` 由 52px 独立横条缩身为顶栏右区紧凑标识（来源 + 相对路径，超长截断；窄窗口只留来源标，极窄窗口隐藏）。文件名交给标签页，保存状态交给状态栏与标签脏标记，工作区名与文件名保留在无障碍树中；`role="status"` / `data-source` / `data-dirty` 契约不变。
+- 侧栏改为五段式：搜索触发框（点击打开命令面板，复用既有注册表，零新增搜索逻辑）→ 快捷导航（最近编辑 / 我的收藏，带计数，切换为平铺列表视图）→ 集合标题（含新建）→ 文件树 → 底部区（状态点 + 集合摘要 + 设置入口）。
+- 收藏数据层落在 `app/useSidebarFavorites.ts`：按工作区作用域分桶持久化（与折叠记录同一 `settings` 机制），不新增共享 schema、不改 IPC、不动 `WorkspaceStateBundle` 兼容分支；文件行右键菜单新增「收藏 / 取消收藏」。
+- 新增「雾白」（亮）「夜松」（暗）两套留白绿调主题，作为第 8/9 套接入既有 token 体系；主题级排版尺度（H1 `clamp(28px, 2.8vw, 38px)`、H2 去边框、引用/代码形态、更紧圆角、避开 Inter 的界面字体栈）落在 `styles/quiet-workspace.css` 并**只作用于这两套主题**，原有 7 套主题取值零改动。刻意不覆盖 `--efs` / `--ecw` / `--elh`（字号、内容宽度、行距归用户设置所有）。
+- 补齐全局 `prefers-reduced-motion`（此前仅 `context-dock.css` 单点处理）；保留 0.01ms 而非 `none`，以便依赖 `transitionend`/`animationend` 的逻辑仍能收到事件。
+
 ### 运行时安全与告警
 
 - Renderer CSP 只在已有图片白名单之外，为构建内联的 KaTeX 字体在 `font-src` 放行 `data:`；脚本与连接来源未放宽。
@@ -81,7 +91,7 @@
 | --- | --- |
 | `npm run lint` | 通过 |
 | `npm run typecheck` | 通过 |
-| `npm run test` | 通过：134 个测试文件，1041 项测试 |
+| `npm run test` | 通过：138 个测试文件，1063 项测试 |
 | `npm run build` | 通过：Main、Preload、Renderer 均成功构建 |
 | `npm run perf:regression` | 通过：5,000 文件合成场景未超阈值 |
 | `npm run smoke` | 通过：打开工作区、新建、保存、冲突、重读、重命名、搜索、状态读取 |
@@ -100,15 +110,15 @@
 
 ### 架构与维护性
 
-- 仍超过项目行数门禁的文件：`src/main/ipc/file-handlers.ts`（654）、`src/renderer/src/lib/docx.ts`（599）、`app/workspace/useWorkspaceFiles.ts`（505）、`app/useAppSettings.ts`（496）、`Editor/overlays/useEditorOverlays.ts`（486）、`Editor/instance/useMilkdownInstance.ts`（485）。`AppComposition.tsx`（447）与 `useEditorContentReplacement.ts`（约 340）已完成第一轮拆分，需继续按命令域与导出域收敛。
+- 仍超过项目行数门禁的文件：`src/main/ipc/file-handlers.ts`（654）、`src/renderer/src/lib/docx.ts`（599）、`app/workspace/useWorkspaceFiles.ts`（505）、`app/useAppSettings.ts`（496）、`Editor/overlays/useEditorOverlays.ts`（486）、`Editor/instance/useMilkdownInstance.ts`（485）。`AppComposition.tsx` 已随顶栏收敛完成第二轮拆分（447 → 449：顶栏宿主与插槽抽到 `app/TopBarSlots.tsx`、拖放抽到 `app/useMarkdownDrop.ts`、收藏抽到 `app/useSidebarFavorites.ts`），仍贴门禁上限，需按命令域与导出域继续收敛；`useEditorContentReplacement.ts`（约 340）同样待续。
 - 文档会话剩余风险集中在 5 MiB 大文档的保存耗时（见上方发布前高优先级），会话状态一致性、卸载取消与多窗口竞态已完成核验。
 
 ### UI 与功能迁移
 
-- 顶栏、Sidebar、TabBar 和窄窗口抽屉只完成了第一轮 quiet-workspace 收敛，整体迁移仍未完成。
-- 中文输入法组合态、全键盘导航、焦点不被弹层遮挡，以及全部内置主题的文本/边框/悬停/禁用/焦点对比度仍需完整人工冒烟。
-- 最近文件、收藏、搜索、图谱、标签、链接、图片、发布、导出、历史、草稿和设置等既有能力仍需逐项登记到“命令 + 面板 + 新文档模型”，并同步兼容矩阵。
-- Renderer 主包仍较大；Mermaid/图谱等低频能力的按需加载和分包尚未完成。
+- quiet-workspace 视觉语言已完成主要迁移：顶栏四层 chrome 收敛为单条 52px 三区顶栏（正文首屏回收约 114px）、侧栏改为五段式（搜索触发框 / 快捷导航 / 集合标题 / 文件树 / 底部区）、新增「雾白」「夜松」两套留白绿调主题并把排版尺度落到主题作用域样式、补齐全局 `prefers-reduced-motion`。剩余：窄窗口侧栏与 ContextDock 共用一套 scrim 机制尚未统一；AppearancePanel 的主题样张卡未引入；ContextDock「仅大纲」窄栏极简模式未实现。
+- 中文输入法组合态、全键盘导航、焦点不被弹层遮挡，以及全部内置主题（含新增雾白/夜松）的文本/边框/悬停/禁用/焦点对比度仍需完整人工冒烟。
+- 收藏（侧栏快捷导航数据层 + 文件右键收藏入口）已落地，按工作区作用域持久化；搜索触发框复用命令注册表。低频能力（图片、发布、导出、历史、草稿、设置）仍需逐项登记到“命令 + 面板 + 新文档模型”，并同步兼容矩阵。
+- Renderer 主包仍较大（当前 3.32 MB）；Mermaid/图谱等低频能力的按需加载和分包尚未完成（Mermaid 已拆为独立 chunk，主包尚未分包）。
 
 ## 本轮提交
 

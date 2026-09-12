@@ -10,9 +10,6 @@ import type { PanelContext } from '../app/panels/panel-registry'
 import { SearchBar } from '../components/SearchBar'
 import { GraphView } from '../components/GraphView'
 import type { GraphSettings } from '../components/GraphView'
-import { TabBar } from '../components/TabBar'
-import { CurrentFileBanner } from '../components/CurrentFileBanner'
-import type { CurrentFileSource } from '../components/CurrentFileBanner'
 import { StartScreen } from '../components/StartScreen'
 import { DEMO_FILES, DEMO_TREE, DEFAULT_FILE_ID } from '../data/demo-files'
 import type { WorkspaceIndex, DiagnosticRecord } from '../../../shared/workspace-index'
@@ -43,16 +40,18 @@ export interface AppWorkspaceProps {
   activeFileId: string
   activeFilePath: string | undefined
   activeContent: string
-  docTitle: string
-  saved: boolean
-  savedMap: Record<string, boolean>
-  currentFileSource: CurrentFileSource
   // 工作区
   workspace: WorkspaceInfo | null
   demoFileNames: Record<string, string>
   currentCollapsedKeys: string[] | null
   onCollapsedKeysChange: (keys: string[]) => void
   collapseFoldersOnOpen: boolean
+  // 侧栏五段式导航
+  onOpenSearch: () => void
+  recentFiles: Array<{ path: string; name: string }>
+  favorites: string[]
+  onToggleFavorite: (path: string) => void
+  onOpenSettings: () => void
   // 文件操作
   onSelectDemoFile: (id: string, pinned?: boolean) => void
   onSelectWorkspaceFile: (path: string, pinned?: boolean) => void
@@ -61,17 +60,10 @@ export interface AppWorkspaceProps {
   onDeleteFile: (path: string) => void
   onMoveFile: (path: string, targetDir: string) => void
   onOpenInNewWindow: (path: string) => void
-  // 标签页
-  onSwitchFile: (id: string) => void
-  onCloseTab: (id: string) => void
-  onCloseOtherTabs: (id: string) => void
-  onCloseAllTabs: () => void
-  onTogglePinnedTab: (id: string) => void
-  onReorderTabs: (from: number, to: number) => void
   // 图谱
   graphTabOpen: boolean
   graphTabActive: boolean
-  onGraphTabSwitch: () => void
+  /** 关闭图谱视图（图谱面板内的关闭按钮；标签栏上的关闭在顶栏） */
   onGraphTabClose: () => void
   onGraphOpenNode: (path: string) => void
   linkGraph: unknown
@@ -149,11 +141,11 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
   const {
     editorAreaRef, sidebarWidth, sidebarCollapsed, onToggleSidebar, onStartSidebarResize,
     searchMode, searchEpoch, searchCount, searchCurrent, searchPref, searchHandlers, onCloseSearch,
-    openFiles, activeFileId, activeFilePath, activeContent, docTitle, saved, savedMap, currentFileSource,
+    openFiles, activeFileId, activeFilePath, activeContent,
     workspace, demoFileNames, currentCollapsedKeys, onCollapsedKeysChange, collapseFoldersOnOpen,
+    onOpenSearch, recentFiles, favorites, onToggleFavorite, onOpenSettings,
     onSelectDemoFile, onSelectWorkspaceFile, onCreateFile, onRenameFile, onDeleteFile, onMoveFile, onOpenInNewWindow,
-    onSwitchFile, onCloseTab, onCloseOtherTabs, onCloseAllTabs, onTogglePinnedTab, onReorderTabs,
-    graphTabOpen, graphTabActive, onGraphTabSwitch, onGraphTabClose, onGraphOpenNode,
+    graphTabOpen, graphTabActive, onGraphTabClose, onGraphOpenNode,
     linkGraph, linksTruncated, graphSettings, onGraphSettingsChange,
     editorRef, onEditorChange, onCursorChange, onRichRender, blankClickToEnd, codeLineNumbers,
     onNotify, wikiLinkFiles, onWikiLinkClick, wikiResolveTest, onFullscreenChange, imageHints,
@@ -192,6 +184,11 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
         initialCollapsedKeys={currentCollapsedKeys}
         onCollapsedKeysChange={onCollapsedKeysChange}
         collapseFoldersOnOpen={collapseFoldersOnOpen}
+        onOpenSearch={onOpenSearch}
+        recentFiles={recentFiles}
+        favorites={favorites}
+        onToggleFavorite={onToggleFavorite}
+        onOpenSettings={onOpenSettings}
       />
       <button
         type="button"
@@ -221,31 +218,6 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
         />
       )}
       <div className="editor-host">
-        {openFiles.length > 0 && (
-          <CurrentFileBanner
-            title={docTitle}
-            path={activeFilePath}
-            workspacePath={workspace?.path}
-            workspaceName={workspace?.name ?? '本地工作区'}
-            source={currentFileSource}
-            dirty={!saved}
-          />
-        )}
-        <TabBar
-          openFiles={openFiles}
-          activeFileId={activeFileId}
-          savedMap={savedMap}
-          onSwitch={onSwitchFile}
-          onClose={onCloseTab}
-          onCloseOthers={onCloseOtherTabs}
-          onCloseAll={onCloseAllTabs}
-          onTogglePin={onTogglePinnedTab}
-          onReorder={onReorderTabs}
-          graphTabOpen={graphTabOpen}
-          graphTabActive={graphTabActive}
-          onGraphTabSwitch={onGraphTabSwitch}
-          onGraphTabClose={onGraphTabClose}
-        />
         <div className="editor-content">
           <Editor
             ref={editorRef}

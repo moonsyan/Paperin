@@ -1,0 +1,45 @@
+/* ====== Pine Theme（夜松 · quiet-workspace 暗色） ======
+ * 雾白的暗色对应：深松底 + 浅松绿 accent。同为新增主题，不影响既有暗色主题。
+ */
+:root[data-theme="pine"] {
+  color-scheme: dark;
+
+  --bg-app: #202522;
+  --bg-surface: #272E29;
+  --bg-sidebar: #1A201C;
+  --bg-hover: rgba(229,234,227,.055);
+  --bg-active: rgba(229,234,227,.09);
+  --bg-menu: #272E29;
+  --bg-code: #293329;
+  --bg-quote: #293329;
+
+  --text-1: #E5EAE3;
+  --text-2: #B0BAB0;
+  --text-3: #9CA99C;
+  --text-4: #6E7A70;
+
+  --accent: #B0CBA8;
+  --accent-h: #C6DCC0;
+  --accent-bg: #304131;
+  --accent-line: #89AB7E;
+
+  --success: #9CC79B;
+  --success-bg: rgba(156,199,155,.12);
+  --danger: #E08A7E;
+  --danger-h: #EBA79D;
+  --danger-bg: rgba(224,138,126,.12);
+
+  --border: #353F36;
+  --border-m: #414C42;
+
+  --shadow-s: 0 1px 3px rgba(0,0,0,.25);
+  --shadow-m: 0 18px 70px rgba(0,0,0,.5), 0 2px 10px rgba(0,0,0,.3);
+
+  --scrim: rgba(14,21,15,.44);
+
+  --radius: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --font-ui: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'PingFang SC', 'Hiragino Sans GB', system-ui, sans-serif;
+}

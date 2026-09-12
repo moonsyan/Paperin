@@ -30,15 +30,17 @@ body {
 }
 
 /* ====== Top Bar ====== */
-/* 整条顶栏作为窗口拖拽区（无独立系统标题栏，与菜单栏合二为一） */
+/* 整条顶栏作为窗口拖拽区（无独立系统标题栏，与菜单栏合二为一）。
+ * 三区收敛：左区（侧栏切换 + 品牌 + 工作区上下文点）· 中区（标签栏）· 右区（当前文件 + 操作组）。
+ * 此前四层堆叠（顶栏 42 + 工作区条 38 + 当前文件条 52 + 标签栏 34 ≈ 166px）已合并为单条 52px。 */
 .topbar {
-  height: 42px;
+  height: 52px;
   background: var(--bg-sidebar);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  padding: 0 12px;
-  gap: 0;
+  padding: 0 10px;
+  gap: 6px;
   user-select: none;
   flex-shrink: 0;
   transition: background var(--dur) var(--ease);
@@ -88,7 +90,88 @@ html[data-platform='darwin'] .topbar {
   white-space: nowrap;
 }
 
-.topbar-spacer { flex: 1; }
+/* 顶栏三区：左区固定、中区（标签）弹性、右区固定 */
+.topbar-zone-left,
+.topbar-zone-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.topbar-zone-left { flex-shrink: 1; }
+.topbar-zone-center {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+.topbar-zone-right { gap: 2px; }
+.topbar-zone-right .act-group { margin-left: 2px; }
+
+/* 工作区上下文点（原 workspace-shell-context 条收敛入顶栏左区） */
+.workspace-context {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding-right: 10px;
+  margin-right: 4px;
+  border-right: 1px solid var(--border);
+  color: var(--text-3);
+  font-size: .72rem;
+  -webkit-app-region: no-drag;
+}
+.workspace-context-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: 0 0 auto;
+}
+.workspace-context.is-empty .workspace-context-dot { background: var(--text-4); }
+.workspace-context-name {
+  min-width: 0;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-2);
+  font-weight: 500;
+}
+.workspace-context.is-empty .workspace-context-name { color: var(--text-3); }
+.workspace-context-label {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  border: 1px solid var(--border-m);
+  border-radius: 4px;
+  font-size: .62rem;
+  color: var(--text-4);
+}
+
+/* 中区标签栏纳入顶栏：占满顶栏高度、去掉自身底边线，激活态改为下划线 */
+.topbar .tabbar {
+  height: 100%;
+  flex: 1 1 auto;
+  background: transparent;
+  border-bottom: none;
+}
+.topbar .tab { border-right: none; }
+.topbar .tab.active {
+  background: transparent;
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* 屏幕阅读器专用文本（视觉隐藏但保持可查询与可聚焦语义） */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 
 .doc-title {
   font-size: .78rem;
@@ -98,6 +181,10 @@ html[data-platform='darwin'] .topbar {
   border-radius: var(--radius);
   border: 1px solid transparent;
   cursor: text;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   transition: all var(--dur) var(--ease);
 }
 .doc-title:hover { color: var(--text-2); border-color: var(--border); }
@@ -345,6 +432,14 @@ html[data-platform='darwin'] .topbar {
 
 /* 窄窗口保留正文优先级：侧栏成为不挤压编辑器的抽屉，右侧 ContextDock
  * 已在自身断点进入 overlay。关闭/展开仍复用同一按钮和 inert 语义。 */
+/* 中窄窗口：顶栏先让出工作区上下文点，再压缩文档标题，保证标签栏可用宽度 */
+@media (max-width: 1240px) {
+  .workspace-context { display: none; }
+}
+@media (max-width: 1024px) {
+  .doc-title { max-width: 120px; }
+}
+
 @media (max-width: 820px) {
   .topbar { padding-inline: 8px; }
   .brand-name { display: none; }
@@ -352,6 +447,7 @@ html[data-platform='darwin'] .topbar {
   .menu-item { padding-inline: 6px; }
   .doc-title {
     min-width: 0;
+    max-width: 96px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -367,6 +463,19 @@ html[data-platform='darwin'] .topbar {
   .sidebar-toggle { left: min(calc(var(--sidebar-w) * var(--editor-zoom, 1)), calc(100% - 20px)); }
   .sidebar-toggle.flipped { left: 0; }
   .sidebar-resizer { display: none; }
+}
+
+/* ====== Reduced Motion（无障碍：全局动效降级） ======
+ * 此前仅 context-dock.css 单点处理；系统开启「减少动态效果」时，
+ * 全局禁用过渡/动画/平滑滚动，避免前庭不适。保留 0.01ms 而非 none，
+ * 以便依赖 transitionend/animationend 的逻辑仍能收到事件。 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ====== Animations ====== */

@@ -10,6 +10,8 @@ import type { SidebarProps } from './types'
 import { collectExternalOpenFiles } from './sidebar-file-model'
 import { SidebarContextMenu, type SidebarContextMenuState } from './SidebarContextMenu'
 import { SidebarTree } from './SidebarTree'
+import { SidebarFlatList, SidebarFooter, SidebarQuickNav } from './SidebarQuickNav'
+import type { QuickNavEntry, QuickNavView } from './SidebarQuickNav'
 import { useSidebarCollapse } from './useSidebarCollapse'
 import { sharedPanelRegistry } from '../../app/panels/shared-panel-registry'
 import type { PanelContext, PanelDefinition } from '../../app/panels/panel-registry'
@@ -20,11 +22,16 @@ export type { OpenFile, SidebarProps, WorkspaceInfo } from './types'
  * 渲染文件树，扩展面板经 render(context) 追加。二级面板注册在 ContextDock，
  * 生命周期与键盘焦点保持独立。
  *
+ * 五段式信息架构（quiet-workspace）：搜索触发框 → 快捷导航（最近编辑/我的收藏）
+ * → 集合标题 → 文件树 → 底部区。搜索只触发命令面板，不复制搜索逻辑。
+ *
  * 职责拆分：折叠记录在 useSidebarCollapse，树与行级交互在 SidebarTree，
- * 本组件只负责树数据建模、右键菜单与面板编排。 */
+ * 导航与底部区在 SidebarQuickNav，本组件只负责树数据建模、右键菜单与视图编排。 */
 
 /** 内置 files 面板的 id（未注册或自带 render 时文件树不出现） */
 export const FILES_PANEL_ID = 'files'
+
+const baseName = (path: string): string => path.split(/[\\/]/).pop() || path
 
 export function Sidebar({
   demoTree,
@@ -46,11 +53,18 @@ export function Sidebar({
   onClearTagFilter,
   collapsed = false,
   registry = sharedPanelRegistry,
+  onOpenSearch,
+  recentFiles = [],
+  favorites = [],
+  onToggleFavorite,
+  onOpenSettings,
 }: SidebarProps): JSX.Element {
   // 右键菜单与内联重命名
   const [ctxMenu, setCtxMenu] = useState<SidebarContextMenuState | null>(null)
   const [renamingKey, setRenamingKey] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  // 快捷导航视图：null = 常规文件集合（树）
+  const [quickView, setQuickView] = useState<QuickNavView>(null)
 
   // L16：折叠时不卸载组件，只把宽度缩到 0（保留滚动位置/重命名状态）。
   // inert 阻止 Tab 聚焦到被裁切的内容（React 18 不识别 inert prop，用 ref 设置）。
@@ -61,6 +75,9 @@ export function Sidebar({
     if (collapsed) el.setAttribute('inert', '')
     else el.removeAttribute('inert')
   }, [collapsed])
+
+  // 切换工作区后快捷导航回到集合视图，避免停留在上个工作区的收藏列表
+  useEffect(() => { setQuickView(null) }, [workspace?.path])
 
   const closeCtxMenu = useCallback((restoreFocus = false) => {
     const trigger = ctxMenu?.trigger
@@ -129,6 +146,23 @@ export function Sidebar({
       path: file.path,
     })),
     [openFiles, workspace?.path],
+  )
+
+  /* ==================== 快捷导航数据 ==================== */
+
+  const recentEntries = useMemo<QuickNavEntry[]>(
+    () => recentFiles.map((file) => ({ key: `recent:${file.path}`, name: file.name || baseName(file.path), path: file.path })),
+    [recentFiles],
+  )
+
+  const favoriteEntries = useMemo<QuickNavEntry[]>(
+    () => favorites.map((path) => ({ key: `fav:${path}`, name: baseName(path), path })),
+    [favorites],
+  )
+
+  const activeFilePath = useMemo(
+    () => openFiles.find((file) => file.id === activeFileId)?.path ?? null,
+    [activeFileId, openFiles],
   )
 
   // 折叠记录与级联切换（作用域解析在 App 完成）
@@ -222,6 +256,11 @@ export function Sidebar({
     )
   }
 
+  const collectionName = workspace ? workspace.name : '示例文档'
+  const summary = workspace
+    ? `${workspaceNodes.length} 个文档`
+    : `${demoNodes.length} 个示例`
+
   return (
     <aside
       ref={sidebarRef}
@@ -230,9 +269,38 @@ export function Sidebar({
       aria-label="文件侧栏"
       aria-hidden={collapsed}
     >
+      <SidebarQuickNav
+        view={quickView}
+        onViewChange={setQuickView}
+        recentCount={recentEntries.length}
+        favoriteCount={favoriteEntries.length}
+        onOpenSearch={onOpenSearch}
+        collectionName={collectionName}
+        collectionActive={quickView === null}
+        onCreateFile={onCreateFile && workspace ? () => onCreateFile(workspace.path) : undefined}
+      />
+
       <div className="sidebar-body">
-        {primaryPanels.map((panel) => renderPrimaryPanel(panel))}
+        {quickView === 'recent' ? (
+          <SidebarFlatList
+            entries={recentEntries}
+            activePath={activeFilePath}
+            emptyLabel="最近编辑"
+            onOpen={(entry) => { if (entry.path) onSelectWorkspaceFile(entry.path, false) }}
+          />
+        ) : quickView === 'favorites' ? (
+          <SidebarFlatList
+            entries={favoriteEntries}
+            activePath={activeFilePath}
+            emptyLabel="我的收藏"
+            onOpen={(entry) => { if (entry.path) onSelectWorkspaceFile(entry.path, false) }}
+          />
+        ) : (
+          primaryPanels.map((panel) => renderPrimaryPanel(panel))
+        )}
       </div>
+
+      <SidebarFooter summary={summary} onOpenSettings={onOpenSettings} />
 
       {/* ===== 右键上下文菜单（工作区文件操作） ===== */}
       {ctxMenu && (
@@ -246,6 +314,8 @@ export function Sidebar({
           }}
           onOpenInNewWindow={onOpenInNewWindow}
           onDeleteFile={onDeleteFile}
+          isFavorite={(path) => favorites.includes(path)}
+          onToggleFavorite={onToggleFavorite}
         />
       )}
     </aside>

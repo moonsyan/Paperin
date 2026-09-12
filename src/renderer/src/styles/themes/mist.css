@@ -1,0 +1,50 @@
+/* ====== Mist Theme（雾白 · quiet-workspace） ======
+ * 取自 design/quiet-workspace 的留白绿调（松绿 accent / 雾白底）。
+ * 作为第 8 套主题接入既有 token 体系，不替换、不影响原有 7 套主题的取值。
+ */
+:root[data-theme="mist"] {
+  color-scheme: light;
+
+  --bg-app: #F7F8F5;
+  --bg-surface: #FFFFFF;
+  --bg-sidebar: #EEF1EC;
+  --bg-hover: rgba(32,39,34,.045);
+  --bg-active: rgba(32,39,34,.08);
+  --bg-menu: #FFFFFF;
+  --bg-code: #EDF4ED;
+  --bg-quote: #EDF4ED;
+
+  --text-1: #202722;
+  --text-2: #667168;
+  --text-3: #8A948C;
+  --text-4: #B4BDB5;
+
+  --accent: #3F7658;
+  --accent-h: #2F5C43;
+  --accent-bg: #E2EEE5;
+  /* quiet-workspace 专用：细装饰线色（下划线激活态 / 活跃项左标记 / 文档末尾装饰） */
+  --accent-line: #6AA07A;
+
+  --success: #3F7658;
+  --success-bg: rgba(63,118,88,.10);
+  --danger: #B4483C;
+  --danger-h: #993A30;
+  --danger-bg: rgba(180,72,60,.09);
+
+  --border: #DFE5DE;
+  --border-m: #D3DBD2;
+
+  --shadow-s: 0 1px 3px rgba(32,39,34,.05);
+  --shadow-m: 0 18px 70px rgba(39,59,40,.13), 0 2px 10px rgba(39,59,40,.05);
+
+  /* 窄窗口抽屉遮罩 */
+  --scrim: rgba(36,51,41,.19);
+
+  /* 更紧的圆角，贴合留白气质 */
+  --radius: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* 界面字体：避开 Inter 等通用族，优先 Windows/macOS 中文渲染更稳的字体 */
+  --font-ui: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'PingFang SC', 'Hiragino Sans GB', system-ui, sans-serif;
+}

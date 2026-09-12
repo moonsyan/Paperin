@@ -15,6 +15,9 @@ interface SidebarContextMenuProps {
   onStartRename: (node: UiNode) => void
   onOpenInNewWindow?: (path: string) => void
   onDeleteFile?: (path: string) => void
+  /** 该路径当前是否已收藏（决定菜单文案：收藏 / 取消收藏） */
+  isFavorite?: (path: string) => boolean
+  onToggleFavorite?: (path: string) => void
 }
 
 export function SidebarContextMenu({
@@ -24,11 +27,15 @@ export function SidebarContextMenu({
   onStartRename,
   onOpenInNewWindow,
   onDeleteFile,
+  isFavorite,
+  onToggleFavorite,
 }: SidebarContextMenuProps): JSX.Element {
   const menuRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     menuRef.current?.focus()
   }, [])
+
+  const favorited = Boolean(state.node.path) && Boolean(isFavorite?.(state.node.path as string))
 
   return (
     <div
@@ -50,6 +57,14 @@ export function SidebarContextMenu({
       )}
       {state.node.kind === 'file' && (
         <>
+          {onToggleFavorite && (
+            <button type="button" role="menuitem" className="tree-ctx-item" onClick={() => {
+              if (state.node.path) onToggleFavorite(state.node.path)
+              onClose(true)
+            }}>
+              {favorited ? '取消收藏' : '收藏'}
+            </button>
+          )}
           <button type="button" role="menuitem" className="tree-ctx-item" onClick={() => {
             onStartRename(state.node)
             onClose(false)

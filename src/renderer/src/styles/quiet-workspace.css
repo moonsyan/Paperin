@@ -1,0 +1,66 @@
+/* ====== Quiet Workspace Typography ======
+ * 只作用于「雾白 / 夜松」两套新增主题：把 design/quiet-workspace 的排版尺度
+ * 落到生产样式，不改动原有 7 套主题的任何取值（兼容矩阵零影响）。
+ *
+ * 刻意不覆盖的项（均归用户设置所有，由设置面板经 CSS 变量驱动）：
+ *   --efs 字号 / --ecw 内容宽度 / --elh 行距
+ * 因此这里只调整「标题尺度、块间距、引用与代码的形态」这类主题级视觉语言。
+ */
+
+[data-theme='mist'] .editor-inner h1,
+[data-theme='pine'] .editor-inner h1 {
+  font-size: clamp(28px, 2.8vw, 38px);
+  font-weight: 650;
+  letter-spacing: -.045em;
+  line-height: 1.35;
+  margin: 2.2rem 0 .7rem;
+}
+
+[data-theme='mist'] .editor-inner h2,
+[data-theme='pine'] .editor-inner h2 {
+  font-size: 1.42rem;
+  font-weight: 600;
+  letter-spacing: -.018em;
+  line-height: 1.6;
+  margin: 2rem 0 .6rem;
+  /* quiet：去掉默认下边框，改用留白分隔 */
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+[data-theme='mist'] .editor-inner h3,
+[data-theme='pine'] .editor-inner h3 {
+  font-size: 1.18rem;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  margin: 1.6rem 0 .5rem;
+}
+
+[data-theme='mist'] .editor-inner p,
+[data-theme='pine'] .editor-inner p {
+  margin: 0 0 1.05rem;
+}
+
+/* 引用：更轻的左边线 + 松绿文字，贴合留白气质 */
+[data-theme='mist'] .editor-inner blockquote,
+[data-theme='pine'] .editor-inner blockquote {
+  border-left: 2px solid var(--accent-line);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 1rem 1.4rem;
+  margin: 1.5rem 0 1.75rem;
+  background: var(--bg-quote);
+  color: var(--accent);
+}
+
+[data-theme='mist'] .editor-inner pre,
+[data-theme='pine'] .editor-inner pre {
+  background: var(--bg-code);
+  border-color: var(--border);
+  border-radius: var(--radius-md);
+}
+
+[data-theme='mist'] .editor-inner hr,
+[data-theme='pine'] .editor-inner hr {
+  background: var(--border);
+  margin: 2.8rem 0;
+}
