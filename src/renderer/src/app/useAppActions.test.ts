@@ -586,7 +586,7 @@ describe('useAppActions', () => {
       )
       act(() => result.current.handleOpenBacklink('/file.md', 'query'))
       await act(async () => { await new Promise((r) => setTimeout(r, 10)) })
-      expect(handleSelectWorkspaceFile).toHaveBeenCalledWith('/file.md')
+      expect(handleSelectWorkspaceFile).toHaveBeenCalledWith('/file.md', undefined)
       expect(setSearchPref).toHaveBeenCalledOnce()
       expect(setSearchEpoch).toHaveBeenCalledOnce()
       expect(setSearchMode).toHaveBeenCalledWith('find')

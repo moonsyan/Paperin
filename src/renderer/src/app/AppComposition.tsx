@@ -224,7 +224,7 @@ export function AppComposition(): JSX.Element {
 
   // === 动作分发 ===
   const handleFullscreenChange = useCallback((open: boolean) => { fullscreenOpenRef.current = open }, [])
-  const { handleAction, handleDocumentTitleBlur, handleDocumentTitleKeyDown, handleOpenBacklink, handleOpenGraphView, closeSettings, closeHelp, closeImages, closePdfOptions, closePublish, closeWorkspaceSearch, closePalette, closeVersionHistory, commandRegistry } = useAppActions({
+  const { handleAction, handleDocumentTitleBlur, handleDocumentTitleKeyDown, handleOpenBacklink, handleOpenGraphView, reveal, closeSettings, closeHelp, closeImages, closePdfOptions, closePublish, closeWorkspaceSearch, closePalette, closeVersionHistory, commandRegistry } = useAppActions({
     editorRef, docTitle, setDocTitle, activeFileId, activeFileIdRef, openFiles, openFilesRef, setOpenFiles, demoFileNames, activeFilePath: activeFile?.path, workspacePathRef, focusEditorSoon, setToast,
     handleNew, handleOpen, handleOpenFolder, handleSelectWorkspaceFile, handleSave, handleSaveAs, handleCloseTab, handleCloseOtherTabs, handleCloseAllTabs, handleRenameFile,
     handleExportHtml, handleExportMarkdown, handleExportPandoc, handleExportDocx,
@@ -290,7 +290,6 @@ export function AppComposition(): JSX.Element {
     return dirs
   }, [activeFile?.path, workspace])
   const contextDockViewModel = useMemo(() => workspaceIndex ? buildSidebarViewModel(workspaceIndex, activeFile?.path ?? null, 'links') : null, [activeFile?.path, workspaceIndex])
-  const wsSelectSeqRef = useRef(0)
   const currentFileSource = classifyDocumentSource(activeFile?.path, workspace?.path, window.desktopAPI?.platform === 'win32')
 
   const handleCursorChange = useCallback((line: number, col: number, heading: string, headingIndex: number, selected: number) => {
@@ -342,7 +341,7 @@ export function AppComposition(): JSX.Element {
           onTogglePinnedTab={handleTogglePinnedTab} onReorderTabs={handleReorderTabs}
           graphTabOpen={graphTabOpen} graphTabActive={graphTabActive}
           onGraphTabSwitch={() => setGraphTabActive(true)} onGraphTabClose={closeGraphView}
-          onGraphOpenNode={(path) => { setGraphTabActive(false); void handleSelectWorkspaceFile(path) }}
+          onGraphOpenNode={(path) => { setGraphTabActive(false); void reveal({ path }) }}
           linkGraph={linkGraph} linksTruncated={linksTruncated} graphSettings={settings.graphSettings} onGraphSettingsChange={settings.setGraphSettings}
           editorRef={editorRef} onEditorChange={handleEditorChange} onCursorChange={handleCursorChange}
           onRichRender={handleRichRender} blankClickToEnd={settings.blankClickToEnd} codeLineNumbers={settings.codeLineNumbers}
@@ -354,7 +353,7 @@ export function AppComposition(): JSX.Element {
           contextDockState={contextDockState} onContextDockStateChange={setContextDockState}
           workspaceIndex={workspaceIndex} indexLoading={indexLoading} diagnostics={diagnostics}
           onRefreshIndex={refreshIndex} onCancelIndex={cancelIndex}
-          onOpenDiagnostic={(d) => { if (d.path) void handleSelectWorkspaceFile(d.path).then((ok) => { if (ok && d.line) editorRef.current?.focusLine(d.line) }) }}
+          onOpenDiagnostic={(d) => { if (d.path) void reveal({ path: d.path, focusLine: d.line }) }}
           sidebarViewModel={contextDockViewModel} linksLoading={linksLoading}
           onOpenLink={handleOpenBacklink} onOpenGraphView={handleOpenGraphView}
           tagIndex={tagIndex} tagsLoading={tagsLoading} tagsTruncated={tagsTruncated}
@@ -428,12 +427,7 @@ export function AppComposition(): JSX.Element {
         wsSearchOpen={wsSearchOpen} onCloseWorkspaceSearch={closeWorkspaceSearch} workspaceIndex={workspaceIndex}
         onSelectSearchResult={(path, query, opts) => {
           setWsSearchOpen(false)
-          const seq = ++wsSelectSeqRef.current
-          void (async () => {
-            const ok = await handleSelectWorkspaceFile(path)
-            if (seq !== wsSelectSeqRef.current || !ok) return
-            if (query) { setSearchPref((prev) => ({ ...prev, query, useRegex: opts?.useRegex ?? prev.useRegex, caseSensitive: opts?.caseSensitive ?? prev.caseSensitive })); setSearchEpoch((e) => e + 1) }
-          })()
+          void reveal({ path, search: { query, useRegex: opts?.useRegex, caseSensitive: opts?.caseSensitive } })
         }}
         confirmRequest={confirmRequest}
         onConfirmResolve={(id) => { confirmRequest?.resolve(id); setConfirmRequest(null) }}

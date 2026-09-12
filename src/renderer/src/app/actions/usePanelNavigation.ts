@@ -1,6 +1,7 @@
-import { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { ContextDockPanel, ContextDockState } from '../../components/ContextDock/context-dock-state'
+import type { WorkspaceViewModel } from '../workspace/workspace-view-model'
 
 /**
  * 面板导航与反链跳转：
@@ -8,16 +9,14 @@ import type { ContextDockPanel, ContextDockState } from '../../components/Contex
  * - handleOpenBacklink：反链/出链点选后接力文档内搜索定位；
  * - handleOpenVersionHistory：仅磁盘文件有快照记录。
  *
- * 反链跳转的 seq 机制：并发点击时只保留最后一次，避免旧请求返回后覆盖新选择。
+ * 打开文件、并发守卫与搜索接力统一由 WorkspaceViewModel.reveal 承担，
+ * 本模块只负责把点击转换成一次 reveal 请求。
  */
 export function usePanelNavigation({
   setSidebarCollapsed,
   setContextDockState,
   setFocusOutlineTick,
-  setSearchMode,
-  setSearchPref,
-  setSearchEpoch,
-  handleSelectWorkspaceFile,
+  reveal,
   activeFilePath,
   setVersionHistoryOpen,
   setToast,
@@ -25,18 +24,7 @@ export function usePanelNavigation({
   setSidebarCollapsed: Dispatch<SetStateAction<boolean>>
   setContextDockState: Dispatch<SetStateAction<ContextDockState>>
   setFocusOutlineTick: Dispatch<SetStateAction<number>>
-  setSearchMode: (mode: 'find' | 'replace' | 'none') => void
-  setSearchPref: Dispatch<
-    SetStateAction<{
-      query: string
-      useRegex: boolean
-      caseSensitive: boolean
-      wholeWord: boolean
-      replacement: string
-    }>
-  >
-  setSearchEpoch: Dispatch<SetStateAction<number>>
-  handleSelectWorkspaceFile: (path: string, pinned?: boolean) => Promise<boolean>
+  reveal: WorkspaceViewModel['reveal']
   activeFilePath: string | undefined
   setVersionHistoryOpen: Dispatch<SetStateAction<boolean>>
   setToast: (message: string) => void
@@ -58,22 +46,16 @@ export function usePanelNavigation({
     [setContextDockState],
   )
 
-  // 打开反链/出链指向的文件并接力文档内搜索定位（与工作区搜索结果点选同一模式）
-  const backlinkSelectSeqRef = useRef(0)
+  // 打开反链/出链指向的文件并接力文档内搜索定位。
+  // 反链跳转打开查找栏（用户需要看到命中并逐条跳转），并强制非正则匹配
+  // ——链接目标按字面量查找更符合预期。
   const handleOpenBacklink = useCallback(
     (path: string, query: string) => {
-      const seq = ++backlinkSelectSeqRef.current
-      void (async () => {
-        const ok = await handleSelectWorkspaceFile(path)
-        if (seq !== backlinkSelectSeqRef.current || !ok) return
-        if (query) {
-          setSearchPref((prev) => ({ ...prev, query, useRegex: false }))
-          setSearchEpoch((e) => e + 1)
-          setSearchMode('find')
-        }
-      })()
+      void reveal(
+        query ? { path, search: { query, useRegex: false, openFindBar: true } } : { path },
+      )
     },
-    [handleSelectWorkspaceFile, setSearchEpoch, setSearchMode, setSearchPref],
+    [reveal],
   )
 
   /** 打开版本历史：仅磁盘文件有快照记录 */

@@ -37,6 +37,7 @@
 - 命令注册表已统一为唯一执行入口：`useActionDispatcher.ts` 从 289 行降到 73 行，switch/case 逐项迁入 `app/actions/commands/`（文件/搜索/视图/面板/帮助五个域工厂），菜单栏、右键菜单、快捷键与命令面板共享同一 `execute`；历史别名动作（如 `preview`/`focusMode`）在分发入口做别名归一，不再重复出现在命令面板。
 - `PanelRegistry` 插槽已全覆盖：Sidebar 主区域消费 `sidebar.primary`（内置 `files` 面板渲染文件树，扩展面板经 `render(context)` 追加），`editor.margin` 由新增 `EditorMargin` 宿主消费，`statusbar.end` 由 `StatusBar` 按注册顺序渲染内置片段与自定义面板。三处均支持缺省回退到应用级共享注册表。
 - Sidebar 折叠记录改用内容签名（而非数组引用）做 effect 守卫：调用方传入内联字面量等不稳定引用时不再触发无限更新循环，`useSidebarCollapse` 直接测试覆盖该回归。
+- 往返选择状态已统一到单一工作区视图模型 `app/workspace/useWorkspaceViewModel.ts`：反链/出链跳转、工作区搜索结果、知识图谱节点、质量诊断四处「打开文件并接力定位」共用同一次 `reveal` 调用与同一条「最后一次点选获胜」seq 判定。此前三套独立 seq 守卫语义不一致（诊断跳转完全没有守卫，旧请求迟到返回会覆盖新选择）。搜索接力选项在各调用点显式声明：反链跳转打开查找栏并强制非正则，工作区搜索与诊断跳转保持静默；未显式指定的正则/大小写开关沿用当前偏好，不再被跳转动作隐式重置。
 
 ### 运行时安全与告警
 
@@ -55,6 +56,7 @@
 ### 维护性拆分
 
 - GraphView 入口已从 932 行拆为 197 行入口、画布、工具栏、设置、布局/视口/交互 hooks 和纯函数模块；Sidebar 已收敛为 438 行以内的文件树，并将上下文菜单、图标、外部文件模型独立成模块。
+- Sidebar 接入 `sidebar.primary` 后一度增至 466 行（越 450 行门禁），已按职责二次拆分为 253 行入口 + `SidebarTree.tsx`（树与行级交互、拖拽移动、内联重命名）+ `useSidebarCollapse.ts`（折叠记录与级联语义）；新边界各带直接测试。
 - GraphView、Sidebar、系统打开和文档来源均有直接行为测试；拆分没有改变现有外部 API。
 - `useDocumentTabs` 已拆为打开、关闭、工作区视图恢复和纯关闭计划模块；入口 103 行，补充关闭计划测试和维护说明。
 - 窄窗口下 Sidebar 变为不挤压正文的抽屉；TabBar 上下文菜单接管焦点并在 Escape 后恢复触发标签，Sidebar/TabBar 组件测试覆盖这些行为。
@@ -77,7 +79,7 @@
 | --- | --- |
 | `npm run lint` | 通过 |
 | `npm run typecheck` | 通过 |
-| `npm run test` | 通过：128 个测试文件，1020 项测试 |
+| `npm run test` | 通过：133 个测试文件，1039 项测试 |
 | `npm run build` | 通过：Main、Preload、Renderer 均成功构建 |
 | `npm run perf:regression` | 通过：5,000 文件合成场景未超阈值 |
 | `npm run smoke` | 通过：打开工作区、新建、保存、冲突、重读、重命名、搜索、状态读取 |
@@ -97,7 +99,6 @@
 ### 架构与维护性
 
 - 仍超过项目行数门禁的文件：`src/main/ipc/file-handlers.ts`（654）、`src/renderer/src/lib/docx.ts`（599）、`app/workspace/useWorkspaceFiles.ts`（505）、`app/useAppSettings.ts`（496）、`Editor/overlays/useEditorOverlays.ts`（486）、`Editor/instance/useMilkdownInstance.ts`（485）。`AppComposition.tsx`（447）与 `useEditorContentReplacement.ts`（约 340）已完成第一轮拆分，需继续按命令域与导出域收敛。
-- 搜索、图谱、反向链接、标签和质量检查的往返选择状态尚未统一到单一工作区视图模型；反链、工作区搜索结果与诊断跳转仍是三套各自独立的 seq 守卫。
 - 文档会话控制器尚未完全收口草稿恢复、关闭确认和所有保存分支；仍需逐项验证卸载取消和多窗口竞态。
 
 ### UI 与功能迁移

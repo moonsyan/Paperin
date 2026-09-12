@@ -4,6 +4,7 @@ import { useDocumentTitleEditing } from './actions/useDocumentTitleEditing'
 import { useDialogClosers } from './actions/useDialogClosers'
 import { usePanelNavigation } from './actions/usePanelNavigation'
 import { useActionDispatcher } from './actions/useActionDispatcher'
+import { useWorkspaceViewModel } from './workspace/useWorkspaceViewModel'
 
 export type { UseAppActionsOptions } from './actions/types'
 
@@ -22,6 +23,7 @@ export type { UseAppActionsOptions } from './actions/types'
  * - actions/useDialogClosers.ts：8 个弹窗关闭器
  * - actions/usePanelNavigation.ts：ContextDock 面板、反链、版本历史
  * - actions/useActionDispatcher.ts：handleAction 分发骨架（注册表 → 编辑器命令 → 参数化动作）
+ * - workspace/useWorkspaceViewModel.ts：打开文件并接力定位的统一往返流程（reveal）
  */
 export function useAppActions(options: UseAppActionsOptions) {
   const {
@@ -79,6 +81,16 @@ export function useAppActions(options: UseAppActionsOptions) {
     setSidebarWidth,
   } = options
 
+  // 工作区视图模型：所有"打开文件并接力定位"入口（反链/搜索/图谱/诊断）
+  // 共用同一往返流程与并发守卫
+  const { reveal } = useWorkspaceViewModel({
+    handleSelectWorkspaceFile,
+    setSearchMode,
+    setSearchPref,
+    setSearchEpoch,
+    focusEditorLine: (line) => editorRef.current?.focusLine(line),
+  })
+
   const {
     openOutlinePanel,
     openContextPanel,
@@ -88,10 +100,7 @@ export function useAppActions(options: UseAppActionsOptions) {
     setSidebarCollapsed,
     setContextDockState,
     setFocusOutlineTick,
-    setSearchMode,
-    setSearchPref,
-    setSearchEpoch,
-    handleSelectWorkspaceFile,
+    reveal,
     activeFilePath,
     setVersionHistoryOpen,
     setToast,
@@ -193,6 +202,7 @@ export function useAppActions(options: UseAppActionsOptions) {
     handleDocumentTitleKeyDown,
     handleOpenBacklink,
     handleOpenGraphView: openGraphView,
+    reveal,
     closeSettings,
     closeHelp,
     closeImages,

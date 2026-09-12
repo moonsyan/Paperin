@@ -8,10 +8,7 @@ const makeOptions = (overrides: Partial<Parameters<typeof usePanelNavigation>[0]
     setSidebarCollapsed: vi.fn(),
     setContextDockState: vi.fn(),
     setFocusOutlineTick: vi.fn(),
-    setSearchMode: vi.fn(),
-    setSearchPref: vi.fn(),
-    setSearchEpoch: vi.fn(),
-    handleSelectWorkspaceFile: vi.fn(async () => true),
+    reveal: vi.fn(async () => true),
     activeFilePath: '/tmp/ws/a.md',
     setVersionHistoryOpen: vi.fn(),
     setToast: vi.fn(),
@@ -67,72 +64,24 @@ describe('usePanelNavigation', () => {
     expect(setVersionHistoryOpen).toHaveBeenCalledWith(true)
   })
 
-  it('handleOpenBacklink：并发点击只保留最后一次的搜索定位', async () => {
-    // 第一次点击的 selectWorkspaceFile 迟迟不返回，第二次点击立刻返回。
-    // 第一次返回时 seq 已经落后，不应再触发 setSearchPref/setSearchEpoch/setSearchMode
-    let resolveFirst: (value: boolean) => void = () => {}
-    const firstPromise = new Promise<boolean>((resolve) => {
-      resolveFirst = resolve
-    })
-    const handleSelectWorkspaceFile = vi
-      .fn()
-      .mockReturnValueOnce(firstPromise)
-      .mockResolvedValueOnce(true)
-    const setSearchPref = vi.fn()
-    const setSearchEpoch = vi.fn()
-    const setSearchMode = vi.fn()
-
-    const { result } = renderHook(() =>
-      usePanelNavigation(
-        makeOptions({ handleSelectWorkspaceFile, setSearchPref, setSearchEpoch, setSearchMode }),
-      ),
-    )
-
+  it('handleOpenBacklink：带 query 时交给视图模型打开查找栏并强制非正则', () => {
+    const reveal = vi.fn(async () => true)
+    const { result } = renderHook(() => usePanelNavigation(makeOptions({ reveal })))
     act(() => {
-      result.current.handleOpenBacklink('/tmp/a.md', 'first-query')
-      result.current.handleOpenBacklink('/tmp/b.md', 'second-query')
+      result.current.handleOpenBacklink('/tmp/a.md', 'q')
     })
-
-    // 第二次先返回：应该触发一次搜索定位
-    await act(async () => {
-      await Promise.resolve()
+    expect(reveal).toHaveBeenCalledWith({
+      path: '/tmp/a.md',
+      search: { query: 'q', useRegex: false, openFindBar: true },
     })
-    expect(setSearchPref).toHaveBeenCalledTimes(1)
-    expect(setSearchMode).toHaveBeenCalledWith('find')
-
-    // 第一次迟到返回：seq 已过期，不应再触发
-    await act(async () => {
-      resolveFirst(true)
-      await firstPromise
-    })
-    expect(setSearchPref).toHaveBeenCalledTimes(1)
-    expect(setSearchEpoch).toHaveBeenCalledTimes(1)
   })
 
-  it('handleOpenBacklink：selectWorkspaceFile 返回 false 时不接力搜索', async () => {
-    const handleSelectWorkspaceFile = vi.fn(async () => false)
-    const setSearchPref = vi.fn()
-    const { result } = renderHook(() =>
-      usePanelNavigation(makeOptions({ handleSelectWorkspaceFile, setSearchPref })),
-    )
-    await act(async () => {
-      result.current.handleOpenBacklink('/tmp/x.md', 'q')
-      await Promise.resolve()
-    })
-    expect(setSearchPref).not.toHaveBeenCalled()
-  })
-
-  it('handleOpenBacklink：query 为空时只打开文件，不进入搜索模式', async () => {
-    const setSearchMode = vi.fn()
-    const setSearchPref = vi.fn()
-    const { result } = renderHook(() =>
-      usePanelNavigation(makeOptions({ setSearchMode, setSearchPref })),
-    )
-    await act(async () => {
+  it('handleOpenBacklink：query 为空时只打开文件，不接力搜索', () => {
+    const reveal = vi.fn(async () => true)
+    const { result } = renderHook(() => usePanelNavigation(makeOptions({ reveal })))
+    act(() => {
       result.current.handleOpenBacklink('/tmp/x.md', '')
-      await Promise.resolve()
     })
-    expect(setSearchMode).not.toHaveBeenCalled()
-    expect(setSearchPref).not.toHaveBeenCalled()
+    expect(reveal).toHaveBeenCalledWith({ path: '/tmp/x.md' })
   })
 })
