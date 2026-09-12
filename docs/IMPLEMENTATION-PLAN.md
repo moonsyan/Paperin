@@ -2,6 +2,8 @@
 
 > 本文是新项目的执行手册。每个任务都必须形成可运行、可测试、可回退的独立增量；执行前先阅读根目录 `AGENTS.md`。
 
+> 2026-09-12 续期说明：下方保留原始实施目标与门禁，不以旧复选框推断当前完成度。下一阶段按 [NEXT-DEVELOPMENT-PLAN](NEXT-DEVELOPMENT-PLAN.md) 执行，当前事实以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准。
+
 **目标：** 在保留 MarkdownSoft 现有文件、编辑器、搜索、导出、会话和安全能力的前提下，重建一个以知识库为默认上下文、当前文件为焦点、可持续扩展的本地优先 Markdown 工作台。
 
 **架构：** 沿用 Electron 三进程模型。Renderer 只通过窄化的 `window.desktopAPI` 调用能力；Main 负责文件、索引、窗口、设置和导出；Shared 只放无副作用 DTO、状态和通道常量。知识库不是模式切换，而是所有文档打开行为的工作区上下文。

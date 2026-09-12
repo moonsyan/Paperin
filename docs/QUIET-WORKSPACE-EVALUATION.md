@@ -1,5 +1,7 @@
 # Quiet-Workspace Demo 迁移评估
 
+> 历史迁移评估：下文“未迁移”清单保留评估当时状态，不能当作当前待办。顶栏、侧栏、收藏入口、九套主题和全局减少动态效果已存在；收藏恢复仍有缺口。当前界面判断见 [NEXT-UI-SPEC](NEXT-UI-SPEC.md)，实际验证见 [REFACTOR-STATUS](REFACTOR-STATUS.md)。
+
 评估日期：2026-09-10（Asia/Shanghai）
 评估对象：`design/quiet-workspace/`（index.html / style.css / demo.ts）对照 `src/renderer/` 当前生产实现
 评估方法：逐区域比对 DOM 结构、CSS token、交互入口，并用全库检索验证功能是否存在（而非仅凭文档声明）。

@@ -6,9 +6,32 @@
 
 ## 当前结论
 
-本批重构、运行时告警治理、生产搜索/监听门禁、标签会话拆分和窄窗口可访问性收敛已完成，并已验证到本地 `master` 工作区。项目可构建、可运行，普通真实 Electron smoke 主链路通过。
+当前代码可通过类型检查、lint、1125 项测试和构建，生产索引/搜索/监听门禁通过；但 **2026-09-12 对 `d3ac991` 的最新复测中，普通 Electron smoke 未通过**。脚本仍查找顶栏重构后已移除的 `.current-file-banner-title`，在系统关联步骤中止。该失败证明测试契约过时，不能直接推断文件关联产品功能已经损坏；后续保存/冲突/搜索链路本次未得到通过证据。
 
-整个产品重构尚未完成。5 MiB 编辑器保存/导出全链路、完整 quiet-workspace 迁移、低频能力迁移和三平台安装包验证仍是明确的发布前工作；性能门禁已将保存未进入 IPC 的问题固定为失败证据。
+整个产品重构尚未完成。5 MiB 编辑器保存/导出全链路、quiet-workspace 交互收尾、收藏重启恢复和三平台安装包验证仍是明确工作。低频能力登记与主要视觉迁移已落地，不再按“尚未迁移”重复安排。
+
+## 2026-09-12 最新评估复核
+
+本节结果优先于下方先前批次的历史统计；完整依据见 [项目评估](NEXT-PRODUCT-ASSESSMENT.md)，下一步见 [实施计划](NEXT-DEVELOPMENT-PLAN.md) 与 [界面规范](NEXT-UI-SPEC.md)。本轮只修改文档，没有修复下列应用问题。
+
+| 项目 | 当前结果 |
+| --- | --- |
+| typecheck / lint / build | 通过 |
+| test | 142 个文件、1125 项通过 |
+| a11y | 218 项检查、43 项基线豁免、0 新失败；29 样式表焦点扫描 0 违规 |
+| smoke | 失败：旧标题选择器失效，需恢复完整链路验证 |
+| perf:production | 2 文件、3 项通过；冷索引 1211.81ms、暖刷新 97.41ms、增量 94.67ms；搜索 P95 454.65ms、watcher 稳定 P95 199.16ms |
+| perf:electron | 本轮未执行：共用失败的关联 smoke 前置步骤；大文档完整结果仍待验证 |
+| verify-ci-config | 失败：本检出缺少脚本目标 `.github/workflows/build.yml` |
+| 安装包、三平台、真实 IME 人工验收 | 本轮未执行 |
+
+新增确认与风险：
+
+- 收藏当前只有设置写入，没有重启加载接线；下文“收藏数据层落地”只表示当前会话功能存在，不代表恢复已完成。
+- 侧栏搜索提示写死 `Ctrl K`，默认快速打开是 `Ctrl+P`；侧栏“文档数”取根节点数量。
+- 无路径示例/未命名文件可能同时显示“未保存文档”和“已保存”，需区分文档种类与磁盘持久化状态。
+- 大文档缓存分支按 `content.length > 1_000_000` 判断，非 MiB 字节；末次输入与缓存新鲜度仍需即时保存/关闭验证，尚未复现实际丢字。
+- AppComposition 当前 470 行、docx 613 行、Mermaid 插件 459 行；超限清单以新评估统计为准，历史行数不再代表现状。
 
 ## 已完成
 
@@ -94,7 +117,7 @@
 - `npm run perf:regression` 默认读取仓库场景；显式更新基线时会同步更新场景，避免 baseline 与 scenario 不一致。
 - 该门禁只约束 `scripts/perf-baseline.mjs` 的合成扫描/解析/搜索口径，不代表生产 `WorkspaceIndexService`、Renderer 或 Electron 端到端性能。
 
-## 最终验证
+## 先前批次验证（历史记录，当前结果以上方复核为准）
 
 | 门禁 | 结果 |
 | --- | --- |
@@ -155,8 +178,11 @@
 
 ## 建议继续顺序
 
-1. 先修复 5 MiB Milkdown 序列化/保存瓶颈，恢复 Electron 全链路性能门禁的通过证据。
-2. 以 `app/workspace/useWorkspaceFiles.ts`、`app/useAppSettings.ts`、`Editor/instance/useMilkdownInstance.ts`、`Editor/overlays/useEditorOverlays.ts` 和 `src/main/ipc/file-handlers.ts` 为下一批拆分入口，按功能域继续收敛控制器和单职责组件。
-3. 完成 quiet-workspace、小窗口、输入法、焦点和主题的人工/端到端验证。
-4. 低频能力迁移已完成（登记 + 灰显 + 懒加载）；后续可选收尾：GraphView 组件随主包静态加载，可在打开图谱时再按需拆分。
-5. 完成 Windows 安装包以及 macOS/Linux 安装包和更新流程验证。
+1. 修复关联 smoke 的过时选择器，恢复真实验证入口；补收藏重启读取、快捷键提示与文件计数，校准 CI 配置。
+2. 验证大文档最后输入与缓存快照一致性，再处理序列化/保存性能；恢复 Electron 全链路性能门禁的通过证据。
+3. 以 `app/workspace/useWorkspaceFiles.ts`、`app/useAppSettings.ts`、`Editor/instance/useMilkdownInstance.ts`、`Editor/overlays/useEditorOverlays.ts` 和 `src/main/ipc/file-handlers.ts` 为拆分入口，AppComposition 等超限组件同样先拆职责再扩功能。
+4. 按下一版 UI 规范完成保存状态语义、顶栏/路径、轻大纲、小窗口、输入法、焦点和主题验证。
+5. 连接已有搜索与回访路径，稳定现有导出并进行目标用户试用。低频能力登记与主要懒加载已完成，不重复安排。
+6. 完成品牌/存储兼容决策、Windows 安装包以及 macOS/Linux 安装包和更新流程验证。
+
+具体任务与退出条件见 [NEXT-DEVELOPMENT-PLAN](NEXT-DEVELOPMENT-PLAN.md)，以上均为待执行工作。

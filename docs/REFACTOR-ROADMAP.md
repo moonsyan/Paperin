@@ -1,5 +1,7 @@
 # LastFileHome 重构路线
 
+> 本文保留初始阶段划分。2026-09-12 的下一步执行顺序见 [NEXT-DEVELOPMENT-PLAN](NEXT-DEVELOPMENT-PLAN.md)，当前完成度以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准；已落地的壳层、命令与主题不重复迁移。
+
 ## Phase 0：基线冻结
 
 - 把当前项目的文件打开、保存、另存为、外部修改冲突和编码处理列为回归清单。
