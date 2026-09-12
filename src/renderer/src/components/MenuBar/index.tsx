@@ -406,7 +406,7 @@ export function MenuBar({ onAction, recentFiles = [], shortcuts, isActionEnabled
             }}
             onKeyDown={(event) => handleMenuKeyDown(event, 'more')}
           >
-            更多
+            更多…
           </button>
           {openKey === 'more' && (
             <div className="dropdown dropdown-more show" style={ddStyle} role="menu" ref={dropdownRef} onKeyDown={handleDropdownKeyDown}>

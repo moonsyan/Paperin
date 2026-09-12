@@ -272,10 +272,6 @@ export function Sidebar({
       aria-label="文件侧栏"
       aria-hidden={collapsed}
     >
-      <div className="sidebar-brand-row" aria-hidden="true">
-        <img className="sidebar-brand-icon" src="./icon.png" alt="" />
-        <span>MarkdownSoft</span>
-      </div>
       <SidebarQuickNav
         view={quickView}
         onViewChange={setQuickView}

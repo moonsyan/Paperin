@@ -68,9 +68,9 @@
   letter-spacing: .015em;
 }
 
-/* 侧栏打开时品牌归入左侧导航；收起侧栏后保留顶栏品牌，避免失去工作区锚点。 */
-.app:has(.sidebar:not(.collapsed)) .topbar .brand {
-  display: none;
+/* 品牌始终位于顶栏最左侧；侧栏收起后仍保留工作区锚点。 */
+.topbar .brand {
+  display: flex;
 }
 
 .topbar-zone-left,
@@ -88,26 +88,21 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  min-width: 34px;
+  width: 64px;
+  min-width: 64px;
   height: 32px;
-  padding: 0;
-  font-size: 0;
+  padding: 0 10px;
+  font-size: 0.8rem;
   line-height: 1;
   text-align: center;
   white-space: nowrap;
   writing-mode: horizontal-tb;
-  color: transparent;
-  overflow: hidden;
+  color: var(--text-2);
+  overflow: visible;
 }
 
 .menu-item-more::after {
-  content: '⋯';
-  display: block;
-  color: var(--text-2);
-  font-size: 20px;
-  line-height: 1;
-  letter-spacing: 2px;
+  content: none;
 }
 
 .dropdown-more {
@@ -231,25 +226,6 @@
   width: var(--sidebar-w, var(--soft-sidebar-width));
   background: var(--bg-sidebar);
   border-right-color: color-mix(in srgb, var(--border) 90%, transparent);
-}
-
-.sidebar-brand-row {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  height: var(--soft-topbar-height);
-  padding-inline: 14px;
-  flex: 0 0 auto;
-  color: var(--text-1);
-  font-size: .82rem;
-  font-weight: 600;
-  letter-spacing: .015em;
-}
-
-.sidebar-brand-icon {
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
 }
 
 .sidebar-nav {

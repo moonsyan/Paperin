@@ -6,7 +6,7 @@ const stylesheet = readFileSync(join(process.cwd(), 'src/renderer/src/styles/sof
 
 describe('Soft Workbench production skin', () => {
   it('styles the existing shell contracts without introducing a parallel layout', () => {
-    for (const selector of ['.topbar', '.sidebar', '.sidebar-brand-row', '.document-pathbar', '.editor-inner', '.tabbar', '.context-dock', '.statusbar']) {
+    for (const selector of ['.topbar', '.sidebar', '.brand', '.document-pathbar', '.editor-inner', '.tabbar', '.context-dock', '.statusbar']) {
       expect(stylesheet).toContain(selector)
     }
     expect(stylesheet).toContain('--soft-sidebar-width: 248px')

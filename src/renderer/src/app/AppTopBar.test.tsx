@@ -30,13 +30,13 @@ const createProps = (overrides: Partial<AppTopBarProps> = {}): AppTopBarProps =>
 })
 
 describe('AppTopBar（三区收缩）', () => {
-  it('左区承载品牌与工作区上下文点；侧栏展开时库名由侧栏承担，顶栏不重复显示', () => {
+  it('左区承载品牌与工作区上下文点；侧栏展开时保留产品品牌', () => {
     render(<AppTopBar {...createProps()} />)
 
     const left = document.querySelector('.topbar-zone-left')
     expect(left).toBeTruthy()
     expect(left?.querySelector('.brand-name')?.textContent).toBe('MarkdownSoft')
-    // NEXT-UI-SPEC §3.1：库名常驻展示集中在侧栏标题，侧栏展开时顶栏只留状态标
+    // 工作区上下文在侧栏展开时仍以状态标识为主，避免挤占标签区域
     expect(left?.querySelector('.workspace-context-name')).toBeNull()
     expect(left?.querySelector('.workspace-context-label')?.textContent).toBe('本地')
     // 库名仍保留在无障碍名中

@@ -76,6 +76,10 @@ export function AppTopBar({
   return (
     <div className="topbar">
       <div className="topbar-zone-left">
+        <div className="brand" title="MarkdownSoft">
+          <img className="brand-icon" src="./icon.png" alt="" />
+          <span className="brand-name">MarkdownSoft</span>
+        </div>
         <button
           type="button"
           className={`act-btn ${!sidebarCollapsed ? 'active' : ''}`}
@@ -86,12 +90,8 @@ export function AppTopBar({
         >
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" /></svg>
         </button>
-        <div className="brand" title="MarkdownSoft">
-          <img className="brand-icon" src="./icon.png" alt="" />
-          <span className="brand-name">MarkdownSoft</span>
-        </div>
         <MenuBar compact onAction={onAction} recentFiles={recentFiles} shortcuts={shortcuts} isActionEnabled={isActionEnabled} />
-        {/* 库名常驻展示在侧栏标题（NEXT-UI-SPEC §3.1）；侧栏收起时顶栏才显示简短库名 */}
+        {/* 工作区上下文在顶栏保留；侧栏收起时额外显示库名，避免丢失当前工作区锚点 */}
         <WorkspaceContext workspaceName={workspaceName} workspacePath={workspacePath} showName={sidebarCollapsed} />
       </div>
 
