@@ -21,6 +21,15 @@
 | T03 提示与计数 | 修复：搜索触发框提示由快捷键映射渲染（`formatShortcutHint`，未绑定隐藏）；侧栏"文档数"改为 `countTreeFiles` 递归统计 Markdown 叶子 |
 | T04 状态与 CI | 校准：恢复 `.github/workflows/build.yml`（三平台 npm ci → typecheck → lint → test:ci → build，Windows 加 smoke），`verify-ci-config.mjs` 对缺失文件给出明确错误并通过；**实际 CI 运行证据未取得（仓库托管在 Gitee），不宣称三平台 CI 已验证** |
 | 全量回归 | 143 文件 / 1140 项通过；typecheck / lint / build 通过 |
+| perf:electron | **失败（已定位到准确阶段）**：普通链路 9 步全部通过；5 MiB 保存步骤 `SAVE_RESULT_TIMEOUT`（largeSaveMs 241s，超 120s 门禁），`diskHasEdit: false`——末次编辑未落盘。F06 由"风险待验证"升级为**实测失败**，证据与 T05 快照契约设计输入一致，进入 M1 处理 |
+
+## M0 退出条件核对
+
+- [x] T01–T04 的实现、直接测试、说明和独立提交齐备。
+- [x] smoke 不再在过时 DOM 契约处失败（全链路 SMOKE_PASS）。
+- [x] 收藏重启、真实快捷键与文档计数有行为测试。
+- [x] 当前状态不再引用旧 smoke 的通过作为当前通过证据。
+- [x] 大文档仍失败，已记录准确失败阶段（5 MiB 保存 SAVE_RESULT_TIMEOUT、末次编辑未落盘）与后续任务（M1/T05），未宣称重构完成。
 
 ## 2026-09-12 最新评估复核（历史）
 
