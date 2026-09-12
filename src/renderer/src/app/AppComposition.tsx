@@ -153,6 +153,21 @@ export function AppComposition(): JSX.Element {
   // === 图谱 ===
   const { graphTabOpen, graphTabActive, setGraphTabActive, openGraphView, closeGraphView } = useGraphView({ workspace, refreshLinks, setToast })
 
+  /**
+   * 打开文件的统一入口（覆盖图谱激活态）。
+   *
+   * 打开工作区时图谱会自动激活并盖在编辑器区上（useGraphView 的 auto-open），
+   * 而「取消激活」此前只挂在 TabBar 的 onSwitch 上——目录树点击、反链、搜索
+   * 结果、诊断跳转、Wiki 链接、系统文件打开等路径都不经过 TabBar，图谱继续
+   * 盖在编辑器上，看起来像「点了文件右侧没反应」。
+   * 所有打开文件的下游（reveal / 反链 / 目录树 / 最近文件 / 命令）都汇聚到
+   * handleSelectWorkspaceFile，在这里统一取消图谱激活即可覆盖全部路径。
+   */
+  const openWorkspaceFile = useCallback((path: string, pinned?: boolean) => {
+    setGraphTabActive(false)
+    return handleSelectWorkspaceFile(path, pinned)
+  }, [handleSelectWorkspaceFile, setGraphTabActive])
+
   // === 编辑器增强 ===
   const {
     typographyIssues, handleOpenTypographyIssue, handleFixTypography,
@@ -161,7 +176,7 @@ export function AppComposition(): JSX.Element {
   } = useEditorFeatures({
     editorRef, editorAreaRef, activeFileId, activeContent,
     deferredContent: activeContent, activeFilePath: activeFile?.path,
-    workspace, liveContentOf, replaceEditorContent, setToast, handleSelectWorkspaceFile,
+    workspace, liveContentOf, replaceEditorContent, setToast, handleSelectWorkspaceFile: openWorkspaceFile,
   })
 
   // === 写作统计 ===
@@ -185,12 +200,12 @@ export function AppComposition(): JSX.Element {
 
   // === 工作区文件操作 ===
   const workspaceFilesBridge = useMemo<DocumentWorkspaceBridge>(() => ({
-    openDocumentPath: handleSelectWorkspaceFile, openFolder: handleOpenFolder,
+    openDocumentPath: openWorkspaceFile, openFolder: handleOpenFolder,
     liveContentOf, saveWithEncodingFallback, flushEditorContent, replaceEditorContent,
     switchFile, clearDraft, openFilesRef, contentsRef, activeFileIdRef,
     initialOrSavedRef: INITIAL_OR_SAVED, draftPendingRef, setOpenFiles, setContents,
     setSavedMap, setFileMtime, setEncodingMap, setActiveFileId, setDocTitle,
-  }), [INITIAL_OR_SAVED, activeFileIdRef, clearDraft, contentsRef, draftPendingRef, flushEditorContent, handleOpenFolder, handleSelectWorkspaceFile, liveContentOf, openFilesRef, replaceEditorContent, saveWithEncodingFallback, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, switchFile])
+  }), [INITIAL_OR_SAVED, activeFileIdRef, clearDraft, contentsRef, draftPendingRef, flushEditorContent, handleOpenFolder, openWorkspaceFile, liveContentOf, openFilesRef, replaceEditorContent, saveWithEncodingFallback, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, switchFile])
 
   const { createFile: handleCreateFile, renameFile: handleRenameFile, moveFile: handleMoveFile, deleteFile: handleDeleteFile, openInNewWindow: handleOpenInNewWindow } = useWorkspaceController({
     workspace, openFiles, savedMap, fileMtime, bridge: workspaceFilesBridge, setToast, closeAllTabs: handleCloseAllTabs,
@@ -228,7 +243,7 @@ export function AppComposition(): JSX.Element {
   const handleFullscreenChange = useCallback((open: boolean) => { fullscreenOpenRef.current = open }, [])
   const { handleAction, handleDocumentTitleBlur, handleDocumentTitleKeyDown, handleOpenBacklink, handleOpenGraphView, reveal, closeSettings, closeHelp, closeImages, closePdfOptions, closePublish, closeWorkspaceSearch, closePalette, closeVersionHistory, commandRegistry, isActionAvailable } = useAppActions({
     editorRef, docTitle, setDocTitle, activeFileId, activeFileIdRef, openFiles, openFilesRef, setOpenFiles, demoFileNames, activeFilePath: activeFile?.path, workspacePathRef, focusEditorSoon, setToast,
-    handleNew, handleOpen, handleOpenFolder, handleSelectWorkspaceFile, handleSave, handleSaveAs, handleCloseTab, handleCloseOtherTabs, handleCloseAllTabs, handleRenameFile,
+    handleNew, handleOpen, handleOpenFolder, handleSelectWorkspaceFile: openWorkspaceFile, handleSave, handleSaveAs, handleCloseTab, handleCloseOtherTabs, handleCloseAllTabs, handleRenameFile,
     handleExportHtml, handleExportMarkdown, handleExportPandoc, handleExportDocx,
     setSearchMode, setFocusOutlineTick, setSidebarActiveTab, setContextDockState, setSearchPref, setSearchEpoch, setSidebarCollapsed, setFocusMode, setPreviewMode, setTypewriter, setZoom, centerCaret,
     setSettingsOpen, setHelpView, setImagesOpen, setPdfOptsOpen, setPublishOpen, handleNewFromTemplate, setWsSearchOpen, setPaletteOpen, setVersionHistoryOpen, openGraphView,
@@ -269,7 +284,7 @@ export function AppComposition(): JSX.Element {
   useEffect(() => { const w = window as unknown as { __markdownsoft_notify?: (m: string) => void }; w.__markdownsoft_notify = (m) => setToast(m); return () => { delete w.__markdownsoft_notify } }, [setToast])
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(''), 3500); return () => clearTimeout(t) }, [toast, setToast])
 
-  useSystemFileOpen(handleSelectWorkspaceFile, settingsReady)
+  useSystemFileOpen(openWorkspaceFile, settingsReady)
   useDocumentSessionPersistence({ activeFileId, demoFileIds: DEMO_FILE_IDS, freshMode: FRESH_MODE, openFiles, ready: settingsReady, workspace })
   useWorkspaceLayoutPersistence({ workspace, workspaceStateReady, collapsedKeys: workspaceCollapsedKeys, openFiles, activeFileId, sidebarWidth, sidebarActiveView: sidebarActiveTab, contextDock: contextDockState, setToast })
 
@@ -288,7 +303,7 @@ export function AppComposition(): JSX.Element {
 
   // 窗口级 Markdown 拖放（抽出后 AppComposition 只保留一行装配）
   const markdownDrop = useMarkdownDrop({
-    onOpenFile: (path) => void handleSelectWorkspaceFile(path),
+    onOpenFile: (path) => void openWorkspaceFile(path),
     notify: setToast,
   })
 
@@ -348,7 +363,7 @@ export function AppComposition(): JSX.Element {
           onOpenSearch={() => setPaletteOpen(true)} recentFiles={recentFiles}
           favorites={favorites} onToggleFavorite={handleToggleFavorite}
           onOpenSettings={() => setSettingsOpen(true)}
-          onSelectDemoFile={handleSelectDemoFile} onSelectWorkspaceFile={(p, pinned) => void handleSelectWorkspaceFile(p, pinned)}
+          onSelectDemoFile={handleSelectDemoFile} onSelectWorkspaceFile={(p, pinned) => void openWorkspaceFile(p, pinned)}
           onCreateFile={(dir) => void handleCreateFile(dir)} onRenameFile={(p, n) => void handleRenameFile(p, n)}
           onDeleteFile={(p) => void handleDeleteFile(p)} onMoveFile={(p, d) => void handleMoveFile(p, d)} onOpenInNewWindow={handleOpenInNewWindow}
           graphTabOpen={graphTabOpen} graphTabActive={graphTabActive} onGraphTabClose={closeGraphView}
@@ -427,7 +442,7 @@ export function AppComposition(): JSX.Element {
         onExportBundle={(opts: PublishOptions, scope: PublishScope) => { setPublishOpen(false); setPublishBusy(true); void handlePublishBundle(opts, scope).finally(() => setPublishBusy(false)) }}
         onCopyRichText={(opts: PublishOptions) => { setPublishOpen(false); setPublishBusy(true); void handleCopyRichText(opts).finally(() => setPublishBusy(false)) }}
         paletteOpen={paletteOpen} onClosePalette={closePalette} recentFiles={recentFiles}
-        onSelectWorkspaceFile={(path, pinned) => void handleSelectWorkspaceFile(path, pinned)}
+        onSelectWorkspaceFile={(path, pinned) => void openWorkspaceFile(path, pinned)}
         onSelectDemoFile={(id, pinned) => handleSelectDemoFile(id, pinned)}
         onRunCommand={handleAction} commandRegistry={commandRegistry}
         commandContext={createCommandContext({ activeFileId, workspaceId: workspace?.path, hasWorkspace: workspace !== null, hasUnsavedChanges: Object.values(documents).some((d) => d.dirty) })}
