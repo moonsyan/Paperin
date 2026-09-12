@@ -58,15 +58,9 @@
       "accent on accent-bg/bg-sidebar（激活行）": 3.58
     },
     "typewriter": {
-      "accent on bg-app": 2.82,
-      "accent on bg-surface": 3.05,
-      "accent on bg-sidebar": 2.43,
       "danger on bg-sidebar": 4.19,
       "success on bg-sidebar": 4.16,
-      "accent on bg-menu": 3.26,
-      "border-m on bg-surface": 1.25,
-      "accent on bg-app（图形元素）": 2.82,
-      "accent on accent-bg/bg-sidebar（激活行）": 2.24
+      "border-m on bg-surface": 1.25
     }
   }
 }

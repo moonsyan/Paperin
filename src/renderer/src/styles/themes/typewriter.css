@@ -13,9 +13,11 @@
   --text-2: #595959;
   --text-3: #9e9e9e;
   --text-4: #bcbcbc;
-  --accent: #519d5c;
-  --accent-h: #417f4a;
-  --accent-bg: rgba(81,157,92,.1);
+  /* accent 从 #519d5c 加深（T12）：原值对 bg-sidebar 仅 2.43:1、激活行 2.24:1
+   * （同时是焦点环描边色）。#276634 在四个表面均 ≥4.5:1，激活行合成 ≥4.4:1 */
+  --accent: #276634;
+  --accent-h: #1f5a2c;
+  --accent-bg: rgba(39,102,52,.08);
   --danger: #B0413E;
   --success: #4E6E58;
   --success-bg: rgba(78,110,88,.10);
