@@ -1,6 +1,13 @@
 /* ====== Reset & Base ====== */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* 可点击元素统一小手光标。用 :where() 归零优先级：
+ * 组件里显式声明的 cursor（如禁用态 default）仍能覆盖这条兜底 */
+:where(button:not(:disabled), a, [role='tab'], [role='option'],
+[role='menuitem'], [role='treeitem']):not([aria-disabled='true']) {
+  cursor: pointer;
+}
+
 html { font-size: 15px; }
 
 body {
@@ -54,10 +61,12 @@ html[data-platform='win32'] .topbar {
 html[data-platform='darwin'] .topbar {
   padding-left: 80px;
 }
-/* 可交互元素不参与拖拽 */
+/* 可交互元素不参与拖拽（tabbar 必须在此列：落在顶栏 drag 区内时
+ * 点击会被窗口拖拽消费——表现为"点标签切不动文件"，光标也不变手型） */
 .menubar, .doc-title, .act-group, .act-btn,
 .theme-switcher, .theme-wrap, .settings-wrap,
-.dropdown, .theme-dd, .settings-panel {
+.dropdown, .theme-dd, .settings-panel,
+.tabbar {
   -webkit-app-region: no-drag;
 }
 
