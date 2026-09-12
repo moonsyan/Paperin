@@ -173,6 +173,29 @@ html[data-platform='darwin'] .topbar {
   white-space: nowrap;
 }
 
+/* ====== 跳转链接（键盘用户绕过顶栏/侧栏直达正文） ======
+ * 不能用 display:none 或 visibility:hidden 隐藏——那样它会掉出 Tab 序列，
+ * 跳转链接本身也就失效了。改为常态平移到视口上方，聚焦时滑入。 */
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  z-index: 900;
+  padding: 8px 14px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  color: var(--accent);
+  box-shadow: var(--shadow-m);
+  font-size: .8rem;
+  text-decoration: none;
+  transform: translate(-50%, calc(-100% - 16px));
+  transition: transform var(--dur) var(--ease);
+}
+.skip-link:focus {
+  transform: translate(-50%, 0);
+}
+
 .doc-title {
   font-size: .78rem;
   font-weight: 500;

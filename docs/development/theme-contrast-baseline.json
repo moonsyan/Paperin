@@ -1,0 +1,72 @@
+{
+  "note": "主题对比度棘轮基线：登记当前已接受的低对比组合（存量债务），门禁只保证它们不变差。清理某一项后请同步删除对应条目，否则 scripts/theme-contrast.test.mjs 会提示基线腐化。",
+  "generatedBy": "scripts/theme-contrast.mjs",
+  "margin": 0.02,
+  "thresholds": {
+    "text": 4.5,
+    "ui": 3
+  },
+  "accepted": {
+    "atom": {
+      "accent on bg-app": 3.65,
+      "text-2 on bg-surface": 4.34,
+      "accent on bg-surface": 3.32,
+      "danger on bg-surface": 4.44,
+      "accent on bg-sidebar": 3.65,
+      "accent on bg-menu": 3.65,
+      "border-m on bg-surface": 1.28,
+      "accent on accent-bg/bg-sidebar（激活行）": 3.11
+    },
+    "dark": {
+      "danger on bg-menu": 4.34,
+      "border-m on bg-surface": 1.25
+    },
+    "default": {
+      "success on bg-app": 4.47,
+      "accent on bg-sidebar": 4.21,
+      "success on bg-sidebar": 4.17,
+      "border-m on bg-surface": 1.19,
+      "accent on accent-bg/bg-sidebar（激活行）": 3.84
+    },
+    "github": {
+      "border-m on bg-surface": 1.45
+    },
+    "mist": {
+      "border-m on bg-surface": 1.42
+    },
+    "ocean": {
+      "success on bg-app": 3.77,
+      "success on bg-surface": 4.17,
+      "success on bg-sidebar": 3.51,
+      "success on bg-menu": 4.17,
+      "border-m on bg-surface": 1.19,
+      "accent on accent-bg/bg-sidebar（激活行）": 4.17
+    },
+    "pine": {
+      "border-m on bg-surface": 1.55
+    },
+    "rose": {
+      "accent on bg-app": 4.15,
+      "success on bg-app": 3.7,
+      "accent on bg-surface": 4.48,
+      "success on bg-surface": 3.99,
+      "accent on bg-sidebar": 3.89,
+      "success on bg-sidebar": 3.47,
+      "accent on bg-menu": 4.48,
+      "success on bg-menu": 3.99,
+      "border-m on bg-surface": 1.16,
+      "accent on accent-bg/bg-sidebar（激活行）": 3.58
+    },
+    "typewriter": {
+      "accent on bg-app": 2.82,
+      "accent on bg-surface": 3.05,
+      "accent on bg-sidebar": 2.43,
+      "danger on bg-sidebar": 4.19,
+      "success on bg-sidebar": 4.16,
+      "accent on bg-menu": 3.26,
+      "border-m on bg-surface": 1.25,
+      "accent on bg-app（图形元素）": 2.82,
+      "accent on accent-bg/bg-sidebar（激活行）": 2.24
+    }
+  }
+}

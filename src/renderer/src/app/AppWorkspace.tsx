@@ -15,6 +15,7 @@ import { DEMO_FILES, DEMO_TREE, DEFAULT_FILE_ID } from '../data/demo-files'
 import type { WorkspaceIndex, DiagnosticRecord } from '../../../shared/workspace-index'
 import type { TypographyIssue } from '../lib/chinese-typography'
 import type { SearchBarHandlers } from './useEditorSearch'
+import { SKIP_LINK_TARGET_ID } from './SkipLink'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -218,7 +219,8 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
         />
       )}
       <div className="editor-host">
-        <div className="editor-content">
+        {/* 跳转链接落点：tabIndex=-1 让锚点能真正把焦点移进来（否则焦点仍留在链接上） */}
+        <div className="editor-content" id={SKIP_LINK_TARGET_ID} tabIndex={-1}>
           <Editor
             ref={editorRef}
             initialContent={DEMO_FILES[DEFAULT_FILE_ID].content}

@@ -105,6 +105,7 @@ export function SidebarQuickNav({
         <button
           type="button"
           className={`collection-name ${collectionActive ? 'selected' : ''}`}
+          aria-current={collectionActive ? 'true' : undefined}
           onClick={() => onViewChange(null)}
           title={collectionName}
         >

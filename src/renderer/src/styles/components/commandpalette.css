@@ -52,14 +52,12 @@
   background: var(--accent-bg);
   color: var(--accent);
 }
+/* 键盘 Tab 会走进结果列表（条目是真实 button），所以这里必须保留焦点环。
+   早前这里用 `.palette-item:focus { outline: none }` 想压掉「active 背景 + 焦点环」
+   的双重呈现，但该规则与 :focus-visible 同优先级且位置更后，等价于把焦点环彻底抹掉。 */
 .palette-item:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-/* 键盘导航时避免按钮默认焦点环与 active 背景双重呈现：
-   焦点由面板统一用 active 高亮表达，鼠标点击后焦点回落到输入框 */
-.palette-item:focus {
-  outline: none;
+  outline-offset: -2px;
 }
 
 .palette-item-name {

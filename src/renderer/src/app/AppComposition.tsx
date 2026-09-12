@@ -4,6 +4,7 @@ import type { EditorHandle } from '../components/Editor'
 import type { WritingStats } from '../components/HelpDialog'
 import { StatusBar } from '../components/StatusBar'
 import { WorkspaceShell } from '../components/WorkspaceShell'
+import { SkipLink } from './SkipLink'
 import { buildSidebarViewModel } from '../components/Sidebar/sidebar-view-model'
 import { flushPersistedSettings } from '../hooks/usePersistedSetting'
 import { setConfirmDialogListener } from '../lib/confirm-dialog'
@@ -315,6 +316,7 @@ export function AppComposition(): JSX.Element {
       className={`app ${focusMode ? 'focus-mode' : ''} ${typewriter ? 'typewriter-mode' : ''}`}
       {...markdownDrop}
     >
+      <SkipLink />
       <AppTopBarHost
         sidebarCollapsed={sidebarCollapsed} onToggleSidebar={() => setSidebarCollapsed((v) => !v)}
         focusMode={focusMode} onToggleFocusMode={() => setFocusMode((v) => !v)}

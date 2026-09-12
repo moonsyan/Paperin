@@ -331,6 +331,10 @@
   border-radius: 4px;
   outline: none;
 }
+/* 边框恒为 accent，聚焦时补一圈光环，否则「已经在焦点上」这件事不可见 */
+.tree-rename-input:focus {
+  box-shadow: 0 0 0 2px var(--accent-bg);
+}
 
 /* 右键上下文菜单 */
 .tree-ctx-menu {

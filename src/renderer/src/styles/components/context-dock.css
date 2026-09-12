@@ -44,10 +44,14 @@
   z-index: 2;
 }
 
-.context-dock-resizer:hover,
+.context-dock-resizer:hover {
+  background: var(--accent-bg);
+}
+/* 拖拽把手只有 6px 宽，纯填充色的焦点提示太弱，补一圈内描边让键盘用户看得见落点 */
 .context-dock-resizer:focus-visible {
   background: var(--accent-bg);
-  outline: none;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .context-dock-content {

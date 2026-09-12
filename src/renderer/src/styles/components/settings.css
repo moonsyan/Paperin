@@ -576,6 +576,10 @@ button.sc-reset {
   border: 2px solid var(--bg-surface);
   box-shadow: 0 1px 4px rgba(0, 0, 0, .25);
 }
+/* 滑块抹掉了默认轮廓：键盘聚焦时用强调色光环提示落点（轨道仅 4px 高，靠 outline 不易看清） */
+.fine-slider:focus-visible {
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
 
 /* ====== 设置搜索 ====== */
 .settings-search-input {

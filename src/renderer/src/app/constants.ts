@@ -10,7 +10,7 @@ export const TITLEBAR_COLORS: Record<string, { bg: string; symbol: string }> = {
   github: { bg: '#161B22', symbol: '#8B949E' },
   atom: { bg: '#20242B', symbol: '#8E8E90' },
   typewriter: { bg: '#E4DCC8', symbol: '#595959' },
-  mist: { bg: '#EEF1EC', symbol: '#667168' },
+  mist: { bg: '#EEF1EC', symbol: '#616C64' },
   pine: { bg: '#1A201C', symbol: '#B0BAB0' },
 }
 

@@ -15,15 +15,20 @@
   --bg-quote: #EDF4ED;
 
   --text-1: #202722;
-  --text-2: #667168;
+  /* text-2 比设计稿略深一级：设计稿取值在 --bg-sidebar 上仅 4.47:1，
+     低于 WCAG 2.1 正文门禁 4.5:1，这里取等色调加深后的值（实测 4.80:1）。 */
+  --text-2: #616C64;
   --text-3: #8A948C;
   --text-4: #B4BDB5;
 
-  --accent: #3F7658;
+  /* accent 同理加深一级：设计稿 #3F7658 落在 --accent-bg 上只有 4.46:1，
+     而 accent-bg 正是侧栏激活行的底色，属于必须读清的正文级组合（实测 4.78:1）。 */
+  --accent: #3C7154;
   --accent-h: #2F5C43;
   --accent-bg: #E2EEE5;
-  /* quiet-workspace 专用：细装饰线色（下划线激活态 / 活跃项左标记 / 文档末尾装饰） */
-  --accent-line: #6AA07A;
+  /* quiet-workspace 专用：细装饰线色（下划线激活态 / 活跃项左标记 / 文档末尾装饰）。
+     该线是激活态的图形化标识，按非文字 UI 门禁 3:1 取值（bg-sidebar 上实测 3.26:1）。 */
+  --accent-line: #5A9070;
 
   --success: #3F7658;
   --success-bg: rgba(63,118,88,.10);

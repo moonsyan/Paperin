@@ -704,6 +704,10 @@
   resize: vertical;
   outline: none;
 }
+/* 公式编辑框：默认轮廓已抹掉，聚焦时用强调色光环给出落点（边框本就是 accent，需额外区分度） */
+.milkdown .math-edit:focus {
+  box-shadow: 0 0 0 2px var(--accent-bg);
+}
 .milkdown .math-inline .math-edit {
   display: inline-block;
   width: auto;
@@ -753,11 +757,16 @@
   font-size: .75rem;
   cursor: pointer;
 }
-.milkdown .mermaid-source-toggle:hover,
+.milkdown .mermaid-source-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-1);
+}
+/* 键盘聚焦时保留可见焦点环：早前这里连 outline 一起抹掉了，等于抹掉键盘用户的落点提示 */
 .milkdown .mermaid-source-toggle:focus-visible {
   background: var(--bg-hover);
   color: var(--text-1);
-  outline: none;
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 .milkdown .mermaid-preview {
   min-height: 80px;
@@ -1018,6 +1027,10 @@
   padding: 2px 4px;
   color: var(--text-1);
   outline: none;
+}
+/* 属性值输入框：聚焦光环（边框恒为 accent，需附加可见变化） */
+.fm-input:focus {
+  box-shadow: 0 0 0 2px var(--accent-bg);
 }
 .fm-rm-btn {
   background: none;

@@ -51,6 +51,14 @@
 - 新增「雾白」（亮）「夜松」（暗）两套留白绿调主题，作为第 8/9 套接入既有 token 体系；主题级排版尺度（H1 `clamp(28px, 2.8vw, 38px)`、H2 去边框、引用/代码形态、更紧圆角、避开 Inter 的界面字体栈）落在 `styles/quiet-workspace.css` 并**只作用于这两套主题**，原有 7 套主题取值零改动。刻意不覆盖 `--efs` / `--ecw` / `--elh`（字号、内容宽度、行距归用户设置所有）。
 - 补齐全局 `prefers-reduced-motion`（此前仅 `context-dock.css` 单点处理）；保留 0.01ms 而非 `none`，以便依赖 `transitionend`/`animationend` 的逻辑仍能收到事件。
 
+### 无障碍与主题可读性门禁
+
+- 主题对比度从「人工逐主题冒烟」升级为可机械校验的门禁：`scripts/theme-contrast.mjs` 解析九套主题的 token，按 WCAG 2.1 计算 218 项组合（text 级 4.5:1、ui 级 3:1），覆盖应用底/卡片面/侧栏/弹层（`--bg-menu`）四个表面、侧栏激活行、焦点环描边，并额外解析 `app/constants.ts` 的 `TITLEBAR_COLORS` 核对系统标题栏按钮（9/9 通过 4.5:1）；`--text-3`/`--text-4` 只记录不门禁。判定为**硬门禁 + 棘轮基线**两段式：未达下限的组合必须登记在 `docs/development/theme-contrast-baseline.json`，且不得比登记值更差；新出现的低对比组合直接失败，新增主题（`mist`/`pine`）不允许靠登记基线绕过门禁（测试显式限定只可登记 `--border-m`）。
+- 新增主题的四处踩线取值已按等色调加深修正：`--text-2 #667168 → #616C64`（4.47 → 4.80）、`--accent #3F7658 → #3C7154`（激活行 4.46 → 4.78）、`--accent-line #6AA07A → #5A9070`（2.66 → 3.26）、`TITLEBAR_COLORS.mist.symbol #667168 → #616C64`（4.47 → 4.80）。`pine` 无需修正。
+- 焦点可见性成为门禁：`scripts/focus-outline.mjs` 扫描全部样式表，任何基础规则里出现 `outline: none|0` 都必须在同文件配有 `:focus`/`:focus-visible`/`:focus-within` 的可见替代（非 none 的 outline、box-shadow、border-color 或 border）；焦点规则自己抹掉轮廓同样判违规；例外必须带理由且必须仍命中。本轮据此修掉 7 处真实缺陷，其中 `commandpalette.css` 的 `.palette-item:focus { outline: none }` 与 `:focus-visible` 同优先级但位置更后，实际把面板条目的焦点环彻底抹掉；`fine-slider`、`fm-input`、`tree-rename-input`、`.math-edit`、`.mermaid-source-toggle:focus-visible`、`.context-dock-resizer` 各自缺焦点提示或显式抹掉。
+- 组件级无障碍冒烟固定为 `src/renderer/src/a11y-smoke.test.tsx`（15 项）：顶栏三区、侧栏五段式、扁平列表、当前文件标识与工作区壳层的可访问名称、`aria-pressed` / `aria-current` 状态语义、树的键盘可达性（Enter/Space）与 `.sr-only` 兜底。本轮补齐侧栏集合标题的 `aria-current`，并补上 demo 有、生产缺的**跳转链接**（`app/SkipLink.tsx` → `#editor-content`，落点带 `tabIndex={-1}`，样式用 `transform` 移出视口而非 `display: none`）。
+- 完整结论、37 项存量债务清单与待人工执行的冒烟清单见 `docs/ACCESSIBILITY-SMOKE.md`。
+
 ### 运行时安全与告警
 
 - Renderer CSP 只在已有图片白名单之外，为构建内联的 KaTeX 字体在 `font-src` 放行 `data:`；脚本与连接来源未放宽。
@@ -91,7 +99,8 @@
 | --- | --- |
 | `npm run lint` | 通过 |
 | `npm run typecheck` | 通过 |
-| `npm run test` | 通过：138 个测试文件，1063 项测试 |
+| `npm run test` | 通过：141 个测试文件，1108 项测试 |
+| `npm run a11y` | 通过：九套主题 218 项对比度（43 项存量债务已登记棘轮基线，无新增失败）；29 个样式表焦点可见性零违规 |
 | `npm run build` | 通过：Main、Preload、Renderer 均成功构建 |
 | `npm run perf:regression` | 通过：5,000 文件合成场景未超阈值 |
 | `npm run smoke` | 通过：打开工作区、新建、保存、冲突、重读、重命名、搜索、状态读取 |
@@ -110,13 +119,14 @@
 
 ### 架构与维护性
 
-- 仍超过项目行数门禁的文件：`src/main/ipc/file-handlers.ts`（654）、`src/renderer/src/lib/docx.ts`（599）、`app/workspace/useWorkspaceFiles.ts`（505）、`app/useAppSettings.ts`（496）、`Editor/overlays/useEditorOverlays.ts`（486）、`Editor/instance/useMilkdownInstance.ts`（485）。`AppComposition.tsx` 已随顶栏收敛完成第二轮拆分（447 → 449：顶栏宿主与插槽抽到 `app/TopBarSlots.tsx`、拖放抽到 `app/useMarkdownDrop.ts`、收藏抽到 `app/useSidebarFavorites.ts`），仍贴门禁上限，需按命令域与导出域继续收敛；`useEditorContentReplacement.ts`（约 340）同样待续。
+- 仍超过项目行数门禁的文件：`src/main/ipc/file-handlers.ts`（654）、`src/renderer/src/lib/docx.ts`（599）、`app/workspace/useWorkspaceFiles.ts`（505）、`app/useAppSettings.ts`（496）、`Editor/overlays/useEditorOverlays.ts`（486）、`Editor/instance/useMilkdownInstance.ts`（485）。`AppComposition.tsx` 已随顶栏收敛完成第二轮拆分（447 → 449：顶栏宿主与插槽抽到 `app/TopBarSlots.tsx`、拖放抽到 `app/useMarkdownDrop.ts`、收藏抽到 `app/useSidebarFavorites.ts`），本轮加入 `<SkipLink />` 后到 450 行，正好贴门禁上限，需按命令域与导出域继续收敛；`useEditorContentReplacement.ts`（约 340）同样待续。
 - 文档会话剩余风险集中在 5 MiB 大文档的保存耗时（见上方发布前高优先级），会话状态一致性、卸载取消与多窗口竞态已完成核验。
 
 ### UI 与功能迁移
 
 - quiet-workspace 视觉语言已完成主要迁移：顶栏四层 chrome 收敛为单条 52px 三区顶栏（正文首屏回收约 114px）、侧栏改为五段式（搜索触发框 / 快捷导航 / 集合标题 / 文件树 / 底部区）、新增「雾白」「夜松」两套留白绿调主题并把排版尺度落到主题作用域样式、补齐全局 `prefers-reduced-motion`。剩余：窄窗口侧栏与 ContextDock 共用一套 scrim 机制尚未统一；AppearancePanel 的主题样张卡未引入；ContextDock「仅大纲」窄栏极简模式未实现。
-- 中文输入法组合态、全键盘导航、焦点不被弹层遮挡，以及全部内置主题（含新增雾白/夜松）的文本/边框/悬停/禁用/焦点对比度仍需完整人工冒烟。
+- 主题文本/边框/悬停/禁用/焦点对比度已从人工冒烟升级为机械门禁（`npm run a11y`，见上「无障碍与主题可读性门禁」）；仍需人工过一遍的是：中文输入法组合态、全键盘导航路径、焦点不被弹层遮挡、减少动态效果的实际观感。清单与操作路径见 `docs/ACCESSIBILITY-SMOKE.md` 文末。
+- 已登记的对比度存量债务需独立处理：`--border-m` 在九套主题均为 1.16–1.55:1（承担输入框/分割线描边，WCAG 1.4.11 要求 3:1），`typewriter` 的 accent 低至 2.24（同时是焦点环描边色）。
 - 收藏（侧栏快捷导航数据层 + 文件右键收藏入口）已落地，按工作区作用域持久化；搜索触发框复用命令注册表。低频能力（图片、发布、导出、历史、草稿、设置）仍需逐项登记到“命令 + 面板 + 新文档模型”，并同步兼容矩阵。
 - Renderer 主包仍较大（当前 3.32 MB）；Mermaid/图谱等低频能力的按需加载和分包尚未完成（Mermaid 已拆为独立 chunk，主包尚未分包）。
 
