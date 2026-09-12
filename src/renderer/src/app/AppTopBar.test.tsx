@@ -36,6 +36,8 @@ describe('AppTopBar（三区收缩）', () => {
     const left = document.querySelector('.topbar-zone-left')
     expect(left).toBeTruthy()
     expect(left?.querySelector('.brand-name')?.textContent).toBe('MarkdownSoft')
+    expect(left?.children[0].classList.contains('brand')).toBe(true)
+    expect(left?.children[1].getAttribute('aria-label')).toBe('切换侧栏')
     // 工作区上下文在侧栏展开时仍以状态标识为主，避免挤占标签区域
     expect(left?.querySelector('.workspace-context-name')).toBeNull()
     expect(left?.querySelector('.workspace-context-label')?.textContent).toBe('本地')
