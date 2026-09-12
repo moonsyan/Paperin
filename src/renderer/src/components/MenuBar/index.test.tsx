@@ -32,7 +32,9 @@ describe('MenuBar', () => {
     expect(screen.queryByText('文件')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '更多菜单' }))
     expect(screen.getByText('保存')).not.toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: '编辑' }))
     expect(screen.getByText('插入链接')).not.toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: '视图' }))
     expect(screen.getByText('知识图谱…')).not.toBeNull()
   })
 

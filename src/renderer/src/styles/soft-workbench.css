@@ -100,23 +100,66 @@
 }
 
 .dropdown-more {
-  width: min(360px, calc(100vw - 24px));
-  max-height: min(78vh, 680px);
+  width: min(390px, calc(100vw - 24px));
+  max-height: min(72vh, 580px);
   overflow-y: auto;
 }
 
-.dropdown-more-group + .dropdown-more-group {
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--border);
+.compact-menu-search {
+  display: block;
+  width: 100%;
+  height: 34px;
+  margin-bottom: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--border-input);
+  border-radius: 7px;
+  color: var(--text-1);
+  background: var(--bg-surface);
+  outline: none;
+  font-size: .78rem;
 }
 
-.dd-group-label {
-  padding: 3px 10px 4px;
+.compact-menu-search:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-bg);
+}
+
+.compact-menu-tabs {
+  display: flex;
+  gap: 3px;
+  padding: 0 2px 8px;
+  overflow-x: auto;
+}
+
+.compact-menu-tabs button {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border-radius: 6px;
   color: var(--text-3);
-  font-size: .66rem;
-  font-weight: 650;
-  letter-spacing: .08em;
+  font-size: .68rem;
+}
+
+.compact-menu-tabs button:hover,
+.compact-menu-tabs button.active {
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.compact-menu-tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.compact-menu-items {
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+}
+
+.compact-menu-empty {
+  padding: 18px 10px;
+  color: var(--text-3);
+  font-size: .76rem;
+  text-align: center;
 }
 
 .workspace-context {

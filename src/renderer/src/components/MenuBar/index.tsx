@@ -126,8 +126,17 @@ const MENU_LABELS: Record<string, string> = {
   help: '帮助',
 }
 
+const COMPACT_GROUPS = ['common', 'file', 'edit', 'para', 'view', 'help'] as const
+type CompactGroup = typeof COMPACT_GROUPS[number]
+const COMPACT_COMMON_ACTIONS = new Set([
+  'new', 'open', 'openFolder', 'commandPalette', 'save', 'find', 'replace',
+  'toggleFocus', 'outline', 'linksPanel', 'settings',
+])
+
 export function MenuBar({ onAction, recentFiles = [], shortcuts, isActionEnabled, compact = false }: MenuBarProps): JSX.Element {
   const [openKey, setOpenKey] = useState<string | null>(null)
+  const [compactGroup, setCompactGroup] = useState<CompactGroup>('common')
+  const [compactQuery, setCompactQuery] = useState('')
   const [ddStyle, setDdStyle] = useState<CSSProperties>({})
   const barRef = useRef<HTMLDivElement>(null)
   /** D2：当前菜单是否由点击打开（悬停打开的菜单，点击标题=钉住而非关闭） */
@@ -344,6 +353,34 @@ export function MenuBar({ onAction, recentFiles = [], shortcuts, isActionEnabled
     ),
   )
 
+  const renderCompactItems = (): JSX.Element[] => {
+    const query = compactQuery.trim().toLocaleLowerCase()
+    const groups = compactGroup === 'common'
+      ? Object.keys(menus)
+      : [compactGroup]
+    const entries = groups.flatMap((key) => menus[key]
+      .map((item, index) => ({ key, item, index }))
+      .filter(({ item }) => !item.separator && (!query || item.label.toLocaleLowerCase().includes(query)))
+      .filter(({ item }) => compactGroup !== 'common' || COMPACT_COMMON_ACTIONS.has(item.action ?? '')))
+    if (entries.length === 0) {
+      return [<div key="empty" className="compact-menu-empty">没有匹配的命令</div>]
+    }
+    return entries.map(({ key, item, index }) => (
+      <button
+        type="button"
+        key={`${key}-compact-${index}`}
+        className={`dd-item ${isItemEnabled(item) ? '' : 'is-disabled'}`}
+        role="menuitem"
+        disabled={!isItemEnabled(item)}
+        aria-disabled={isItemEnabled(item) ? undefined : true}
+        onClick={() => handleItemClick(key, item)}
+      >
+        <span className="dd-label">{item.label}</span>
+        {item.shortcut && <span className="sc">{item.shortcut}</span>}
+      </button>
+    ))
+  }
+
   return (
     <div className="menubar" ref={barRef}>
       {compact ? (
@@ -373,12 +410,30 @@ export function MenuBar({ onAction, recentFiles = [], shortcuts, isActionEnabled
           </button>
           {openKey === 'more' && (
             <div className="dropdown dropdown-more show" style={ddStyle} role="menu" ref={dropdownRef} onKeyDown={handleDropdownKeyDown}>
-              {Object.keys(menus).map((key) => (
-                <div key={key} className="dropdown-more-group">
-                  <div className="dd-group-label">{MENU_LABELS[key]}</div>
-                  {renderMenuItems(key)}
-                </div>
-              ))}
+              <input
+                className="compact-menu-search"
+                type="search"
+                aria-label="搜索菜单命令"
+                placeholder="搜索命令…"
+                value={compactQuery}
+                onChange={(event) => setCompactQuery(event.target.value)}
+                onKeyDown={(event) => event.stopPropagation()}
+              />
+              <div className="compact-menu-tabs" role="tablist" aria-label="命令分类">
+                {COMPACT_GROUPS.map((group) => (
+                  <button
+                    key={group}
+                    type="button"
+                    role="tab"
+                    aria-selected={compactGroup === group}
+                    className={compactGroup === group ? 'active' : ''}
+                    onClick={() => setCompactGroup(group)}
+                  >
+                    {group === 'common' ? '常用' : MENU_LABELS[group]}
+                  </button>
+                ))}
+              </div>
+              <div className="compact-menu-items">{renderCompactItems()}</div>
             </div>
           )}
         </div>
