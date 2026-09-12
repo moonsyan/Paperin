@@ -68,6 +68,11 @@
   letter-spacing: .015em;
 }
 
+/* 侧栏打开时品牌归入左侧导航；收起侧栏后保留顶栏品牌，避免失去工作区锚点。 */
+.app:has(.sidebar:not(.collapsed)) .topbar .brand {
+  display: none;
+}
+
 .topbar-zone-left,
 .topbar-zone-right {
   gap: 6px;
@@ -135,6 +140,25 @@
   width: var(--sidebar-w, var(--soft-sidebar-width));
   background: var(--bg-sidebar);
   border-right-color: color-mix(in srgb, var(--border) 90%, transparent);
+}
+
+.sidebar-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: var(--soft-topbar-height);
+  padding-inline: 14px;
+  flex: 0 0 auto;
+  color: var(--text-1);
+  font-size: .82rem;
+  font-weight: 600;
+  letter-spacing: .015em;
+}
+
+.sidebar-brand-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
 }
 
 .sidebar-nav {
