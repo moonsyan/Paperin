@@ -23,6 +23,8 @@ export interface EditorHandle extends EditorAdapter {
   focusLine: (line: number) => void
   isReady: () => boolean
   consumeDirtyChange: () => boolean
+  /** 非破坏读取：防抖窗口内是否有输入尚未落账（保存路径用它决定是否等待快照） */
+  hasPendingChanges: () => boolean
   startSearch: (
     query: string,
     useRegex: boolean,

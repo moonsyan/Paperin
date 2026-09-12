@@ -50,14 +50,15 @@ export const escapeHtmlText = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 /**
- * 3.1：大文档阈值（按字符数）。超过该规模的 Markdown 在切换/打开时，
- * 一次性解析 + 整篇 DOM 重建会阻塞主线程数百毫秒到数秒，导致“点了切文件却像卡死”。
- * 对这类文档把阻塞式替换推迟到下一轮事件循环，先让 React 提交标签切换。
- * 阈值偏保守（约 200KB），普通文档不受影响。
+ * 3.1：大文档阈值。单位口径：UTF-16 code unit（即 string.length）——BMP 内
+ * 中文字符占 1 个 unit，emoji 等增补平面字符占 2 个 unit（代理对）。
+ * 超过该规模的 Markdown 在切换/打开时，一次性解析 + 整篇 DOM 重建会阻塞主线程
+ * 数百毫秒到数秒，导致“点了切文件却像卡死”。对这类文档把阻塞式替换推迟到
+ * 下一轮事件循环，先让 React 提交标签切换。阈值偏保守，普通文档不受影响。
  */
-const LARGE_DOC_CHAR_THRESHOLD = 200_000
+const LARGE_DOC_UNITS_THRESHOLD = 200_000
 export const isLargeDocument = (content: string): boolean =>
-  content.length > LARGE_DOC_CHAR_THRESHOLD
+  content.length > LARGE_DOC_UNITS_THRESHOLD
 
 /** 未命名文档自增计数：模块级状态（会话恢复会把计数推进到已恢复的最大编号） */
 let untitledCounter = 1

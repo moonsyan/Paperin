@@ -291,6 +291,7 @@ export const useEditorContentReplacement = ({
         dirtyRef.current = false
         return changed
       },
+      hasPendingChanges: () => dirtyRef.current,
       getViewState: () => {
         const view = getLiveView()
         return view ? captureViewState(view, containerRef.current) : null

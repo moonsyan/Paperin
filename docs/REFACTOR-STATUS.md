@@ -37,6 +37,13 @@
 | 全量回归 | 143 文件 / 1140 项通过；typecheck / lint / build 通过 |
 | perf:electron | **失败（已定位到准确阶段）**：普通链路 9 步全部通过；5 MiB 保存步骤 `SAVE_RESULT_TIMEOUT`（largeSaveMs 241s，超 120s 门禁），`diskHasEdit: false`——末次编辑未落盘。F06 由"风险待验证"升级为**实测失败**，证据与 T05 快照契约设计输入一致，进入 M1 处理 |
 
+## 2026-09-12 M1：文件与编辑器可靠性（进行中）
+
+| 任务 | 结果 |
+| --- | --- |
+| T05 可等待的编辑快照契约 | 完成：新增 `document-session/ensure-snapshot.ts`（`ensureFreshSnapshot`：编辑器无未落账输入时零等待返回缓存；有输入时轮询等待 markdownUpdated 落账，默认 5s 超时失败出口，settled=false 时调用方保留 dirty 并提示）。`EditorHandle` 新增非破坏读信号 `hasPendingChanges()`（dirty-track 插件的 dirtyRef，不消费）；`handleSave` 大文档分支与 `saveBeforeClose` 关闭路径收口——防抖窗口内有输入时先等落账再写盘，超时仍提交已落账版本（保证磁盘有内容）并 toast 提示，保存后 contentsRef 比对自然保留 dirty；普通文档保持同步 `getMarkdown` 低延迟语义不变。版本语义以注释形式落档（editorRevision=dirtyRef 事务计数、snapshotRevision=contentsRef 落账、persistedRevision=INITIAL_OR_SAVED+mtime），不新建第二真相源。阈值单位命名：`LARGE_DOCUMENT_SNAPSHOT_CHARS` / `LARGE_DOC_UNITS_THRESHOLD`（UTF-16 code unit 口径，含中文/emoji 代理对说明）。测试：契约 5 项 + 保存行为 4 项（零等待/等待落账/超时出口/小文档路径不变）。回归：typecheck / lint / **152 文件 1210 项测试** / build 通过 |
+| perf:electron（T05 后复测） | **仍失败，且证据排除快照陈旧**：`SAVE_RESULT_TIMEOUT` 240s、`diskHasEdit:false`、磁盘=初始内容。主进程 save 所有路径（锁/冲突/编码）均立即 resolve，观测器与实际调用通道一致（`api.save`）；若保存完成（哪怕旧内容）观测器必然被赋值——说明 5 MiB 场景下保存 IPC 在 120s 内**根本未完成往返**，瓶颈在序列化/IPC 传输/渲染阻塞层而非快照新鲜度，分段测量归 T07。T05 验收口径（等待有进度与失败出口、不丢字符、不保存半截）不受影响 |
+
 ## M0 退出条件核对
 
 - [x] T01–T04 的实现、直接测试、说明和独立提交齐备。

@@ -9,6 +9,7 @@ import type { DocumentState } from './useDocumentState'
 import type { DocumentSaveQueueApi } from './useDocumentSaveQueue'
 import type { EditorHandle } from '../../components/Editor'
 import { shouldPreferCachedDocumentSnapshot } from './large-document-save'
+import { ensureFreshSnapshot } from './ensure-snapshot'
 
 export interface UseDocumentSavingOptions {
   state: DocumentState
@@ -26,6 +27,8 @@ export interface UseDocumentSavingOptions {
   clearDraft: (fileId: string) => Promise<void>
   saveDraft: (fileId: string, content: string) => Promise<void>
   draftPendingRef: MutableRefObject<PendingDraft | null>
+  /** 快照落账等待上限（T05）；仅测试注入以缩短等待，生产用默认 5s */
+  snapshotSettleTimeoutMs?: number
 }
 
 export interface DocumentSavingApi {
@@ -48,6 +51,7 @@ export function useDocumentSaving({
   clearDraft,
   saveDraft,
   draftPendingRef,
+  snapshotSettleTimeoutMs,
 }: UseDocumentSavingOptions): DocumentSavingApi {
   const {
     activeFileId,
@@ -194,19 +198,30 @@ export function useDocumentSaving({
 
   const handleSave = useCallback(async () => {
     const file = openFiles.find((f) => f.id === activeFileId)
-    // M1：普通文档从编辑器同步读取，避免防抖窗口内丢失最后几键。多 MiB
-    // 文档则使用 markdownUpdated 已落账的 ref 快照，避免同步序列化把保存
-    // 卡在 Renderer，导致 document.save IPC 永远无法开始。
-    const cachedContent = contentsRef.current[activeFileId] ?? contents[activeFileId] ?? ''
-    const editorMd =
-      !shouldPreferCachedDocumentSnapshot(cachedContent) && editorRef.current?.isReady()
-        ? editorRef.current.getMarkdown()
-        : null
-    const content =
-      editorMd != null
-        ? toStoredImages(editorMd, dirOfFile(activeFileId))
-        : cachedContent
     if (!file) return
+    let content: string
+    if (shouldPreferCachedDocumentSnapshot(contentsRef.current[activeFileId] ?? contents[activeFileId] ?? '')) {
+      // T05 快照契约：大文档保存必须先确保快照含末次输入——防抖窗口内的输入
+      // 尚未落账时等待 markdownUpdated 落账，避免把防抖前的旧版本写盘
+      // （perf:electron 实测 diskHasEdit:false 的根因）。超时走失败出口：
+      // 仍提交已落账版本（保证磁盘有内容），提示用户再次保存；
+      // 保存后 contentsRef 若已变化，isCurrentContent 比对自然保留 dirty。
+      const outcome = await ensureFreshSnapshot({
+        hasPendingChanges: () => editorRef.current?.hasPendingChanges() ?? false,
+        readSnapshot: () => contentsRef.current[activeFileId] ?? contents[activeFileId] ?? '',
+      }, snapshotSettleTimeoutMs)
+      if (!outcome.settled) {
+        setToast('文档仍在生成快照，已保存最近确认的版本；请稍后再次保存')
+      }
+      content = outcome.content
+    } else {
+      // M1：普通文档从编辑器同步读取，避免防抖窗口内丢失最后几键。
+      // 同步 getMarkdown 的低延迟语义在此保留（规范：不机械换成 Promise）。
+      const editorMd = editorRef.current?.isReady() ? editorRef.current.getMarkdown() : null
+      content = editorMd != null
+        ? toStoredImages(editorMd, dirOfFile(activeFileId))
+        : contentsRef.current[activeFileId] ?? contents[activeFileId] ?? ''
+    }
     // 同步回填 state，保证后续 savedMap/INITIAL_OR_SAVED 比对基于最新内容
     if (contentsRef.current[activeFileId] !== content) {
       contentsRef.current = { ...contentsRef.current, [activeFileId]: content }
@@ -259,7 +274,7 @@ export function useDocumentSaving({
     }
     // 无路径：另存为
     await handleSaveAs()
-  }, [INITIAL_OR_SAVED, activeFileId, contents, contentsRef, dirOfFile, editorRef, fileMtime, openFiles, openFilesRef, resolveSelfConflict, recordHistory, saveWithEncodingFallback, handleSaveAs, clearDraft, setContents, setFileMtime, setSavedMap, setToast])
+  }, [INITIAL_OR_SAVED, activeFileId, contents, contentsRef, dirOfFile, editorRef, fileMtime, openFiles, openFilesRef, resolveSelfConflict, recordHistory, saveWithEncodingFallback, handleSaveAs, clearDraft, setContents, setFileMtime, setSavedMap, setToast, snapshotSettleTimeoutMs])
 
   const saveBeforeClose = useCallback(async (id: string): Promise<boolean> => {
     const file = openFilesRef.current.find((candidate) => candidate.id === id)
@@ -298,6 +313,22 @@ export function useDocumentSaving({
       return true
     }
 
+    // T05 快照契约：活动文档是大文档且防抖窗口内有输入时，先等快照落账，
+    // 否则 flush 排队的是落账前的旧内容、末次输入丢失（与 handleSave 同因）。
+    // 非活动文件的缓存是切换时同步 flush 过的，无此风险，零等待直接通过。
+    if (editorRef.current?.isReady() && id === activeFileIdRef.current) {
+      const cachedBeforeClose = contentsRef.current[id] ?? ''
+      if (shouldPreferCachedDocumentSnapshot(cachedBeforeClose)) {
+        const outcome = await ensureFreshSnapshot({
+          hasPendingChanges: () => editorRef.current?.hasPendingChanges() ?? false,
+          readSnapshot: () => contentsRef.current[id] ?? '',
+        }, snapshotSettleTimeoutMs)
+        if (!outcome.settled) {
+          setToast(`「${file.name}」仍在生成快照，已按最近确认的版本保存；建议重新打开后确认内容`)
+        }
+      }
+    }
+
     try {
       await saveQueueRef.current?.flush(id)
     } catch {
@@ -328,7 +359,7 @@ export function useDocumentSaving({
       })
       return choice === 'discard'
     }
-  }, [INITIAL_OR_SAVED, contentsRef, liveContentOf, openFilesRef, recordRecent, saveQueueRef, setToast])
+  }, [INITIAL_OR_SAVED, activeFileIdRef, contentsRef, editorRef, liveContentOf, openFilesRef, recordRecent, saveQueueRef, setToast, snapshotSettleTimeoutMs])
 
   // 未保存状态同步到主进程（关闭时弹原生确认框，避免静默阻止关闭）
   const hasUnsaved = useMemo(() => Object.values(savedMap).some((s) => !s), [savedMap])
