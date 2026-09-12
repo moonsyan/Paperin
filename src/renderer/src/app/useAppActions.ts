@@ -106,7 +106,7 @@ export function useAppActions(options: UseAppActionsOptions) {
     setToast,
   })
 
-  const { commandRegistry, runCommand } = useCommandRegistry({
+  const { commandRegistry, runCommand, isActionAvailable } = useCommandRegistry({
     handleSave,
     getLayoutState,
     setTypewriter,
@@ -191,13 +191,16 @@ export function useAppActions(options: UseAppActionsOptions) {
     editorRef,
     commandRegistry,
     runCommand,
+    isActionAvailable,
     handleSelectWorkspaceFile,
+    // 快捷键与右键菜单没有灰显可依赖：命令被作用域挡下时给一句原因，而不是静默
+    onCommandUnavailable: (hint) => setToast(hint),
   })
 
   return {
     handleAction,
     runCommand,
-    commandRegistry,
+    commandRegistry, isActionAvailable,
     handleDocumentTitleBlur,
     handleDocumentTitleKeyDown,
     handleOpenBacklink,

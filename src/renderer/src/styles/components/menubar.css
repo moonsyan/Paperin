@@ -67,6 +67,21 @@ button.dd-item { width: 100%; }
 }
 .dd-item .sc { font-size: .68rem; color: var(--text-3); margin-left: 20px; }
 
+/* 当前上下文不可用的低频能力（如没有知识库时的知识图谱/工作区全文搜索）：
+   由命令注册表的 scope 判断驱动，点击之前就灰掉，而不是点了没反应。
+   禁用态文字不受 WCAG 对比度约束，因此用最弱一级的 --text-4。 */
+.dd-item.is-disabled,
+.dd-item:disabled {
+  color: var(--text-4);
+  cursor: default;
+}
+.dd-item.is-disabled:hover,
+.dd-item:disabled:hover {
+  background: transparent;
+  color: var(--text-4);
+}
+.dd-item:disabled .sc { color: var(--text-4); }
+
 .dd-sep { height: 1px; background: var(--border); margin: 3px 6px; }
 
 /* Theme Switcher */

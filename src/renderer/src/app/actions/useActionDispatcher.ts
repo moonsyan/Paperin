@@ -16,6 +16,9 @@ import { ACTION_ALIASES } from './commands'
  * 3. 编辑器命令（撤销/格式/段落/表格）→ resolveEditorAction；
  * 4. 参数化动作（openRecent:*）→ 前缀匹配。
  *
+ * 被作用域挡下的命令（`runCommand` 返回 false）不静默：菜单与命令面板有灰显，
+ * 但快捷键和右键菜单没有，因此用命令自带的 `unavailableHint` 给出原因。
+ *
  * 应用层动作的 switch/case 已全部迁入命令注册表（actions/commands/），
  * 本文件只保留分发骨架；新增动作只需注册命令，不再改这里。
  */
@@ -23,12 +26,18 @@ export function useActionDispatcher({
   editorRef,
   commandRegistry,
   runCommand,
+  isActionAvailable,
   handleSelectWorkspaceFile,
+  onCommandUnavailable,
 }: {
   editorRef: RefObject<EditorHandle>
   commandRegistry: AppCommandRegistry | null
   runCommand: (id: string) => Promise<boolean>
+  /** 命令在当前上下文是否可用（与命令面板/菜单灰显同一判断） */
+  isActionAvailable?: (action: string) => boolean
   handleSelectWorkspaceFile: (path: string, pinned?: boolean) => Promise<boolean>
+  /** 命令因作用域/可用性被挡下时的提示出口（通常接 toast） */
+  onCommandUnavailable?: (hint: string, commandId: string) => void
 }) {
   const handleAction = useCallback(
     (action: string) => {
@@ -39,16 +48,22 @@ export function useActionDispatcher({
       // 同一 execute；焦点行为由命令的 focusEditor 元数据决定
       const registeredCommand = commandRegistry?.get(normalized)
       if (registeredCommand) {
+        // 菜单与命令面板能靠灰显表达不可用，快捷键和右键菜单不能——
+        // 被作用域挡下时在这里给出原因，避免一次静默无响应
+        if (isActionAvailable && !isActionAvailable(normalized)) {
+          onCommandUnavailable?.(
+            registeredCommand.unavailableHint ?? '当前上下文无法执行该命令',
+            normalized,
+          )
+          return
+        }
         const focus = registeredCommand.focusEditor ?? 'always'
-        if (focus === 'never') {
-          void runCommand(normalized)
-          return
-        }
+        const pending = runCommand(normalized)
+        if (focus === 'never') return
         if (focus === 'settle') {
-          void runCommand(normalized).then(() => ed?.focus())
+          void pending.then(() => ed?.focus())
           return
         }
-        void runCommand(normalized)
         ed?.focus()
         return
       }
@@ -66,7 +81,14 @@ export function useActionDispatcher({
         void handleSelectWorkspaceFile(path)
       }
     },
-    [commandRegistry, editorRef, handleSelectWorkspaceFile, runCommand],
+    [
+      commandRegistry,
+      editorRef,
+      handleSelectWorkspaceFile,
+      isActionAvailable,
+      onCommandUnavailable,
+      runCommand,
+    ],
   )
 
   return { handleAction }

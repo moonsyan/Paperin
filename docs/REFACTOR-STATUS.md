@@ -40,6 +40,7 @@
 - `PanelRegistry` 插槽已全覆盖：Sidebar 主区域消费 `sidebar.primary`（内置 `files` 面板渲染文件树，扩展面板经 `render(context)` 追加），`editor.margin` 由新增 `EditorMargin` 宿主消费，`statusbar.end` 由 `StatusBar` 按注册顺序渲染内置片段与自定义面板。三处均支持缺省回退到应用级共享注册表。
 - Sidebar 折叠记录改用内容签名（而非数组引用）做 effect 守卫：调用方传入内联字面量等不稳定引用时不再触发无限更新循环，`useSidebarCollapse` 直接测试覆盖该回归。
 - 往返选择状态已统一到单一工作区视图模型 `app/workspace/useWorkspaceViewModel.ts`：反链/出链跳转、工作区搜索结果、知识图谱节点、质量诊断四处「打开文件并接力定位」共用同一次 `reveal` 调用与同一条「最后一次点选获胜」seq 判定。此前三套独立 seq 守卫语义不一致（诊断跳转完全没有守卫，旧请求迟到返回会覆盖新选择）。搜索接力选项在各调用点显式声明：反链跳转打开查找栏并强制非正则，工作区搜索与诊断跳转保持静默；未显式指定的正则/大小写开关沿用当前偏好，不再被跳转动作隐式重置。
+- 命令可用性从「执行时才判定」前移到「入口处表达」：`useCommandRegistry` 新增 `isActionAvailable`（复用注册表 `list()`，与命令面板同源），经 `AppComposition → AppTopBar → TopBarSlots → MenuBar` 下发为 `isActionEnabled`，菜单条目按下 `disabled` + `aria-disabled` + `.is-disabled` 灰显，键盘下拉导航改用 `.dd-item:not([disabled])` 跳过禁用项；`AppCommand` 新增 `unavailableHint`、`useActionDispatcher` 新增 `onCommandUnavailable` 出口，快捷键与右键菜单被作用域挡下时给出原因（接 toast）而不是静默无响应。`graph`/`wsSearch` 补 `workspace` 作用域与提示文案，`versionHistory` 补 `document` 作用域，与 `docs/command-panels.md` 登记表一致。
 
 ### quiet-workspace 视觉迁移
 
@@ -127,7 +128,7 @@
 - quiet-workspace 视觉语言已完成主要迁移：顶栏四层 chrome 收敛为单条 52px 三区顶栏（正文首屏回收约 114px）、侧栏改为五段式（搜索触发框 / 快捷导航 / 集合标题 / 文件树 / 底部区）、新增「雾白」「夜松」两套留白绿调主题并把排版尺度落到主题作用域样式、补齐全局 `prefers-reduced-motion`。剩余：窄窗口侧栏与 ContextDock 共用一套 scrim 机制尚未统一；AppearancePanel 的主题样张卡未引入；ContextDock「仅大纲」窄栏极简模式未实现。
 - 主题文本/边框/悬停/禁用/焦点对比度已从人工冒烟升级为机械门禁（`npm run a11y`，见上「无障碍与主题可读性门禁」）；仍需人工过一遍的是：中文输入法组合态、全键盘导航路径、焦点不被弹层遮挡、减少动态效果的实际观感。清单与操作路径见 `docs/ACCESSIBILITY-SMOKE.md` 文末。
 - 已登记的对比度存量债务需独立处理：`--border-m` 在九套主题均为 1.16–1.55:1（承担输入框/分割线描边，WCAG 1.4.11 要求 3:1），`typewriter` 的 accent 低至 2.24（同时是焦点环描边色）。
-- 收藏（侧栏快捷导航数据层 + 文件右键收藏入口）已落地，按工作区作用域持久化；搜索触发框复用命令注册表。低频能力（图片、发布、导出、历史、草稿、设置）仍需逐项登记到“命令 + 面板 + 新文档模型”，并同步兼容矩阵。
+- 收藏（侧栏快捷导航数据层 + 文件右键收藏入口）已落地，按工作区作用域持久化；搜索触发框复用命令注册表。低频能力（图片、发布、导出、历史、另存为、设置、统计、图谱、全文搜索）已逐项登记为命令：作用域由 `CommandContext` 在**执行前**判定（`app` 恒可用、`workspace` 需知识库、`document` 需活动文件——外部 Markdown 也算完整文档上下文），菜单按下 `disabled`/`aria-disabled` 在点击前灰显、命令面板只列当前可用项、快捷键与右键菜单经 `unavailableHint` + `onCommandUnavailable`（接 toast）提示而非静默；三条入口共用 `useCommandRegistry` 暴露的同一份可用性判断，登记契约由 `low-frequency-capabilities.test.ts` 固化。详见 `docs/command-panels.md` 的「低频能力登记表」。
 - Renderer 主包仍较大（当前 3.32 MB）；Mermaid/图谱等低频能力的按需加载和分包尚未完成（Mermaid 已拆为独立 chunk，主包尚未分包）。
 
 ## 本轮提交
@@ -142,6 +143,11 @@
 | `2e8827c` | 让 ContextDock 完整消费 PanelRegistry |
 | `fa66e1d` | 生产搜索/监听门禁、文档标签职责拆分、窄窗口抽屉与 TabBar 焦点，以及真实 Electron 大文档门禁（当前暴露序列化瓶颈） |
 | `9eecdf0` | 超过 1 MiB 文档保存/关闭优先复用落账快照，避免同步序列化阻塞 Renderer |
+| `7aee9a7` | 统一命令注册表执行入口并补齐 PanelRegistry 插槽覆盖 |
+| `304c83a` | 往返选择状态统一到单一工作区视图模型 |
+| `e5760ac` | 会话恢复补齐取消语义并核验关闭确认/多窗口竞态 |
+| `f6c30a6` | quiet-workspace 视觉迁移：顶栏收敛为 52px 三区、侧栏五段式、新增雾白/夜松主题 |
+| `bbf936c` | 主题对比度与焦点可见性门禁固化，补齐跳转链接与焦点缺口 |
 
 更早的基线、领域模型、命令边界和工作区壳层提交已包含在同一 `master` 历史中。
 

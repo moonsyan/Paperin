@@ -29,6 +29,8 @@ export interface AppTopBarProps {
   /** 工作区上下文点：知识库名 + 本地/未打开标 */
   workspaceName: string
   workspacePath?: string | null
+  /** 菜单灰显判断：由命令注册表的 scope + CommandContext 决定 */
+  isActionEnabled?: (action: string) => boolean
   /** 中区标签栏（含知识图谱内置标签）；无打开文件时可不传 */
   tabs?: ReactNode
   /** 右区当前文件标识（来源 + 相对路径） */
@@ -66,6 +68,7 @@ export function AppTopBar({
   onTitleKeyDown,
   workspaceName,
   workspacePath = null,
+  isActionEnabled,
   tabs,
   fileContext,
 }: AppTopBarProps): JSX.Element {
@@ -86,7 +89,7 @@ export function AppTopBar({
           <img className="brand-icon" src="./icon.png" alt="" />
           <span className="brand-name">MarkdownSoft</span>
         </div>
-        <MenuBar onAction={onAction} recentFiles={recentFiles} shortcuts={shortcuts} />
+        <MenuBar onAction={onAction} recentFiles={recentFiles} shortcuts={shortcuts} isActionEnabled={isActionEnabled} />
         <WorkspaceContext workspaceName={workspaceName} workspacePath={workspacePath} />
       </div>
 

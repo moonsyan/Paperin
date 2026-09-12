@@ -21,6 +21,7 @@
 | 质量检查与写作统计 | renderer panels/libs | diagnostics/stats tests | 保留 | 大工作区性能 |
 | 安全边界 | preload narrow bridge、trusted paths | trusted-paths、IPC guard tests | 保留 | 打包启动验证 |
 | 命令中心与面板插槽 | `app-command-registry`、MenuBar、CommandPalette、ContextDock | command registry、panel registry、ContextDock Testing Library tests | ContextDock 已由注册表驱动 | Sidebar/StatusBar 插槽、快捷键冲突与跨窗口焦点 |
+| 低频能力作用域登记（图片/发布/导出/历史/另存为/设置/统计/图谱/全文搜索） | `app/actions/commands/`、`useCommandRegistry`、`MenuBar` | `low-frequency-capabilities.test.ts`、`useCommandRegistry.test.ts`、`MenuBar/index.test.tsx`、`useAppActions.test.ts` | 已登记为命令；scope + 菜单灰显 + 快捷键/右键提示三处同源 | 三平台菜单实机冒烟、命令面板过滤与 toast 文案复核 |
 
 ## 基线命令
 

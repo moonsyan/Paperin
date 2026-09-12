@@ -7,7 +7,7 @@ import type { AppCommandRegistry } from '../commands/app-command-registry'
 import { createAppCommandRegistry } from '../commands/app-command-registry'
 import { applyLayoutPreset, BUILT_IN_LAYOUT_PRESETS } from '../workspace/layout-preset'
 import type { AppliedLayoutState } from '../workspace/layout-preset'
-import { createAppActionCommands } from './commands'
+import { ACTION_ALIASES, createAppActionCommands } from './commands'
 import type { ActionHandlers } from './commands'
 
 /**
@@ -130,5 +130,33 @@ export function useCommandRegistry({
     [activeFileId, getHasUnsavedChanges, workspacePathRef],
   )
 
-  return { commandRegistry: commandRegistryRef.current, runCommand }
+  /**
+   * 入口可用性（菜单灰显的单一来源）。
+   *
+   * 命令注册表已经用 `scope` + `CommandContext` 决定可用性，但只有真正「执行」时
+   * 才会被拦下——菜单如果照旧全亮，用户点「知识图谱」/「工作区全文搜索」只会
+   * 得到一次静默无响应（或一句 toast）。这里把同一份判断暴露给入口，让不可用的
+   * 低频能力在点击之前就灰掉。
+   *
+   * 未登记的动作不属于注册表管辖（编辑器命令 undo/bold、参数化动作 openRecent:*、
+   * 布局预设等），一律返回 true，交回原分发路径处理。
+   */
+  const isActionAvailable = useCallback(
+    (action: string): boolean => {
+      const registry = commandRegistryRef.current
+      if (!registry) return true
+      const normalized = ACTION_ALIASES[action] ?? action
+      if (!registry.get(normalized)) return true
+      return registry
+        .list({
+          activeFileId,
+          hasWorkspace: Boolean(workspacePathRef.current),
+          hasUnsavedChanges: getHasUnsavedChanges?.() ?? false,
+        })
+        .some((command) => command.id === normalized)
+    },
+    [activeFileId, getHasUnsavedChanges, workspacePathRef],
+  )
+
+  return { commandRegistry: commandRegistryRef.current, runCommand, isActionAvailable }
 }

@@ -45,12 +45,18 @@ export const createPanelCommands = (handlers: ActionHandlersRef): AppCommand[] =
   {
     id: 'graph',
     title: '关系图谱',
+    // 工作区级：图谱依赖工作区链接索引，没有知识库时入口灰显
+    scope: 'workspace',
+    unavailableHint: '请先打开文件夹（工作区）后再查看知识图谱',
     enabled: () => true,
     execute: () => handlers.current.openGraphView(),
   },
   {
     id: 'versionHistory',
     title: '版本历史',
+    // 文档级：快照按文件路径归档，没有活动文档时入口灰显
+    scope: 'document',
+    unavailableHint: '请先打开一个文档后再查看版本历史',
     focusEditor: 'never',
     enabled: () => true,
     execute: () => handlers.current.handleOpenVersionHistory(),

@@ -104,6 +104,8 @@ export interface AppTopBarHostProps {
   onTitleKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void
   workspaceName: string
   workspacePath?: string | null
+  /** 菜单灰显判断：命令注册表按 scope + CommandContext 决定可用性 */
+  isActionEnabled?: (action: string) => boolean
   /* 中区标签栏 */
   openFiles: OpenFile[]
   activeFileId: string
@@ -139,6 +141,7 @@ export function AppTopBarHost(props: AppTopBarHostProps): JSX.Element {
       openFiles={props.openFiles} docTitle={props.docTitle} titleRef={props.titleRef}
       onTitleBlur={props.onTitleBlur} onTitleKeyDown={props.onTitleKeyDown}
       workspaceName={props.workspaceName} workspacePath={props.workspacePath}
+      isActionEnabled={props.isActionEnabled}
       tabs={
         <TopBarTabs
           openFiles={props.openFiles} activeFileId={props.activeFileId} savedMap={props.savedMap}

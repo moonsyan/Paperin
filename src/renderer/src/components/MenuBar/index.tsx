@@ -14,6 +14,12 @@ interface MenuBarProps {
   recentFiles?: RecentFile[]
   /** 当前快捷键映射（设置中可自定义）：菜单标签随之更新，与帮助面板同源 */
   shortcuts: ShortcutMap
+  /**
+   * 动作可用性：命令注册表按 scope + CommandContext 判断，不可用的低频能力
+   * （没有知识库时的知识图谱、工作区全文搜索等）在菜单里直接灰显。
+   * 未登记的动作（编辑器命令、openRecent:* 等）由调用方返回 true。
+   */
+  isActionEnabled?: (action: string) => boolean
 }
 
 interface MenuItemDef {
@@ -118,7 +124,7 @@ const MENU_LABELS: Record<string, string> = {
   help: '帮助',
 }
 
-export function MenuBar({ onAction, recentFiles = [], shortcuts }: MenuBarProps): JSX.Element {
+export function MenuBar({ onAction, recentFiles = [], shortcuts, isActionEnabled }: MenuBarProps): JSX.Element {
   const [openKey, setOpenKey] = useState<string | null>(null)
   const [ddStyle, setDdStyle] = useState<CSSProperties>({})
   const barRef = useRef<HTMLDivElement>(null)
@@ -201,7 +207,7 @@ export function MenuBar({ onAction, recentFiles = [], shortcuts }: MenuBarProps)
     const where = pendingDropdownFocusRef.current
     pendingDropdownFocusRef.current = null
     if (!openKey || !where) return
-    const items = dropdownRef.current?.querySelectorAll<HTMLButtonElement>('.dd-item')
+    const items = dropdownRef.current?.querySelectorAll<HTMLButtonElement>('.dd-item:not([disabled])')
     if (!items || items.length === 0) return
     ;(where === 'first' ? items[0] : items[items.length - 1]).focus()
   }, [openKey])
@@ -222,12 +228,20 @@ export function MenuBar({ onAction, recentFiles = [], shortcuts }: MenuBarProps)
 
   const handleItemClick = useCallback(
     (key: string, item: MenuItemDef) => {
+      // 不可用动作在渲染层已禁用；这里再挡一次，避免键盘路径绕过 disabled
+      if (item.action && isActionEnabled && !isActionEnabled(item.action)) return
       // 下拉即将卸载：先把焦点交还触发按钮，避免焦点回落到 body
       triggerRef.current?.focus()
       setOpenKey(null)
       if (item.action) onAction(item.action)
     },
-    [onAction],
+    [isActionEnabled, onAction],
+  )
+
+  /** 菜单条目是否可用：无 action（纯展示/分隔）恒为真 */
+  const isItemEnabled = useCallback(
+    (item: MenuItemDef) => !item.action || !isActionEnabled || isActionEnabled(item.action),
+    [isActionEnabled],
   )
 
   /** 打开菜单时计算下拉位置（fixed 定位，避免被 workspace overflow 裁剪） */
@@ -254,7 +268,7 @@ export function MenuBar({ onAction, recentFiles = [], shortcuts }: MenuBarProps)
       const wantFirst = event.key === 'ArrowDown'
       if (openKey === key) {
         // 已打开（下拉已渲染）：直接聚焦首/末项
-        const items = dropdownRef.current?.querySelectorAll<HTMLButtonElement>('.dd-item')
+        const items = dropdownRef.current?.querySelectorAll<HTMLButtonElement>('.dd-item:not([disabled])')
         if (items && items.length > 0) {
           ;(wantFirst ? items[0] : items[items.length - 1]).focus()
         }
@@ -296,7 +310,7 @@ export function MenuBar({ onAction, recentFiles = [], shortcuts }: MenuBarProps)
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
     event.preventDefault()
     const items = Array.from(
-      event.currentTarget.querySelectorAll<HTMLButtonElement>('.dd-item'),
+      event.currentTarget.querySelectorAll<HTMLButtonElement>('.dd-item:not([disabled])'),
     )
     if (items.length === 0) return
     const currentIndex = items.findIndex((el) => el === document.activeElement)
@@ -353,8 +367,10 @@ export function MenuBar({ onAction, recentFiles = [], shortcuts }: MenuBarProps)
                 <button
                   type="button"
                   key={i}
-                  className="dd-item"
+                  className={`dd-item ${isItemEnabled(item) ? '' : 'is-disabled'}`}
                   role="menuitem"
+                  disabled={!isItemEnabled(item)}
+                  aria-disabled={isItemEnabled(item) ? undefined : true}
                   onClick={() => handleItemClick(key, item)}
                 >
                   <span className="dd-label">{item.label}</span>

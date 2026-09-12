@@ -226,7 +226,7 @@ export function AppComposition(): JSX.Element {
 
   // === 动作分发 ===
   const handleFullscreenChange = useCallback((open: boolean) => { fullscreenOpenRef.current = open }, [])
-  const { handleAction, handleDocumentTitleBlur, handleDocumentTitleKeyDown, handleOpenBacklink, handleOpenGraphView, reveal, closeSettings, closeHelp, closeImages, closePdfOptions, closePublish, closeWorkspaceSearch, closePalette, closeVersionHistory, commandRegistry } = useAppActions({
+  const { handleAction, handleDocumentTitleBlur, handleDocumentTitleKeyDown, handleOpenBacklink, handleOpenGraphView, reveal, closeSettings, closeHelp, closeImages, closePdfOptions, closePublish, closeWorkspaceSearch, closePalette, closeVersionHistory, commandRegistry, isActionAvailable } = useAppActions({
     editorRef, docTitle, setDocTitle, activeFileId, activeFileIdRef, openFiles, openFilesRef, setOpenFiles, demoFileNames, activeFilePath: activeFile?.path, workspacePathRef, focusEditorSoon, setToast,
     handleNew, handleOpen, handleOpenFolder, handleSelectWorkspaceFile, handleSave, handleSaveAs, handleCloseTab, handleCloseOtherTabs, handleCloseAllTabs, handleRenameFile,
     handleExportHtml, handleExportMarkdown, handleExportPandoc, handleExportDocx,
@@ -322,7 +322,7 @@ export function AppComposition(): JSX.Element {
         focusMode={focusMode} onToggleFocusMode={() => setFocusMode((v) => !v)}
         settingsOpen={settingsOpen} onOpenSettings={() => setSettingsOpen(true)}
         effectiveTheme={effectiveTheme} onThemeChange={handleThemeChange}
-        onAction={handleAction} recentFiles={recentFiles} shortcuts={settings.shortcuts}
+        onAction={handleAction} recentFiles={recentFiles} shortcuts={settings.shortcuts} isActionEnabled={isActionAvailable}
         docTitle={docTitle} titleRef={titleRef}
         onTitleBlur={handleDocumentTitleBlur} onTitleKeyDown={handleDocumentTitleKeyDown}
         workspaceName={workspace?.name ?? '未打开知识库'} workspacePath={workspace?.path}

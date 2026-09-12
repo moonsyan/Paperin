@@ -26,6 +26,13 @@ export interface AppCommand {
   scope?: CommandScope
   /** 缺省为 `always`，与历史菜单/快捷键行为一致 */
   focusEditor?: CommandFocusPolicy
+  /**
+   * 当前上下文不可用时的提示文案。
+   *
+   * 菜单/命令面板能依赖灰显表达「不可用」，但快捷键与右键菜单没有灰显可依赖——
+   * 没有这条提示，用户按快捷键只会得到一次静默无响应。
+   */
+  unavailableHint?: string
   enabled: (context: CommandContext) => boolean
   execute: (context: CommandContext) => Promise<void> | void
 }
