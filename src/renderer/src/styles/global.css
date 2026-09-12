@@ -476,7 +476,21 @@ html[data-platform='darwin'] .topbar {
   .doc-title { max-width: 120px; }
 }
 
+/* 窄窗口抽屉遮罩（T11 统一 scrim）：侧栏(60)与 ContextDock(56) 抽屉形态
+ * 都浮于遮罩之上；点击遮罩关闭当前抽屉（useWorkspaceDrawers）。 */
+.workspace-scrim {
+  display: none;
+}
+
 @media (max-width: 820px) {
+  .workspace-scrim {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    background: var(--scrim, rgba(15, 15, 15, 0.32));
+  }
+
   .topbar { padding-inline: 8px; }
   .brand-name { display: none; }
   .brand { margin-right: 6px; }

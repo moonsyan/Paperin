@@ -27,9 +27,14 @@ export interface AppWorkspaceProps {
   // 布局
   editorAreaRef: RefObject<HTMLDivElement>
   sidebarWidth: number
+  /** 有效可见性（窄窗口抽屉协调后）：false = 隐藏，含持久化收起与互斥退出 */
   sidebarCollapsed: boolean
-  onToggleSidebar: () => void
+  onToggleSidebar: (trigger?: HTMLElement) => void
   onStartSidebarResize: (e: React.MouseEvent) => void
+  /** 窄窗口抽屉遮罩属性（useWorkspaceDrawers）；null = 不渲染 */
+  scrimProps?: { className: string; onClick: () => void; 'aria-hidden': true } | null
+  /** ContextDock 有效可见性（窄窗口互斥）：false = 瞬时隐藏（不改持久化偏好） */
+  contextDockVisible?: boolean
   // 搜索
   searchMode: 'find' | 'replace' | 'none'
   searchEpoch: number
@@ -149,6 +154,7 @@ export interface AppWorkspaceProps {
 export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
   const {
     editorAreaRef, sidebarWidth, sidebarCollapsed, onToggleSidebar, onStartSidebarResize,
+    scrimProps, contextDockVisible,
     searchMode, searchEpoch, searchCount, searchCurrent, searchPref, searchHandlers, onCloseSearch,
     openFiles, activeFileId, activeFilePath, activeContent,
     activePathKind, onRevealActiveFile,
@@ -175,8 +181,14 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
     hasWorkspace: workspace !== null,
   }
 
+  // ContextDock 瞬时隐藏（窄窗口互斥）：副本改 visibility，不写回持久化状态
+  const dockRenderState = contextDockVisible === false && contextDockState.visibility !== 'hidden'
+    ? { ...contextDockState, visibility: 'hidden' as const }
+    : contextDockState
+
   return (
     <div className="workspace" ref={editorAreaRef} style={{ '--sidebar-w': `${sidebarWidth}px` } as CSSProperties}>
+      {scrimProps && <div {...scrimProps} />}
       <Sidebar
         collapsed={sidebarCollapsed}
         searchShortcut={searchShortcut}
@@ -204,7 +216,7 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
       <button
         type="button"
         className={`sidebar-toggle ${sidebarCollapsed ? 'flipped' : ''}`}
-        onClick={onToggleSidebar}
+        onClick={(e) => onToggleSidebar(e.currentTarget)}
         aria-label={sidebarCollapsed ? '展开侧栏' : '收起侧栏'}
         aria-pressed={!sidebarCollapsed}
         aria-controls="workspace-file-sidebar"
@@ -283,7 +295,7 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
         </div>
       </div>
       <ContextDock
-        state={contextDockState}
+        state={dockRenderState}
         onStateChange={onContextDockStateChange}
         hasWorkspace={workspace !== null}
         hasActiveDocument={openFiles.length > 0}

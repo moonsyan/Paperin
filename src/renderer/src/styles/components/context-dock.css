@@ -104,7 +104,9 @@
     top: 0;
     right: 0;
     bottom: 0;
-    z-index: 40;
+    /* 窄窗口抽屉协调（T11）：必须高于 .workspace-scrim(z-50)，
+     * 低于侧栏抽屉(z-60)——两者互斥由 useWorkspaceDrawers 保证 */
+    z-index: 56;
     box-shadow: var(--shadow-m);
   }
 

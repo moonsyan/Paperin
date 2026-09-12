@@ -91,7 +91,8 @@ export function TopBarFileContext({
 export interface AppTopBarHostProps {
   /* 顶栏布局与外观 */
   sidebarCollapsed: boolean
-  onToggleSidebar: () => void
+  /** 切换侧栏；trigger 用于关闭抽屉后恢复焦点（T11） */
+  onToggleSidebar: (trigger?: HTMLElement) => void
   focusMode: boolean
   onToggleFocusMode: () => void
   settingsOpen: boolean

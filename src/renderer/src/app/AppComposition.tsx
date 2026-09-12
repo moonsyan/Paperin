@@ -40,6 +40,7 @@ import { useEditorSearch } from './useEditorSearch'
 import { useAppSettings } from './useAppSettings'
 import { useSidebarFavorites } from './useSidebarFavorites'
 import { useMarkdownDrop } from './useMarkdownDrop'
+import { useWorkspaceDrawers } from './useWorkspaceDrawers'
 import { useWorkspaceIndexes } from './useWorkspaceIndexes'
 import { useEditorFeatures } from './useEditorFeatures'
 import { useGraphView } from './useGraphView'
@@ -150,6 +151,26 @@ export function AppComposition(): JSX.Element {
     lineHeight, contentFont, zoom, sidebarWidth,
   })
   const { settingsReady } = settings
+
+  // === 窄窗口抽屉协调（T11）：持久化偏好与瞬时 overlay 分离 ===
+  const drawers = useWorkspaceDrawers({
+    sidebarCollapsed,
+    dockVisibility: contextDockState.visibility,
+    onSidebarCollapsedChange: setSidebarCollapsed,
+  })
+
+  const { notifyDockOpened } = drawers
+  /** dock 状态更新统一出口：窄窗口下 dock 展开 → 侧栏抽屉退出（互斥） */
+  const handleDockStateChange = useCallback<Dispatch<SetStateAction<typeof contextDockState>>>(
+    (update) => {
+      const next = typeof update === 'function' ? update(contextDockState) : update
+      if (next.visibility === 'expanded' && contextDockState.visibility !== 'expanded') {
+        notifyDockOpened()
+      }
+      setContextDockState(next)
+    },
+    [contextDockState, notifyDockOpened, setContextDockState],
+  )
 
   // === 工作区索引 ===
   const {
@@ -374,7 +395,7 @@ export function AppComposition(): JSX.Element {
     >
       <SkipLink />
       <AppTopBarHost
-        sidebarCollapsed={sidebarCollapsed} onToggleSidebar={() => setSidebarCollapsed((v) => !v)}
+        sidebarCollapsed={!drawers.sidebarVisible} onToggleSidebar={(trigger) => drawers.toggleSidebar(trigger)}
         focusMode={focusMode} onToggleFocusMode={() => setFocusMode((v) => !v)}
         settingsOpen={settingsOpen} onOpenSettings={() => setSettingsOpen(true)}
         effectiveTheme={effectiveTheme} onThemeChange={handleThemeChange}
@@ -393,8 +414,10 @@ export function AppComposition(): JSX.Element {
 
       <WorkspaceShell workspacePath={workspace?.path}>
         <AppWorkspace
-          editorAreaRef={editorAreaRef} sidebarWidth={sidebarWidth} sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed((v) => !v)} onStartSidebarResize={startSidebarResize}
+          editorAreaRef={editorAreaRef} sidebarWidth={sidebarWidth} sidebarCollapsed={!drawers.sidebarVisible}
+          onToggleSidebar={(trigger) => drawers.toggleSidebar(trigger)} onStartSidebarResize={startSidebarResize}
+          scrimProps={drawers.scrimProps}
+          contextDockVisible={drawers.dockVisible}
           searchMode={searchMode} searchEpoch={searchEpoch} searchCount={searchCount} searchCurrent={searchCurrent}
           searchPref={searchPref} searchHandlers={searchHandlers} onCloseSearch={closeSearch}
           openFiles={openFiles} activeFileId={activeFileId} activeFilePath={activeFile?.path}
@@ -418,7 +441,7 @@ export function AppComposition(): JSX.Element {
           imageHints={{ documentId: activeFileId, docPath: activeFile?.path, workspacePath: workspace?.path, workspaceAttachmentDirectory: workspace ? workspaceSettings.editor.attachmentDirectory : null, globalAttachmentDirectory: settings.globalAttachmentDirectory, imageHost: settings.imageHost }}
           previewMode={previewMode} previewPaneRef={previewPaneRef} previewContentRef={previewContentRef}
           onNew={handleNew} onOpen={() => void handleOpen()} onOpenFolder={() => void handleOpenFolder()}
-          contextDockState={contextDockState} onContextDockStateChange={setContextDockState}
+          contextDockState={contextDockState} onContextDockStateChange={handleDockStateChange}
           workspaceIndex={workspaceIndex} indexLoading={indexLoading} diagnostics={diagnostics}
           onRefreshIndex={refreshIndex} onCancelIndex={cancelIndex}
           onOpenDiagnostic={(d) => { if (d.path) void reveal({ path: d.path, focusLine: d.line }) }}

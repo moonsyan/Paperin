@@ -11,7 +11,8 @@ import type { ShortcutMap } from '../data/shortcuts'
 
 export interface AppTopBarProps {
   sidebarCollapsed: boolean
-  onToggleSidebar: () => void
+  /** 切换侧栏；trigger 用于关闭抽屉后恢复焦点（T11） */
+  onToggleSidebar: (trigger?: HTMLElement) => void
   focusMode: boolean
   onToggleFocusMode: () => void
   effectiveTheme: string
@@ -78,7 +79,7 @@ export function AppTopBar({
         <button
           type="button"
           className={`act-btn ${!sidebarCollapsed ? 'active' : ''}`}
-          onClick={onToggleSidebar}
+          onClick={(e) => onToggleSidebar(e.currentTarget)}
           aria-label="切换侧栏"
           aria-pressed={!sidebarCollapsed}
           title="切换侧栏 (Ctrl+J)"
