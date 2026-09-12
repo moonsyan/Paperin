@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { OpenFile } from '../Sidebar'
 import { getTabNavigationTargetId, type DocumentTabNavigationKey } from '../../lib/document-tabs'
 import { clampMenuPosition } from '../../lib/menu-position'
+import { tabSubdirLabels } from './disambiguation'
 import { TabContextMenu, type TabContextMenuState } from './TabContextMenu'
 
 interface TabBarProps {
   openFiles: OpenFile[]
   activeFileId: string
   savedMap: Record<string, boolean>
+  /** 工作区根路径：同名文件标签的相对目录消歧依据（NEXT-UI-SPEC §3.2） */
+  workspacePath?: string | null
   onSwitch: (id: string) => void
   onClose: (id: string) => void
   /** 右键菜单：关闭其他标签页（保留当前激活的标签） */
@@ -34,7 +37,7 @@ interface TabBarProps {
  * 右键标签弹出菜单：关闭 / 关闭其他 / 关闭全部；中键点击直接关闭。
  * 末尾固定"知识图谱"内置标签（Obsidian 式），不参与排序与右键菜单。
  */
-export function TabBar({ openFiles, activeFileId, savedMap, onSwitch, onClose, onCloseOthers, onCloseAll, onTogglePin, onReorder, graphTabOpen, graphTabActive, onGraphTabSwitch, onGraphTabClose }: TabBarProps) {
+export function TabBar({ openFiles, activeFileId, savedMap, workspacePath, onSwitch, onClose, onCloseOthers, onCloseAll, onTogglePin, onReorder, graphTabOpen, graphTabActive, onGraphTabSwitch, onGraphTabClose }: TabBarProps) {
   // D8：拖拽记录被拖标签的 id 而非下标——openFiles 可能在拖拽中变化
   //（预览标签替换、其它标签关闭等），落点与高亮也按 id 追踪：
   // 闭包里的渲染下标 i 在 openFiles 变化后过期，落点会插到错误位置
@@ -43,6 +46,9 @@ export function TabBar({ openFiles, activeFileId, savedMap, onSwitch, onClose, o
   const tabRefs = useRef<Record<string, HTMLDivElement | null>>({})
   // 右键菜单：{ 触发标签 id, 屏幕坐标 }
   const [ctxMenu, setCtxMenu] = useState<TabContextMenuState | null>(null)
+
+  // 同名文件消歧标记（NEXT-UI-SPEC §3.2）：只有重名标签才标注相对目录
+  const subdirLabels = useMemo(() => tabSubdirLabels(openFiles, workspacePath), [openFiles, workspacePath])
 
   const dismissTabMenu = useCallback((restoreFocus: boolean) => {
     const trigger = ctxMenu?.trigger
@@ -97,6 +103,7 @@ export function TabBar({ openFiles, activeFileId, savedMap, onSwitch, onClose, o
           const dirty = savedMap[file.id] === false
           const preview = file.preview === true
           const pinned = file.pinned === true
+          const subdir = subdirLabels[file.id]
           return (
             <div
               key={file.id}
@@ -105,7 +112,7 @@ export function TabBar({ openFiles, activeFileId, savedMap, onSwitch, onClose, o
                 tabRefs.current[file.id] = element
               }}
               aria-selected={active}
-              aria-label={`${file.name}${pinned ? '，已固定' : ''}${dirty ? '，未保存' : ''}${preview ? '，预览标签' : ''}`}
+              aria-label={`${file.name}${subdir ? `，位于 ${subdir}` : ''}${pinned ? '，已固定' : ''}${dirty ? '，未保存' : ''}${preview ? '，预览标签' : ''}`}
               tabIndex={active ? 0 : -1}
               className={`tab ${active ? 'active' : ''} ${preview ? 'preview' : ''} ${overId === file.id && dragId !== null && dragId !== file.id ? 'drag-over' : ''}`}
               draggable
@@ -157,6 +164,7 @@ export function TabBar({ openFiles, activeFileId, savedMap, onSwitch, onClose, o
                 </svg>
               )}
               <span className="tab-name">{file.name}</span>
+              {subdir && <span className="tab-subdir" title={subdir}>{subdir}</span>}
               {dirty && <span className="tab-dot" />}
               <button
                 type="button"

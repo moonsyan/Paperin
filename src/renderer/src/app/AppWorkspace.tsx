@@ -10,6 +10,8 @@ import type { PanelContext } from '../app/panels/panel-registry'
 import { SearchBar } from '../components/SearchBar'
 import { GraphView } from '../components/GraphView'
 import type { GraphSettings } from '../components/GraphView'
+import { DocumentPathbar } from '../components/DocumentPathbar'
+import type { DocumentPathKind } from '../components/DocumentPathbar'
 import { StartScreen } from '../components/StartScreen'
 import { DEMO_FILES, DEMO_TREE, DEFAULT_FILE_ID } from '../data/demo-files'
 import type { WorkspaceIndex, DiagnosticRecord } from '../../../shared/workspace-index'
@@ -41,6 +43,10 @@ export interface AppWorkspaceProps {
   activeFileId: string
   activeFilePath: string | undefined
   activeContent: string
+  /** 当前文档路径条形态（示例/未命名/库内/外部）；无活动文档时不渲染路径条 */
+  activePathKind?: DocumentPathKind
+  /** 路径条「定位到文件」：展开侧栏并展开当前文件的祖先目录 */
+  onRevealActiveFile?: () => void
   // 工作区
   workspace: WorkspaceInfo | null
   demoFileNames: Record<string, string>
@@ -145,6 +151,7 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
     editorAreaRef, sidebarWidth, sidebarCollapsed, onToggleSidebar, onStartSidebarResize,
     searchMode, searchEpoch, searchCount, searchCurrent, searchPref, searchHandlers, onCloseSearch,
     openFiles, activeFileId, activeFilePath, activeContent,
+    activePathKind, onRevealActiveFile,
     workspace, demoFileNames, currentCollapsedKeys, onCollapsedKeysChange, collapseFoldersOnOpen,
     onOpenSearch, searchShortcut, recentFiles, favorites, onToggleFavorite, onOpenSettings,
     onSelectDemoFile, onSelectWorkspaceFile, onCreateFile, onRenameFile, onDeleteFile, onMoveFile, onOpenInNewWindow,
@@ -222,6 +229,16 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
         />
       )}
       <div className="editor-host">
+        {/* 轻路径条（NEXT-UI-SPEC §3.3）：正文滚动区上方 28px，表达「当前文件在哪里」 */}
+        {openFiles.length > 0 && activePathKind && (
+          <DocumentPathbar
+            title={openFiles.find((f) => f.id === activeFileId)?.name ?? ''}
+            kind={activePathKind}
+            path={activeFilePath ?? null}
+            workspacePath={workspace?.path ?? null}
+            onRevealInSidebar={onRevealActiveFile}
+          />
+        )}
         {/* 跳转链接落点：tabIndex=-1 让锚点能真正把焦点移进来（否则焦点仍留在链接上） */}
         <div className="editor-content" id={SKIP_LINK_TARGET_ID} tabIndex={-1}>
           <Editor

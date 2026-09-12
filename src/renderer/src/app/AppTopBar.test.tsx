@@ -30,15 +30,26 @@ const createProps = (overrides: Partial<AppTopBarProps> = {}): AppTopBarProps =>
 })
 
 describe('AppTopBar（三区收缩）', () => {
-  it('左区承载品牌与工作区上下文点', () => {
+  it('左区承载品牌与工作区上下文点；侧栏展开时库名由侧栏承担，顶栏不重复显示', () => {
     render(<AppTopBar {...createProps()} />)
 
     const left = document.querySelector('.topbar-zone-left')
     expect(left).toBeTruthy()
     expect(left?.querySelector('.brand-name')?.textContent).toBe('MarkdownSoft')
-    expect(left?.querySelector('.workspace-context-name')?.textContent).toBe('我的知识库')
+    // NEXT-UI-SPEC §3.1：库名常驻展示集中在侧栏标题，侧栏展开时顶栏只留状态标
+    expect(left?.querySelector('.workspace-context-name')).toBeNull()
+    expect(left?.querySelector('.workspace-context-label')?.textContent).toBe('本地')
+    // 库名仍保留在无障碍名中
+    expect(screen.getByLabelText('当前工作区：我的知识库')).toBeTruthy()
     // 工作区上下文点已并入顶栏，不再有独立的 38px 上下文横条
     expect(document.querySelector('.workspace-shell-context')).toBeNull()
+  })
+
+  it('侧栏收起时顶栏显示简短库名（NEXT-UI-SPEC §3.1）', () => {
+    render(<AppTopBar {...createProps({ sidebarCollapsed: true })} />)
+
+    const left = document.querySelector('.topbar-zone-left')
+    expect(left?.querySelector('.workspace-context-name')?.textContent).toBe('我的知识库')
   })
 
   it('中区承载标签栏插槽', () => {

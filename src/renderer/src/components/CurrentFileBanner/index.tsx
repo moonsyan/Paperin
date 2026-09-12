@@ -1,4 +1,5 @@
 import type { JSX } from 'react'
+import { displayPath } from '../../lib/path-display'
 
 export type CurrentFileSource = 'workspace' | 'external'
 
@@ -9,20 +10,6 @@ export interface CurrentFileBannerProps {
   workspaceName?: string | null
   source: CurrentFileSource
   dirty: boolean
-}
-
-const normalizePath = (value: string): string => value.replace(/\\/g, '/').replace(/\/+/g, '/')
-
-const displayPath = (path: string | null | undefined, workspacePath: string | null | undefined, source: CurrentFileSource): string => {
-  if (!path) return source === 'external' ? '外部文件' : '未保存文档'
-  const normalizedPath = normalizePath(path)
-  if (source !== 'workspace' || !workspacePath) return normalizedPath
-  const root = normalizePath(workspacePath).replace(/\/$/, '')
-  const comparablePath = normalizedPath.toLocaleLowerCase()
-  const comparableRoot = root.toLocaleLowerCase()
-  if (comparablePath === comparableRoot) return normalizedPath.split('/').pop() ?? normalizedPath
-  if (comparablePath.startsWith(`${comparableRoot}/`)) return normalizedPath.slice(root.length + 1)
-  return normalizedPath
 }
 
 /**

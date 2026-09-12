@@ -53,6 +53,20 @@
   font-size: 13px;
 }
 
+/* 同名文件消歧标记（NEXT-UI-SPEC §3.2）：重名标签旁的相对目录小字 */
+.tab-subdir {
+  flex: 0 1 auto;
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-3);
+  background: var(--bg-hover, rgba(127, 127, 127, 0.12));
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
 .tab-pin {
   width: 13px;
   height: 13px;

@@ -134,4 +134,38 @@ describe('TabBar', () => {
     fireEvent.click(screen.getByLabelText('关闭知识图谱标签'))
     expect(onGraphTabClose).toHaveBeenCalled()
   })
+
+  it('同名不同目录的标签显示相对目录消歧标记，唯一名称不显示', () => {
+    render(
+      <TabBar
+        {...baseProps}
+        workspacePath="D:/notes"
+        openFiles={[
+          file('a', 'readme.md', { path: 'D:/notes/learn/readme.md' }),
+          file('b', 'readme.md', { path: 'D:/notes/work/readme.md' }),
+          file('c', 'unique.md', { path: 'D:/notes/unique.md' }),
+        ]}
+      />,
+    )
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs[0].querySelector('.tab-subdir')?.textContent).toBe('learn')
+    expect(tabs[1].querySelector('.tab-subdir')?.textContent).toBe('work')
+    expect(tabs[2].querySelector('.tab-subdir')).toBeNull()
+    // 无障碍名包含目录，同名标签可区分
+    expect(tabs[0].getAttribute('aria-label')).toContain('位于 learn')
+    expect(tabs[1].getAttribute('aria-label')).toContain('位于 work')
+  })
+
+  it('无同名时不渲染消歧标记', () => {
+    render(
+      <TabBar
+        {...baseProps}
+        workspacePath="D:/notes"
+        openFiles={[file('a', 'A.md', { path: 'D:/notes/a.md' }), file('b', 'B.md', { path: 'D:/notes/b.md' })]}
+      />,
+    )
+    for (const tab of screen.getAllByRole('tab')) {
+      expect(tab.querySelector('.tab-subdir')).toBeNull()
+    }
+  })
 })

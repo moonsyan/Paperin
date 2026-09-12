@@ -1,0 +1,111 @@
+/* 文档路径条（NEXT-UI-SPEC §3.3）：正文滚动区上方的轻路径条。
+   只表达「当前文件在哪里」，高度计入文档区域（28px），不承载保存状态。 */
+
+.document-pathbar {
+  flex: 0 0 auto;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 16px;
+  font-size: 12.5px;
+  line-height: 1;
+  color: var(--text-2);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.document-pathbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* 库内文件的目录段按钮 */
+.pathbar-crumb {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.pathbar-crumb-btn {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 2px 3px;
+  margin: 0;
+  font: inherit;
+  color: var(--text-2);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.pathbar-crumb-btn:hover {
+  color: var(--text-1);
+  background: var(--bg-hover, rgba(127, 127, 127, 0.12));
+}
+
+.pathbar-crumb-sep {
+  color: var(--text-4, var(--text-3));
+  margin: 0 1px;
+}
+
+/* 当前文件名：非交互，仅标识 */
+.pathbar-file {
+  color: var(--text-1);
+  flex-shrink: 0;
+}
+
+/* 定位到文件按钮（推到行尾） */
+.pathbar-reveal-btn {
+  appearance: none;
+  border: 1px solid var(--border-m, var(--border));
+  background: none;
+  margin-left: auto;
+  padding: 3px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-2);
+  border-radius: 999px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.pathbar-reveal-btn:hover {
+  color: var(--text-1);
+  background: var(--bg-hover, rgba(127, 127, 127, 0.12));
+}
+
+/* 示例 / 未命名提示文案 */
+.pathbar-hint {
+  color: var(--text-3);
+  font-style: normal;
+}
+
+/* 外部文件标记与完整路径 */
+.pathbar-source-tag {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--border-m, var(--border));
+  border-radius: 999px;
+  color: var(--text-2);
+  font-size: 11.5px;
+  margin-right: 6px;
+}
+
+.pathbar-fullpath {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-2);
+}
+
+/* 窄窗口：路径条压缩为只显示文件名段（目录段允许横向滚动获取） */
+@media (max-width: 900px) {
+  .document-pathbar {
+    padding: 0 10px;
+  }
+}

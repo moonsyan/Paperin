@@ -19,6 +19,8 @@ export interface TopBarTabsProps {
   openFiles: OpenFile[]
   activeFileId: string
   savedMap: Record<string, boolean>
+  /** 工作区根路径：标签栏同名文件消歧（相对目录标注） */
+  workspacePath?: string | null
   /** 切换标签（调用方负责先取消图谱激活态） */
   onSwitchFile: (id: string) => void
   onCloseTab: (id: string) => void
@@ -38,6 +40,7 @@ export function TopBarTabs(props: TopBarTabsProps): JSX.Element {
       openFiles={props.openFiles}
       activeFileId={props.activeFileId}
       savedMap={props.savedMap}
+      workspacePath={props.workspacePath}
       onSwitch={props.onSwitchFile}
       onClose={props.onCloseTab}
       onCloseOthers={props.onCloseOtherTabs}
@@ -145,6 +148,7 @@ export function AppTopBarHost(props: AppTopBarHostProps): JSX.Element {
       tabs={
         <TopBarTabs
           openFiles={props.openFiles} activeFileId={props.activeFileId} savedMap={props.savedMap}
+          workspacePath={props.workspacePath}
           onSwitchFile={props.onSwitchFile} onCloseTab={props.onCloseTab}
           onCloseOtherTabs={props.onCloseOtherTabs} onCloseAllTabs={props.onCloseAllTabs}
           onTogglePinnedTab={props.onTogglePinnedTab} onReorderTabs={props.onReorderTabs}

@@ -6,6 +6,9 @@ import { StatusBar } from '../components/StatusBar'
 import { WorkspaceShell } from '../components/WorkspaceShell'
 import { SkipLink } from './SkipLink'
 import { buildSidebarViewModel } from '../components/Sidebar/sidebar-view-model'
+import { collectFolderKeys, buildWorkspaceFileTree } from '../components/Sidebar/fileTree'
+import { collapsedKeysAfterRevealFromRecord } from '../lib/path-display'
+import type { DocumentPathKind } from '../components/DocumentPathbar'
 import { flushPersistedSettings } from '../hooks/usePersistedSetting'
 import { setConfirmDialogListener } from '../lib/confirm-dialog'
 import type { ActiveConfirmRequest } from '../components/ConfirmDialog'
@@ -326,6 +329,39 @@ export function AppComposition(): JSX.Element {
   const contextDockViewModel = useMemo(() => workspaceIndex ? buildSidebarViewModel(workspaceIndex, activeFile?.path ?? null, 'links') : null, [activeFile?.path, workspaceIndex])
   const currentFileSource = classifyDocumentSource(activeFile?.path, workspace?.path, window.desktopAPI?.platform === 'win32')
 
+  /**
+   * 路径条形态（NEXT-UI-SPEC §3.3）：示例 / 未命名 / 库内 / 外部四种来源。
+   * 示例与未命名都无磁盘路径，靠 activeFileId 是否为演示文档 ID 区分。
+   */
+  const activePathKind: DocumentPathKind = useMemo(() => {
+    if (!activeFile) return 'unnamed'
+    if (DEMO_FILE_IDS.has(activeFileId)) return 'demo'
+    if (!activeFile.path) return 'unnamed'
+    return classifyDocumentSource(activeFile.path, workspace?.path, window.desktopAPI?.platform === 'win32')
+  }, [activeFile, activeFileId, workspace?.path])
+
+  /** 工作区树的全部文件夹 key（定位文件时从「默认全折叠」推导实际折叠集用） */
+  const workspaceFolderKeys = useMemo(
+    () => (workspace ? collectFolderKeys(buildWorkspaceFileTree(workspace.path, workspace.tree)) : []),
+    [workspace],
+  )
+
+  /**
+   * 路径条「定位到文件」：展开侧栏 + 在折叠记录中展开当前文件的祖先目录。
+   * 不重置用户折叠的其他分支；外部/示例/未命名文件不提供定位。
+   */
+  const revealActiveFileInSidebar = useCallback(() => {
+    const path = activeFile?.path
+    if (!path || !workspace) return
+    setSidebarCollapsed(false)
+    const next = collapsedKeysAfterRevealFromRecord(
+      currentCollapsedKeys, workspaceFolderKeys, settings.collapseFoldersOnOpen,
+      path, workspace.path, window.desktopAPI?.platform === 'win32',
+    )
+    handleCollapsedKeysChange(next)
+  }, [activeFile?.path, workspace, currentCollapsedKeys, workspaceFolderKeys,
+    settings.collapseFoldersOnOpen, setSidebarCollapsed, handleCollapsedKeysChange])
+
   const handleCursorChange = useCallback((line: number, col: number, heading: string, headingIndex: number, selected: number) => {
     setCursorPos((prev) => prev.line === line && prev.col === col && prev.heading === heading && prev.headingIndex === headingIndex && prev.selected === selected ? prev : { line, col, heading, headingIndex, selected })
   }, [])
@@ -363,6 +399,7 @@ export function AppComposition(): JSX.Element {
           searchPref={searchPref} searchHandlers={searchHandlers} onCloseSearch={closeSearch}
           openFiles={openFiles} activeFileId={activeFileId} activeFilePath={activeFile?.path}
           activeContent={activeContent}
+          activePathKind={activePathKind} onRevealActiveFile={revealActiveFileInSidebar}
           workspace={workspace} demoFileNames={demoFileNames}
           currentCollapsedKeys={currentCollapsedKeys} onCollapsedKeysChange={handleCollapsedKeysChange} collapseFoldersOnOpen={settings.collapseFoldersOnOpen}
           onOpenSearch={() => setPaletteOpen(true)} searchShortcut={settings.shortcuts.commandPalette} recentFiles={recentFiles}
