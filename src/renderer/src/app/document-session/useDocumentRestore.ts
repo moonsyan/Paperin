@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { DraftMap } from '../../lib/drafts'
 import type { OpenFile } from '../../components/Sidebar'
@@ -54,7 +54,25 @@ export function useDocumentRestore({
 
   // useCallback 保证引用稳定：App 的启动初始化 effect 只允许执行一次，
   // 依赖数组必须能安全包含本函数而不引发重复恢复
+  //
+  // 取消语义（与 AGENTS.md「异步操作必须处理取消和卸载后的状态更新」对应）：
+  // - disposedRef：组件卸载后不再写状态、不再排重试定时器；
+  // - restoreRunRef：同一次挂载内重复触发恢复时，新一次使旧一次失效，
+  //   避免两轮恢复交错写入 openFiles/contents/mtime。
+  const restoreRunRef = useRef(0)
+  const disposedRef = useRef(false)
+  useEffect(() => {
+    disposedRef.current = false
+    return () => {
+      disposedRef.current = true
+      restoreRunRef.current += 1
+    }
+  }, [])
+
   const restoreFromSessionData = useCallback(async (session: SessionData | null, drafts: DraftMap) => {
+    const run = ++restoreRunRef.current
+    const isCancelled = () => disposedRef.current || run !== restoreRunRef.current
+    if (isCancelled()) return
     // fresh 窗口（多窗口模式新建）不恢复会话，避免多窗口互相覆盖
     const effectiveSession = FRESH_MODE ? null : session
     // fresh 窗口也不恢复全局草稿：草稿属于主窗口会话，灌入未打开文件的脏状态会让新窗口"天生未保存"且无法关闭
@@ -74,6 +92,7 @@ export function useDocumentRestore({
       if (DEMO_FILES[entry.id]) continue
       if (entry.path) {
         const res = await window.desktopAPI.document.read(entry.path)
+        if (isCancelled()) return
         if (res.ok && res.data) {
           restoredFiles.push({ id: entry.id, name: res.data.name, path: entry.path })
           restoredContents[entry.id] = res.data.content
@@ -110,6 +129,7 @@ export function useDocumentRestore({
       const fl = restoredFiles.find((x) => x.id === id)
       if (fl?.path) {
         const st = await window.desktopAPI.document.stat(fl.path)
+        if (isCancelled()) return
         if (st.ok && st.data) {
           // 磁盘 mtime 比草稿保存时刻还新 = 草稿保存后文件被外部修改：
           // 草稿是旧内容，恢复会覆盖外部新修改——丢弃草稿以磁盘为准
@@ -185,6 +205,8 @@ export function useDocumentRestore({
     const finalContent = restoredContents[target] ?? INITIAL_CONTENTS[target] ?? ''
     let tries = 0
     const tryApply = () => {
+      // 卸载或已被新一轮恢复取代：停止重试，不再写入编辑器
+      if (isCancelled()) return
       if (editorRef.current?.isReady()) {
         // 渲染前解析相对路径图片；此时 openFilesRef 已含恢复文件
         replaceEditorContent(
@@ -207,6 +229,7 @@ export function useDocumentRestore({
       // 等编辑器创建完成再打开，避免 replaceContent 被静默跳过（重试至多 2 秒）
       let openTries = 0
       const openWhenReady = () => {
+        if (isCancelled()) return
         if (editorRef.current?.isReady()) {
           void handleSelectWorkspaceFile(freshFilePath)
         } else if (openTries++ < 20) {

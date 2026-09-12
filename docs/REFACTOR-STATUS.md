@@ -25,6 +25,8 @@
 - `useDocumentState` 已收敛为单一 `DocumentRecord` store；正文、保存基线、mtime、编码不再由多套 React state 独立维护。
 - 保存竞态会保留保存开始后的新输入；冲突和编码损失路径继续禁止静默覆盖或丢字。
 - 真实 Milkdown 组件已实现 `EditorAdapter` 的 Markdown 读写、聚焦、语义命令和订阅；卸载时清理订阅，Milkdown/ProseMirror 仍是正文唯一状态源。
+- 文档会话控制器已逐项验证收口：草稿恢复按 mtime 丢弃过期草稿（B6）、fresh 窗口不恢复会话与草稿、已显式清除的草稿不会被空内容复活（X-M1）；关闭确认覆盖未命名文档三选（保存/不保存/取消）与保存失败后二选（放弃修改/取消），保存对话框取消同样中止关闭；多窗口竞态由工作区 IPC 的 `sender.id` 绑定、fresh 窗口隔离和 `SAVE_LOCKED`「另一窗口正在保存」提示共同承接。
+- 会话恢复补齐取消语义：`restoreFromSessionData` 的异步读循环与两处「编辑器就绪」重试链（各 100ms×20）现在受 `disposedRef`（卸载）与 `restoreRunRef`（新一轮恢复取代旧一轮）双重约束，卸载后不再写入状态、不再排重试；重复触发恢复时旧一轮在下一个 await 之后即失效，不会与新结果交错。`useDocumentRestore.test.ts` 直接覆盖这两种取消路径。
 
 ### 工作区壳层、命令与面板
 
@@ -79,7 +81,7 @@
 | --- | --- |
 | `npm run lint` | 通过 |
 | `npm run typecheck` | 通过 |
-| `npm run test` | 通过：133 个测试文件，1039 项测试 |
+| `npm run test` | 通过：134 个测试文件，1041 项测试 |
 | `npm run build` | 通过：Main、Preload、Renderer 均成功构建 |
 | `npm run perf:regression` | 通过：5,000 文件合成场景未超阈值 |
 | `npm run smoke` | 通过：打开工作区、新建、保存、冲突、重读、重命名、搜索、状态读取 |
@@ -99,7 +101,7 @@
 ### 架构与维护性
 
 - 仍超过项目行数门禁的文件：`src/main/ipc/file-handlers.ts`（654）、`src/renderer/src/lib/docx.ts`（599）、`app/workspace/useWorkspaceFiles.ts`（505）、`app/useAppSettings.ts`（496）、`Editor/overlays/useEditorOverlays.ts`（486）、`Editor/instance/useMilkdownInstance.ts`（485）。`AppComposition.tsx`（447）与 `useEditorContentReplacement.ts`（约 340）已完成第一轮拆分，需继续按命令域与导出域收敛。
-- 文档会话控制器尚未完全收口草稿恢复、关闭确认和所有保存分支；仍需逐项验证卸载取消和多窗口竞态。
+- 文档会话剩余风险集中在 5 MiB 大文档的保存耗时（见上方发布前高优先级），会话状态一致性、卸载取消与多窗口竞态已完成核验。
 
 ### UI 与功能迁移
 
