@@ -3,7 +3,7 @@ import { DEMO_FILES, DEFAULT_FILE_ID } from '../data/demo-files'
 
 /** 每套主题对应的标题栏覆盖层颜色（Windows 系统窗口按钮区域） */
 export const TITLEBAR_COLORS: Record<string, { bg: string; symbol: string }> = {
-  default: { bg: '#F0EDEA', symbol: '#5C5850' },
+  default: { bg: '#FCFCF9', symbol: '#5C695F' },
   dark: { bg: '#1A1918', symbol: '#A09B93' },
   ocean: { bg: '#E6ECF3', symbol: '#4A6070' },
   rose: { bg: '#F5EDED', symbol: '#6B4F4F' },

@@ -85,15 +85,26 @@
 
 /* 低频能力统一收进“更多”，保留原有菜单项、快捷键和命令分发。 */
 .menu-item-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 34px;
+  min-width: 34px;
   height: 32px;
   padding: 0;
   font-size: 0;
+  line-height: 1;
   text-align: center;
+  white-space: nowrap;
+  writing-mode: horizontal-tb;
+  color: transparent;
+  overflow: hidden;
 }
 
 .menu-item-more::after {
   content: '⋯';
+  display: block;
+  color: var(--text-2);
   font-size: 20px;
   line-height: 1;
   letter-spacing: 2px;
