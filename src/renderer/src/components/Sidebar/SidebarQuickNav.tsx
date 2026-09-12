@@ -134,16 +134,19 @@ export function SidebarQuickNav({
 export interface SidebarFlatListProps {
   entries: QuickNavEntry[]
   activePath?: string | null
+  /** 空态引导文案（NEXT-UI-SPEC §4.1：空集合要给下一步动作，不只重复标题） */
   emptyLabel: string
+  /** 列表的无障碍名（区别于空态文案） */
+  listLabel?: string
   onOpen: (entry: QuickNavEntry) => void
 }
 
 /** 与文件树共用行样式（.tree-row.tree-file-row），保证两种列表视觉一致 */
-export function SidebarFlatList({ entries, activePath, emptyLabel, onOpen }: SidebarFlatListProps): JSX.Element {
+export function SidebarFlatList({ entries, activePath, emptyLabel, listLabel, onOpen }: SidebarFlatListProps): JSX.Element {
   if (entries.length === 0) return <div className="tree-empty">{emptyLabel}</div>
 
   return (
-    <div role="list" aria-label={emptyLabel}>
+    <div role="list" aria-label={listLabel ?? emptyLabel}>
       {entries.map((entry) => {
         const active = Boolean(entry.path) && entry.path === activePath
         return (

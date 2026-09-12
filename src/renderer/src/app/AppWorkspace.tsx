@@ -290,7 +290,7 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
           )}
           <EditorMargin context={editorMarginContext} />
           {openFiles.length === 0 && (
-            <StartScreen onNew={onNew} onOpen={onOpen} onOpenFolder={onOpenFolder} />
+            <StartScreen onNew={onNew} onOpen={onOpen} onOpenFolder={onOpenFolder} hasWorkspace={workspace !== null} />
           )}
         </div>
       </div>

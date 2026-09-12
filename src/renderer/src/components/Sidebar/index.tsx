@@ -289,14 +289,16 @@ export function Sidebar({
           <SidebarFlatList
             entries={recentEntries}
             activePath={activeFilePath}
-            emptyLabel="最近编辑"
+            emptyLabel="打开或编辑文档后会出现在这里"
+            listLabel="最近编辑"
             onOpen={(entry) => { if (entry.path) onSelectWorkspaceFile(entry.path, false) }}
           />
         ) : quickView === 'favorites' ? (
           <SidebarFlatList
             entries={favoriteEntries}
             activePath={activeFilePath}
-            emptyLabel="我的收藏"
+            emptyLabel="还没有收藏，可在文件右键菜单中收藏"
+            listLabel="我的收藏"
             onOpen={(entry) => { if (entry.path) onSelectWorkspaceFile(entry.path, false) }}
           />
         ) : (

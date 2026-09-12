@@ -156,12 +156,13 @@ describe('门禁不是空转', () => {
         ]),
       ),
     )
-    // 把 typewriter 的 accent 下限抬到不可能达到的高度，模拟「改淡 accent」
-    loosened.typewriter['accent on bg-sidebar'] = 4.4
+    // 把 typewriter 的 danger 下限抬到不可能达到的高度，模拟「改淡 danger」
+    // （typewriter accent 债务已在 T12 清除，不再适合作为棘轮夹具）
+    loosened.typewriter['danger on bg-sidebar'] = 4.4
     const result = await checkThemes({ baseline: { margin: BASELINE_MARGIN, accepted: loosened } })
     expect(
       result.failures.some(
-        (item) => item.theme === 'typewriter' && item.pair === 'accent on bg-sidebar',
+        (item) => item.theme === 'typewriter' && item.pair === 'danger on bg-sidebar',
       ),
     ).toBe(true)
     expect(withBaseline.failures).toEqual([])
