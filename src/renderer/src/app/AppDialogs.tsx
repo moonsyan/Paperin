@@ -1,17 +1,42 @@
-import { SettingsDialog } from '../components/SettingsDialog'
-import { HelpDialog } from '../components/HelpDialog'
-import type { HelpView, WritingStats } from '../components/HelpDialog'
-import { ImagesDialog } from '../components/ImagesDialog'
-import { ExportPdfDialog } from '../components/ExportPdfDialog'
-import type { PdfOptions } from '../components/ExportPdfDialog'
-import { PublishDialog } from '../components/PublishDialog'
-import type { PublishOptions } from '../lib/export-bundle'
-import type { PublishScope } from '../lib/export-bundle'
+import { Suspense, lazy } from 'react'
 import { CommandPalette } from '../components/CommandPalette'
-import { VersionHistoryDialog } from '../components/VersionHistoryDialog'
-import { WorkspaceSearchDialog } from '../components/WorkspaceSearchDialog'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import type { ActiveConfirmRequest } from '../components/ConfirmDialog'
+import type { HelpView, WritingStats } from '../components/HelpDialog'
+import type { PdfOptions } from '../components/ExportPdfDialog'
+import type { PublishOptions } from '../lib/export-bundle'
+import type { PublishScope } from '../lib/export-bundle'
+
+/**
+ * 低频对话框懒加载：设置 / 帮助 / 图片 / PDF 选项 / 发布 / 版本历史 / 工作区全文搜索
+ * 平时不占界面，组件各自在 open=false（或 view 为空）时返回 null。这里改成
+ * 「打开时才挂载 + Suspense」，挂载语义不变，但对应 chunk 只在首次打开时才加载，
+ * 不再挤占首屏主包。
+ *
+ * CommandPalette（Ctrl+P 命令面板）与 ConfirmDialog（关闭确认）是高频路径，
+ * 刻意保持静态导入，避免高频入口出现首开延迟。
+ */
+const SettingsDialog = lazy(() =>
+  import('../components/SettingsDialog').then((m) => ({ default: m.SettingsDialog })),
+)
+const HelpDialog = lazy(() =>
+  import('../components/HelpDialog').then((m) => ({ default: m.HelpDialog })),
+)
+const ImagesDialog = lazy(() =>
+  import('../components/ImagesDialog').then((m) => ({ default: m.ImagesDialog })),
+)
+const ExportPdfDialog = lazy(() =>
+  import('../components/ExportPdfDialog').then((m) => ({ default: m.ExportPdfDialog })),
+)
+const PublishDialog = lazy(() =>
+  import('../components/PublishDialog').then((m) => ({ default: m.PublishDialog })),
+)
+const VersionHistoryDialog = lazy(() =>
+  import('../components/VersionHistoryDialog').then((m) => ({ default: m.VersionHistoryDialog })),
+)
+const WorkspaceSearchDialog = lazy(() =>
+  import('../components/WorkspaceSearchDialog').then((m) => ({ default: m.WorkspaceSearchDialog })),
+)
 import type { ShortcutMap } from '../data/shortcuts'
 import type { RecentFile } from '../components/MenuBar'
 import type { AppCommandRegistry } from './commands/app-command-registry'
@@ -169,70 +194,91 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
 
   return (
     <>
-      <SettingsDialog
-        open={settingsOpen}
-        onClose={onCloseSettings}
-        theme={effectiveTheme}
-        onThemeChange={onThemeChange}
-        workspaceAvailable={workspace !== null}
-        workspaceThemeEnabled={workspaceSettings.appearance.theme !== 'inherit'}
-        onWorkspaceThemeEnabledChange={onWorkspaceThemeEnabledChange}
-        fontSize={fontSize}
-        onFontSizeChange={onFontSizeChange}
-        contentWidth={contentWidth}
-        onContentWidthChange={onContentWidthChange}
-        lineHeight={lineHeight}
-        onLineHeightChange={onLineHeightChange}
-        contentFont={contentFont}
-        onContentFontChange={onContentFontChange}
-        zoom={zoom}
-        onZoomChange={onZoomChange}
-        autosave={autosave}
-        onAutosaveChange={onAutosaveChange}
-        typewriter={typewriter}
-        onTypewriterChange={onTypewriterChange}
-        spellcheck={spellcheck}
-        onSpellcheckChange={onSpellcheckChange}
-        spellcheckLang={spellcheckLang}
-        onSpellcheckLangChange={onSpellcheckLangChange}
-        multiWindow={multiWindow}
-        onMultiWindowChange={onMultiWindowChange}
-        blankClickToEnd={blankClickToEnd}
-        onBlankClickToEndChange={onBlankClickToEndChange}
-        codeLineNumbers={codeLineNumbers}
-        onCodeLineNumbersChange={onCodeLineNumbersChange}
-        collapseFoldersOnOpen={collapseFoldersOnOpen}
-        onCollapseFoldersOnOpenChange={onCollapseFoldersOnOpenChange}
-        wordGoal={wordGoal}
-        onWordGoalChange={onWordGoalChange}
-        customCssName={customCssName}
-        onImportCss={onImportCss}
-        onRemoveCss={onRemoveCss}
-        exportCssName={exportCssName}
-        onImportExportCss={onImportExportCss}
-        onRemoveExportCss={onRemoveExportCss}
-        imageHost={imageHost}
-        onImageHostProviderChange={onImageHostProviderChange}
-        onImageHostTokenSave={onImageHostTokenSave}
-        globalAttachmentDirectory={globalAttachmentDirectory}
-        onGlobalAttachmentDirectoryChange={onGlobalAttachmentDirectoryChange}
-        workspaceAttachmentDirectory={workspaceAttachmentDirectory}
-        onWorkspaceAttachmentDirectoryChange={onWorkspaceAttachmentDirectoryChange}
-        shortcuts={shortcuts}
-        onShortcutsChange={onShortcutsChange}
-      />
-      <HelpDialog view={helpView} onClose={onCloseHelp} stats={writingStats} shortcuts={shortcuts} />
-      <ImagesDialog open={imagesOpen} onClose={onCloseImages} dirs={imageDirs} onNotify={setToast} />
-      <ExportPdfDialog open={pdfOptsOpen} onClose={onClosePdfOptions} onExport={onExportPdf} />
-      <PublishDialog
-        open={publishOpen}
-        busy={publishBusy}
-        hasWorkspace={workspace !== null}
-        availableTags={availableTags}
-        onClose={onClosePublish}
-        onExportBundle={onExportBundle}
-        onCopyRichText={onCopyRichText}
-      />
+      {settingsOpen && (
+        <Suspense fallback={null}>
+          <SettingsDialog
+            open={settingsOpen}
+            onClose={onCloseSettings}
+            theme={effectiveTheme}
+            onThemeChange={onThemeChange}
+            workspaceAvailable={workspace !== null}
+            workspaceThemeEnabled={workspaceSettings.appearance.theme !== 'inherit'}
+            onWorkspaceThemeEnabledChange={onWorkspaceThemeEnabledChange}
+            fontSize={fontSize}
+            onFontSizeChange={onFontSizeChange}
+            contentWidth={contentWidth}
+            onContentWidthChange={onContentWidthChange}
+            lineHeight={lineHeight}
+            onLineHeightChange={onLineHeightChange}
+            contentFont={contentFont}
+            onContentFontChange={onContentFontChange}
+            zoom={zoom}
+            onZoomChange={onZoomChange}
+            autosave={autosave}
+            onAutosaveChange={onAutosaveChange}
+            typewriter={typewriter}
+            onTypewriterChange={onTypewriterChange}
+            spellcheck={spellcheck}
+            onSpellcheckChange={onSpellcheckChange}
+            spellcheckLang={spellcheckLang}
+            onSpellcheckLangChange={onSpellcheckLangChange}
+            multiWindow={multiWindow}
+            onMultiWindowChange={onMultiWindowChange}
+            blankClickToEnd={blankClickToEnd}
+            onBlankClickToEndChange={onBlankClickToEndChange}
+            codeLineNumbers={codeLineNumbers}
+            onCodeLineNumbersChange={onCodeLineNumbersChange}
+            collapseFoldersOnOpen={collapseFoldersOnOpen}
+            onCollapseFoldersOnOpenChange={onCollapseFoldersOnOpenChange}
+            wordGoal={wordGoal}
+            onWordGoalChange={onWordGoalChange}
+            customCssName={customCssName}
+            onImportCss={onImportCss}
+            onRemoveCss={onRemoveCss}
+            exportCssName={exportCssName}
+            onImportExportCss={onImportExportCss}
+            onRemoveExportCss={onRemoveExportCss}
+            imageHost={imageHost}
+            onImageHostProviderChange={onImageHostProviderChange}
+            onImageHostTokenSave={onImageHostTokenSave}
+            globalAttachmentDirectory={globalAttachmentDirectory}
+            onGlobalAttachmentDirectoryChange={onGlobalAttachmentDirectoryChange}
+            workspaceAttachmentDirectory={workspaceAttachmentDirectory}
+            onWorkspaceAttachmentDirectoryChange={onWorkspaceAttachmentDirectoryChange}
+            shortcuts={shortcuts}
+            onShortcutsChange={onShortcutsChange}
+          >
+          </SettingsDialog>
+        </Suspense>
+      )}
+      {helpView && (
+        <Suspense fallback={null}>
+          <HelpDialog view={helpView} onClose={onCloseHelp} stats={writingStats} shortcuts={shortcuts} />
+        </Suspense>
+      )}
+      {imagesOpen && (
+        <Suspense fallback={null}>
+          <ImagesDialog open={imagesOpen} onClose={onCloseImages} dirs={imageDirs} onNotify={setToast} />
+        </Suspense>
+      )}
+      {pdfOptsOpen && (
+        <Suspense fallback={null}>
+          <ExportPdfDialog open={pdfOptsOpen} onClose={onClosePdfOptions} onExport={onExportPdf} />
+        </Suspense>
+      )}
+      {publishOpen && (
+        <Suspense fallback={null}>
+          <PublishDialog
+            open={publishOpen}
+            busy={publishBusy}
+            hasWorkspace={workspace !== null}
+            availableTags={availableTags}
+            onClose={onClosePublish}
+            onExportBundle={onExportBundle}
+            onCopyRichText={onCopyRichText}
+          />
+        </Suspense>
+      )}
       <CommandPalette
         open={paletteOpen}
         workspace={workspace}
@@ -244,23 +290,29 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
         commandRegistry={commandRegistry}
         commandContext={commandContext}
       />
-      <VersionHistoryDialog
-        open={versionHistoryOpen}
-        filePath={activeFilePath}
-        docName={activeFileName}
-        currentContent={currentContent}
-        onClose={onCloseVersionHistory}
-        onRestore={onRestoreVersion}
-      />
-      {workspace && (
-        <WorkspaceSearchDialog
-          open={wsSearchOpen}
-          workspacePath={workspace.path}
-          workspaceName={workspace.name}
-          workspaceIndex={workspaceIndex}
-          onClose={onCloseWorkspaceSearch}
-          onSelect={onSelectSearchResult}
-        />
+      {versionHistoryOpen && (
+        <Suspense fallback={null}>
+          <VersionHistoryDialog
+            open={versionHistoryOpen}
+            filePath={activeFilePath}
+            docName={activeFileName}
+            currentContent={currentContent}
+            onClose={onCloseVersionHistory}
+            onRestore={onRestoreVersion}
+          />
+        </Suspense>
+      )}
+      {workspace && wsSearchOpen && (
+        <Suspense fallback={null}>
+          <WorkspaceSearchDialog
+            open={wsSearchOpen}
+            workspacePath={workspace.path}
+            workspaceName={workspace.name}
+            workspaceIndex={workspaceIndex}
+            onClose={onCloseWorkspaceSearch}
+            onSelect={onSelectSearchResult}
+          />
+        </Suspense>
       )}
       <ConfirmDialog
         request={confirmRequest}

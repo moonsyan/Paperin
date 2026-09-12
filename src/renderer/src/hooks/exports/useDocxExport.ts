@@ -1,8 +1,6 @@
 import { useCallback } from 'react'
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type { EditorHandle } from '../../components/Editor'
-import { buildDocxPackage } from '../../lib/docx'
-import { rasterizeSvgToPngDataUrl } from '../../lib/svg-rasterize'
 import type { createExportSession } from '../../lib/export-session'
 import {
   awaitRichContentForExport,
@@ -17,6 +15,9 @@ type ExportSession = ReturnType<typeof createExportSession>
  *
  * 独立成 hook 的原因：DOCX 是唯一需要 SVG 位图化的流程，且 stats.skippedSvg
  * 需要在成功 Toast 里单独汇报，与 HTML/PDF 的失败张数语义不同。
+ *
+ * `lib/docx`（613 行 OOXML 生成）与 `lib/svg-rasterize` 只服务这条链路，
+ * 因此改为执行时动态 import：它们不再进入首屏主包，只有真正导出 Word 时才加载。
  */
 export function useDocxExport({
   editorRef,
@@ -47,6 +48,10 @@ export function useDocxExport({
         return
       }
       const { html, failed } = await inlineImagesInHtml(buildDocHtml())
+      const [{ buildDocxPackage }, { rasterizeSvgToPngDataUrl }] = await Promise.all([
+        import('../../lib/docx'),
+        import('../../lib/svg-rasterize'),
+      ])
       const { pkg, stats } = await buildDocxPackage(html, title, {
         rasterizeSvg: rasterizeSvgToPngDataUrl,
       })

@@ -129,7 +129,7 @@
 - 主题文本/边框/悬停/禁用/焦点对比度已从人工冒烟升级为机械门禁（`npm run a11y`，见上「无障碍与主题可读性门禁」）；仍需人工过一遍的是：中文输入法组合态、全键盘导航路径、焦点不被弹层遮挡、减少动态效果的实际观感。清单与操作路径见 `docs/ACCESSIBILITY-SMOKE.md` 文末。
 - 已登记的对比度存量债务需独立处理：`--border-m` 在九套主题均为 1.16–1.55:1（承担输入框/分割线描边，WCAG 1.4.11 要求 3:1），`typewriter` 的 accent 低至 2.24（同时是焦点环描边色）。
 - 收藏（侧栏快捷导航数据层 + 文件右键收藏入口）已落地，按工作区作用域持久化；搜索触发框复用命令注册表。低频能力（图片、发布、导出、历史、另存为、设置、统计、图谱、全文搜索）已逐项登记为命令：作用域由 `CommandContext` 在**执行前**判定（`app` 恒可用、`workspace` 需知识库、`document` 需活动文件——外部 Markdown 也算完整文档上下文），菜单按下 `disabled`/`aria-disabled` 在点击前灰显、命令面板只列当前可用项、快捷键与右键菜单经 `unavailableHint` + `onCommandUnavailable`（接 toast）提示而非静默；三条入口共用 `useCommandRegistry` 暴露的同一份可用性判断，登记契约由 `low-frequency-capabilities.test.ts` 固化。详见 `docs/command-panels.md` 的「低频能力登记表」。
-- Renderer 主包仍较大（当前 3.32 MB）；Mermaid/图谱等低频能力的按需加载和分包尚未完成（Mermaid 已拆为独立 chunk，主包尚未分包）。
+- Renderer 分包已落地：主包从 3,325.69 kB 降到 **1,205.37 kB（-63.8%）**。`electron.vite.config.ts` 按 vendor 域拆出 `vendor-milkdown`（1,846.73 kB）与 `vendor-react`（214.56 kB），mermaid/katex/cytoscape 保持既有按需分块（手动分组会把按需加载重新拉回首屏，故刻意不碰）；`lib/docx`（613 行 OOXML 生成）与 `lib/svg-rasterize` 改为导出执行时动态 import（`docx` chunk 19.4 kB）；设置/帮助/图片/PDF 选项/发布/版本历史/工作区全文搜索七个对话框在 `AppDialogs.tsx` 改为「打开时才挂载 + Suspense」懒加载（各 5.4–33.2 kB chunk），命令面板（Ctrl+P）与关闭确认是高频路径保持静态。全量测试 142 文件 1123 项通过，build 通过。
 
 ## 本轮提交
 
@@ -148,6 +148,7 @@
 | `e5760ac` | 会话恢复补齐取消语义并核验关闭确认/多窗口竞态 |
 | `f6c30a6` | quiet-workspace 视觉迁移：顶栏收敛为 52px 三区、侧栏五段式、新增雾白/夜松主题 |
 | `bbf936c` | 主题对比度与焦点可见性门禁固化，补齐跳转链接与焦点缺口 |
+| `04cbdd4` | 低频能力登记为命令并前移可用性判断（菜单灰显 / 快捷键提示同源） |
 
 更早的基线、领域模型、命令边界和工作区壳层提交已包含在同一 `master` 历史中。
 
@@ -156,5 +157,5 @@
 1. 先修复 5 MiB Milkdown 序列化/保存瓶颈，恢复 Electron 全链路性能门禁的通过证据。
 2. 以 `app/workspace/useWorkspaceFiles.ts`、`app/useAppSettings.ts`、`Editor/instance/useMilkdownInstance.ts`、`Editor/overlays/useEditorOverlays.ts` 和 `src/main/ipc/file-handlers.ts` 为下一批拆分入口，按功能域继续收敛控制器和单职责组件。
 3. 完成 quiet-workspace、小窗口、输入法、焦点和主题的人工/端到端验证。
-4. 逐项迁移低频功能到命令注册表、面板和新文档模型。
+4. 低频能力迁移已完成（登记 + 灰显 + 懒加载）；后续可选收尾：GraphView 组件随主包静态加载，可在打开图谱时再按需拆分。
 5. 完成 Windows 安装包以及 macOS/Linux 安装包和更新流程验证。
