@@ -25,6 +25,7 @@
   --danger-h: #98322F;
   --border: #e4dfd0;
   --border-m: rgba(0,0,0,.1);
+  --border-input: rgba(0,0,0,.44);
   --shadow-m: 0 8px 32px rgba(90,70,30,.09);
   --shadow-s: 0 1px 3px rgba(90,70,30,.05);
 }

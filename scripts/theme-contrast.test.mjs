@@ -86,6 +86,8 @@ describe('九套主题对比度门禁', () => {
       'typewriter',
     ])
     expect(REQUIRED_TOKENS).toContain('border-m')
+    // 输入框描边与装饰线语义分离（T12）：控件边界按 ui 级 3:1 硬门禁
+    expect(REQUIRED_TOKENS).toContain('border-input')
     // 弹层表面必须参与正文级门禁：菜单/对话框/命令面板是文字最密集的地方
     expect(SURFACES).toContain('bg-menu')
   })
@@ -184,6 +186,7 @@ describe('门禁不是空转', () => {
       ['danger', '#B4483C'],
       ['border', '#E5E5E5'],
       ['border-m', '#D3DBD2'],
+      ['border-input', '#878C86'],
     ])
     const { gated } = evaluateTheme('mock', tokens)
     const text1 = gated.find((item) => item.pair === 'text-1 on bg-surface')
@@ -205,6 +208,7 @@ describe('门禁不是空转', () => {
       'danger': '#B4483C',
       'border': '#E5E5E5',
       'border-m': '#D3DBD2',
+      'border-input': '#878C86',
     }
     // 弹层用了浅底但文字仍是深色：pass
     const pass = evaluateTheme('mock', new Map([...Object.entries(base), ['bg-menu', '#fafafa']]))

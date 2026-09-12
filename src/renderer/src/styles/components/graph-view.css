@@ -441,7 +441,7 @@
   font-size: 12px;
   color: var(--text-1);
   background: var(--bg-hover);
-  border: 1px solid var(--border-m);
+  border: 1px solid var(--border-input);
   border-radius: var(--radius);
   outline: none;
 }

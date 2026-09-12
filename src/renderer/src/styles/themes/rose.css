@@ -22,6 +22,7 @@
   --danger-h: #8F281E;
   --border: rgba(120,60,60,.07);
   --border-m: rgba(120,60,60,.09);
+  --border-input: rgba(120,60,60,.62);
   --shadow-m: 0 8px 32px rgba(120,60,60,.07);
   --shadow-s: 0 1px 3px rgba(120,60,60,.03);
 }

@@ -23,6 +23,7 @@
   --danger-h: #FF6A5F;
   --border: #30363d;
   --border-m: rgba(240,246,252,.14);
+  --border-input: rgba(240,246,252,.35);
   --shadow-m: 0 8px 32px rgba(0,0,0,.45);
   --shadow-s: 0 1px 3px rgba(0,0,0,.3);
 }

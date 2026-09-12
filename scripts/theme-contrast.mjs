@@ -17,9 +17,9 @@ import { fileURLToPath } from 'node:url'
  *    已登记的存量债务则只是「不让它变坏」。
  *
  * 之所以不把七套既有主题一次性拉到 4.5:1：`--border-m` 在全部九套主题里都只有
- * 1.16–1.55:1（它承担的是弱分割线角色），强行补对比度等于在重构提交里改掉全部
- * 主题的视觉密度。真正的修法是一次性重定 `--border-m`/输入框描边的语义，属于
- * 独立任务，已记入 docs/ACCESSIBILITY-SMOKE.md 的跟进项。
+ * 1.16–1.55:1——它现在的语义已收窄为**纯装饰分割线**（WCAG 1.4.11 不要求装饰元素
+ * 达标），输入类控件的静止态描边改由 `--border-input` 承担并按 3:1 硬门禁
+ * （2026-09-12 T12 完成的语义拆分）。
  *
  * 分级约定：
  * - `text` 门禁 4.5:1 —— 正文级文字（text-1 / text-2 / accent / danger / success）。
@@ -65,6 +65,7 @@ export const REQUIRED_TOKENS = [
   'danger',
   'border',
   'border-m',
+  'border-input',
 ]
 
 /** 可选 token：定义了才参与检查（quiet-workspace 专用的 accent-line） */
@@ -206,7 +207,11 @@ export const evaluateTheme = (name, tokens) => {
     }
   }
 
-  // 边框与强调色块边界属于非文字 UI，3:1 即可辨识
+  // 边框与强调色块边界属于非文字 UI，3:1 即可辨识。
+  // `--border-m`：装饰分割线（保留存量债务登记，只要求不变差）。
+  // `--border-input`：输入类控件静止态描边——用户必须能辨识出「这里能输入」，
+  // 属于 WCAG 1.4.11 必要控件边界，按硬门禁对全部四个表面校验（输入框可能
+  // 出现在 app / surface / sidebar / menu 任何一个表面上）。
   const surfaceColor = surfaces.find((item) => item.token === 'bg-surface').color
   const appColor = surfaces.find((item) => item.token === 'bg-app').color
   push(
@@ -215,6 +220,14 @@ export const evaluateTheme = (name, tokens) => {
     THRESHOLDS.ui,
     'ui',
   )
+  for (const surface of surfaces) {
+    push(
+      `border-input on ${surface.token}（输入框描边）`,
+      contrastRatio(composite(color('border-input'), surface.color), surface.color),
+      THRESHOLDS.ui,
+      'ui',
+    )
+  }
   // 焦点环 / 激活标记用 accent 描边，必须能从页面底色里分辨出来
   push(
     'accent on bg-app（图形元素）',
