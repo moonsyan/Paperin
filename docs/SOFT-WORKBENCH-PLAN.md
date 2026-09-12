@@ -4,7 +4,7 @@
 
 本次交付包含**产品评估、设计原型和生产壳层视觉迁移**，没有接入模型或启用发布服务。实际实现进度仍以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准。原型位于 [design/soft-workbench](../design/soft-workbench/README.md)，生产视觉层位于 [soft-workbench.css](../src/renderer/src/styles/soft-workbench.css)。
 
-生产迁移只覆盖布局、间距、颜色层级和响应式呈现：继续使用现有 Sidebar、TabBar、Milkdown Editor、DocumentPathbar、ContextDock、StatusBar 及其状态/事件契约。默认主题现在采用原型的雾白基线；用户已经选择的 mist、pine、dark 等主题仍保持各自 token。侧栏展开时，顶栏左侧按“收起按钮 → Logo → MarkdownSoft”排列；收起侧栏后 Logo 与项目名同步隐藏，只保留按钮作为重新展开入口。侧栏内部不重复渲染品牌。顶栏的低频菜单收敛为完整可读的“更多…”入口，先展示常用命令，再按文件/编辑/段落/视图/帮助分类，并支持命令搜索；菜单项、快捷键与命令分发保持不变。当前文件来源/保存状态继续保留在无障碍树、路径条和状态栏。文件读写、保存冲突、搜索、历史、导出、主题切换和快捷键没有迁移到原型的演示状态，也没有新增平行数据源。
+生产迁移只覆盖布局、间距、颜色层级和响应式呈现：继续使用现有 Sidebar、TabBar、Milkdown Editor、DocumentPathbar、ContextDock、StatusBar 及其状态/事件契约。默认主题现在采用原型的雾白基线；用户已经选择的 mist、pine、dark 等主题仍保持各自 token。侧栏展开时，顶栏左侧按“Logo → MarkdownSoft → 收起按钮”排列；收起侧栏后 Logo 与项目名同步隐藏，只保留按钮作为重新展开入口。侧栏内部不重复渲染品牌。顶栏的低频菜单收敛为完整可读的“更多…”入口，先展示常用命令，再按文件/编辑/段落/视图/帮助分类，并支持命令搜索；紧凑菜单不展开最近文件名，最近文件仍可从侧栏“最近编辑”和命令面板访问。菜单项、快捷键与命令分发保持不变。当前文件来源/保存状态继续保留在无障碍树、路径条和状态栏。文件读写、保存冲突、搜索、历史、导出、主题切换和快捷键没有迁移到原型的演示状态，也没有新增平行数据源。
 
 ## 1. 已确认的产品意图
 

@@ -40,6 +40,20 @@ describe('MenuBar', () => {
     expect(screen.getByText('知识图谱…')).not.toBeNull()
   })
 
+  it('紧凑模式不在文件分类中展开最近文件名', () => {
+    render(
+      <MenuBar
+        {...baseProps}
+        compact
+        recentFiles={[{ path: 'D:/笔记/今日.md', name: '今日.md' }]}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: '更多菜单' }))
+    fireEvent.click(screen.getByRole('tab', { name: '文件' }))
+    expect(screen.queryByText('今日.md')).toBeNull()
+    expect(screen.getByText('打开文件')).not.toBeNull()
+  })
+
   it('渲染五个菜单标题，默认无下拉展开', () => {
     const { container } = render(<MenuBar {...baseProps} />)
     for (const label of ['文件', '编辑', '段落', '视图', '帮助']) {

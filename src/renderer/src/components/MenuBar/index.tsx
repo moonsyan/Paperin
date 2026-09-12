@@ -361,6 +361,9 @@ export function MenuBar({ onAction, recentFiles = [], shortcuts, isActionEnabled
     const entries = groups.flatMap((key) => menus[key]
       .map((item, index) => ({ key, item, index }))
       .filter(({ item }) => !item.separator && (!query || item.label.toLocaleLowerCase().includes(query)))
+      // 最近文件已经由侧栏“最近编辑”和命令面板承载；紧凑菜单只保留命令，
+      // 避免工作区文件名占满“更多…”面板并挤压真正需要的动作。
+      .filter(({ item }) => !item.action?.startsWith('openRecent:'))
       .filter(({ item }) => compactGroup !== 'common' || COMPACT_COMMON_ACTIONS.has(item.action ?? '')))
     if (entries.length === 0) {
       return [<div key="empty" className="compact-menu-empty">没有匹配的命令</div>]
