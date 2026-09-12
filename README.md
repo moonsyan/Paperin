@@ -14,13 +14,15 @@ MarkdownSoft 的下一代本地优先 Markdown 工作台。项目基于 Electron
 
 ## 下一阶段发展计划
 
+2026-09-13 新增 [柔和工作台与个人知识复用规划](./docs/SOFT-WORKBENCH-PLAN.md) 和 [可交互 demo](./design/soft-workbench/README.md)。按最新讨论，当前保持免费，优先本地写作、资料复用与可核对来源的 AI，暂缓同步。运行 `npm run demo:soft` 预览；原型不会修改真实知识库，也尚未接入模型。
+
 2026-09-12 基于当前代码、界面截图和本地复测形成的评估与计划：
 
 - [项目评估与产品方向](./docs/NEXT-PRODUCT-ASSESSMENT.md)：重构成果、已确认问题、验证边界和产品定位。
 - [下一版界面与交互规范](./docs/NEXT-UI-SPEC.md)：布局草图、状态、搜索、大纲、主题和窄窗口验收。
 - [下一阶段实施计划](./docs/NEXT-DEVELOPMENT-PLAN.md)：M0–M4、21 项任务、依赖、估算、测试及发布门禁。
 
-下一步先恢复真实 Electron 验证与核心数据流程，再收敛界面和搜索回访；计划中的任务尚未实施。
+上面的 9 月 12 日文档保留当时的评估快照；M0/M2 多项任务已落地，实际进度以 REFACTOR-STATUS 为准。9 月 13 日规划补充下一轮产品优先级与设计原型，不代表生产迁移完成。
 
 ## 开发
 
