@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import type { CSSProperties } from 'react'
+import { CompactMenu } from './CompactMenu'
+import { buildMenus, MENU_LABELS } from './menu-definitions'
+import type { MenuItemDef } from './menu-definitions'
 import type { ShortcutMap } from '../../data/shortcuts'
 
 /** 最近打开的磁盘文件 */
@@ -20,123 +23,16 @@ interface MenuBarProps {
    * 未登记的动作（编辑器命令、openRecent:* 等）由调用方返回 true。
    */
   isActionEnabled?: (action: string) => boolean
-  /** 收敛顶栏时使用单一“更多”入口；菜单内容与默认多入口完全相同。 */
+  /** 紧凑模式按任务分层展示原有动作，最近文件交给导航与快速打开。 */
   compact?: boolean
 }
 
-interface MenuItemDef {
-  label: string
-  shortcut?: string
-  action?: string
-  separator?: boolean
+export function MenuBar(props: MenuBarProps): JSX.Element {
+  return props.compact ? <CompactMenu {...props} /> : <LegacyMenuBar {...props} />
 }
 
-const MENU_DEFS: Record<string, MenuItemDef[]> = {
-  file: [
-    { label: '新建文档', shortcut: 'Ctrl+N', action: 'new' },
-    { label: '新建窗口', action: 'newWindow' },
-    { label: '打开文件', shortcut: 'Ctrl+O', action: 'open' },
-    { label: '打开文件夹', shortcut: 'Ctrl+Shift+O', action: 'openFolder' },
-    { label: '快速打开…', action: 'commandPalette' },
-    { label: '全工作区搜索…', action: 'wsSearch' },
-    { label: '保存', shortcut: 'Ctrl+S', action: 'save' },
-    { label: '另存为', shortcut: 'Ctrl+Shift+S', action: 'saveAs' },
-    { label: '版本历史…', action: 'versionHistory' },
-    { label: '', separator: true },
-    { label: '关闭标签页', shortcut: 'Ctrl+W', action: 'closeTab' },
-    { label: '关闭其他标签页', action: 'closeOtherTabs' },
-    { label: '关闭全部标签页', action: 'closeAllTabs' },
-    { label: '', separator: true },
-    { label: '偏好设置…', action: 'settings' },
-    { label: '', separator: true },
-    { label: '导出 PDF', action: 'exportPdf' },
-    { label: '导出 Word (.docx)', action: 'exportDocx' },
-    { label: '导出 HTML', action: 'exportHtml' },
-    { label: '导出 Markdown', action: 'exportMarkdown' },
-    { label: '导出 EPUB / LaTeX…（pandoc）', action: 'exportPandoc' },
-    { label: '发布…（模板 / 资源包 / 富文本）', action: 'publish' },
-    { label: '', separator: true },
-    { label: '图片管理…', action: 'images' },
-  ],
-  edit: [
-    { label: '撤销', shortcut: 'Ctrl+Z', action: 'undo' },
-    { label: '重做', shortcut: 'Ctrl+Shift+Z', action: 'redo' },
-    { label: '', separator: true },
-    { label: '粗体', shortcut: 'Ctrl+B', action: 'bold' },
-    { label: '斜体', shortcut: 'Ctrl+I', action: 'italic' },
-    { label: '删除线', shortcut: 'Ctrl+Shift+X', action: 'strike' },
-    { label: '插入链接', shortcut: 'Ctrl+K', action: 'insertLink' },
-    { label: '插入图片', shortcut: 'Ctrl+Alt+I', action: 'insertImage' },
-    { label: '', separator: true },
-    { label: '查找', shortcut: 'Ctrl+F', action: 'find' },
-    { label: '替换', shortcut: 'Ctrl+H', action: 'replace' },
-  ],
-  para: [
-    { label: '标题 1', shortcut: 'Ctrl+1', action: 'h1' },
-    { label: '标题 2', shortcut: 'Ctrl+2', action: 'h2' },
-    { label: '标题 3', shortcut: 'Ctrl+3', action: 'h3' },
-    { label: '正文', shortcut: 'Ctrl+0', action: 'text' },
-    { label: '', separator: true },
-    { label: '无序列表', action: 'ul' },
-    { label: '有序列表', action: 'ol' },
-    { label: '任务列表', action: 'task' },
-    { label: '', separator: true },
-    { label: '引用', action: 'quote' },
-    { label: '代码块', action: 'code' },
-    { label: '表格', action: 'table' },
-    { label: '表格加行（下方）', action: 'tableRow' },
-    { label: '表格加列（右侧）', action: 'tableCol' },
-    { label: '删除选中单元格', action: 'tableDel' },
-    { label: '分割线', action: 'hr' },
-  ],
-  view: [
-    { label: '切换侧栏', shortcut: 'Ctrl+J', action: 'toggleSidebar' },
-    { label: '专注模式', shortcut: 'F11', action: 'toggleFocus' },
-    { label: '分栏预览', shortcut: 'Ctrl+Shift+P', action: 'togglePreview' },
-    { label: '', separator: true },
-    { label: '打字机模式', action: 'typewriter' },
-    { label: '大纲面板', shortcut: 'Ctrl+Shift+L', action: 'outline' },
-    { label: '链接面板', action: 'linksPanel' },
-    { label: '知识图谱…', action: 'graph' },
-    { label: '', separator: true },
-    // 布局预设（Task 7A）：只切换面板视图/侧栏宽度/打字机开关，不动文档与标签
-    { label: '布局预设：写作', action: 'layout.preset.writing' },
-    { label: '布局预设：知识库', action: 'layout.preset.knowledge' },
-    { label: '布局预设：技术文档', action: 'layout.preset.technical-docs' },
-    { label: '布局预设：出版', action: 'layout.preset.publishing' },
-    { label: '', separator: true },
-    { label: '放大', shortcut: 'Ctrl+=', action: 'zoomIn' },
-    { label: '缩小', shortcut: 'Ctrl+-', action: 'zoomOut' },
-    { label: '重置缩放', action: 'zoomReset' },
-  ],
-  help: [
-    { label: '快捷键一览', action: 'shortcuts' },
-    { label: 'Markdown 语法', action: 'markdown' },
-    { label: '写作统计…', action: 'stats' },
-    { label: '', separator: true },
-    { label: '关于 MarkdownSoft', action: 'about' },
-  ],
-}
-
-const MENU_LABELS: Record<string, string> = {
-  file: '文件',
-  edit: '编辑',
-  para: '段落',
-  view: '视图',
-  help: '帮助',
-}
-
-const COMPACT_GROUPS = ['common', 'file', 'edit', 'para', 'view', 'help'] as const
-type CompactGroup = typeof COMPACT_GROUPS[number]
-const COMPACT_COMMON_ACTIONS = new Set([
-  'new', 'open', 'openFolder', 'commandPalette', 'save', 'find', 'replace',
-  'toggleFocus', 'outline', 'linksPanel', 'settings',
-])
-
-export function MenuBar({ onAction, recentFiles = [], shortcuts, isActionEnabled, compact = false }: MenuBarProps): JSX.Element {
+function LegacyMenuBar({ onAction, recentFiles = [], shortcuts, isActionEnabled }: MenuBarProps): JSX.Element {
   const [openKey, setOpenKey] = useState<string | null>(null)
-  const [compactGroup, setCompactGroup] = useState<CompactGroup>('common')
-  const [compactQuery, setCompactQuery] = useState('')
   const [ddStyle, setDdStyle] = useState<CSSProperties>({})
   const barRef = useRef<HTMLDivElement>(null)
   /** D2：当前菜单是否由点击打开（悬停打开的菜单，点击标题=钉住而非关闭） */
@@ -147,43 +43,7 @@ export function MenuBar({ onAction, recentFiles = [], shortcuts, isActionEnabled
   /** 键盘打开菜单后待移入下拉的焦点位置（下拉渲染完成后在 effect 中执行） */
   const pendingDropdownFocusRef = useRef<'first' | 'last' | null>(null)
 
-  /** 实际菜单定义：把最近文件动态注入文件菜单（"打开文件夹"之后）；
-   *  快捷键标签按当前自定义映射渲染——可自定义动作（ShortcutMap 命中）用
-   *  用户值（空串=未绑定则不显示），未绑定逻辑的固定键位（撤销/粗体等
-   *  编辑器内置 keymap）保留静态默认值兜底，避免菜单显示与实际键位不符。 */
-  const menus = useMemo(() => {
-    const defs: Record<string, MenuItemDef[]> = {}
-    for (const key of Object.keys(MENU_DEFS)) {
-      defs[key] = MENU_DEFS[key].map((item) =>
-        item.action
-          ? {
-              ...item,
-              // 在可自定义映射内的动作：用用户值（空串=已解绑，不显示）；
-              // 不在映射内（撤销/粗体等编辑器内置 keymap）保留静态默认值
-              shortcut:
-                item.action in shortcuts
-                  ? (shortcuts[item.action] ?? '')
-                  : item.shortcut,
-            }
-          : item,
-      )
-    }
-    if (recentFiles.length > 0) {
-      const fileItems = [...defs.file]
-      // 找到"打开文件夹"的位置，在其后插入最近文件
-      const idx = fileItems.findIndex((i) => i.action === 'openFolder')
-      const recent: MenuItemDef[] = [
-        { label: '', separator: true },
-        ...recentFiles.map((r) => ({
-          label: r.name,
-          action: `openRecent:${r.path}`,
-        })),
-      ]
-      fileItems.splice(idx + 1, 0, ...recent)
-      defs.file = fileItems
-    }
-    return defs
-  }, [recentFiles, shortcuts])
+  const menus = useMemo(() => buildMenus(shortcuts, recentFiles), [recentFiles, shortcuts])
 
   // 点击外部关闭
   useEffect(() => {
@@ -353,94 +213,9 @@ export function MenuBar({ onAction, recentFiles = [], shortcuts, isActionEnabled
     ),
   )
 
-  const renderCompactItems = (): JSX.Element[] => {
-    const query = compactQuery.trim().toLocaleLowerCase()
-    const groups = compactGroup === 'common'
-      ? Object.keys(menus)
-      : [compactGroup]
-    const entries = groups.flatMap((key) => menus[key]
-      .map((item, index) => ({ key, item, index }))
-      .filter(({ item }) => !item.separator && (!query || item.label.toLocaleLowerCase().includes(query)))
-      // 最近文件已经由侧栏“最近编辑”和命令面板承载；紧凑菜单只保留命令，
-      // 避免工作区文件名占满“更多…”面板并挤压真正需要的动作。
-      .filter(({ item }) => !item.action?.startsWith('openRecent:'))
-      .filter(({ item }) => compactGroup !== 'common' || COMPACT_COMMON_ACTIONS.has(item.action ?? '')))
-    if (entries.length === 0) {
-      return [<div key="empty" className="compact-menu-empty">没有匹配的命令</div>]
-    }
-    return entries.map(({ key, item, index }) => (
-      <button
-        type="button"
-        key={`${key}-compact-${index}`}
-        className={`dd-item ${isItemEnabled(item) ? '' : 'is-disabled'}`}
-        role="menuitem"
-        disabled={!isItemEnabled(item)}
-        aria-disabled={isItemEnabled(item) ? undefined : true}
-        onClick={() => handleItemClick(key, item)}
-      >
-        <span className="dd-label">{item.label}</span>
-        {item.shortcut && <span className="sc">{item.shortcut}</span>}
-      </button>
-    ))
-  }
-
   return (
     <div className="menubar" ref={barRef}>
-      {compact ? (
-        <div
-          className="menu-entry menu-entry-more"
-          onMouseEnter={(event) => {
-            const trigger = event.currentTarget.querySelector('button')
-            if (trigger) openMenu('more', trigger)
-          }}
-        >
-          <button
-            type="button"
-            className={`menu-item menu-item-more ${openKey === 'more' ? 'open' : ''}`}
-            aria-label="更多菜单"
-            aria-expanded={openKey === 'more'}
-            aria-haspopup="menu"
-            onClick={(event) => {
-              if (openKey === 'more') {
-                if (openByClickRef.current) setOpenKey(null)
-              } else {
-                openMenu('more', event.currentTarget, true)
-              }
-            }}
-            onKeyDown={(event) => handleMenuKeyDown(event, 'more')}
-          >
-            更多…
-          </button>
-          {openKey === 'more' && (
-            <div className="dropdown dropdown-more show" style={ddStyle} role="menu" ref={dropdownRef} onKeyDown={handleDropdownKeyDown}>
-              <input
-                className="compact-menu-search"
-                type="search"
-                aria-label="搜索菜单命令"
-                placeholder="搜索命令…"
-                value={compactQuery}
-                onChange={(event) => setCompactQuery(event.target.value)}
-                onKeyDown={(event) => event.stopPropagation()}
-              />
-              <div className="compact-menu-tabs" role="tablist" aria-label="命令分类">
-                {COMPACT_GROUPS.map((group) => (
-                  <button
-                    key={group}
-                    type="button"
-                    role="tab"
-                    aria-selected={compactGroup === group}
-                    className={compactGroup === group ? 'active' : ''}
-                    onClick={() => setCompactGroup(group)}
-                  >
-                    {group === 'common' ? '常用' : MENU_LABELS[group]}
-                  </button>
-                ))}
-              </div>
-              <div className="compact-menu-items">{renderCompactItems()}</div>
-            </div>
-          )}
-        </div>
-      ) : Object.keys(menus).map((key) => (
+      {Object.keys(menus).map((key) => (
         <div
           key={key}
           className="menu-entry"

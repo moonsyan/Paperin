@@ -34,9 +34,10 @@ describe('MenuBar', () => {
     expect(screen.queryByText('文件')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '更多菜单' }))
     expect(screen.getByText('保存')).not.toBeNull()
-    fireEvent.click(screen.getByRole('tab', { name: '编辑' }))
+    fireEvent.click(screen.getByRole('button', { name: '编辑与查找' }))
     expect(screen.getByText('插入链接')).not.toBeNull()
-    fireEvent.click(screen.getByRole('tab', { name: '视图' }))
+    fireEvent.click(screen.getByRole('button', { name: '返回更多操作' }))
+    fireEvent.click(screen.getByRole('button', { name: '视图与布局' }))
     expect(screen.getByText('知识图谱…')).not.toBeNull()
   })
 
@@ -49,9 +50,9 @@ describe('MenuBar', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: '更多菜单' }))
-    fireEvent.click(screen.getByRole('tab', { name: '文件' }))
+    fireEvent.click(screen.getByRole('button', { name: '文档与知识库' }))
     expect(screen.queryByText('今日.md')).toBeNull()
-    expect(screen.getByText('打开文件')).not.toBeNull()
+    expect(screen.getByText('打开文件夹')).not.toBeNull()
   })
 
   it('渲染五个菜单标题，默认无下拉展开', () => {

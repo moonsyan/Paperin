@@ -1,0 +1,104 @@
+/* 专属样式不依赖旧菜单按钮的浏览器默认边框与字体。 */
+.operation-panel {
+  z-index: 300;
+  padding: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  color: var(--text-1);
+  background: var(--bg-menu);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-m);
+  -webkit-app-region: no-drag;
+}
+.operation-panel button {
+  border: 0;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-1);
+  background: transparent;
+  border-radius: 6px;
+}
+.operation-panel button:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+.operation-panel button:focus-visible,
+.operation-panel input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.operation-panel button:disabled {
+  color: var(--text-4);
+  cursor: default;
+}
+.operation-heading {
+  padding: 5px 8px 9px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+.operation-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  margin-bottom: 8px;
+}
+.operation-panel .operation-quick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 52px;
+  background: var(--bg-sidebar);
+}
+.operation-row {
+  width: 100%;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 9px;
+  text-align: left;
+}
+.operation-row > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.operation-panel small {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.operation-panel button:disabled small { color: inherit; }
+.operation-chevron { color: var(--text-2); font-size: 18px; }
+.operation-footer {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.operation-page-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.operation-page-heading strong { font-size: 13px; font-weight: 500; }
+.operation-back { min-height: 32px; padding: 5px 8px; }
+.operation-panel input {
+  width: 100%;
+  height: 36px;
+  margin: 4px 0 8px;
+  padding: 0 10px;
+  border: 1px solid var(--border-input);
+  border-radius: 6px;
+  color: var(--text-1);
+  background: var(--bg-surface);
+  font-family: var(--font-ui);
+  font-size: 13px;
+}
+.operation-empty { padding: 22px 8px; font-size: 13px; color: var(--text-2); text-align: center; }
