@@ -1,16 +1,58 @@
 /* ====== 发布弹窗（PublishDialog） ====== */
 .publish-dialog {
+  flex-direction: column;
   width: min(520px, 92vw);
+  max-height: min(650px, calc(100vh - 32px));
+}
+
+.publish-dialog .help-header {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 22px 12px;
 }
 
 .publish-dialog-body {
+  min-height: 0;
   padding: 14px 22px 18px;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+}
+
+.publish-dialog-body::-webkit-scrollbar { width: 4px; }
+.publish-dialog-body::-webkit-scrollbar-thumb {
+  background: var(--text-4);
+  border-radius: 2px;
+}
+
+.publish-dialog .settings-row {
+  border-bottom: 0;
+  padding: 8px 2px;
+}
+
+.publish-dialog .settings-row-toggle {
+  border-radius: var(--radius);
+  transition: background var(--dur) var(--ease);
+}
+
+.publish-dialog .settings-row-toggle:hover {
+  background: var(--bg-hover);
+}
+
+.publish-dialog .settings-row-toggle:focus-visible {
+  background: var(--accent-bg);
+}
+
+.publish-dialog .settings-row-toggle .settings-label {
+  padding-left: 6px;
+}
+
+.publish-dialog .settings-row-toggle .switch {
+  margin-right: 4px;
 }
 
 .publish-template-seg {
-  margin-top: -6px;
+  margin-top: 2px;
 }
 
 .publish-template-desc {
