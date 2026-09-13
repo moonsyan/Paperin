@@ -11,7 +11,7 @@ export interface EditorMarginProps {
  * 正文页边插槽宿主：消费 PanelRegistry 的 editor.margin 面板。
  *
  * 默认注册表不内置 editor.margin 面板（属性/关联笔记/版本信息由 ContextDock
- * 承载，见 QUIET-WORKSPACE-EVALUATION 的决策），本宿主是扩展点：向注册表
+ * 承载，见 NEXT-UI-SPEC 的决策），本宿主是扩展点：向注册表
  * 注册带 render 的 editor.margin 面板即可在正文旁出现，无需改动编辑器。
  * 无可用面板时不渲染任何 DOM，不改变现有布局。
  */

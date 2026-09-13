@@ -1,8 +1,8 @@
 # LastFileHome 下一阶段发展与实施计划
 
-日期：2026-09-12
+日期：2026-09-13
 
-状态：**待执行的计划**。本轮只完成评估与文档，不表示下列代码任务已完成。
+状态：**滚动计划**。已完成的任务以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 记录；下列条目只表示仍需推进或继续验证的工作。
 
 基准：`d3ac991` / `0.6.0`，详见 [现状与产品评估](NEXT-PRODUCT-ASSESSMENT.md)。
 
@@ -312,7 +312,7 @@ flowchart TD
 | 变化 | 必须同步 |
 | --- | --- |
 | 用户功能、快捷键、设置、导出 | README/使用说明、command-panels、compatibility-matrix |
-| 保存协议、错误码、DTO/schema | domain-model、session-refactor、IPC/API 声明与迁移说明 |
+| 保存协议、错误码、DTO/schema | domain-model、document-tab-lifecycle、IPC/API 声明与迁移说明 |
 | 组件/目录拆分 | 维护文档、import、直接测试、构建配置 |
 | 视觉/主题/交互 | 本 UI 规范、ACCESSIBILITY-SMOKE、设计截图矩阵 |
 | 性能 | performance-baseline 说明与绑定 commit 的结果；基线变更单独审查 |

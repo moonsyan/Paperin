@@ -1,6 +1,6 @@
 # 兼容矩阵
 
-> 2026-09-12 复核：表内“保留/已迁移”表示能力或契约存在，不代表当前版本已通过所有发布验证。最新普通 Electron smoke 因旧标题选择器失效而失败；当前收藏缺少重启读取。完整复核结果见 [REFACTOR-STATUS](REFACTOR-STATUS.md)，修复顺序见 [NEXT-DEVELOPMENT-PLAN](NEXT-DEVELOPMENT-PLAN.md)。
+> 2026-09-13 更新：表内“保留/已迁移”表示能力或契约存在，不代表所有目标平台都已完成发布验证。当前 Windows 开发环境的 Electron smoke、收藏写回/恢复和取消收藏验证已通过；三平台安装包与真实系统文件关联仍待发布前人工验证。当前完成度以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准，后续顺序见 [NEXT-DEVELOPMENT-PLAN](NEXT-DEVELOPMENT-PLAN.md)。
 
 | 能力 | 旧实现 | 现有测试/依据 | 第一批状态 | 后续验证 |
 |---|---|---|---|---|
@@ -11,7 +11,7 @@
 | 多标签、dirty、关闭确认 | DocumentRecord store + TabBar | record store、TabBar、document-session、close-save | 已迁移 | 多窗口冒烟 |
 | 编辑器适配层 | Milkdown `EditorHandle` | adapter、快捷键与应用动作测试 | 已迁移 | 输入法与焦点人工验证 |
 | 草稿恢复与会话持久化 | settings store + draft hooks | draft/session tests | 保留 | 重启恢复 |
-| 工作区文件树、最近文件、收藏 | workspace hooks/components | workspace tests | 树与导航存在；收藏当前会话可用，重启恢复未完成 | 收藏读回/跨库合并/路径迁移、5000 文件 UI 性能 |
+| 工作区文件树、最近文件、收藏 | workspace hooks/components | workspace tests、收藏行为测试 | 文件树、最近编辑、星标收藏/取消、右键入口和按工作区恢复已实现 | 跨库路径迁移、5000 文件 UI 性能 |
 | 工作区壳层、当前文件来源与 dirty 上下文 | `WorkspaceShell` + `CurrentFileBanner` | 组件 Testing Library 契约测试 | 已迁移 | 多窗口、窄窗口与外部文件冒烟 |
 | 全文搜索与当前文档查找替换 | search IPC + renderer search | search/keyboard tests | 保留 | 搜索结果定位 |
 | 标签、Wiki 链接、反向链接、图谱 | shared indexes + panels | tag/link/graph tests | 保留 | 工作区往返 |

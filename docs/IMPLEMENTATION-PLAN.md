@@ -10,7 +10,7 @@
 
 **技术栈：** Electron、React、TypeScript strict、electron-vite、Milkdown/ProseMirror、mdast/micromark、原生 CSS Variables、Vitest、Testing Library、electron-builder。
 
-**依据：** `docs/TECH-STACK.md`、`docs/DEMO-AUDIT.md`、`design/quiet-workspace/` 和旧项目 `src/` 中已有实现。
+**依据：** `docs/TECH-STACK.md`、`docs/NEXT-PRODUCT-ASSESSMENT.md`、`docs/NEXT-UI-SPEC.md`、`design/soft-workbench/` 和当前 `src/` 实现。
 
 ## 全局门禁
 
@@ -40,7 +40,7 @@
 ### 文件
 
 - 参考：旧项目 `src/main/`、`src/preload/`、`src/shared/`、`src/renderer/src/`
-- 修改：`README.md`、`docs/TECH-STACK.md`、`docs/DEMO-AUDIT.md`
+- 修改：`README.md`、`docs/TECH-STACK.md`、`docs/NEXT-PRODUCT-ASSESSMENT.md`
 - 新增：`docs/compatibility-matrix.md`
 
 ### 步骤

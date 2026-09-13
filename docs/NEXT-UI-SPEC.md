@@ -2,7 +2,7 @@
 
 日期：2026-09-12
 
-状态：设计建议，待实现与原型验证；不改变现有快捷键和用户设置。
+状态：生产界面规范与后续验收基线；已实现部分以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准，不改变现有快捷键和用户设置。
 
 依据：[项目与产品评估](NEXT-PRODUCT-ASSESSMENT.md)、用户提供的当前截图、生产组件与 quiet-workspace 已有设计。
 
