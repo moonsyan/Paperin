@@ -90,8 +90,8 @@
     "publish": {
       "provider": "github",
       "owner": "moonsyan",
-      "repo": "mkEditor",
-      "releaseType": "draft"
+      "repo": "Paperin",
+      "releaseType": "release"
     }
   },
   "dependencies": {

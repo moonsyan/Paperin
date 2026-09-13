@@ -1,0 +1,143 @@
+name: release
+
+# 打 v* tag 时构建三平台安装包，并发布到 GitHub Release（正式发布，可直接下载）。
+#
+# 触发方式：
+#   1. 推送 tag：git push origin v0.6.0
+#   2. Actions 页面手动 Run workflow（tag 留空则用 package.json 的 version）
+#
+# 与 build.yml 的分工：build.yml 是三平台质量门禁（不产安装包），
+# 本文件负责出安装包并发布。测试只在 gate job 跑一次，避免三平台重复消耗。
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '发布 tag（留空则用 package.json 的 version，例如 v0.6.0）'
+        required: false
+        default: ''
+
+# 发布 Release 需要写仓库内容
+permissions:
+  contents: write
+
+jobs:
+  # 质量门禁：测试与 lint 只需跑一次，通过后三平台才开工
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:ci
+
+  build-win:
+    needs: gate
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # npm run build 内含 typecheck
+      - run: npm run build
+      # --publish never：产物留在本地由 release job 统一上传，避免三个平台
+      # 同时写同一个 Release 造成竞态；app-update.yml 仍会照常写入产物
+      - run: npx electron-builder --win --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-win
+          path: |
+            release/*/Paperin-Setup-*.exe
+            release/*/Paperin-Setup-*.exe.blockmap
+            release/*/latest.yml
+          if-no-files-found: error
+
+  build-mac:
+    needs: gate
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # 未做代码签名，用户首次打开需右键 → 打开
+      - run: npx electron-builder --mac --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-mac
+          path: |
+            release/*/*.dmg
+            release/*/latest-mac.yml
+          if-no-files-found: error
+
+  build-linux:
+    needs: gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx electron-builder --linux --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-linux
+          path: |
+            release/*/*.AppImage
+            release/*/latest-linux.yml
+          if-no-files-found: error
+
+  # 汇总三平台产物，统一发布一个 Release
+  release:
+    needs: [build-win, build-mac, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 解析发布 tag
+        id: resolve
+        shell: bash
+        env:
+          # 经 env 传入，避免手动触发时输入直接拼进 shell
+          INPUT_TAG: ${{ inputs.tag }}
+          REF: ${{ github.ref }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ -n "$INPUT_TAG" ]; then
+            tag="$INPUT_TAG"
+          elif [[ "$REF" == refs/tags/* ]]; then
+            tag="$REF_NAME"
+          else
+            tag="v$(node -p "require('./package.json').version")"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "发布 tag: $tag"
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: 列出待发布产物
+        run: ls -lh artifacts
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.resolve.outputs.tag }}
+          name: Paperin ${{ steps.resolve.outputs.tag }}
+          draft: false
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: artifacts/**

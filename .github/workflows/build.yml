@@ -1,7 +1,7 @@
 name: build
 
 # 三平台质量门禁流水线（scripts/verify-ci-config.mjs 校验其结构）。
-# 注意：当前仓库托管在 Gitee，本文件在 GitHub 托管或镜像时才会实际运行；
+# 本文件只跑 CI 门禁，不产安装包；出安装包并发布 Release 见 release.yml。
 # 平台安装验收（安装/升级/文件关联）不在本流水线内，见 docs/NEXT-DEVELOPMENT-PLAN.md T20。
 
 on:
@@ -9,6 +9,8 @@ on:
     branches: [master, main]
   pull_request:
     branches: [master, main]
+  # 支持在 Actions 页面手动触发一次全量门禁
+  workflow_dispatch:
 
 jobs:
   build-win:
