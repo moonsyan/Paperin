@@ -16,7 +16,7 @@ import {
 const temporaryDirectories: string[] = []
 
 const createTemporaryDirectory = async (): Promise<string> => {
-  const directory = await mkdtemp(join(tmpdir(), 'markdownsoft-file-io-'))
+  const directory = await mkdtemp(join(tmpdir(), 'paperin-file-io-'))
   temporaryDirectories.push(directory)
   return directory
 }

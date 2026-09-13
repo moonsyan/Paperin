@@ -13,7 +13,7 @@ interface Preferences { theme: 'light' | 'dark' | 'system'; font: 'sans' | 'seri
 interface DemoState { documents: DemoDocument[]; activeId: string; tabs: string[]; preferences: Preferences }
 interface SearchResult { title: string; description: string; icon: string; run: () => void }
 
-const STORAGE_KEY = 'markdownsoft-quiet-demo-v1'
+const STORAGE_KEY = 'paperin-quiet-demo-v1'
 const seedDocuments: DemoDocument[] = [
   {
     id: 'space', title: '给思考，留一点空白', subtitle: '整理思绪，也整理生活。', group: '随笔与思考', category: '随笔', favorite: true,

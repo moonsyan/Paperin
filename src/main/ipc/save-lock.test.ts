@@ -12,7 +12,7 @@ afterEach(async () => {
 
 describe('跨进程保存锁', () => {
   it('释放后删除自己创建的锁文件', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'markdownsoft-save-lock-'))
+    const directory = await mkdtemp(join(tmpdir(), 'paperin-save-lock-'))
     temporaryDirectories.push(directory)
     const filePath = join(directory, '笔记.md')
     const release = await acquireCrossProcessSaveLock(filePath)
@@ -23,7 +23,7 @@ describe('跨进程保存锁', () => {
   })
 
   it('过期锁（持有进程已死且超时）被接管且不残留隔离文件', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'markdownsoft-save-lock-'))
+    const directory = await mkdtemp(join(tmpdir(), 'paperin-save-lock-'))
     temporaryDirectories.push(directory)
     const filePath = join(directory, '笔记.md')
     const lockPath = `${filePath}.mkedit-save-lock`

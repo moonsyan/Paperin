@@ -90,7 +90,7 @@ export const MENU_DEFS: Record<string, MenuItemDef[]> = {
     { label: 'Markdown 语法', action: 'markdown' },
     { label: '写作统计…', action: 'stats' },
     { label: '', separator: true },
-    { label: '关于 MarkdownSoft', action: 'about' },
+    { label: '关于 Paperin', action: 'about' },
   ],
 }
 

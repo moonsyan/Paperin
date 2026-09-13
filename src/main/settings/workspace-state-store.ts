@@ -13,7 +13,7 @@ import {
   type WorkspaceStateBundle,
 } from '../../shared/workspace-state'
 
-const WORKSPACE_STATE_DIRECTORY = '.markdownsoft'
+const WORKSPACE_STATE_DIRECTORY = '.paperin'
 const MAX_STATE_FILE_SIZE = 1024 * 1024
 
 type WorkspaceStateFile = 'settings.json' | 'workspace.json' | 'documents.json'

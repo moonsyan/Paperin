@@ -148,9 +148,9 @@ export function useDocumentTabClosing({
   }, [activeFileIdRef, captureWorkspaceDocumentView, flushEditorContent, openFilesRef, removeClosedTabs, saveBeforeClose, saveQueueRef, setToast, workspaceDocumentsRef, workspacePathRef])
 
   useEffect(() => {
-    const currentWindow = window as unknown as { __markdownsoft_saveAll?: () => Promise<boolean> }
-    currentWindow.__markdownsoft_saveAll = saveAllBeforeWindowClose
-    return () => { delete currentWindow.__markdownsoft_saveAll }
+    const currentWindow = window as unknown as { __paperin_saveAll?: () => Promise<boolean> }
+    currentWindow.__paperin_saveAll = saveAllBeforeWindowClose
+    return () => { delete currentWindow.__paperin_saveAll }
   }, [saveAllBeforeWindowClose])
 
   const handleCloseTab = useCallback(async (id: string): Promise<void> => {

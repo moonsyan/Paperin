@@ -8,7 +8,7 @@ import {
 describe('system file open rules', () => {
   it('accepts only absolute Markdown paths from startup/second-instance argv', () => {
     expect(collectSystemOpenFiles([
-      'C:\\Program Files\\MarkdownSoft\\MarkdownSoft.exe',
+      'C:\\Program Files\\Paperin\\Paperin.exe',
       '--flag',
       'D:\\notes\\中文.md',
       'D:\\notes\\ignored.txt',

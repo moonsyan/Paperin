@@ -1,6 +1,6 @@
 # 命令与面板扩展
 
-LastFileHome 的菜单、快捷键和命令面板共享 `app/commands/app-command-registry.ts`。命令使用稳定 `id`、中文 `title`、可选 `shortcut`、`keywords` 和作用域 `scope`，执行前由 `CommandContext` 统一判断当前应用、工作区或文档是否可用。
+Paperin 的菜单、快捷键和命令面板共享 `app/commands/app-command-registry.ts`。命令使用稳定 `id`、中文 `title`、可选 `shortcut`、`keywords` 和作用域 `scope`，执行前由 `CommandContext` 统一判断当前应用、工作区或文档是否可用。
 
 命令面板的 `>` 模式会优先展示当前注册表中可用的命令，并保留旧版内置动作作为兼容回退。宿主调用 `runCommand` 时仍可传入旧动作字符串，因此旧菜单和快捷键无需一次性迁移。
 

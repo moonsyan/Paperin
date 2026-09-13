@@ -13,8 +13,8 @@ describe('工作区状态存储', () => {
   let statePath = ''
 
   beforeEach(async () => {
-    rootPath = await mkdtemp(join(tmpdir(), 'markdownsoft-workspace-state-'))
-    statePath = join(rootPath, '.markdownsoft')
+    rootPath = await mkdtemp(join(tmpdir(), 'paperin-workspace-state-'))
+    statePath = join(rootPath, '.paperin')
     await mkdir(statePath)
   })
 
@@ -118,4 +118,5 @@ describe('工作区状态存储', () => {
     expect(settings.editor.attachmentDirectory).toBe('from-a')
     expect(settings.appearance.theme).toBe('dark')
   })
+
 })

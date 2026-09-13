@@ -206,7 +206,7 @@ class MermaidPreview {
           const theme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'default'
           await ensureMermaidReady(theme)
           const mermaid = await getMermaid()
-          const id = `markdownsoft-mermaid-${diagramSequence++}`
+          const id = `paperin-mermaid-${diagramSequence++}`
           // 单次渲染 15s 超时兜底：用独立 timer 变量持有句柄，race 结束即
           // clearTimeout，避免每次渲染残留一个最长 15s 的挂起定时器（多图
           // 文档反复渲染会累积闲置 timer，延迟触发已无意义的 reject）

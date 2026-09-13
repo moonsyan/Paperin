@@ -77,9 +77,9 @@ export function AppTopBar({
     <div className="topbar">
       <div className="topbar-zone-left">
         {!sidebarCollapsed && (
-          <div className="brand" title="MarkdownSoft">
+          <div className="brand" title="Paperin">
             <img className="brand-icon" src="./icon.png" alt="" />
-            <span className="brand-name">MarkdownSoft</span>
+            <span className="brand-name">Paperin</span>
           </div>
         )}
         <button

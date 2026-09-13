@@ -1,6 +1,6 @@
 # 工作区壳层
 
-工作区壳层是 LastFileHome 的固定页面上下文。它始终显示知识库名称和路径，文件树、标签、编辑器和 ContextDock 都挂在同一个工作区内；没有打开知识库时仍保留壳层，只把状态标记为“未打开知识库”。
+工作区壳层是 Paperin 的固定页面上下文。它始终显示知识库名称和路径，文件树、标签、编辑器和 ContextDock 都挂在同一个工作区内；没有打开知识库时仍保留壳层，只把状态标记为“未打开知识库”。
 
 `WorkspaceShell` 位于 `src/renderer/src/components/WorkspaceShell/`，只负责页面结构和工作区上下文，不持有文件正文、标签或保存状态。`workspacePath` 存在时区域的 `data-workspace-state` 为 `open`，否则为 `empty`。
 

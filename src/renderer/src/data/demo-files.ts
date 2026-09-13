@@ -59,7 +59,7 @@ order: 1
   welcome: {
     id: 'welcome',
     name: '欢迎使用.md',
-    content: `# 欢迎使用 MarkdownSoft
+    content: `# 欢迎使用 Paperin
 
 一款对标 Typora 的**柔和简洁**的 Markdown 桌面编辑器。
 
@@ -139,7 +139,7 @@ graph TD
 
 ### 脚注
 
-MarkdownSoft 支持脚注语法[^1]，适合学术写作。
+Paperin 支持脚注语法[^1]，适合学术写作。
 
 [^1]: 行内输入 [^标签] 插入引用；行首输入 [^标签]: 内容 定义脚注。
 
@@ -163,7 +163,7 @@ def greet(name):
     name: '快速开始.md',
     content: `# 快速开始：Markdown 全语法教程
 
-> 本教程覆盖 MarkdownSoft 支持的全部 Markdown 语法。从未接触过 Markdown 也能跟着学会——每个语法都有"输入方式"和"渲染效果"对照。
+> 本教程覆盖 Paperin 支持的全部 Markdown 语法。从未接触过 Markdown 也能跟着学会——每个语法都有"输入方式"和"渲染效果"对照。
 
 ## 一、标题
 
@@ -206,7 +206,7 @@ def greet(name):
 
 输入 \`1.\` 加空格：
 
-1. 打开 MarkdownSoft
+1. 打开 Paperin
 2. 新建文档
 3. 开始写作
 
@@ -225,7 +225,7 @@ def greet(name):
 
 输入 \`- [ ]\` 创建未完成项，\`- [x]\` 创建已完成项。**鼠标点击**左侧方框即可切换勾选状态：
 
-- [x] 安装 MarkdownSoft
+- [x] 安装 Paperin
 - [x] 打开快速开始
 - [ ] 写第一篇笔记
 - [ ] 分享给朋友
@@ -236,7 +236,7 @@ def greet(name):
 
 语法：\`[显示文字](网址)\`
 
-示例：访问 [MarkdownSoft](https://github.com) 了解更多。
+示例：访问 [Paperin](https://github.com) 了解更多。
 
 ### 自动链接
 
@@ -276,13 +276,13 @@ def greet(name):
 
 ### 语法高亮
 
-在代码块标记后添加语言名，启用语法高亮。MarkdownSoft 使用 Prism 引擎，支持 200+ 种语言。
+在代码块标记后添加语言名，启用语法高亮。Paperin 使用 Prism 引擎，支持 200+ 种语言。
 
 \`\`\`python
 def greet(name):
     print(f"Hello, {name}!")
 
-greet("MarkdownSoft")
+greet("Paperin")
 \`\`\`
 
 \`\`\`javascript
@@ -308,7 +308,7 @@ ORDER BY created_at DESC
 
 \`\`\`json
 {
-  "name": "MarkdownSoft",
+  "name": "Paperin",
   "version": "1.0.0",
   "features": ["editor", "themes", "export"]
 }
@@ -359,7 +359,7 @@ ORDER BY created_at DESC
 
 ## 十一、数学公式
 
-MarkdownSoft 使用 KaTeX 渲染数学公式，支持行内和块级两种写法。
+Paperin 使用 KaTeX 渲染数学公式，支持行内和块级两种写法。
 
 ### 行内公式
 
@@ -494,7 +494,7 @@ author: 张三
 
 ---
 
-> 恭喜！你已了解 MarkdownSoft 支持的全部语法。新建一个空白文档，尝试组合使用这些语法吧。
+> 恭喜！你已了解 Paperin 支持的全部语法。新建一个空白文档，尝试组合使用这些语法吧。
 `,
   },
   design: {
@@ -506,7 +506,7 @@ author: 张三
 
 > 界面应当像纸一样安静，让文字成为唯一的主角。
 
-MarkdownSoft 遵循三条设计原则：
+Paperin 遵循三条设计原则：
 
 1. **柔和** — 低对比、暖色调，长时间书写不疲劳
 2. **简洁** — 功能收纳进菜单，界面只保留文字

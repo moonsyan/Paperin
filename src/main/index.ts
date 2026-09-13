@@ -177,7 +177,7 @@ async function initApp(): Promise<void> {
   // AUMID 仅在打包后指向应用 ID：开发态没有对应的开始菜单快捷方式，
   // Windows 解析不到任务栏图标会退回 electron.exe 默认图标；
   // 开发态改用进程路径，任务栏沿用 BrowserWindow 配置的窗口图标
-  electronApp.setAppUserModelId(is.dev ? process.execPath : 'com.markdownsoft.v3')
+  electronApp.setAppUserModelId(is.dev ? process.execPath : 'com.paperin.app')
 
   // 移除原生菜单：避免系统默认快捷键与编辑器冲突，快捷键全部由渲染进程接管
   Menu.setApplicationMenu(null)

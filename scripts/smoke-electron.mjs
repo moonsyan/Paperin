@@ -58,7 +58,7 @@ const main = async () => {
   }
 
   // 一次性冒烟工作区：中文目录名 + 一个既有文档，验证中文路径全链路
-  const smokeRoot = await mkdtemp(join(tmpdir(), 'mkeditor-smoke-ws-'))
+  const smokeRoot = await mkdtemp(join(tmpdir(), 'paperin-smoke-ws-'))
   const workspace = join(smokeRoot, '冒烟工作区')
   await mkdir(workspace, { recursive: true })
   await writeFile(

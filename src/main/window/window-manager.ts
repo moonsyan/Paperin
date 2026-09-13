@@ -21,7 +21,7 @@ export function createWindow(fresh = false, openFile?: string): BrowserWindow {
     minWidth: 680,
     minHeight: 480,
     show: false,
-    title: 'MarkdownSoft',
+    title: 'Paperin',
     // 窗口/任务栏图标（与打包图标同源）
     icon: join(__dirname, '../../resources/icon.png'),
     // 去掉系统标题栏，与渲染进程的顶栏菜单栏合为一体：
@@ -150,7 +150,7 @@ export function createWindow(fresh = false, openFile?: string): BrowserWindow {
     const wc = mainWindow.webContents
     void waitForCloseSave(
       () => wc.executeJavaScript(
-        'window.__markdownsoft_saveAll ? window.__markdownsoft_saveAll() : Promise.resolve(false)',
+        'window.__paperin_saveAll ? window.__paperin_saveAll() : Promise.resolve(false)',
       ),
       CLOSE_SAVE_TIMEOUT_MS,
     ).then((outcome) => {
@@ -165,7 +165,7 @@ export function createWindow(fresh = false, openFile?: string): BrowserWindow {
               ? `关闭前保存超过 ${CLOSE_SAVE_TIMEOUT_MS / 1000} 秒未完成，窗口未关闭，请稍后重试`
               : '关闭前保存未完成，窗口未关闭'
           void wc.executeJavaScript(
-            `window.__markdownsoft_notify ? window.__markdownsoft_notify(${JSON.stringify(message)}) : undefined`,
+        `window.__paperin_notify ? window.__paperin_notify(${JSON.stringify(message)}) : undefined`,
           ).catch(() => {})
           mainWindow.flashFrame(true)
         }

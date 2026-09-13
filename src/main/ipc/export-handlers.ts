@@ -85,7 +85,7 @@ export const registerExportHandlers = (): void => {
       // 改为写入临时文件后 loadFile，finally 中清理
       const tempHtml = join(
         app.getPath('temp'),
-        `mk-editor-pdf-${Date.now()}-${Math.random().toString(36).slice(2)}.html`,
+        `paperin-pdf-${Date.now()}-${Math.random().toString(36).slice(2)}.html`,
       )
       // F-L2：临时文件写入原在 try 外，磁盘满/权限不足时异常直接抛出 IPC，
       // 渲染层收不到错误结构。移入保护并返回结构化错误

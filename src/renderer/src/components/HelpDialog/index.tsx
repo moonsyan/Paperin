@@ -136,7 +136,7 @@ const SYNTAX_GROUPS: { title: string; items: { name: string; code: string }[] }[
 const TITLES: Record<Exclude<HelpView, null>, string> = {
   shortcuts: '快捷键一览',
   syntax: 'Markdown 语法',
-  about: '关于 MarkdownSoft',
+  about: '关于 Paperin',
   stats: '写作统计',
 }
 
@@ -261,7 +261,7 @@ export function HelpDialog({ view, onClose, stats, shortcuts }: HelpDialogProps)
           {view === 'about' && (
             <div className="about-box">
               <img className="about-icon" src="./icon.png" alt="" />
-              <div className="about-name">MarkdownSoft</div>
+              <div className="about-name">Paperin</div>
               <div className="about-version">版本 {version}</div>
               <p className="about-desc">
                 一款柔和简洁的 Markdown 桌面编辑器，

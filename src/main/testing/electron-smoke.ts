@@ -30,7 +30,7 @@ export const parseSmokeWorkspace = (argv = process.argv): string | null => {
 /** 冒烟模式必须在 app ready 前调用：把 userData 指向一次性临时目录，
  *  避免读写真实用户设置/信任清单，也让单实例锁与真实实例互不干扰 */
 export const applySmokeUserData = (): void => {
-  const dir = mkdtempSync(join(tmpdir(), 'mkeditor-smoke-user-'))
+  const dir = mkdtempSync(join(tmpdir(), 'paperin-smoke-user-'))
   app.setPath('userData', dir)
   // 沙箱/CI 环境可能没有任何可用的 GPU 进程（软光栅也失败时 Chromium 直接
   // FATAL 退出）；禁用 GPU 合成并把 GPU 工作并入浏览器进程，让冒烟只验证

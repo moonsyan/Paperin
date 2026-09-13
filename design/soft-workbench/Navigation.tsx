@@ -22,7 +22,7 @@ export function Navigation(props: Props): JSX.Element {
     : props.collection === 'recent' ? props.recent.flatMap(id => props.notes.filter(note => note.id === id)) : props.notes
   const groups = props.collection === 'all' ? [...new Set(visible.map(note => note.folder))] : ['']
   return <aside className="navigation" aria-label="知识库导航">
-    <div className="brand-row"><img src={logo} alt="" /><strong>LastFileHome</strong><button className="icon-button" onClick={props.onClose} aria-label="收起导航" title="收起导航"><Icon name="sidebar-simple" /></button></div>
+    <div className="brand-row"><img src={logo} alt="" /><strong>Paperin</strong><button className="icon-button" onClick={props.onClose} aria-label="收起导航" title="收起导航"><Icon name="sidebar-simple" /></button></div>
     <div className="vault-name">我的知识库<span>本地</span></div>
     <button className="search-trigger" onClick={props.onSearch} aria-label="搜索文档"><Icon name="magnifying-glass" /><span>搜索文档</span><kbd>Ctrl P</kbd></button>
     <nav className="collections" aria-label="快捷导航">

@@ -152,7 +152,7 @@ export const measureWorkspacePerformance = async ({
   bytesPerDoc = BYTES_PER_DOC,
   query = SEARCH_QUERY,
 } = {}) => {
-  const root = await mkdtemp(join(tmpdir(), 'mkeditor-perf-'))
+  const root = await mkdtemp(join(tmpdir(), 'paperin-perf-'))
   const rssSamples = []
   const sampler = setInterval(() => rssSamples.push(process.memoryUsage().rss), 10)
   try {

@@ -1,6 +1,6 @@
 // 由 build.mjs 从 demo.ts 生成。
 /* global document, matchMedia, innerWidth, IntersectionObserver, Node, HTMLElement, getSelection, Element, window, localStorage */
-const STORAGE_KEY = 'markdownsoft-quiet-demo-v1';
+const STORAGE_KEY = 'paperin-quiet-demo-v1';
 const seedDocuments = [
     {
         id: 'space', title: '给思考，留一点空白', subtitle: '整理思绪，也整理生活。', group: '随笔与思考', category: '随笔', favorite: true,

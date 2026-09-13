@@ -7,7 +7,7 @@
  *
  * 默认读取 package.json 的 version（release/<version>/ 目录需存在，
  * 先运行 npm run build:win）。上传的附件：
- *   - MarkdownSoft-Setup-<version>.exe（+ .blockmap 差异包）
+ *   - Paperin-Setup-<version>.exe（+ .blockmap 差异包）
  *   - latest.yml（electron-updater 更新清单）
  *
  * 令牌：gitee.com → 设置 → 私人令牌，勾选 projects 权限。
@@ -36,7 +36,7 @@ const tag = version.startsWith('v') ? version : `v${version}`
 
 // 收集产物：安装包 + latest.yml + 差异包
 const dir = join(__dirname, '..', 'release', version)
-const exe = join(dir, `MarkdownSoft-Setup-${version}.exe`)
+const exe = join(dir, `Paperin-Setup-${version}.exe`)
 const files = []
 if (existsSync(exe)) {
   files.push(exe)
@@ -80,7 +80,7 @@ async function findOrCreateRelease() {
     body: JSON.stringify({
       access_token: token,
       tag_name: tag,
-      name: `MarkdownSoft ${tag}`,
+      name: `Paperin ${tag}`,
       body: '由 scripts/sync-gitee.js 同步自 GitHub Release，供国内用户下载。',
       target_commitish: 'master',
     }),

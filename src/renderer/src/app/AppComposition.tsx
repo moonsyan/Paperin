@@ -303,14 +303,14 @@ export function AppComposition(): JSX.Element {
   useEffect(() => { document.documentElement.style.setProperty('--ecw', `${contentWidth}px`) }, [contentWidth])
   useEffect(() => { document.documentElement.style.setProperty('--elh', String(lineHeight)) }, [lineHeight])
   useEffect(() => { document.documentElement.setAttribute('data-contentfont', contentFont) }, [contentFont])
-  useEffect(() => { document.title = `${saved ? '' : '● '}${docTitle} — MarkdownSoft` }, [docTitle, saved])
+  useEffect(() => { document.title = `${saved ? '' : '● '}${docTitle} — Paperin` }, [docTitle, saved])
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => { if (Object.values(documents).some((d) => d.dirty)) { e.preventDefault(); e.returnValue = '' }; flushPersistedSettings() }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
   }, [documents])
   useEffect(() => { setConfirmDialogListener((request, resolve) => setConfirmRequest({ ...request, resolve })); return () => setConfirmDialogListener(null) }, [])
-  useEffect(() => { const w = window as unknown as { __markdownsoft_notify?: (m: string) => void }; w.__markdownsoft_notify = (m) => setToast(m); return () => { delete w.__markdownsoft_notify } }, [setToast])
+  useEffect(() => { const w = window as unknown as { __paperin_notify?: (m: string) => void }; w.__paperin_notify = (m) => setToast(m); return () => { delete w.__paperin_notify } }, [setToast])
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(''), 3500); return () => clearTimeout(t) }, [toast, setToast])
 
   useSystemFileOpen(openWorkspaceFile, settingsReady)

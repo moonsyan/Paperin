@@ -1,5 +1,5 @@
 {
-  "name": "markdown-soft-v3",
+  "name": "paperin",
   "version": "0.6.0",
   "description": "A minimal, elegant Markdown editor for desktop",
   "author": "ming",
@@ -32,8 +32,8 @@
     "build:linux": "electron-vite build && electron-builder --linux"
   },
   "build": {
-    "appId": "com.markdownsoft.v3",
-    "productName": "MarkdownSoft",
+    "appId": "com.paperin.app",
+    "productName": "Paperin",
     "directories": {
       "output": "release/${version}",
       "buildResources": "resources"
@@ -50,7 +50,7 @@
           "md",
           "markdown"
         ],
-        "name": "MarkdownSoft Markdown Document",
+        "name": "Paperin Markdown Document",
         "description": "Markdown 文档",
         "mimeType": "text/markdown",
         "role": "Editor"
@@ -71,7 +71,7 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "MarkdownSoft-Setup-${version}.${ext}"
+      "artifactName": "Paperin-Setup-${version}.${ext}"
     },
     "mac": {
       "icon": "resources/icon.png",

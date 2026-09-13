@@ -534,7 +534,7 @@ const coreXml = (title: string): string =>
 const APP_XML =
   '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
   '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">' +
-  '<Application>MarkdownSoft</Application></Properties>'
+  '<Application>Paperin</Application></Properties>'
 
 /**
  * 把导出 HTML 构建为 DOCX 包部件。

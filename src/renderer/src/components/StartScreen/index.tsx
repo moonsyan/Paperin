@@ -23,7 +23,7 @@ export function StartScreen({ onNew, onOpen, onOpenFolder, hasWorkspace = false 
     <div className="start-screen">
       <div className="start-inner">
         <img className="start-logo" src="./icon.png" alt="" />
-        <h1 className="start-title">MarkdownSoft</h1>
+        <h1 className="start-title">Paperin</h1>
         <p className="start-sub">一个安静的 Markdown 写作空间</p>
         <div className="start-actions">
           {hasWorkspace ? (
