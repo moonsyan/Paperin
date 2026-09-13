@@ -44,18 +44,6 @@
       "!out/**/*.tsbuildinfo",
       "!**/*.map"
     ],
-    "fileAssociations": [
-      {
-        "ext": [
-          "md",
-          "markdown"
-        ],
-        "name": "Paperin Markdown Document",
-        "description": "Markdown 文档",
-        "mimeType": "text/markdown",
-        "role": "Editor"
-      }
-    ],
     "afterPack": "scripts/afterPack.js",
     "electronLanguages": [
       "zh-CN",
@@ -66,6 +54,16 @@
       "icon": "resources/icon.png",
       "target": [
         "nsis"
+      ],
+      "fileAssociations": [
+        {
+          "ext": [
+            "md",
+            "markdown"
+          ],
+          "name": "Paperin Markdown Document",
+          "description": "Markdown 文档"
+        }
       ]
     },
     "nsis": {
@@ -78,7 +76,17 @@
       "target": [
         "dmg"
       ],
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "fileAssociations": [
+        {
+          "ext": [
+            "md",
+            "markdown"
+          ],
+          "name": "Paperin Markdown Document",
+          "role": "Editor"
+        }
+      ]
     },
     "linux": {
       "icon": "resources/icon.png",
