@@ -1,4 +1,6 @@
 import type { JSX } from 'react'
+import { FavoriteButton } from './FavoriteButton'
+import { isImeComposing } from '../../lib/keyboard'
 import { FileIcon } from './SidebarIcons'
 
 /** 快捷导航视图：null = 常规文件集合（树） */
@@ -132,6 +134,9 @@ export function SidebarQuickNav({
 // ---------------------------------------------------------------------------
 
 export interface SidebarFlatListProps {
+  favorites?: string[]
+  onToggleFavorite?: (path: string) => void
+  onFavoriteRemoved?: () => void
   entries: QuickNavEntry[]
   activePath?: string | null
   /** 空态引导文案（NEXT-UI-SPEC §4.1：空集合要给下一步动作，不只重复标题） */
@@ -142,7 +147,7 @@ export interface SidebarFlatListProps {
 }
 
 /** 与文件树共用行样式（.tree-row.tree-file-row），保证两种列表视觉一致 */
-export function SidebarFlatList({ entries, activePath, emptyLabel, listLabel, onOpen }: SidebarFlatListProps): JSX.Element {
+export function SidebarFlatList({ entries, activePath, emptyLabel, listLabel, onOpen, favorites = [], onToggleFavorite, onFavoriteRemoved }: SidebarFlatListProps): JSX.Element {
   if (entries.length === 0) return <div className="tree-empty">{emptyLabel}</div>
 
   return (
@@ -158,6 +163,7 @@ export function SidebarFlatList({ entries, activePath, emptyLabel, listLabel, on
             tabIndex={0}
             onClick={() => onOpen(entry)}
             onKeyDown={(event) => {
+              if (isImeComposing(event.nativeEvent)) return
               if (event.key !== 'Enter' && event.key !== ' ') return
               event.preventDefault()
               onOpen(entry)
@@ -166,6 +172,12 @@ export function SidebarFlatList({ entries, activePath, emptyLabel, listLabel, on
             <span className="tree-chevron-slot" />
             <FileIcon />
             <span className="tree-name">{entry.name}</span>
+            {entry.path && onToggleFavorite && (
+              <FavoriteButton name={entry.name} path={entry.path} favorite={favorites.includes(entry.path)} onToggle={(path) => {
+                if (favorites.includes(path)) onFavoriteRemoved?.()
+                onToggleFavorite(path)
+              }} />
+            )}
           </div>
         )
       })}

@@ -284,3 +284,11 @@ UI/UX 技能设计系统检索返回了叙事落地页、棕紫配色，和桌�
 - 模块边界：MenuBar/index.tsx 保留传统菜单；menu-definitions.ts 共享动作定义和快捷键映射；compact-menu-model.ts 管理分组；CompactMenu.tsx 和 compact-menu.css 管理分层交互与视觉。
 
 验证：全量 158 个测试文件、1237 项测试通过，类型检查、lint、构建、无障碍门禁与 Electron 文件冒烟通过。真实 Electron 浮层首页 300 × 424px，无滚动；浅色/深色截图检查，680 × 480 最小窗口边界检查通过。
+
+
+### 2026-09-13 收藏闭环
+
+- 文件行尾使用主题色星标，不向顶栏或更多菜单添加常驻入口；未收藏项在鼠标悬停、键盘聚焦时出现，触控设备始终可见，已收藏项始终显示实心状态。
+- 文件树、最近编辑、我的收藏共用 `useSidebarFavorites` 状态；列表星标操作不触发打开文件。取消收藏后恢复焦点到收藏导航。
+- 修正 settings.get 的响应解包：只从成功响应的 data 读取收藏。读取失败时保留内存操作且禁止覆盖磁盘记录。收藏格式和 IPC 不变。
+- `SidebarFilesPanel` 管理文件面板/扩展插槽，`useSidebarFileActions` 管理上下文菜单与重命名生命周期，`FavoriteButton` 提供一致的星标交互。

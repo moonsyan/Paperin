@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import {
   buildDemoFileTree,
   buildWorkspaceFileTree,
@@ -7,16 +7,16 @@ import {
   type UiNode,
 } from './fileTree'
 import { formatShortcutHint } from '../../data/shortcuts'
-import { clampMenuPosition } from '../../lib/menu-position'
 import type { SidebarProps } from './types'
 import { collectExternalOpenFiles } from './sidebar-file-model'
-import { SidebarContextMenu, type SidebarContextMenuState } from './SidebarContextMenu'
-import { SidebarTree } from './SidebarTree'
+import { SidebarContextMenu } from './SidebarContextMenu'
+import { SidebarFilesPanel } from './SidebarFilesPanel'
 import { SidebarFlatList, SidebarFooter, SidebarQuickNav } from './SidebarQuickNav'
 import type { QuickNavEntry, QuickNavView } from './SidebarQuickNav'
+import { useSidebarFileActions } from './useSidebarFileActions'
 import { useSidebarCollapse } from './useSidebarCollapse'
 import { sharedPanelRegistry } from '../../app/panels/shared-panel-registry'
-import type { PanelContext, PanelDefinition } from '../../app/panels/panel-registry'
+import type { PanelContext } from '../../app/panels/panel-registry'
 
 export type { OpenFile, SidebarProps, WorkspaceInfo } from './types'
 
@@ -31,7 +31,7 @@ export type { OpenFile, SidebarProps, WorkspaceInfo } from './types'
  * 导航与底部区在 SidebarQuickNav，本组件只负责树数据建模、右键菜单与视图编排。 */
 
 /** 内置 files 面板的 id（未注册或自带 render 时文件树不出现） */
-export const FILES_PANEL_ID = 'files'
+export { FILES_PANEL_ID } from './SidebarFilesPanel'
 
 const baseName = (path: string): string => path.split(/[\\/]/).pop() || path
 
@@ -62,10 +62,8 @@ export function Sidebar({
   onOpenSettings,
   searchShortcut,
 }: SidebarProps): JSX.Element {
-  // 右键菜单与内联重命名
-  const [ctxMenu, setCtxMenu] = useState<SidebarContextMenuState | null>(null)
-  const [renamingKey, setRenamingKey] = useState<string | null>(null)
-  const [renameValue, setRenameValue] = useState('')
+  const { ctxMenu, closeCtxMenu, openCtxMenu, renamingKey, renameValue,
+    setRenameValue, setRenamingKey } = useSidebarFileActions(Boolean(workspace))
   // 快捷导航视图：null = 常规文件集合（树）
   const [quickView, setQuickView] = useState<QuickNavView>(null)
 
@@ -81,34 +79,6 @@ export function Sidebar({
 
   // 切换工作区后快捷导航回到集合视图，避免停留在上个工作区的收藏列表
   useEffect(() => { setQuickView(null) }, [workspace?.path])
-
-  const closeCtxMenu = useCallback((restoreFocus = false) => {
-    const trigger = ctxMenu?.trigger
-    setCtxMenu(null)
-    if (restoreFocus) trigger?.focus()
-  }, [ctxMenu])
-
-  // 点击其他区域关闭右键菜单；Escape 关闭并把焦点还给触发右键的行。
-  useEffect(() => {
-    if (!ctxMenu) return
-    const handleClick = (event: MouseEvent) => {
-      if (!(event.target instanceof Element) || !event.target.closest('.tree-ctx-menu')) {
-        closeCtxMenu()
-      }
-    }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        closeCtxMenu(true)
-      }
-    }
-    document.addEventListener('click', handleClick)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('click', handleClick)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [closeCtxMenu, ctxMenu])
 
   /* ==================== 文件树数据 ==================== */
 
@@ -179,14 +149,6 @@ export function Sidebar({
 
   /* ==================== 渲染：文件树 ==================== */
 
-  /** 右键打开上下文菜单（仅工作区节点）；位置按视口收拢避免边缘溢出 */
-  const openCtxMenu = (e: React.MouseEvent, node: UiNode) => {
-    if (!workspace || !node.path) return
-    e.preventDefault()
-    const pos = clampMenuPosition(e.clientX, e.clientY)
-    setCtxMenu({ x: pos.x, y: pos.y, node, trigger: e.currentTarget as HTMLElement })
-  }
-
   const openTreeFile = (node: UiNode, pinned: boolean) => {
     // 从搜索结果点选文件时，搜索输入框持有焦点会挡住编辑器焦点恢复（H2），先释放
     const active = document.activeElement as HTMLElement | null
@@ -201,6 +163,8 @@ export function Sidebar({
   }
 
   const treeProps = {
+    favorites,
+    onToggleFavorite,
     interactive: Boolean(workspace),
     activeFileId,
     collapsedKeys,
@@ -224,40 +188,6 @@ export function Sidebar({
   // 扩展面板（自带 render）按注册顺序追加到文件树之后
   const panelContext: PanelContext = { activeFileId, hasWorkspace: Boolean(workspace) }
   const primaryPanels = registry.list('sidebar.primary', panelContext)
-
-  const renderPrimaryPanel = (panel: PanelDefinition): JSX.Element | null => {
-    if (panel.render) {
-      return (
-        <div key={panel.id} className="panel active sidebar-custom-panel" role="tabpanel" aria-label={panel.title}>
-          {panel.render(panelContext)}
-        </div>
-      )
-    }
-    if (panel.id !== FILES_PANEL_ID) return null
-    return (
-      <div key={panel.id} className="panel active" role="tabpanel" aria-label={panel.title}>
-        {tagFilter && (
-          <div className="tree-filter-banner">
-            <span className="tree-filter-label">#{tagFilter.tag}（{tagFilter.paths.length}）</span>
-            <button type="button" className="tree-filter-clear" onClick={() => onClearTagFilter?.()} aria-label="清除标签筛选" title="清除标签筛选">✕</button>
-          </div>
-        )}
-        <div role="tree" aria-label="文件列表">
-          {workspace ? (
-            visibleWorkspaceNodes.length > 0
-              ? <SidebarTree nodes={visibleWorkspaceNodes} {...treeProps} />
-              : <div className="tree-empty">{tagFilter ? '没有包含该标签的文件' : '文件夹为空，已新建空白文档'}</div>
-          ) : <SidebarTree nodes={demoNodes} {...treeProps} />}
-          {externalNodes.length > 0 && (
-            <div className="tree-external-group" role="group" aria-label="外部文件">
-              <div className="tree-section-label">外部文件</div>
-              <SidebarTree nodes={externalNodes} {...treeProps} />
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
 
   const collectionName = workspace ? workspace.name : '示例文档'
   const summary = workspace
@@ -288,6 +218,8 @@ export function Sidebar({
         {quickView === 'recent' ? (
           <SidebarFlatList
             entries={recentEntries}
+            favorites={favorites}
+            onToggleFavorite={onToggleFavorite}
             activePath={activeFilePath}
             emptyLabel="打开或编辑文档后会出现在这里"
             listLabel="最近编辑"
@@ -296,13 +228,18 @@ export function Sidebar({
         ) : quickView === 'favorites' ? (
           <SidebarFlatList
             entries={favoriteEntries}
+            favorites={favorites}
+            onToggleFavorite={onToggleFavorite}
             activePath={activeFilePath}
-            emptyLabel="还没有收藏，可在文件右键菜单中收藏"
+            emptyLabel="还没有收藏，点击文件旁的星标即可收藏"
             listLabel="我的收藏"
+            onFavoriteRemoved={() => sidebarRef.current?.querySelector<HTMLButtonElement>('[title="我的收藏"]')?.focus()}
             onOpen={(entry) => { if (entry.path) onSelectWorkspaceFile(entry.path, false) }}
           />
         ) : (
-          primaryPanels.map((panel) => renderPrimaryPanel(panel))
+          primaryPanels.map((panel) => <SidebarFilesPanel key={panel.id} panel={panel} context={panelContext}
+            nodes={workspace ? visibleWorkspaceNodes : demoNodes} externalNodes={externalNodes}
+            treeProps={treeProps} tagFilter={tagFilter} onClearTagFilter={onClearTagFilter} />)
         )}
       </div>
 

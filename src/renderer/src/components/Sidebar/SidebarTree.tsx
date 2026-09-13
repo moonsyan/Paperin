@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FavoriteButton } from './FavoriteButton'
 import { isImeComposing } from '../../lib/keyboard'
 import { ChevronIcon, FileIcon, FolderIcon } from './SidebarIcons'
 import type { UiNode } from './fileTree'
@@ -12,6 +13,8 @@ import type { UiNode } from './fileTree'
  */
 
 export interface SidebarTreeProps {
+  favorites?: string[]
+  onToggleFavorite?: (path: string) => void
   nodes: UiNode[]
   /** 支持拖拽移动与右键菜单：仅工作区树为 true（演示树不可编辑） */
   interactive: boolean
@@ -30,6 +33,8 @@ export interface SidebarTreeProps {
 }
 
 export function SidebarTree({
+  favorites = [],
+  onToggleFavorite,
   nodes,
   interactive,
   activeFileId,
@@ -172,6 +177,7 @@ export function SidebarTree({
         style={{ paddingLeft: indent }}
         role="treeitem"
         tabIndex={0}
+        aria-label={node.name}
         aria-selected={isActive}
         onClick={() => onOpenFile(node, false)}
         onDoubleClick={() => onOpenFile(node, true)}
@@ -190,6 +196,9 @@ export function SidebarTree({
         <span className="tree-chevron-slot" />
         <FileIcon />
         <span className="tree-name">{node.name}</span>
+        {node.path && onToggleFavorite && (
+          <FavoriteButton name={node.name} path={node.path} favorite={favorites.includes(node.path)} onToggle={onToggleFavorite} />
+        )}
       </div>
     )
   }

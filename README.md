@@ -39,3 +39,10 @@ npm run perf:regression
 
 旧项目能力与新项目迁移状态见 [`docs/compatibility-matrix.md`](./docs/compatibility-matrix.md)。
 合成性能场景、实测基线和脚本阈值说明见 [`docs/development/performance-baseline.md`](./docs/development/performance-baseline.md)。
+
+
+### 收藏文档
+
+在文件树或「最近编辑」中，将鼠标移到文件行，点击右侧空心星标即可收藏；键盘 Tab 聚焦文件行或按钮时也会显示星标。已收藏的文件显示实心星标，再次点击即可取消。工作区文件的右键菜单仍保留「收藏 / 取消收藏」。
+
+「我的收藏」显示当前知识库的收藏文件，点击文件名打开，点击实心星标直接取消，数量即时更新。取消最后一项后，焦点回到「我的收藏」入口。收藏按知识库分别保存在本机，重启后恢复；直接打开的外部文件同样支持星标。示例文档和未保存草稿没有真实文件路径，需先另存为再收藏。

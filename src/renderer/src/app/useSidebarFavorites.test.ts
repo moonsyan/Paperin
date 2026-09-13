@@ -12,7 +12,7 @@ const injectSettingsApi = (get: GetMock) => {
   const set = vi.fn().mockResolvedValue({ ok: true })
   const original = window.desktopAPI
   Object.defineProperty(window, 'desktopAPI', {
-    value: { settings: { get, set } },
+    value: { settings: { get: async (key: string) => ({ ok: true, data: await get(key) }), set } },
     configurable: true,
     writable: true,
   })
@@ -166,5 +166,33 @@ describe('useSidebarFavorites 基础行为', () => {
     expect(set).not.toHaveBeenCalled()
 
     Object.defineProperty(window, 'desktopAPI', { value: original, configurable: true, writable: true })
+  })
+})
+
+
+describe('收藏写回契约', () => {
+  it('取消后写入空列表，重新挂载不会复活收藏', async () => {
+    const get = vi.fn().mockResolvedValue({ 'D:/Notes': ['D:/Notes/a.md'] })
+    const { set, restore } = injectSettingsApi(get)
+    const first = renderHook(() => useSidebarFavorites({ workspacePath: 'D:/Notes', settingsReady: true }))
+    await waitFor(() => expect(first.result.current.favorites).toEqual(['D:/Notes/a.md']))
+    act(() => first.result.current.toggleFavorite('D:/Notes/a.md'))
+    await waitFor(() => expect(set).toHaveBeenCalledWith('sidebarFavorites', { 'D:/Notes': [] }))
+    first.unmount()
+    get.mockResolvedValue({ 'D:/Notes': [] })
+    const second = renderHook(() => useSidebarFavorites({ workspacePath: 'D:/Notes', settingsReady: true }))
+    await waitFor(() => expect(second.result.current.hydrated).toBe(true))
+    expect(second.result.current.favorites).toEqual([])
+    restore()
+  })
+
+  it('读取失败时不把本地空缺写回覆盖已有收藏', async () => {
+    const { set, restore } = injectSettingsApi(vi.fn().mockRejectedValue(new Error('IO_ERROR')))
+    const { result } = renderHook(() => useSidebarFavorites({ workspacePath: 'D:/Notes', settingsReady: true }))
+    act(() => result.current.toggleFavorite('D:/Notes/new.md'))
+    await waitFor(() => expect(result.current.hydrated).toBe(true))
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 600)) })
+    expect(set).not.toHaveBeenCalled()
+    restore()
   })
 })

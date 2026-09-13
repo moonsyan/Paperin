@@ -66,6 +66,7 @@ export function useSidebarFavorites({
 }: UseSidebarFavoritesOptions): UseSidebarFavoritesReturn {
   const [byScope, setByScope] = useState<FavoritesByScope | null>(null)
   const [hydrated, setHydrated] = useState(false)
+  const [canPersist, setCanPersist] = useState(false)
   const scope = workspacePath ?? DEMO_TREE_SCOPE
   const favorites = useMemo(() => byScope?.[scope] ?? [], [byScope, scope])
 
@@ -78,7 +79,9 @@ export function useSidebarFavorites({
       try {
         const res = await window.desktopAPI?.settings.get('sidebarFavorites')
         if (cancelled) return
-        const loaded = sanitizeFavorites(res)
+        if (!res?.ok) return
+        const loaded = sanitizeFavorites(res.data)
+        setCanPersist(true)
         if (loaded) setByScope((prev) => mergeFavorites(prev, loaded))
       } catch {
         // 读取失败：不覆盖内存状态，也不把失败写回持久化
@@ -91,7 +94,7 @@ export function useSidebarFavorites({
     }
   }, [settingsReady])
 
-  usePersistedSetting('sidebarFavorites', byScope, settingsReady && hydrated, 500)
+  usePersistedSetting('sidebarFavorites', byScope, settingsReady && hydrated && canPersist, 500)
 
   const toggleFavorite = useCallback((path: string) => {
     setByScope((prev) => {

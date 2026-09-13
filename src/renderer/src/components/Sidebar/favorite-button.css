@@ -1,0 +1,24 @@
+.tree-row .file-favorite-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  padding: 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.file-favorite-button svg { width: 16px; height: 16px; }
+.tree-row .file-favorite-button[aria-pressed="true"] { color: var(--accent); }
+.tree-row .file-favorite-button:hover { background: var(--bg-hover); color: var(--accent); }
+.file-favorite-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .tree-row:not(:hover):not(:focus-within) .file-favorite-button[aria-pressed="false"] { opacity: 0; }
+}
