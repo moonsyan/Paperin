@@ -1,4 +1,4 @@
-import { chmod, lstat, readFile, readdir, realpath, rename, unlink, writeFile } from 'fs/promises'
+import { chmod, copyFile, lstat, readFile, readdir, realpath, rename, unlink, writeFile } from 'fs/promises'
 import type { Dirent } from 'fs'
 import { basename, dirname, join } from 'path'
 import iconv from 'iconv-lite'
@@ -9,12 +9,12 @@ const MAX_TREE_NODES = 2000
 
 const lastKnownFileState = new Map<string, { mtimeMs: number; size: number }>()
 
-/** Windows Explorer associates desktop icon positions with the existing file
- * object. Replacing it via temp+rename makes Explorer see a delete/create pair. */
+/** Desktop shells associate icon positions with the existing file object.
+ * Replacing it via temp+rename can look like a delete/create pair. */
 export const shouldPreserveFileIdentity = (
   platform: NodeJS.Platform,
   targetExists: boolean,
-): boolean => platform === 'win32' && targetExists
+): boolean => (platform === 'win32' || platform === 'darwin' || platform === 'linux') && targetExists
 
 export interface FolderTreeNode {
   name: string
@@ -183,12 +183,6 @@ export const writeFileAtomically = async (
   } catch {
     // 文件不存在则按普通文件处理。
   }
-  // Preserve the original file object on Windows. This avoids a desktop
-  // shortcut/icon being repositioned after an otherwise ordinary save.
-  if (shouldPreserveFileIdentity(process.platform, targetExists)) {
-    await writeFile(target, content)
-    return
-  }
   const tempPath = join(
     dirname(target),
     `.${basename(target)}.${process.pid}-${Date.now()}-${Math.random()}.tmp`,
@@ -198,7 +192,15 @@ export const writeFileAtomically = async (
     if (mode !== undefined && process.platform !== 'win32') {
       await chmod(tempPath, mode & 0o777).catch(() => {})
     }
-    await rename(tempPath, target)
+    // Preserve the original file object on desktop platforms. copyFile writes
+    // into the existing destination, unlike rename which emits delete/create
+    // notifications that can reset desktop icon positions.
+    if (shouldPreserveFileIdentity(process.platform, targetExists)) {
+      await copyFile(tempPath, target)
+      await unlink(tempPath)
+    } else {
+      await rename(tempPath, target)
+    }
   } catch (error) {
     await unlink(tempPath).catch(() => {})
     throw error

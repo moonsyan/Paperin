@@ -133,9 +133,10 @@ describe('Markdown 目录树', () => {
 })
 
 describe('文件保存策略', () => {
-  it('Windows 已有文件保存时保留文件对象，避免桌面图标被当作新文件排列', () => {
+  it('桌面平台已有文件保存时保留文件对象，避免桌面图标被当作新文件排列', () => {
     expect(shouldPreserveFileIdentity('win32', true)).toBe(true)
     expect(shouldPreserveFileIdentity('win32', false)).toBe(false)
-    expect(shouldPreserveFileIdentity('linux', true)).toBe(false)
+    expect(shouldPreserveFileIdentity('linux', true)).toBe(true)
+    expect(shouldPreserveFileIdentity('darwin', true)).toBe(true)
   })
 })
