@@ -37,6 +37,7 @@ const createState = (): { state: DocumentState; setContents: ReturnType<typeof v
     openFilesRef: refOf([]),
     contentsRef: refOf({}),
     activeFileIdRef: refOf('welcome'),
+    activeSessionRef: refOf(0),
     fileMtimeRef: refOf({}),
     encodingMapRef: refOf({}),
     initialOrSavedRef: refOf({}),

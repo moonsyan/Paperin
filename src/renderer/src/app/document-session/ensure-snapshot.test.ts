@@ -49,7 +49,7 @@ describe('ensureFreshSnapshot 快照契约', () => {
         5_000,
         50,
       )
-      expect(outcome).toEqual({ content: 'stale-cache', settled: false })
+      expect(outcome).toEqual({ content: 'stale-cache', settled: false, reason: 'timeout' })
     } finally {
       vi.restoreAllMocks()
     }
@@ -75,5 +75,24 @@ describe('ensureFreshSnapshot 快照契约', () => {
     )
     expect(outcome.settled).toBe(true)
     expect(outcome.content).toBe('fresh')
+  })
+
+  it('等待中目标文档切换时中止，不能借用新编辑器确认旧快照', async () => {
+    let targetCurrent = true
+    const outcome = await ensureFreshSnapshot(
+      {
+        hasPendingChanges: () => true,
+        readSnapshot: () => 'document-a-cache',
+        isTargetCurrent: () => targetCurrent,
+        delay: async () => { targetCurrent = false },
+      },
+      5_000,
+      50,
+    )
+    expect(outcome).toEqual({
+      content: 'document-a-cache',
+      settled: false,
+      reason: 'target-changed',
+    })
   })
 })

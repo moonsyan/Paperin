@@ -11,8 +11,8 @@
  *   `INITIAL_OR_SAVED` + mtime 回填表达。
  *
  * 核心不变量：保存请求必须先确保获得**含末次输入**的目标版本快照，再入队写盘；
- * 等待必须有进度与失败出口——超时后仍提交已落账的快照（保证磁盘有内容），
- * 但不宣称该版本包含末次输入，由调用方保留 dirty 让用户再次保存。
+ * 等待必须有进度与失败出口——超时或目标会话改变时只返回未完成结果；
+ * 调用方保留 dirty，不得把其中的缓存提交为本次保存或放行关闭。
  */
 
 /** 快照落账等待上限：防抖 200ms + 大文档序列化时间；超时走失败出口而不是无限等 */
@@ -26,6 +26,11 @@ export interface EnsureSnapshotDeps {
   hasPendingChanges: () => boolean
   /** 读取当前快照（大文档为 contentsRef 缓存口径） */
   readSnapshot: () => string
+  /**
+   * 保存等待期间目标文档是否仍是当前编辑会话。切换标签、工作区或卸载后，
+   * EditorHandle 会指向别的内容，不能再用它的 pending 状态确认旧文档。
+   */
+  isTargetCurrent?: () => boolean
   /** 可注入的延时（测试用）；默认 setTimeout */
   delay?: (ms: number) => Promise<void>
 }
@@ -37,6 +42,8 @@ export interface SnapshotOutcome {
    * false —— 等待超时，快照可能落后于编辑器，调用方必须保留 dirty 并提示
    */
   settled: boolean
+  /** 未完成的具体原因，调用方据此阻止写盘或关闭。 */
+  reason?: 'timeout' | 'target-changed'
 }
 
 const defaultDelay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
@@ -45,8 +52,8 @@ const defaultDelay = (ms: number) => new Promise<void>((resolve) => setTimeout(r
  * 确保返回的快照包含编辑器的末次输入。
  *
  * 编辑器没有未落账输入时立即返回缓存（零等待，普通路径零开销）；
- * 有未落账输入时轮询等待落账（防抖 + 序列化完成），超时后仍返回当前缓存
- * 并以 `settled: false` 表明本次保存不包含末次输入。
+ * 有未落账输入时轮询等待落账（防抖 + 序列化完成）。超时或目标会话改变时
+ * 仍返回当前缓存供调用方保留会话状态，但以 `settled: false` 标明它不能写盘。
  */
 export const ensureFreshSnapshot = async (
   deps: EnsureSnapshotDeps,
@@ -54,15 +61,22 @@ export const ensureFreshSnapshot = async (
   pollMs: number = SNAPSHOT_SETTLE_POLL_MS,
 ): Promise<SnapshotOutcome> => {
   const wait = deps.delay ?? defaultDelay
+  const targetIsCurrent = deps.isTargetCurrent ?? (() => true)
+  if (!targetIsCurrent()) {
+    return { content: deps.readSnapshot(), settled: false, reason: 'target-changed' }
+  }
   if (!deps.hasPendingChanges()) {
     return { content: deps.readSnapshot(), settled: true }
   }
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     await wait(pollMs)
+    if (!targetIsCurrent()) {
+      return { content: deps.readSnapshot(), settled: false, reason: 'target-changed' }
+    }
     if (!deps.hasPendingChanges()) {
       return { content: deps.readSnapshot(), settled: true }
     }
   }
-  return { content: deps.readSnapshot(), settled: false }
+  return { content: deps.readSnapshot(), settled: false, reason: 'timeout' }
 }

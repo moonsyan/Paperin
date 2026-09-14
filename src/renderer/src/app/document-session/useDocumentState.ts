@@ -42,6 +42,8 @@ export interface DocumentState extends ActiveDocumentState {
   openFilesRef: MutableRefObject<OpenFile[]>
   contentsRef: MutableRefObject<Record<string, string>>
   activeFileIdRef: MutableRefObject<string>
+  /** 每次切换活动编辑会话递增，异步保存据此拒绝 A→B→A 的旧快照。 */
+  activeSessionRef: MutableRefObject<number>
   fileMtimeRef: MutableRefObject<Record<string, number>>
   encodingMapRef: MutableRefObject<Record<string, string>>
   initialOrSavedRef: MutableRefObject<Record<string, string>>
@@ -106,7 +108,15 @@ export const useDocumentState = (): DocumentState => {
       initialOrSavedRef.current,
     ),
   )
-  const [activeFileId, setActiveFileId] = useState(DEFAULT_FILE_ID)
+  const [activeFileId, setActiveFileIdState] = useState(DEFAULT_FILE_ID)
+  const activeSessionRef = useRef(0)
+  const setActiveFileId: Dispatch<SetStateAction<string>> = useCallback((action) => {
+    setActiveFileIdState((previous) => {
+      const next = resolveStateAction(action, previous)
+      if (next !== previous) activeSessionRef.current++
+      return next
+    })
+  }, [])
   const [docTitle, setDocTitle] = useState(DEMO_FILES[DEFAULT_FILE_ID].name)
 
   const { contents, savedMap, fileMtime, encodingMap } = useMemo(
@@ -176,6 +186,7 @@ export const useDocumentState = (): DocumentState => {
     openFilesRef,
     contentsRef,
     activeFileIdRef,
+    activeSessionRef,
     fileMtimeRef,
     encodingMapRef,
     initialOrSavedRef,

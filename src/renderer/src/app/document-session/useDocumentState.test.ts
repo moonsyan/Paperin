@@ -101,5 +101,6 @@ describe('useDocumentState.documents', () => {
       result.current.setActiveFileId('doc-1')
     })
     expect(result.current.activeDocument?.id).toBe('doc-1')
+    expect(result.current.activeSessionRef.current).toBe(1)
   })
 })

@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, renderHook, waitFor } from '@testing-library/react'
 import type { MutableRefObject } from 'react'
 import { useDocumentSaving, type UseDocumentSavingOptions } from './useDocumentSaving'
+import { DocumentSaveQueue } from '../../lib/document-save-queue'
+import type { AutoSaveSnapshot } from './types'
 
 afterEach(() => {
   cleanup()
@@ -32,6 +34,7 @@ const createHarness = (overrides: HarnessOverrides = {}) => {
     current: [{ id: 'file-1', name: 'big.md', path: 'D:/notes/big.md' }],
   }
   const activeFileIdRef: Settable<string> = { current: 'file-1' }
+  const activeSessionRef: Settable<number> = { current: 0 }
   const draftPendingRef: MutableRefObject<null> = { current: null }
   const editorRef = {
     current: {
@@ -59,6 +62,7 @@ const createHarness = (overrides: HarnessOverrides = {}) => {
     state: {
       activeFileId: 'file-1',
       activeFileIdRef,
+      activeSessionRef,
       contents,
       contentsRef,
       fileMtime: {},
@@ -122,17 +126,50 @@ describe('useDocumentSaving 大文档快照契约（T05）', () => {
     expect(savedWith[0][1]).toBe(BIG + '<last-keystroke>')
   })
 
-  it('落账等待超时走失败出口：仍保存已落账版本并提示用户', async () => {
+  it('落账等待超时不写入旧缓存，并提示用户重试', async () => {
     stubDesktopAPI()
     const { options, savedWith, setToast } = createHarness({
       hasPendingChanges: () => true,
     })
     const { result } = renderHook(() => useDocumentSaving(options))
     await result.current.handleSave()
-    await waitFor(() => expect(savedWith).toHaveLength(1))
-    // 保存的是当前已落账缓存，不因等待失败而中止保存
-    expect(savedWith[0][1]).toBe(BIG)
+    expect(savedWith).toHaveLength(0)
     expect(setToast).toHaveBeenCalledWith(expect.stringContaining('仍在生成快照'))
+  })
+
+  it('等待快照时切换活动文档，不向原路径写入可能过期的内容', async () => {
+    let pending = true
+    stubDesktopAPI()
+    const { options, savedWith, setToast } = createHarness({
+      hasPendingChanges: () => pending,
+    })
+    setTimeout(() => {
+      options.state.activeFileIdRef.current = 'file-2'
+      options.state.activeSessionRef.current++
+      // 返回同一文件 ID 也必须失效：EditorHandle 已经历另一个会话。
+      options.state.activeFileIdRef.current = 'file-1'
+      options.state.activeSessionRef.current++
+      pending = false
+    }, 20)
+    const { result } = renderHook(() => useDocumentSaving(options))
+    await result.current.handleSave()
+    expect(savedWith).toHaveLength(0)
+    expect(setToast).toHaveBeenCalledWith(expect.stringContaining('文档已切换'))
+  })
+
+  it('关闭前快照超时会阻止关闭，也不会冲刷旧缓存', async () => {
+    stubDesktopAPI()
+    const { options, setToast } = createHarness({ hasPendingChanges: () => true })
+    const queue = new DocumentSaveQueue<AutoSaveSnapshot>(async () => {}, 1_000)
+    const flush = vi.spyOn(queue, 'flush').mockImplementation(async () => {
+      options.state.initialOrSavedRef.current['file-1'] = BIG
+    })
+    options.saveQueueApi.saveQueueRef.current = queue
+    const { result } = renderHook(() => useDocumentSaving(options))
+
+    await expect(result.current.saveBeforeClose('file-1')).resolves.toBe(false)
+    expect(flush).not.toHaveBeenCalled()
+    expect(setToast).toHaveBeenCalledWith(expect.stringContaining('已取消关闭'))
   })
 
   it('小文档仍走编辑器同步读取（低延迟语义保留）', async () => {

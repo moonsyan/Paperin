@@ -56,6 +56,7 @@ export function useDocumentSaving({
   const {
     activeFileId,
     activeFileIdRef,
+    activeSessionRef,
     contents,
     contentsRef,
     fileMtime,
@@ -199,19 +200,29 @@ export function useDocumentSaving({
   const handleSave = useCallback(async () => {
     const file = openFiles.find((f) => f.id === activeFileId)
     if (!file) return
+    const targetSession = activeSessionRef.current
     let content: string
     if (shouldPreferCachedDocumentSnapshot(contentsRef.current[activeFileId] ?? contents[activeFileId] ?? '')) {
       // T05 快照契约：大文档保存必须先确保快照含末次输入——防抖窗口内的输入
       // 尚未落账时等待 markdownUpdated 落账，避免把防抖前的旧版本写盘
-      // （perf:electron 实测 diskHasEdit:false 的根因）。超时走失败出口：
-      // 仍提交已落账版本（保证磁盘有内容），提示用户再次保存；
-      // 保存后 contentsRef 若已变化，isCurrentContent 比对自然保留 dirty。
+      // （perf:electron 实测 diskHasEdit:false 的根因）。等待超时或目标会话
+      // 改变时不能提交旧缓存：它并不代表本次保存请求的编辑版本。
       const outcome = await ensureFreshSnapshot({
         hasPendingChanges: () => editorRef.current?.hasPendingChanges() ?? false,
         readSnapshot: () => contentsRef.current[activeFileId] ?? contents[activeFileId] ?? '',
+        isTargetCurrent: () => (
+          activeFileIdRef.current === activeFileId
+          && activeSessionRef.current === targetSession
+          && openFilesRef.current.some((candidate) => candidate.id === activeFileId)
+        ),
       }, snapshotSettleTimeoutMs)
       if (!outcome.settled) {
-        setToast('文档仍在生成快照，已保存最近确认的版本；请稍后再次保存')
+        setToast(
+          outcome.reason === 'target-changed'
+            ? '文档已切换，未保存可能过期的快照；请返回原文档后重试'
+            : '文档仍在生成快照，未保存旧版本；请稍后再次保存',
+        )
+        return
       }
       content = outcome.content
     } else {
@@ -222,8 +233,12 @@ export function useDocumentSaving({
         ? toStoredImages(editorMd, dirOfFile(activeFileId))
         : contentsRef.current[activeFileId] ?? contents[activeFileId] ?? ''
     }
-    // 同步回填 state，保证后续 savedMap/INITIAL_OR_SAVED 比对基于最新内容
-    if (contentsRef.current[activeFileId] !== content) {
+    // 同步编辑器读取的普通文档快照。大文档内容来自已落账的 contentsRef，
+    // 不能在异步等待后用旧值覆盖期间已经抵达的新输入。
+    if (
+      !shouldPreferCachedDocumentSnapshot(contentsRef.current[activeFileId] ?? contents[activeFileId] ?? '')
+      && contentsRef.current[activeFileId] !== content
+    ) {
       contentsRef.current = { ...contentsRef.current, [activeFileId]: content }
       setContents((prev) => (prev[activeFileId] === content ? prev : { ...prev, [activeFileId]: content }))
     }
@@ -274,7 +289,7 @@ export function useDocumentSaving({
     }
     // 无路径：另存为
     await handleSaveAs()
-  }, [INITIAL_OR_SAVED, activeFileId, contents, contentsRef, dirOfFile, editorRef, fileMtime, openFiles, openFilesRef, resolveSelfConflict, recordHistory, saveWithEncodingFallback, handleSaveAs, clearDraft, setContents, setFileMtime, setSavedMap, setToast, snapshotSettleTimeoutMs])
+  }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, activeSessionRef, contents, contentsRef, dirOfFile, editorRef, fileMtime, openFiles, openFilesRef, resolveSelfConflict, recordHistory, saveWithEncodingFallback, handleSaveAs, clearDraft, setContents, setFileMtime, setSavedMap, setToast, snapshotSettleTimeoutMs])
 
   const saveBeforeClose = useCallback(async (id: string): Promise<boolean> => {
     const file = openFilesRef.current.find((candidate) => candidate.id === id)
@@ -319,12 +334,23 @@ export function useDocumentSaving({
     if (editorRef.current?.isReady() && id === activeFileIdRef.current) {
       const cachedBeforeClose = contentsRef.current[id] ?? ''
       if (shouldPreferCachedDocumentSnapshot(cachedBeforeClose)) {
+        const targetSession = activeSessionRef.current
         const outcome = await ensureFreshSnapshot({
           hasPendingChanges: () => editorRef.current?.hasPendingChanges() ?? false,
           readSnapshot: () => contentsRef.current[id] ?? '',
+          isTargetCurrent: () => (
+            activeFileIdRef.current === id
+            && activeSessionRef.current === targetSession
+            && openFilesRef.current.some((candidate) => candidate.id === id)
+          ),
         }, snapshotSettleTimeoutMs)
         if (!outcome.settled) {
-          setToast(`「${file.name}」仍在生成快照，已按最近确认的版本保存；建议重新打开后确认内容`)
+          setToast(
+            outcome.reason === 'target-changed'
+              ? `「${file.name}」的编辑会话已切换，已取消关闭`
+              : `「${file.name}」仍在生成快照，未保存旧版本并已取消关闭`,
+          )
+          return false
         }
       }
     }
@@ -359,7 +385,7 @@ export function useDocumentSaving({
       })
       return choice === 'discard'
     }
-  }, [INITIAL_OR_SAVED, activeFileIdRef, contentsRef, editorRef, liveContentOf, openFilesRef, recordRecent, saveQueueRef, setToast, snapshotSettleTimeoutMs])
+  }, [INITIAL_OR_SAVED, activeFileIdRef, activeSessionRef, contentsRef, editorRef, liveContentOf, openFilesRef, recordRecent, saveQueueRef, setToast, snapshotSettleTimeoutMs])
 
   // 未保存状态同步到主进程（关闭时弹原生确认框，避免静默阻止关闭）
   const hasUnsaved = useMemo(() => Object.values(savedMap).some((s) => !s), [savedMap])
