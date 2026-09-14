@@ -644,8 +644,6 @@ settings.set(key: string, value: unknown): Promise<void>
 /** 文件树结构（顺序即显示顺序） */
 export const DEMO_TREE: DemoFolder[] = [
   { label: '项目文档', fileIds: ['welcome', 'quickstart', 'design', 'publish'] },
-  { label: '技术文档', fileIds: ['architecture', 'api'] },
-  { label: '笔记', fileIds: ['meeting', 'todo'] },
 ]
 
 /** 默认打开的文件 */

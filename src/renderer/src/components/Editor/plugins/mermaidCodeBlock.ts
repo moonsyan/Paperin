@@ -53,6 +53,27 @@ export const shouldRemoveMermaidSource = (
   hasRenderedSvg: boolean,
 ): boolean => hasPreviewBlock && !isEditingSource && hasRenderedSvg
 
+/** 只有仍挂在当前渲染集合中的、且未被更新代次淘汰的结果才能写回 DOM。 */
+export const shouldCommitMermaidRender = (
+  isActive: boolean,
+  renderVersion: number,
+  currentVersion: number,
+): boolean => isActive && renderVersion === currentVersion
+
+/**
+ * 装饰 key 同时包含源码指纹。切换文档时若位置相同但源码不同，
+ * ProseMirror 不得复用旧 Mermaid widget，否则旧 SVG 会短暂甚至永久串到新文档。
+ * 源码编辑期间插件会走 haveSameBlocks 快路径复用现有 widget，不会因每个字符重建。
+ */
+export const mermaidDecorationKey = (pos: number, source: string): string => {
+  let hash = 2166136261
+  for (let index = 0; index < source.length; index += 1) {
+    hash ^= source.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return `mermaid-preview-${pos}-${(hash >>> 0).toString(16)}`
+}
+
 const getMermaid = () => {
   if (!mermaidPromise) {
     mermaidPromise = import('mermaid').then(({ default: mermaid }) => mermaid)
@@ -222,20 +243,20 @@ class MermaidPreview {
           ]).finally(() => {
             if (timeoutHandle) clearTimeout(timeoutHandle)
           })
-          if (version !== this.renderVersion) return
+          if (!shouldCommitMermaidRender(activePreviews.has(this), version, this.renderVersion)) return
           // Mermaid 在 strict 模式下生成 SVG，避免把未经处理的 Markdown 直接写入 DOM。
           this.preview.innerHTML = svg
           bindFunctions?.(this.preview)
         }),
       )
       .catch((error: unknown) => {
-        if (version !== this.renderVersion) return
+        if (!shouldCommitMermaidRender(activePreviews.has(this), version, this.renderVersion)) return
         this.preview.replaceChildren(this.status)
         this.status.textContent = `图表语法错误：${getErrorMessage(error)}`
         this.status.classList.add('is-error')
       })
       .finally(() => {
-        if (version !== this.renderVersion) return
+        if (!shouldCommitMermaidRender(activePreviews.has(this), version, this.renderVersion)) return
         renderListeners.forEach((listener) => listener())
       })
     return this.renderPromise
@@ -243,6 +264,8 @@ class MermaidPreview {
 
   destroy = () => {
     if (this.renderTimer) clearTimeout(this.renderTimer)
+    // 失效所有尚未完成的异步 render，避免切换文档后旧结果回写到复用的 widget。
+    this.renderVersion += 1
     this.button.removeEventListener('click', this.handleToggleSource)
     activePreviews.delete(this)
     if (activePreviews.size === 0 && themeObserver) {
@@ -324,7 +347,7 @@ const buildMermaidDecorations = (doc: ProseNode, blocks = getMermaidBlocks(doc))
   blocks.forEach(({ pos }) => {
     const node = doc.nodeAt(pos)
     if (!node) return
-    const key = `mermaid-preview-${pos}`
+    const key = mermaidDecorationKey(pos, node.textContent)
     decorations.push(Decoration.node(pos, pos + node.nodeSize, { class: 'mermaid-source-block' }))
     decorations.push(
       Decoration.widget(

@@ -15,6 +15,8 @@ import {
   isMermaidLanguage,
   isSelectionInsideMermaidBlock,
   shouldRemoveMermaidSource,
+  shouldCommitMermaidRender,
+  mermaidDecorationKey,
   mermaidPreviewPlugin,
 } from './mermaidCodeBlock'
 
@@ -41,6 +43,21 @@ describe('isMermaidLanguage', () => {
     expect(shouldRemoveMermaidSource(true, true, true)).toBe(false)
     expect(shouldRemoveMermaidSource(true, false, false)).toBe(false)
     expect(shouldRemoveMermaidSource(true, false, true)).toBe(true)
+  })
+
+  it('销毁旧文档的异步渲染结果不会提交到新文档', () => {
+    expect(shouldCommitMermaidRender(true, 3, 3)).toBe(true)
+    expect(shouldCommitMermaidRender(false, 3, 3)).toBe(false)
+    expect(shouldCommitMermaidRender(true, 2, 3)).toBe(false)
+  })
+
+  it('不同源码不会复用同一位置的旧图表装饰', () => {
+    expect(mermaidDecorationKey(10, 'graph TD\nA-->B')).not.toBe(
+      mermaidDecorationKey(10, 'graph TD\nA-->C'),
+    )
+    expect(mermaidDecorationKey(10, 'graph TD\nA-->B')).toBe(
+      mermaidDecorationKey(10, 'graph TD\nA-->B'),
+    )
   })
 })
 

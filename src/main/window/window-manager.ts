@@ -2,6 +2,7 @@ import { BrowserWindow, dialog } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { waitForCloseSave } from './close-save'
+import { getMainWindowPlacement } from './window-options'
 
 const CLOSE_SAVE_TIMEOUT_MS = 15_000
 const UNRESPONSIVE_DIALOG_DELAY_MS = 10_000
@@ -16,10 +17,7 @@ export function createWindow(fresh = false, openFile?: string): BrowserWindow {
   const isMac = process.platform === 'darwin'
 
   const mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 680,
-    minHeight: 480,
+    ...getMainWindowPlacement(),
     show: false,
     title: 'Paperin',
     // 窗口/任务栏图标（与打包图标同源）
