@@ -108,7 +108,10 @@ Shared (side-effect-free DTOs, state, constants)
 6. 执行相关测试，再执行 `npm run typecheck`、`npm run test`、`npm run build`。
 7. UI、IPC、文件、编辑器和打包变更执行 `npm run dev` 或 `npm run smoke` 人工验证。
 8. 查看 `git diff` 和 `git status`，确认没有构建产物、密钥、用户数据或无关改动。
-9. 做完一个功能，验证后马上提交git。
+9. git 提交的时候新增内容统一用feat: 总结新增的内容的格式;修复问题统一用fix: 总结修复的内容和方法格式;文档变动统一用docs: 总结变化;重构格式话代码，统一用chore: 总结变动格式; 
+10. 每次完成一个功能或修改，验证后马上提交git。
+11. 代码提交commit要严格遵循第9条规范。
+
 
 ## 完成定义
 
