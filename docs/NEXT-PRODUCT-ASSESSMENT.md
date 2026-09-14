@@ -2,7 +2,7 @@
 
 评估日期：2026-09-12（Asia/Shanghai）
 
-代码基准：`671e989`，package 版本 `0.6.0`。
+代码基准：`671e989`，package 版本 `0.6.0`。本文主体保留 2026-09-12 的评估证据；截至 2026-09-14，S01/S02 已增加保存恢复与快照关闭保护，S03 已增加 5 MiB 保存阶段诊断，完整性能、平台和用户验证仍以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准。
 
 性质：当前代码的评估与产品建议；涉及实现状态时以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 和 README 的验证结果为准。
 

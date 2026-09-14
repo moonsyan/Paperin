@@ -1,6 +1,6 @@
 # Paperin 下一版：柔和工作台与个人知识复用
 
-日期：2026-09-13。审查起点：`58901d6`，`package.json` 版本 `0.6.0`，开始时工作区干净。
+日期：2026-09-13。审查起点：`58901d6`，`package.json` 版本 `0.6.0`，开始时工作区干净。后续工程进展以 2026-09-14 的 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准：S01/S02 已完成首批可靠性保护，S03 性能硬门禁仍待结案；本文中的视觉和产品方向不代表这些验收已经完成。
 
 本次交付包含**产品评估、设计原型和生产壳层视觉迁移**，没有接入模型或启用发布服务。实际实现进度仍以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准。原型位于 [design/soft-workbench](../design/soft-workbench/README.md)，生产视觉层位于 [soft-workbench.css](../src/renderer/src/styles/soft-workbench.css)。
 

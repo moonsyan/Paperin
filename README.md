@@ -20,7 +20,7 @@ Paperin 是项目统一产品名称，工作区状态写入 `.paperin`，应用�
 
 - 本地知识库：打开文件夹后，文件树、标签、标签页、编辑器和辅助面板共享同一个工作区上下文。
 - Markdown 写作：Milkdown/ProseMirror 编辑器支持 GFM、任务列表、表格、代码、公式、Mermaid、脚注和 frontmatter。
-- 文件可靠性：新建、打开、保存、另存为、重命名、移动、回收站删除、外部修改冲突和多种编码处理。
+- 文件可靠性：新建、打开、保存、另存为、重命名、移动、回收站删除、外部修改冲突和多种编码处理；已有文件覆盖写入保留可恢复的确认版本。
 - 文档会话：多标签、固定标签、dirty 状态、草稿恢复、关闭确认和外部 Markdown 文件统一走同一套会话模型。
 - 找回与复用：快速打开、工作区全文搜索、当前文档查找替换、最近编辑、收藏、标签、Wiki 链接、反向链接和关系图谱。
 - 收藏闭环：文件树、最近编辑和“我的收藏”都可点击星标收藏/取消；收藏按知识库保存在本机，重启后恢复。
@@ -104,15 +104,18 @@ npm run demo:soft     # 仅启动柔和工作台原型
 
 文档已经收敛为当前仍有用途的维护资料、设计规范和验证记录：
 
+- [`docs/PRODUCT-STRATEGY-ROADMAP.md`](./docs/PRODUCT-STRATEGY-ROADMAP.md)：战略定位、竞品事实校正、目标用户、增长与商业验证规则。
+- [`docs/development/strategy-validation.md`](./docs/development/strategy-validation.md)：正确性、性能、复用效率、留存与增长的验收指标及采样口径。
 - [`docs/REFACTOR-STATUS.md`](./docs/REFACTOR-STATUS.md)：当前 `master` 的唯一实时完成度和验证证据。
 - [`docs/NEXT-PRODUCT-ASSESSMENT.md`](./docs/NEXT-PRODUCT-ASSESSMENT.md)：产品定位、证据边界、风险和下一阶段判断。
 - [`docs/NEXT-UI-SPEC.md`](./docs/NEXT-UI-SPEC.md)：顶栏、侧栏、路径条、上下文面板、主题和窄窗口规范。
-- [`docs/NEXT-DEVELOPMENT-PLAN.md`](./docs/NEXT-DEVELOPMENT-PLAN.md)：滚动实施计划、依赖、测试和发布门禁。
+- [`docs/NEXT-DEVELOPMENT-PLAN.md`](./docs/NEXT-DEVELOPMENT-PLAN.md)：战略落地的 S00–S17 任务、优先级、依赖、验收、回退及旧任务映射。
 - [`docs/SOFT-WORKBENCH-PLAN.md`](./docs/SOFT-WORKBENCH-PLAN.md)：柔和工作台与资料复用方向，以及原型到生产的映射。
 - [`docs/compatibility-matrix.md`](./docs/compatibility-matrix.md)：旧能力、当前实现、测试依据和平台验证边界。
 - [`docs/command-panels.md`](./docs/command-panels.md)：命令注册表、快捷键、面板插槽和低频能力入口。
 - [`docs/workspace-shell.md`](./docs/workspace-shell.md)：工作区壳层、路径来源、dirty 和窄窗口交互契约。
 - [`docs/system-file-open-and-close.md`](./docs/system-file-open-and-close.md)：系统文件关联、多窗口和关闭保护规则。
+- [`docs/file-write-recovery.md`](./docs/file-write-recovery.md)：已有桌面文件的可恢复覆盖写入协议、恢复边界和验证范围。
 - [`docs/document-tab-lifecycle.md`](./docs/document-tab-lifecycle.md) 与 [`docs/domain-model.md`](./docs/domain-model.md)：文档会话、标签生命周期和状态边界。
 - [`docs/TECH-STACK.md`](./docs/TECH-STACK.md)：技术路线和替代方案评估。
 - [`docs/ACCESSIBILITY-SMOKE.md`](./docs/ACCESSIBILITY-SMOKE.md)：主题可读性、焦点和人工冒烟范围。
@@ -122,7 +125,7 @@ npm run demo:soft     # 仅启动柔和工作台原型
 
 ## 当前边界与后续方向
 
-当前仍需继续验证的重点是大文档编辑/保存/导出的 IPC 性能、长时间运行下的索引与 UI 性能，以及 Windows 安装包和 macOS/Linux 文件关联。三平台安装验证、真实输入法、缩放和权限异常不能用一次开发态构建替代。
+已完成的 P0 工程增量包括已有文件的中断恢复、快照超时不写旧版本、关闭前不放行未确认内容，以及 5 MiB 保存的阶段诊断。仍需继续验证大文档编辑/保存/导出的性能与正确性、写入故障矩阵、长时间运行下的索引与 UI 性能，以及 Windows 安装包和 macOS/Linux 文件关联。三平台安装验证、真实输入法、缩放和权限异常不能用一次开发态构建替代。
 
 产品下一步优先验证“资料找到后真的被重新用进写作”的任务闭环，再决定 AI 资料问答、发布预览和跨设备同步的投入。同步暂缓，不新增账号或云端前置条件；发布从已有导出能力开始，所有扩展都必须保留原始 Markdown 的可取回性。
 

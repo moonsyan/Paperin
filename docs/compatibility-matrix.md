@@ -1,14 +1,14 @@
 # 兼容矩阵
 
-> 2026-09-13 更新：表内“保留/已迁移”表示能力或契约存在，不代表所有目标平台都已完成发布验证。当前 Windows 开发环境的 Electron smoke、收藏写回/恢复和取消收藏验证已通过；三平台安装包与真实系统文件关联仍待发布前人工验证。当前完成度以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准，后续顺序见 [NEXT-DEVELOPMENT-PLAN](NEXT-DEVELOPMENT-PLAN.md)。
+> 2026-09-14 更新：表内“保留/已迁移”表示能力或契约存在，不代表所有目标平台都已完成发布验证。S01 可恢复写入和 S02 快照/关闭保护已有工程回归；5 MiB 性能硬门禁、故障矩阵、真实 IME 与三平台安装仍未完成。当前完成度以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准，后续顺序见 [NEXT-DEVELOPMENT-PLAN](NEXT-DEVELOPMENT-PLAN.md)。
 
 | 能力 | 旧实现 | 现有测试/依据 | 第一批状态 | 后续验证 |
 |---|---|---|---|---|
 | 打开文件/目录/系统关联 | `src/main/window/system-file-open.ts`, `file-handlers.ts`, `workspace-handlers.ts` | 参数/分流单测、Windows Electron smoke、`system-file-open-and-close.md` | 开发态已固化 | Windows 安装包关联、macOS Finder 与 Linux MIME 验证 |
-| 保存、另存为、重命名、移动、回收站删除 | Main IPC + save queue | file-io、save-lock、close-save；已有桌面文件保留对象并有 journal/backup 恢复协议 | 保留 | Q01 故障注入、进程终止与三平台文件身份验证 |
+| 保存、另存为、重命名、移动、回收站删除 | Main IPC + save queue | file-io、save-lock、close-save；已有桌面文件保留对象并有 journal/backup 恢复协议；超时/会话切换不写旧快照 | 保留；P0 工程闭环 | Q01 故障注入、Q02 时序、进程终止与三平台文件身份验证 |
 | 外部修改冲突 | expected mtime 保存协议 | document save tests | 保留 | 外部编辑器冒烟 |
 | UTF-8/GBK/编码损失 | `file-io.ts` + iconv-lite | file-io tests | 保留 | 中文路径与不可映射字符 |
-| 多标签、dirty、关闭确认 | DocumentRecord store + TabBar | record store、TabBar、document-session、close-save | 已迁移 | 多窗口冒烟 |
+| 多标签、dirty、关闭确认 | DocumentRecord store + TabBar | record store、TabBar、document-session、close-save；活动会话序号保护异步保存 | 已迁移；P0 首批回归 | 多窗口、IME、卸载和关闭时序冒烟 |
 | 编辑器适配层 | Milkdown `EditorHandle` | adapter、快捷键与应用动作测试 | 已迁移 | 输入法与焦点人工验证 |
 | 草稿恢复与会话持久化 | settings store + draft hooks | draft/session tests | 保留 | 重启恢复 |
 | 工作区文件树、最近文件、收藏 | workspace hooks/components | workspace tests、收藏行为测试 | 文件树、最近编辑、星标收藏/取消、右键入口和按工作区恢复已实现 | 跨库路径迁移、5000 文件 UI 性能 |
