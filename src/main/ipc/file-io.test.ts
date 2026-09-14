@@ -1,4 +1,5 @@
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'fs/promises'
+import { createHash } from 'crypto'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -11,6 +12,7 @@ import {
   UnsupportedEncodingError,
   walkMarkdownTree,
   writeFileAtomically,
+  writeFileAtomicallyWithIo,
   shouldPreserveFileIdentity,
 } from './file-io'
 
@@ -129,6 +131,96 @@ describe('Markdown 目录树', () => {
     expect(paths).toContain('一级.md')
     expect(paths).toContain('二级.md')
     expect(budget).toMatchObject({ files: 3, truncated: true })
+  })
+})
+
+describe('可恢复桌面文件写入', () => {
+  it('桌面文件覆盖中断后恢复最后确认版本，并在下次写入时清理恢复材料', async () => {
+    const directory = await createTemporaryDirectory()
+    const filePath = join(directory, '恢复.md')
+    await writeFile(filePath, '最后确认版本')
+    let copyCalls = 0
+
+    await expect(writeFileAtomicallyWithIo(filePath, '未确认版本', undefined, {
+      copyFile: async (source, destination) => {
+        copyCalls++
+        if (copyCalls === 2) {
+          await writeFile(destination, '损坏的部分内容')
+          throw new Error('模拟复制中断')
+        }
+        await writeFile(destination, await readFile(source))
+      },
+    })).rejects.toThrow('模拟复制中断')
+
+    await expect(readFile(filePath, 'utf-8')).resolves.toBe('最后确认版本')
+    await writeFileAtomically(filePath, '下一次确认版本')
+    await expect(readFile(filePath, 'utf-8')).resolves.toBe('下一次确认版本')
+    await expect(readFile(join(directory, '.恢复.md.paperin-save-journal'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(readFile(join(directory, '.恢复.md.paperin-save-backup'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('读取带有已中断保存记录的文件时恢复最后确认版本', async () => {
+    const directory = await createTemporaryDirectory()
+    const filePath = join(directory, '崩溃恢复.md')
+    const confirmed = '最后确认版本'
+    const unconfirmed = '未确认版本'
+    const digest = (content: string) => createHash('sha256').update(content).digest('hex')
+    await writeFile(filePath, '损坏的部分内容')
+    await writeFile(join(directory, '.崩溃恢复.md.paperin-save-backup'), confirmed)
+    await writeFile(join(directory, '.崩溃恢复.md.paperin-save-journal'), JSON.stringify({
+      version: 1,
+      phase: 'prepared',
+      ownerPid: 2_147_483_647,
+      contentSha256: digest(unconfirmed),
+      backupSha256: digest(confirmed),
+    }))
+
+    await expect(readTextAutoEncoding(filePath)).resolves.toEqual({ content: confirmed, encoding: 'UTF-8' })
+    await expect(readFile(join(directory, '.崩溃恢复.md.paperin-save-journal'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(readFile(join(directory, '.崩溃恢复.md.paperin-save-backup'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('读取已提交的保存记录时保留新版本并清理恢复材料', async () => {
+    const directory = await createTemporaryDirectory()
+    const filePath = join(directory, '已提交.md')
+    const confirmed = '已提交的新版本'
+    const previous = '上一次确认版本'
+    const digest = (content: string) => createHash('sha256').update(content).digest('hex')
+    await writeFile(filePath, confirmed)
+    await writeFile(join(directory, '.已提交.md.paperin-save-backup'), previous)
+    await writeFile(join(directory, '.已提交.md.paperin-save-journal'), JSON.stringify({
+      version: 1,
+      phase: 'committed',
+      ownerPid: 2_147_483_647,
+      contentSha256: digest(confirmed),
+      backupSha256: digest(previous),
+    }))
+
+    await expect(readTextAutoEncoding(filePath)).resolves.toEqual({ content: confirmed, encoding: 'UTF-8' })
+    await expect(readFile(join(directory, '.已提交.md.paperin-save-journal'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(readFile(join(directory, '.已提交.md.paperin-save-backup'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('不会用已提交记录的旧副本覆盖之后的外部修改', async () => {
+    const directory = await createTemporaryDirectory()
+    const filePath = join(directory, '外部修改.md')
+    const committed = 'Paperin 已确认版本'
+    const previous = '上一次确认版本'
+    const external = '外部编辑器的新版本'
+    const digest = (content: string) => createHash('sha256').update(content).digest('hex')
+    await writeFile(filePath, external)
+    await writeFile(join(directory, '.外部修改.md.paperin-save-backup'), previous)
+    await writeFile(join(directory, '.外部修改.md.paperin-save-journal'), JSON.stringify({
+      version: 1,
+      phase: 'committed',
+      ownerPid: 2_147_483_647,
+      contentSha256: digest(committed),
+      backupSha256: digest(previous),
+    }))
+
+    await expect(readTextAutoEncoding(filePath)).resolves.toEqual({ content: external, encoding: 'UTF-8' })
+    await expect(readFile(join(directory, '.外部修改.md.paperin-save-journal'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(readFile(join(directory, '.外部修改.md.paperin-save-backup'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
   })
 })
 

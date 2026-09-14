@@ -1,20 +1,22 @@
-import { chmod, copyFile, lstat, readFile, readdir, realpath, rename, unlink, writeFile } from 'fs/promises'
+import { readFile, readdir } from 'fs/promises'
 import type { Dirent } from 'fs'
-import { basename, dirname, join } from 'path'
+import { join } from 'path'
 import iconv from 'iconv-lite'
+import { recoverInterruptedFileWrite } from './file-write-recovery'
+export {
+  FileWriteRecoveryError,
+  FileWriteRecoveryPendingError,
+  recoverInterruptedFileWrite,
+  shouldPreserveFileIdentity,
+  writeFileAtomically,
+  writeFileAtomicallyWithIo,
+} from './file-write-recovery'
 
 const MAX_FILE_STATE_ENTRIES = 4096
 const MAX_TREE_DEPTH = 5
 const MAX_TREE_NODES = 2000
 
 const lastKnownFileState = new Map<string, { mtimeMs: number; size: number }>()
-
-/** Desktop shells associate icon positions with the existing file object.
- * Replacing it via temp+rename can look like a delete/create pair. */
-export const shouldPreserveFileIdentity = (
-  platform: NodeJS.Platform,
-  targetExists: boolean,
-): boolean => (platform === 'win32' || platform === 'darwin' || platform === 'linux') && targetExists
 
 export interface FolderTreeNode {
   name: string
@@ -126,6 +128,9 @@ const tryUtf16ByZeroBytes = (buf: Buffer): { content: string; encoding: string }
 export const readTextAutoEncoding = async (
   filePath: string,
 ): Promise<{ content: string; encoding: string }> => {
+  // A crashed in-place desktop save may leave a verified recovery journal.
+  // Recover before any reader (open, index, history) consumes a partial file.
+  await recoverInterruptedFileWrite(filePath)
   const buf = await readFile(filePath)
   if (buf.length >= 4 && buf[0] === 0xff && buf[1] === 0xfe && buf[2] === 0x00 && buf[3] === 0x00) {
     throw new UnsupportedEncodingError('UTF-32LE 编码暂不支持，请先转为 UTF-8')
@@ -163,47 +168,6 @@ export const readTextAutoEncoding = async (
       if (zero) return zero
     }
     return { content, encoding: 'GBK' }
-  }
-}
-
-export const writeFileAtomically = async (
-  filePath: string,
-  content: string | Uint8Array,
-  mode?: number,
-): Promise<void> => {
-  let target = filePath
-  let targetExists = false
-  try {
-    const linkStat = await lstat(filePath)
-    targetExists = linkStat.isFile() || linkStat.isSymbolicLink()
-    if (linkStat.isSymbolicLink()) {
-      const real = await realpath(filePath).catch(() => null)
-      if (real) target = real
-    }
-  } catch {
-    // 文件不存在则按普通文件处理。
-  }
-  const tempPath = join(
-    dirname(target),
-    `.${basename(target)}.${process.pid}-${Date.now()}-${Math.random()}.tmp`,
-  )
-  try {
-    await writeFile(tempPath, content)
-    if (mode !== undefined && process.platform !== 'win32') {
-      await chmod(tempPath, mode & 0o777).catch(() => {})
-    }
-    // Preserve the original file object on desktop platforms. copyFile writes
-    // into the existing destination, unlike rename which emits delete/create
-    // notifications that can reset desktop icon positions.
-    if (shouldPreserveFileIdentity(process.platform, targetExists)) {
-      await copyFile(tempPath, target)
-      await unlink(tempPath)
-    } else {
-      await rename(tempPath, target)
-    }
-  } catch (error) {
-    await unlink(tempPath).catch(() => {})
-    throw error
   }
 }
 

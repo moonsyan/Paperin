@@ -19,7 +19,9 @@ import {
   getKnownFileState,
   MAX_DOCUMENT_FILE_SIZE,
   MAX_EXPORT_FILE_SIZE,
+  FileWriteRecoveryPendingError,
   readTextAutoEncoding,
+  recoverInterruptedFileWrite,
   rememberFileState,
   UnsupportedEncodingError,
   writeFileAtomically,
@@ -60,6 +62,9 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
     | { ok: false; error: { code: string; message?: string } }
   > => {
     try {
+      // Recovery must run before stat: copyFile may remove its destination
+      // after an interrupted overwrite, leaving only the verified backup.
+      await recoverInterruptedFileWrite(filePath)
       const fileStat = await stat(filePath)
       if (!fileStat.isFile()) {
         return { ok: false, error: { code: 'NOT_FILE' } }
@@ -83,6 +88,9 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
         },
       }
     } catch (error) {
+      if (error instanceof FileWriteRecoveryPendingError) {
+        return { ok: false, error: { code: 'FILE_BUSY', message: error.message } }
+      }
       if (error instanceof UnsupportedEncodingError) {
         return { ok: false, error: { code: 'UNSUPPORTED_ENCODING', message: error.message } }
       }
