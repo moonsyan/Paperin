@@ -17,6 +17,8 @@ const LARGE_DOCUMENT_EDIT_MARKER = 'PERF_LARGE_DOCUMENT_EDITED'
 const TAB_COUNT = 20
 const TAB_SWITCH_ROUNDS = 2
 const PERFORMANCE_STEP_TIMEOUT_MS = 130_000
+/** 保存硬门禁是 120 秒；无调用回执时 15 秒即收集阶段证据，避免把定位失败拖满两轮超时。 */
+const SAVE_DIAGNOSTIC_TIMEOUT_MS = 15_000
 
 export type EvaluateSmokeStep = (
   win: BrowserWindow,
@@ -41,6 +43,10 @@ export const summarizeElectronPerformance = (latencies: readonly number[]) => ({
   p95Ms: Math.round(percentile(latencies, 0.95) * 100) / 100,
   maxMs: Math.round(Math.max(0, ...latencies) * 100) / 100,
 })
+
+/** 失败回执不能证明本次写盘完成，性能脚本无需再轮询磁盘标记。 */
+export const shouldWaitForSavedMarker = (saveResult: Record<string, unknown>): boolean =>
+  saveResult.ok === true
 
 const waitForSavedMarker = async (path: string, marker: string): Promise<boolean> => {
   const deadline = Date.now() + ELECTRON_PERFORMANCE_THRESHOLDS.largeDocumentSaveMs
@@ -167,10 +173,22 @@ export const runElectronPerformanceSmoke = async (
         const api = window.desktopAPI.document
         const original = api.save.bind(api)
         window.__perfSaveResult = null
-        api.save = ((...args) => original(...args).then(result => {
-          window.__perfSaveResult = { ok: result.ok, code: result.error?.code }
-          return result
-        }))
+        window.__perfSaveProbe = {
+          observerInstalledAt: performance.now(),
+          shortcutDispatchedAt: null,
+          saveCalledAt: null,
+          saveContentLength: null,
+          saveSettledAt: null,
+        }
+        api.save = ((...args) => {
+          window.__perfSaveProbe.saveCalledAt = performance.now()
+          window.__perfSaveProbe.saveContentLength = typeof args[1] === 'string' ? args[1].length : null
+          return original(...args).then(result => {
+            window.__perfSaveProbe.saveSettledAt = performance.now()
+            window.__perfSaveResult = { ok: result.ok, code: result.error?.code }
+            return result
+          })
+        })
         return { ok: true }
       } catch (error) {
         return { ok: false, reason: String(error) }
@@ -184,6 +202,7 @@ export const runElectronPerformanceSmoke = async (
       const trigger = document.createElement('button')
       document.body.appendChild(trigger)
       trigger.focus()
+      window.__perfSaveProbe.shortcutDispatchedAt = performance.now()
       const event = new KeyboardEvent('keydown', { key: 's', code: 'KeyS', ctrlKey: true, bubbles: true, cancelable: true })
       const dispatched = trigger.dispatchEvent(event)
       trigger.remove()
@@ -194,19 +213,30 @@ export const runElectronPerformanceSmoke = async (
     win,
     '读取保存结果',
     `(() => {
-      const deadline = performance.now() + ${ELECTRON_PERFORMANCE_THRESHOLDS.largeDocumentSaveMs}
+      const deadline = performance.now() + ${SAVE_DIAGNOSTIC_TIMEOUT_MS}
       return (async () => {
         while (performance.now() < deadline) {
           const result = window.__perfSaveResult
           if (result) return result
           await new Promise(resolve => setTimeout(resolve, 50))
         }
-        return { ok: false, code: 'SAVE_RESULT_TIMEOUT' }
+        const activeTab = document.querySelector('[role="tab"][aria-selected="true"]')
+        return {
+          ok: false,
+          code: 'SAVE_RESULT_TIMEOUT',
+          probe: window.__perfSaveProbe,
+          activeLabel: activeTab?.getAttribute('aria-label') ?? null,
+          editorTextLength: document.querySelector('.milkdown .editor')?.textContent?.length ?? 0,
+        }
       })()
     })()`,
     PERFORMANCE_STEP_TIMEOUT_MS,
   )
-  const saved = await waitForSavedMarker(largePath, LARGE_DOCUMENT_EDIT_MARKER)
+  // 没有进入 save 调用或没有回执时，磁盘不可能为本次请求提供成功确认；
+  // 直接带阶段证据失败，避免再额外轮询 120 秒而掩盖真正卡点。
+  const saved = shouldWaitForSavedMarker(saveResult)
+    ? await waitForSavedMarker(largePath, LARGE_DOCUMENT_EDIT_MARKER)
+    : false
   const largeSaveMs = performance.now() - largeSaveStartedAt
   if (saveTriggered.ok !== true || saveResult.ok !== true || !saved || largeSaveMs > ELECTRON_PERFORMANCE_THRESHOLDS.largeDocumentSaveMs) {
     const diskSnapshot = await readFile(largePath, 'utf8').catch(() => null)

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { summarizeElectronPerformance } from './electron-performance-smoke'
+import {
+  shouldWaitForSavedMarker,
+  summarizeElectronPerformance,
+} from './electron-performance-smoke'
 
 describe('summarizeElectronPerformance', () => {
   it('reports deterministic median, p95, and maximum without mutating input', () => {
@@ -21,5 +24,10 @@ describe('summarizeElectronPerformance', () => {
       p95Ms: 0,
       maxMs: 0,
     })
+  })
+
+  it('只在收到成功保存回执后轮询磁盘标记', () => {
+    expect(shouldWaitForSavedMarker({ ok: true })).toBe(true)
+    expect(shouldWaitForSavedMarker({ ok: false, code: 'SAVE_RESULT_TIMEOUT' })).toBe(false)
   })
 })
