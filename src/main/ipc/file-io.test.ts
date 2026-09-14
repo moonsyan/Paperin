@@ -11,6 +11,7 @@ import {
   UnsupportedEncodingError,
   walkMarkdownTree,
   writeFileAtomically,
+  shouldPreserveFileIdentity,
 } from './file-io'
 
 const temporaryDirectories: string[] = []
@@ -128,5 +129,13 @@ describe('Markdown 目录树', () => {
     expect(paths).toContain('一级.md')
     expect(paths).toContain('二级.md')
     expect(budget).toMatchObject({ files: 3, truncated: true })
+  })
+})
+
+describe('文件保存策略', () => {
+  it('Windows 已有文件保存时保留文件对象，避免桌面图标被当作新文件排列', () => {
+    expect(shouldPreserveFileIdentity('win32', true)).toBe(true)
+    expect(shouldPreserveFileIdentity('win32', false)).toBe(false)
+    expect(shouldPreserveFileIdentity('linux', true)).toBe(false)
   })
 })

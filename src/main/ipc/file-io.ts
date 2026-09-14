@@ -9,6 +9,13 @@ const MAX_TREE_NODES = 2000
 
 const lastKnownFileState = new Map<string, { mtimeMs: number; size: number }>()
 
+/** Windows Explorer associates desktop icon positions with the existing file
+ * object. Replacing it via temp+rename makes Explorer see a delete/create pair. */
+export const shouldPreserveFileIdentity = (
+  platform: NodeJS.Platform,
+  targetExists: boolean,
+): boolean => platform === 'win32' && targetExists
+
 export interface FolderTreeNode {
   name: string
   path: string
@@ -165,14 +172,22 @@ export const writeFileAtomically = async (
   mode?: number,
 ): Promise<void> => {
   let target = filePath
+  let targetExists = false
   try {
     const linkStat = await lstat(filePath)
+    targetExists = linkStat.isFile() || linkStat.isSymbolicLink()
     if (linkStat.isSymbolicLink()) {
       const real = await realpath(filePath).catch(() => null)
       if (real) target = real
     }
   } catch {
     // 文件不存在则按普通文件处理。
+  }
+  // Preserve the original file object on Windows. This avoids a desktop
+  // shortcut/icon being repositioned after an otherwise ordinary save.
+  if (shouldPreserveFileIdentity(process.platform, targetExists)) {
+    await writeFile(target, content)
+    return
   }
   const tempPath = join(
     dirname(target),
