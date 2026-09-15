@@ -45,7 +45,9 @@ export function useGlobalShortcuts({
       if ((action === 'find' || action === 'replace') && fullscreenOpenRef.current) return
       dispatchAction(action)
     }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    // 编辑器的 ProseMirror keymap 在目标元素的冒泡阶段会消费部分组合键；
+    // 保存等应用级快捷键必须先于它执行，否则 Ctrl/Cmd+S 看似按下却不会发起保存。
+    window.addEventListener('keydown', handler, true)
+    return () => window.removeEventListener('keydown', handler, true)
   }, [dispatchAction, modalOpenRef, fullscreenOpenRef, shortcutLookupRef])
 }

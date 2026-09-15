@@ -34,6 +34,15 @@ export const shouldDeferLargeDocumentReplace = (
   isDeferring: boolean,
 ): boolean => isLargeDocument(content) && !isDeferring
 
+/**
+ * 大文档的 Markdown 快照由防抖 listener 异步落账。尚有未落账事务时，缓存仍是
+ * 上一个版本；flush 若抢先 consume dirty，会把旧缓存伪装成已确认内容并允许关闭。
+ */
+export const shouldHoldPendingLargeDocumentFlush = (
+  cachedContent: string,
+  hasPendingChanges: boolean,
+): boolean => shouldPreferCachedDocumentSnapshot(cachedContent) && hasPendingChanges
+
 export const useEditorDocumentSync = ({
   state,
   editorRef,
@@ -203,11 +212,18 @@ export const useEditorDocumentSync = ({
       setSearchCount(0)
       setSearchCurrent(-1)
     }
+    const cachedContent = contentsRef.current[fileId] ?? ''
+    if (shouldHoldPendingLargeDocumentFlush(
+      cachedContent,
+      editorRef.current.hasPendingChanges(),
+    )) {
+      closeSearchBar()
+      return
+    }
     if (!editorRef.current.consumeDirtyChange()) {
       closeSearchBar()
       return
     }
-    const cachedContent = contentsRef.current[fileId] ?? ''
     const markdown = shouldPreferCachedDocumentSnapshot(cachedContent)
       ? cachedContent
       : editorRef.current.getMarkdown()

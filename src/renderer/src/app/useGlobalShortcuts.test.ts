@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { renderHook } from '@testing-library/react'
+import { cleanup, renderHook } from '@testing-library/react'
 
 vi.mock('../data/shortcuts', () => ({
   comboFromEvent: vi.fn(),
@@ -12,6 +12,7 @@ import { comboFromEvent } from '../data/shortcuts'
 const mockedCombo = vi.mocked(comboFromEvent)
 
 afterEach(() => {
+  cleanup()
   vi.restoreAllMocks()
 })
 
@@ -36,9 +37,9 @@ describe('useGlobalShortcuts', () => {
     const addSpy = vi.spyOn(window, 'addEventListener')
     const removeSpy = vi.spyOn(window, 'removeEventListener')
     const { unmount } = renderHook(() => useGlobalShortcuts(createOpts()))
-    expect(addSpy).toHaveBeenCalledWith('keydown', expect.any(Function))
+    expect(addSpy).toHaveBeenCalledWith('keydown', expect.any(Function), true)
     unmount()
-    expect(removeSpy).toHaveBeenCalledWith('keydown', expect.any(Function))
+    expect(removeSpy).toHaveBeenCalledWith('keydown', expect.any(Function), true)
   })
 
   it('模态框打开时不响应快捷键', () => {
@@ -64,13 +65,13 @@ describe('useGlobalShortcuts', () => {
 
   it('defaultPrevented 不触发', () => {
     const dispatchAction = vi.fn()
+    const preventer = (e: Event) => { e.preventDefault() }
+    window.addEventListener('keydown', preventer, { capture: true })
     renderHook(() => useGlobalShortcuts(createOpts({
       dispatchAction,
       shortcutLookupRef: { current: { 'Ctrl+N': 'new' } },
     })))
     const event = new KeyboardEvent('keydown', { key: 'n', ctrlKey: true, bubbles: true })
-    const preventer = (e: Event) => { e.preventDefault() }
-    window.addEventListener('keydown', preventer, { capture: true })
     window.dispatchEvent(event)
     window.removeEventListener('keydown', preventer, { capture: true })
     expect(dispatchAction).not.toHaveBeenCalled()
@@ -95,6 +96,25 @@ describe('useGlobalShortcuts', () => {
     })))
     dispatchKey('Ctrl+S')
     expect(dispatchAction).toHaveBeenCalledWith('save')
+  })
+
+  it('编辑器在冒泡阶段消费 Ctrl+S 时仍由应用保存命令处理', () => {
+    const dispatchAction = vi.fn()
+    renderHook(() => useGlobalShortcuts(createOpts({
+      dispatchAction,
+      shortcutLookupRef: { current: { 'Ctrl+S': 'save' } },
+    })))
+    const milkdown = document.createElement('div')
+    milkdown.className = 'milkdown'
+    const editor = document.createElement('div')
+    editor.className = 'editor'
+    milkdown.appendChild(editor)
+    document.body.appendChild(milkdown)
+    editor.addEventListener('keydown', (event) => event.preventDefault())
+    mockedCombo.mockReturnValue('Ctrl+S')
+    editor.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true, cancelable: true }))
+    expect(dispatchAction).toHaveBeenCalledWith('save')
+    milkdown.remove()
   })
 
   it('快捷键与菜单共享同一分发入口（全部动作走 dispatchAction）', () => {

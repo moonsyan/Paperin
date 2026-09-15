@@ -27,6 +27,22 @@ export type EvaluateSmokeStep = (
   timeoutMs?: number,
 ) => Promise<Record<string, unknown>>
 
+type SaveShortcutInput = {
+  type: 'keyDown'
+  keyCode: 'S'
+  modifiers: Array<'control' | 'meta'>
+}
+
+/**
+ * DOM 构造的 KeyboardEvent 不会经过 Electron 的原生输入管线，可能被 Chromium
+ * 当成默认行为消费而没有进入应用快捷键监听。性能门禁必须发送真实平台快捷键。
+ */
+export const createSaveShortcutInput = (platform: NodeJS.Platform): SaveShortcutInput => ({
+  type: 'keyDown',
+  keyCode: 'S',
+  modifiers: [platform === 'darwin' ? 'meta' : 'control'],
+})
+
 const asNumber = (value: unknown, fallback = 0): number =>
   typeof value === 'number' && Number.isFinite(value) ? value : fallback
 
@@ -44,9 +60,9 @@ export const summarizeElectronPerformance = (latencies: readonly number[]) => ({
   maxMs: Math.round(Math.max(0, ...latencies) * 100) / 100,
 })
 
-/** 失败回执不能证明本次写盘完成，性能脚本无需再轮询磁盘标记。 */
+/** 失败回执不轮询；若 bridge 拒绝安装观察器，退回磁盘标记完成硬门禁。 */
 export const shouldWaitForSavedMarker = (saveResult: Record<string, unknown>): boolean =>
-  saveResult.ok === true
+  saveResult.ok === true || saveResult.code === 'SAVE_OBSERVER_UNAVAILABLE'
 
 const waitForSavedMarker = async (path: string, marker: string): Promise<boolean> => {
   const deadline = Date.now() + ELECTRON_PERFORMANCE_THRESHOLDS.largeDocumentSaveMs
@@ -176,11 +192,14 @@ export const runElectronPerformanceSmoke = async (
         window.__perfSaveProbe = {
           observerInstalledAt: performance.now(),
           shortcutDispatchedAt: null,
+          shortcutObservedAt: null,
+          shortcutObservedDefaultPrevented: null,
+          saveObserverInstalled: null,
           saveCalledAt: null,
           saveContentLength: null,
           saveSettledAt: null,
         }
-        api.save = ((...args) => {
+        const observedSave = (...args) => {
           window.__perfSaveProbe.saveCalledAt = performance.now()
           window.__perfSaveProbe.saveContentLength = typeof args[1] === 'string' ? args[1].length : null
           return original(...args).then(result => {
@@ -188,25 +207,44 @@ export const runElectronPerformanceSmoke = async (
             window.__perfSaveResult = { ok: result.ok, code: result.error?.code }
             return result
           })
-        })
+        }
+        api.save = observedSave
+        window.__perfSaveProbe.saveObserverInstalled = api.save === observedSave
         return { ok: true }
       } catch (error) {
         return { ok: false, reason: String(error) }
       }
     })()`,
   )
+  await evalStep(
+    win,
+    '安装原生保存快捷键观测器',
+    `(() => {
+      const listener = (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+          window.__perfSaveProbe.shortcutObservedAt = performance.now()
+          window.__perfSaveProbe.shortcutObservedDefaultPrevented = event.defaultPrevented
+        }
+      }
+      window.addEventListener('keydown', listener, true)
+      window.__perfSaveShortcutObserver = listener
+      window.__perfSaveProbe.shortcutDispatchedAt = performance.now()
+      return { ok: true }
+    })()`,
+  )
+  win.webContents.sendInputEvent(createSaveShortcutInput(process.platform))
   const saveTriggered = await evalStep(
     win,
     '5 MiB 文档快捷键保存',
     `(() => {
-      const trigger = document.createElement('button')
-      document.body.appendChild(trigger)
-      trigger.focus()
-      window.__perfSaveProbe.shortcutDispatchedAt = performance.now()
-      const event = new KeyboardEvent('keydown', { key: 's', code: 'KeyS', ctrlKey: true, bubbles: true, cancelable: true })
-      const dispatched = trigger.dispatchEvent(event)
-      trigger.remove()
-      return { ok: dispatched === false || event.defaultPrevented }
+      const deadline = performance.now() + 2_000
+      return (async () => {
+        while (performance.now() < deadline) {
+          if (window.__perfSaveProbe.shortcutObservedAt != null) return { ok: true }
+          await new Promise(resolve => setTimeout(resolve, 25))
+        }
+        return { ok: false, probe: window.__perfSaveProbe }
+      })()
     })()`,
   )
   const saveResult = await evalStep(
@@ -221,12 +259,20 @@ export const runElectronPerformanceSmoke = async (
           await new Promise(resolve => setTimeout(resolve, 50))
         }
         const activeTab = document.querySelector('[role="tab"][aria-selected="true"]')
+        if (window.__perfSaveProbe.saveObserverInstalled !== true) {
+          return {
+            ok: false,
+            code: 'SAVE_OBSERVER_UNAVAILABLE',
+            probe: window.__perfSaveProbe,
+          }
+        }
         return {
           ok: false,
           code: 'SAVE_RESULT_TIMEOUT',
           probe: window.__perfSaveProbe,
           activeLabel: activeTab?.getAttribute('aria-label') ?? null,
           editorTextLength: document.querySelector('.milkdown .editor')?.textContent?.length ?? 0,
+          toast: document.querySelector('.toast')?.textContent ?? null,
         }
       })()
     })()`,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  createSaveShortcutInput,
   shouldWaitForSavedMarker,
   summarizeElectronPerformance,
 } from './electron-performance-smoke'
@@ -26,8 +27,22 @@ describe('summarizeElectronPerformance', () => {
     })
   })
 
-  it('只在收到成功保存回执后轮询磁盘标记', () => {
+  it('只在成功回执或观察器不可用时轮询磁盘标记', () => {
     expect(shouldWaitForSavedMarker({ ok: true })).toBe(true)
     expect(shouldWaitForSavedMarker({ ok: false, code: 'SAVE_RESULT_TIMEOUT' })).toBe(false)
+    expect(shouldWaitForSavedMarker({ ok: false, code: 'SAVE_OBSERVER_UNAVAILABLE' })).toBe(true)
+  })
+
+  it('用 Electron 原生输入格式发送当前平台的保存快捷键', () => {
+    expect(createSaveShortcutInput('win32')).toEqual({
+      type: 'keyDown',
+      keyCode: 'S',
+      modifiers: ['control'],
+    })
+    expect(createSaveShortcutInput('darwin')).toEqual({
+      type: 'keyDown',
+      keyCode: 'S',
+      modifiers: ['meta'],
+    })
   })
 })
