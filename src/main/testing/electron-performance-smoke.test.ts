@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createSaveShortcutInput,
-  shouldWaitForSavedMarker,
+  hasSavedMarkdownMarkers,
   summarizeElectronPerformance,
 } from './electron-performance-smoke'
 
@@ -27,10 +27,13 @@ describe('summarizeElectronPerformance', () => {
     })
   })
 
-  it('只在成功回执或观察器不可用时轮询磁盘标记', () => {
-    expect(shouldWaitForSavedMarker({ ok: true })).toBe(true)
-    expect(shouldWaitForSavedMarker({ ok: false, code: 'SAVE_RESULT_TIMEOUT' })).toBe(false)
-    expect(shouldWaitForSavedMarker({ ok: false, code: 'SAVE_OBSERVER_UNAVAILABLE' })).toBe(true)
+  it('磁盘 Markdown 中原文尾部和末次输入均存在才确认保存，允许标准转义', () => {
+    const original = 'PERF_LARGE_DOCUMENT_TAIL'
+    const edit = 'PERF_LARGE_DOCUMENT_EDITED'
+    expect(hasSavedMarkdownMarkers(`PERF\\_LARGE\\_DOCUMENT\\_TAIL\nPERF\\_LARGE\\_DOCUMENT\\_EDITED`, original, edit)).toBe(true)
+    expect(hasSavedMarkdownMarkers(`${original}\n${edit}`, original, edit)).toBe(true)
+    expect(hasSavedMarkdownMarkers(original, original, edit)).toBe(false)
+    expect(hasSavedMarkdownMarkers(edit, original, edit)).toBe(false)
   })
 
   it('用 Electron 原生输入格式发送当前平台的保存快捷键', () => {

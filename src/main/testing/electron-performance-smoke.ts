@@ -17,8 +17,6 @@ const LARGE_DOCUMENT_EDIT_MARKER = 'PERF_LARGE_DOCUMENT_EDITED'
 const TAB_COUNT = 20
 const TAB_SWITCH_ROUNDS = 2
 const PERFORMANCE_STEP_TIMEOUT_MS = 130_000
-/** 保存硬门禁是 120 秒；无调用回执时 15 秒即收集阶段证据，避免把定位失败拖满两轮超时。 */
-const SAVE_DIAGNOSTIC_TIMEOUT_MS = 15_000
 
 export type EvaluateSmokeStep = (
   win: BrowserWindow,
@@ -60,18 +58,24 @@ export const summarizeElectronPerformance = (latencies: readonly number[]) => ({
   maxMs: Math.round(Math.max(0, ...latencies) * 100) / 100,
 })
 
-/** 失败回执不轮询；若 bridge 拒绝安装观察器，退回磁盘标记完成硬门禁。 */
-export const shouldWaitForSavedMarker = (saveResult: Record<string, unknown>): boolean =>
-  saveResult.ok === true || saveResult.code === 'SAVE_OBSERVER_UNAVAILABLE'
+/** Milkdown 可把正文中的下划线转义为 `\\_`；两种写法读取后是同一文本。 */
+const hasMarkdownTextMarker = (markdown: string, marker: string): boolean =>
+  markdown.includes(marker) || markdown.includes(marker.split('_').join('\\_'))
 
-const waitForSavedMarker = async (path: string, marker: string): Promise<boolean> => {
+export const hasSavedMarkdownMarkers = (
+  markdown: string,
+  originalTail: string,
+  lastEdit: string,
+): boolean => hasMarkdownTextMarker(markdown, originalTail) && hasMarkdownTextMarker(markdown, lastEdit)
+
+const waitForSavedMarker = async (path: string, originalTail: string, lastEdit: string): Promise<string | null> => {
   const deadline = Date.now() + ELECTRON_PERFORMANCE_THRESHOLDS.largeDocumentSaveMs
   while (Date.now() < deadline) {
     const content = await readFile(path, 'utf8').catch(() => null)
-    if (content?.includes(marker)) return true
+    if (content && hasSavedMarkdownMarkers(content, originalTail, lastEdit)) return content
     await new Promise<void>((resolve) => setTimeout(resolve, 100))
   }
-  return false
+  return null
 }
 
 const waitForActiveDocumentScript = (name: string, marker: string): string => `
@@ -183,43 +187,13 @@ export const runElectronPerformanceSmoke = async (
   const largeSaveStartedAt = performance.now()
   await evalStep(
     win,
-    '安装保存结果观测器',
-    `(() => {
-      try {
-        const api = window.desktopAPI.document
-        const original = api.save.bind(api)
-        window.__perfSaveResult = null
-        window.__perfSaveProbe = {
-          observerInstalledAt: performance.now(),
-          shortcutDispatchedAt: null,
-          shortcutObservedAt: null,
-          shortcutObservedDefaultPrevented: null,
-          saveObserverInstalled: null,
-          saveCalledAt: null,
-          saveContentLength: null,
-          saveSettledAt: null,
-        }
-        const observedSave = (...args) => {
-          window.__perfSaveProbe.saveCalledAt = performance.now()
-          window.__perfSaveProbe.saveContentLength = typeof args[1] === 'string' ? args[1].length : null
-          return original(...args).then(result => {
-            window.__perfSaveProbe.saveSettledAt = performance.now()
-            window.__perfSaveResult = { ok: result.ok, code: result.error?.code }
-            return result
-          })
-        }
-        api.save = observedSave
-        window.__perfSaveProbe.saveObserverInstalled = api.save === observedSave
-        return { ok: true }
-      } catch (error) {
-        return { ok: false, reason: String(error) }
-      }
-    })()`,
-  )
-  await evalStep(
-    win,
     '安装原生保存快捷键观测器',
     `(() => {
+      window.__perfSaveProbe = {
+        shortcutDispatchedAt: performance.now(),
+        shortcutObservedAt: null,
+        shortcutObservedDefaultPrevented: null,
+      }
       const listener = (event) => {
         if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
           window.__perfSaveProbe.shortcutObservedAt = performance.now()
@@ -227,8 +201,6 @@ export const runElectronPerformanceSmoke = async (
         }
       }
       window.addEventListener('keydown', listener, true)
-      window.__perfSaveShortcutObserver = listener
-      window.__perfSaveProbe.shortcutDispatchedAt = performance.now()
       return { ok: true }
     })()`,
   )
@@ -247,46 +219,17 @@ export const runElectronPerformanceSmoke = async (
       })()
     })()`,
   )
-  const saveResult = await evalStep(
-    win,
-    '读取保存结果',
-    `(() => {
-      const deadline = performance.now() + ${SAVE_DIAGNOSTIC_TIMEOUT_MS}
-      return (async () => {
-        while (performance.now() < deadline) {
-          const result = window.__perfSaveResult
-          if (result) return result
-          await new Promise(resolve => setTimeout(resolve, 50))
-        }
-        const activeTab = document.querySelector('[role="tab"][aria-selected="true"]')
-        if (window.__perfSaveProbe.saveObserverInstalled !== true) {
-          return {
-            ok: false,
-            code: 'SAVE_OBSERVER_UNAVAILABLE',
-            probe: window.__perfSaveProbe,
-          }
-        }
-        return {
-          ok: false,
-          code: 'SAVE_RESULT_TIMEOUT',
-          probe: window.__perfSaveProbe,
-          activeLabel: activeTab?.getAttribute('aria-label') ?? null,
-          editorTextLength: document.querySelector('.milkdown .editor')?.textContent?.length ?? 0,
-          toast: document.querySelector('.toast')?.textContent ?? null,
-        }
-      })()
-    })()`,
-    PERFORMANCE_STEP_TIMEOUT_MS,
+  // contextBridge 暴露的 API 对象不可安全包装。直接轮询目标磁盘文件，
+  // 同时要求原文尾部和末次编辑都存在，才确认真实 IPC 已成功持久化。
+  const savedSnapshot = await waitForSavedMarker(
+    largePath,
+    LARGE_DOCUMENT_TAIL_MARKER,
+    LARGE_DOCUMENT_EDIT_MARKER,
   )
-  // 没有进入 save 调用或没有回执时，磁盘不可能为本次请求提供成功确认；
-  // 直接带阶段证据失败，避免再额外轮询 120 秒而掩盖真正卡点。
-  const saved = shouldWaitForSavedMarker(saveResult)
-    ? await waitForSavedMarker(largePath, LARGE_DOCUMENT_EDIT_MARKER)
-    : false
   const largeSaveMs = performance.now() - largeSaveStartedAt
-  if (saveTriggered.ok !== true || saveResult.ok !== true || !saved || largeSaveMs > ELECTRON_PERFORMANCE_THRESHOLDS.largeDocumentSaveMs) {
-    const diskSnapshot = await readFile(largePath, 'utf8').catch(() => null)
-    throw new Error(`5 MiB 文档保存失败或超预算 ${JSON.stringify({ saveTriggered, saveResult, saved, largeSaveMs, diskBytes: diskSnapshot ? Buffer.byteLength(diskSnapshot, 'utf8') : null, diskHasEdit: diskSnapshot?.includes(LARGE_DOCUMENT_EDIT_MARKER) ?? false })}`)
+  if (saveTriggered.ok !== true || !savedSnapshot || largeSaveMs > ELECTRON_PERFORMANCE_THRESHOLDS.largeDocumentSaveMs) {
+    const diskSnapshot = savedSnapshot ?? await readFile(largePath, 'utf8').catch(() => null)
+    throw new Error(`5 MiB 文档保存失败或超预算 ${JSON.stringify({ saveTriggered, largeSaveMs, diskBytes: diskSnapshot ? Buffer.byteLength(diskSnapshot, 'utf8') : null, diskHasTail: diskSnapshot ? hasMarkdownTextMarker(diskSnapshot, LARGE_DOCUMENT_TAIL_MARKER) : false, diskHasEdit: diskSnapshot ? hasMarkdownTextMarker(diskSnapshot, LARGE_DOCUMENT_EDIT_MARKER) : false })}`)
   }
 
   const largeExportStartedAt = performance.now()
