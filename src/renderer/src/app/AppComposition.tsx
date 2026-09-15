@@ -5,12 +5,6 @@ import type { WritingStats } from '../components/HelpDialog'
 import { StatusBar } from '../components/StatusBar'
 import { WorkspaceShell } from '../components/WorkspaceShell'
 import { SkipLink } from './SkipLink'
-import { buildSidebarViewModel } from '../components/Sidebar/sidebar-view-model'
-import { collectFolderKeys, buildWorkspaceFileTree } from '../components/Sidebar/fileTree'
-import { collapsedKeysAfterRevealFromRecord } from '../lib/path-display'
-import type { DocumentPathKind } from '../components/DocumentPathbar'
-import { flushPersistedSettings } from '../hooks/usePersistedSetting'
-import { setConfirmDialogListener } from '../lib/confirm-dialog'
 import type { ActiveConfirmRequest } from '../components/ConfirmDialog'
 import { useExports } from '../hooks/useExports'
 import { usePreviewSync } from '../hooks/usePreviewSync'
@@ -19,15 +13,10 @@ import { useRecentFiles } from '../hooks/useRecentFiles'
 import { useEditorViewState } from '../hooks/useEditorViewState'
 import { useSystemFileOpen } from '../hooks/useSystemFileOpen'
 import { useDocumentSessionPersistence } from '../hooks/useDocumentSessionPersistence'
-import {
-  createDocumentFromTemplate,
-} from '../lib/document-collection'
 import type { PublishOptions, PublishScope } from '../lib/export-bundle'
 import { normalizeWorkspaceRelativePath } from '../../../shared/workspace-state'
-import { resolveCollectionEntries } from './resolve-collection-entries'
 
 import { useDocumentSession } from './document-session/useDocumentSession'
-import { classifyDocumentSource } from './document-session/document-source'
 import { useAppActions } from './useAppActions'
 import { createCommandContext } from './commands/command-context'
 import { useGlobalShortcuts } from './useGlobalShortcuts'
@@ -49,9 +38,12 @@ import { useWritingMetrics } from './useWritingMetrics'
 import { AppWorkspace } from './AppWorkspace'
 import { AppDialogs } from './AppDialogs'
 import { AppTopBarHost } from './TopBarSlots'
+import { useAppWindowEffects } from './useAppWindowEffects'
+import { useDocumentChromeContext } from './useDocumentChromeContext'
+import { useTagFilter } from './useTagFilter'
+import { useDocumentCreationAndCollection } from './useDocumentCreationAndCollection'
 
-import { DEMO_FILES } from '../data/demo-files'
-import { DEMO_FILE_IDS, FRESH_MODE, TITLEBAR_COLORS } from './constants'
+import { DEMO_FILE_IDS, DEMO_FILE_NAMES, FRESH_MODE } from './constants'
 
 // ---------------------------------------------------------------------------
 // AppComposition — 应用编排根组件
@@ -241,25 +233,9 @@ export function AppComposition(): JSX.Element {
   })
 
   // === 导出 ===
-  const demoFileNames = useMemo(() => Object.fromEntries(Object.values(DEMO_FILES).map((f) => [f.id, f.name])), [])
-  const handleNewFromTemplate = useCallback((template: 'readme' | 'api' | 'design' | 'changelog') => {
-    const content = createDocumentFromTemplate(template, {})
-    handleNew()
-    const newId = activeFileIdRef.current
-    if (!newId) return
-    setContents((prev) => ({ ...prev, [newId]: content }))
-    setSavedMap((prev) => ({ ...prev, [newId]: false }))
-    editorRef.current?.replaceContent(content)
-  }, [activeFileIdRef, editorRef, handleNew, setContents, setSavedMap])
-
-  const resolveCollectionEntriesFn = useCallback(async (scope: Exclude<PublishScope, { kind: 'document' }>) => {
-    if (!window.desktopAPI) throw new Error('当前环境不支持集合导出')
-    return resolveCollectionEntries(scope, {
-      workspaceIndex,
-      activePath: documents[activeFileIdRef.current]?.path ?? '',
-      readDocument: (path) => window.desktopAPI.document.read(path),
-    })
-  }, [activeFileIdRef, documents, workspaceIndex])
+  const { handleNewFromTemplate, resolveCollectionEntriesFn } = useDocumentCreationAndCollection({
+    activeFileIdRef, editorRef, handleNew, setContents, setSavedMap, workspaceIndex, documents,
+  })
 
   const { handleExportHtml, handleDoExportPdf, handleExportMarkdown, handleExportPandoc, handleExportDocx, handlePublishBundle, handleCopyRichText, isExportActive } = useExports({
     editorRef, docTitle, activeFileId, activeFileIdRef, contents, dirOfFile, setToast, exportCss: settings.exportCss, resolveCollectionEntries: resolveCollectionEntriesFn,
@@ -271,7 +247,7 @@ export function AppComposition(): JSX.Element {
   // === 动作分发 ===
   const handleFullscreenChange = useCallback((open: boolean) => { fullscreenOpenRef.current = open }, [])
   const { handleAction, handleDocumentTitleBlur, handleDocumentTitleKeyDown, handleOpenBacklink, handleOpenGraphView, reveal, closeSettings, closeHelp, closeImages, closePdfOptions, closePublish, closeWorkspaceSearch, closePalette, closeVersionHistory, commandRegistry, isActionAvailable } = useAppActions({
-    editorRef, docTitle, setDocTitle, activeFileId, activeFileIdRef, openFiles, openFilesRef, setOpenFiles, demoFileNames, activeFilePath: activeFile?.path, workspacePathRef, focusEditorSoon, setToast,
+    editorRef, docTitle, setDocTitle, activeFileId, activeFileIdRef, openFiles, openFilesRef, setOpenFiles, demoFileNames: DEMO_FILE_NAMES, activeFilePath: activeFile?.path, workspacePathRef, focusEditorSoon, setToast,
     handleNew, handleOpen, handleOpenFolder, handleSelectWorkspaceFile: openWorkspaceFile, handleSave, handleSaveAs, handleCloseTab, handleCloseOtherTabs, handleCloseAllTabs, handleRenameFile,
     handleExportHtml, handleExportMarkdown, handleExportPandoc, handleExportDocx,
     setSearchMode, setFocusOutlineTick, setSidebarActiveTab, setContextDockState, setSearchPref, setSearchEpoch, setSidebarCollapsed, setFocusMode, setPreviewMode, setTypewriter, setZoom, centerCaret,
@@ -293,40 +269,16 @@ export function AppComposition(): JSX.Element {
     shortcutLookupRef, modalOpenRef, fullscreenOpenRef, dispatchAction: handleAction,
   })
 
-  // === 副作用 ===
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', effectiveTheme)
-    const colors = TITLEBAR_COLORS[effectiveTheme] ?? TITLEBAR_COLORS.default
-    window.desktopAPI?.window.setTitlebarColor(colors.bg, colors.symbol).catch(() => {})
-  }, [effectiveTheme])
-  useEffect(() => { document.documentElement.style.setProperty('--efs', `${fontSize}px`) }, [fontSize])
-  useEffect(() => { document.documentElement.style.setProperty('--ecw', `${contentWidth}px`) }, [contentWidth])
-  useEffect(() => { document.documentElement.style.setProperty('--elh', String(lineHeight)) }, [lineHeight])
-  useEffect(() => { document.documentElement.setAttribute('data-contentfont', contentFont) }, [contentFont])
-  useEffect(() => { document.title = `${saved ? '' : '● '}${docTitle} — Paperin` }, [docTitle, saved])
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => { if (Object.values(documents).some((d) => d.dirty)) { e.preventDefault(); e.returnValue = '' }; flushPersistedSettings() }
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
-  }, [documents])
-  useEffect(() => { setConfirmDialogListener((request, resolve) => setConfirmRequest({ ...request, resolve })); return () => setConfirmDialogListener(null) }, [])
-  useEffect(() => { const w = window as unknown as { __paperin_notify?: (m: string) => void }; w.__paperin_notify = (m) => setToast(m); return () => { delete w.__paperin_notify } }, [setToast])
-  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(''), 3500); return () => clearTimeout(t) }, [toast, setToast])
+  useAppWindowEffects({
+    effectiveTheme, fontSize, contentWidth, lineHeight, contentFont,
+    saved, docTitle, documents, setConfirmRequest, toast, setToast,
+  })
 
   useSystemFileOpen(openWorkspaceFile, settingsReady)
   useDocumentSessionPersistence({ activeFileId, demoFileIds: DEMO_FILE_IDS, freshMode: FRESH_MODE, openFiles, ready: settingsReady, workspace })
   useWorkspaceLayoutPersistence({ workspace, workspaceStateReady, collapsedKeys: workspaceCollapsedKeys, openFiles, activeFileId, sidebarWidth, sidebarActiveView: sidebarActiveTab, contextDock: contextDockState, setToast })
 
-  // === 标签筛选 ===
-  const [tagFilter, setTagFilter] = useState<{ tag: string; paths: string[] } | null>(null)
-  useEffect(() => { setTagFilter(null) }, [workspace?.path])
-  const handleToggleTagFilter = useCallback((tag: string) => {
-    setTagFilter((prev) => {
-      if (prev && prev.tag.toLowerCase() === tag.toLowerCase()) return null
-      const paths = (tagIndex?.files ?? []).filter((f) => f.tags.some((t) => t.toLowerCase() === tag.toLowerCase())).map((f) => f.path)
-      return paths.length > 0 ? { tag, paths } : null
-    })
-  }, [tagIndex])
+  const { tagFilter, handleToggleTagFilter } = useTagFilter(workspace?.path, tagIndex)
 
   const closeSearch = useCallback(() => { resetSearchState(); focusEditorSoon() }, [resetSearchState, focusEditorSoon])
 
@@ -341,47 +293,12 @@ export function AppComposition(): JSX.Element {
     workspacePath: workspace?.path,
     settingsReady,
   })
-  const imageDirs = useMemo(() => {
-    const dirs: string[] = []
-    if (activeFile?.path) dirs.push(`${activeFile.path.replace(/[\\/][^\\/]+$/, '')}/attachments`)
-    if (workspace) dirs.push(`${workspace.path}/attachments`)
-    return dirs
-  }, [activeFile?.path, workspace])
-  const contextDockViewModel = useMemo(() => workspaceIndex ? buildSidebarViewModel(workspaceIndex, activeFile?.path ?? null, 'links') : null, [activeFile?.path, workspaceIndex])
-  const currentFileSource = classifyDocumentSource(activeFile?.path, workspace?.path, window.desktopAPI?.platform === 'win32')
-
-  /**
-   * 路径条形态（NEXT-UI-SPEC §3.3）：示例 / 未命名 / 库内 / 外部四种来源。
-   * 示例与未命名都无磁盘路径，靠 activeFileId 是否为演示文档 ID 区分。
-   */
-  const activePathKind: DocumentPathKind = useMemo(() => {
-    if (!activeFile) return 'unnamed'
-    if (DEMO_FILE_IDS.has(activeFileId)) return 'demo'
-    if (!activeFile.path) return 'unnamed'
-    return classifyDocumentSource(activeFile.path, workspace?.path, window.desktopAPI?.platform === 'win32')
-  }, [activeFile, activeFileId, workspace?.path])
-
-  /** 工作区树的全部文件夹 key（定位文件时从「默认全折叠」推导实际折叠集用） */
-  const workspaceFolderKeys = useMemo(
-    () => (workspace ? collectFolderKeys(buildWorkspaceFileTree(workspace.path, workspace.tree)) : []),
-    [workspace],
-  )
-
-  /**
-   * 路径条「定位到文件」：展开侧栏 + 在折叠记录中展开当前文件的祖先目录。
-   * 不重置用户折叠的其他分支；外部/示例/未命名文件不提供定位。
-   */
-  const revealActiveFileInSidebar = useCallback(() => {
-    const path = activeFile?.path
-    if (!path || !workspace) return
-    setSidebarCollapsed(false)
-    const next = collapsedKeysAfterRevealFromRecord(
-      currentCollapsedKeys, workspaceFolderKeys, settings.collapseFoldersOnOpen,
-      path, workspace.path, window.desktopAPI?.platform === 'win32',
-    )
-    handleCollapsedKeysChange(next)
-  }, [activeFile?.path, workspace, currentCollapsedKeys, workspaceFolderKeys,
-    settings.collapseFoldersOnOpen, setSidebarCollapsed, handleCollapsedKeysChange])
+  const { imageDirs, contextDockViewModel, currentFileSource, activePathKind, storageKind, revealActiveFileInSidebar } = useDocumentChromeContext({
+    activeFile, activeFileId, workspace, workspaceIndex, currentCollapsedKeys,
+    collapseFoldersOnOpen: settings.collapseFoldersOnOpen,
+    caseInsensitive: window.desktopAPI?.platform === 'win32',
+    setSidebarCollapsed, handleCollapsedKeysChange,
+  })
 
   const handleCursorChange = useCallback((line: number, col: number, heading: string, headingIndex: number, selected: number) => {
     setCursorPos((prev) => prev.line === line && prev.col === col && prev.heading === heading && prev.headingIndex === headingIndex && prev.selected === selected ? prev : { line, col, heading, headingIndex, selected })
@@ -410,6 +327,7 @@ export function AppComposition(): JSX.Element {
         graphTabOpen={graphTabOpen} graphTabActive={graphTabActive}
         onActivateGraphTab={() => setGraphTabActive(true)} onCloseGraphTab={closeGraphView}
         filePath={activeFile?.path} fileSource={currentFileSource} fileDirty={!saved}
+        fileStorageKind={storageKind}
       />
 
       <WorkspaceShell workspacePath={workspace?.path}>
@@ -423,7 +341,7 @@ export function AppComposition(): JSX.Element {
           openFiles={openFiles} activeFileId={activeFileId} activeFilePath={activeFile?.path}
           activeContent={activeContent}
           activePathKind={activePathKind} onRevealActiveFile={revealActiveFileInSidebar}
-          workspace={workspace} demoFileNames={demoFileNames}
+          workspace={workspace} demoFileNames={DEMO_FILE_NAMES}
           currentCollapsedKeys={currentCollapsedKeys} onCollapsedKeysChange={handleCollapsedKeysChange} collapseFoldersOnOpen={settings.collapseFoldersOnOpen}
           onOpenSearch={() => setPaletteOpen(true)} searchShortcut={settings.shortcuts.commandPalette} recentFiles={recentFiles}
           favorites={favorites} onToggleFavorite={handleToggleFavorite}
@@ -458,7 +376,8 @@ export function AppComposition(): JSX.Element {
       </WorkspaceShell>
 
       <StatusBar
-        saved={saved} wordCount={wordCount} lineCount={lineCount} readTime={readTime}
+        saved={saved} storageKind={storageKind}
+        wordCount={wordCount} lineCount={lineCount} readTime={readTime}
         cursorLine={cursorPos.line} cursorCol={cursorPos.col} currentHeading={cursorPos.heading}
         modifiedTime={fileMtime[activeFileId]} selectedChars={cursorPos.selected}
         encoding={encodingMap[activeFileId] ?? 'UTF-8'} sectionWords={sectionStatsForIndex(cursorPos.headingIndex)}

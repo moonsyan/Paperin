@@ -47,3 +47,26 @@ export const buildAssociationProbeScript = (expectedName: string, bodyMarker: st
 /** 关联去重步骤：读取当前标签数量 */
 export const buildTabCountProbeScript = (): string =>
   `Promise.resolve({ tabs: document.querySelectorAll('[role="tab"]').length })`
+
+/** 路径条、顶栏与状态栏对同一无盘文档表达相同的持久化语义。 */
+export const buildUnpersistedStatusProbeScript = (kind: 'demo' | 'unnamed', label: string): string => `
+(async () => {
+  const deadline = Date.now() + 5000
+  while (Date.now() < deadline) {
+    const pathKind = document.querySelector('.document-pathbar')?.getAttribute('data-kind')
+    const banner = document.querySelector('.current-file-banner')
+    const bannerStatus = banner?.querySelector('.current-file-banner-status')?.textContent?.trim() ?? null
+    const footerStatus = document.querySelector('.statusbar .st-item')?.textContent?.trim() ?? null
+    if (pathKind === ${JSON.stringify(kind)} && banner?.getAttribute('data-storage-kind') === ${JSON.stringify(kind)} && bannerStatus === ${JSON.stringify(label)} && footerStatus === ${JSON.stringify(label)}) {
+      return { ok: true }
+    }
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+  return {
+    ok: false,
+    pathKind: document.querySelector('.document-pathbar')?.getAttribute('data-kind') ?? null,
+    storageKind: document.querySelector('.current-file-banner')?.getAttribute('data-storage-kind') ?? null,
+    bannerStatus: document.querySelector('.current-file-banner-status')?.textContent?.trim() ?? null,
+    footerStatus: document.querySelector('.statusbar .st-item')?.textContent?.trim() ?? null,
+  }
+})()`

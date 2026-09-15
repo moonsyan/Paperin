@@ -5,7 +5,7 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { CHANNELS } from '../../shared/ipc/channels'
 import { trustDirectory } from '../trusted-paths'
-import { buildAssociationProbeScript, buildTabCountProbeScript } from './smoke-probes'
+import { buildAssociationProbeScript, buildTabCountProbeScript, buildUnpersistedStatusProbeScript } from './smoke-probes'
 import { runElectronPerformanceSmoke, type EvaluateSmokeStep } from './electron-performance-smoke'
 
 /**
@@ -131,6 +131,22 @@ export const runElectronSmoke = async (
         return await finish(1, `SMOKE_FAIL 同路径关联打开产生重复标签 ${JSON.stringify(duplicate)}`)
       }
       results.push('系统文件关联 ok（外部临时标签，同路径去重）')
+    }
+
+    if (!performanceScenario) {
+      const selectedDemo = await evalStep(win, '切换到示例文档', `(() => {
+        const tab = [...document.querySelectorAll('[role="tab"]')].find(item => item.getAttribute('aria-label')?.startsWith('欢迎使用.md'))
+        tab?.click()
+        return { ok: Boolean(tab) }
+      })()`)
+      if (!selectedDemo.ok) return await finish(1, `SMOKE_FAIL 未找到示例标签 ${JSON.stringify(selectedDemo)}`)
+      const demoStatus = await evalStep(win, '示例保存状态', buildUnpersistedStatusProbeScript('demo', '示例文档'))
+      if (!demoStatus.ok) return await finish(1, `SMOKE_FAIL 示例错误宣称已保存 ${JSON.stringify(demoStatus)}`)
+      win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'N', modifiers: ['control'] })
+      win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'N', modifiers: ['control'] })
+      const unnamedStatus = await evalStep(win, '未命名保存状态', buildUnpersistedStatusProbeScript('unnamed', '尚未保存到磁盘'))
+      if (!unnamedStatus.ok) return await finish(1, `SMOKE_FAIL 未命名文档错误宣称已保存 ${JSON.stringify(unnamedStatus)}`)
+      results.push('示例与未命名保存状态 ok（三处一致）')
     }
 
     // 1. 打开工作区

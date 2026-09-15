@@ -2,9 +2,12 @@ import { useEffect, useRef, useState, Fragment } from 'react'
 import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 import { sharedPanelRegistry } from '../../app/panels/shared-panel-registry'
 import type { PanelContext, PanelRegistry } from '../../app/panels/panel-registry'
+import { documentSaveStatusLabel } from '../../lib/document-save-status'
+import type { DocumentStorageKind } from '../../lib/document-save-status'
 
 interface StatusBarProps {
   saved: boolean
+  storageKind?: DocumentStorageKind
   wordCount: number
   lineCount: number
   readTime: number
@@ -107,6 +110,7 @@ function formatTime(ts: number): string {
 
 export function StatusBar({
   saved,
+  storageKind = 'disk',
   wordCount,
   lineCount,
   readTime,
@@ -206,8 +210,8 @@ export function StatusBar({
   return (
     <div className="statusbar">
       <div className="st-item">
-        <span className={`st-dot ${saved ? '' : 'unsaved'}`} />
-        {saved ? '已保存' : '未保存'}
+        <span className={`st-dot ${!saved ? 'unsaved' : storageKind === 'disk' ? '' : 'unpersisted'}`} />
+        {documentSaveStatusLabel(storageKind, !saved)}
       </div>
       {currentHeading ? (
         <div className="st-item st-heading" title={currentHeading}>

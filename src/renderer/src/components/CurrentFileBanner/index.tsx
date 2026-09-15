@@ -1,5 +1,7 @@
 import type { JSX } from 'react'
 import { displayPath } from '../../lib/path-display'
+import { documentSaveStatusLabel } from '../../lib/document-save-status'
+import type { DocumentStorageKind } from '../../lib/document-save-status'
 
 export type CurrentFileSource = 'workspace' | 'external'
 
@@ -10,6 +12,7 @@ export interface CurrentFileBannerProps {
   workspaceName?: string | null
   source: CurrentFileSource
   dirty: boolean
+  storageKind?: DocumentStorageKind
 }
 
 /**
@@ -28,9 +31,10 @@ export function CurrentFileBanner({
   workspaceName = null,
   source,
   dirty,
+  storageKind = path ? 'disk' : 'unnamed',
 }: CurrentFileBannerProps): JSX.Element {
-  const sourceLabel = source === 'workspace' ? '知识库文件' : '外部文件'
-  const statusLabel = dirty ? '未保存' : '已保存'
+  const sourceLabel = storageKind === 'demo' ? '示例' : storageKind === 'unnamed' ? '未命名文档' : source === 'workspace' ? '知识库文件' : '外部文件'
+  const statusLabel = documentSaveStatusLabel(storageKind, dirty)
   const pathLabel = displayPath(path, workspacePath, source)
 
   return (
@@ -41,12 +45,13 @@ export function CurrentFileBanner({
       aria-label={`当前文件：${title}，${sourceLabel}，${statusLabel}`}
       data-source={source}
       data-dirty={dirty ? 'true' : 'false'}
+      data-storage-kind={storageKind}
       title={`${workspaceName ?? '本地工作区'} · ${sourceLabel} · ${pathLabel} · ${statusLabel}`}
     >
       <span className="current-file-banner-marker" aria-hidden="true" />
       <span className="current-file-banner-source">{sourceLabel}</span>
       <span className="current-file-banner-path" title={pathLabel}>{pathLabel}</span>
-      <span className={`current-file-banner-status ${dirty ? 'is-dirty' : 'is-saved'}`}>
+      <span className={`current-file-banner-status ${dirty ? 'is-dirty' : storageKind === 'disk' ? 'is-saved' : 'is-unpersisted'}`}>
         <span className="current-file-banner-status-dot" aria-hidden="true" />
         {statusLabel}
       </span>

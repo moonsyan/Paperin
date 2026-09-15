@@ -42,6 +42,11 @@ export const INITIAL_SAVED: Record<string, boolean> = Object.fromEntries(
 
 export const DEMO_FILE_IDS = new Set(Object.keys(DEMO_FILES))
 
+/** 示例名称不依赖组件会话，命令面板与示例树共用固定映射。 */
+export const DEMO_FILE_NAMES: Record<string, string> = Object.fromEntries(
+  Object.values(DEMO_FILES).map((file) => [file.id, file.name]),
+)
+
 /** 演示树折叠记录的作用域键（未打开工作区时的侧栏树） */
 export const DEMO_TREE_SCOPE = '__demo__'
 

@@ -4,6 +4,12 @@
 
 本文是当前 `master` 的唯一实时完成度记录。实施计划和路线图描述目标，不因代码存在而自动视为完成；本清单只记录已经验证的行为，以及仍需继续处理的工作。
 
+## 2026-09-15 S05 首项与 S17 热点拆分（当前有效结论）
+
+S05 保存状态的首项修复已实现：有路径文件仍按当前版本 dirty 显示“已保存/未保存”；没有磁盘路径的未命名文档显示“尚未保存到磁盘”，示例未修改显示“示例文档”，修改后显示“示例 · 有未保存修改”。顶栏、正文路径条与状态栏不再就同一无盘文档给出相互矛盾的持久化承诺；顶栏 `aria-label` 与提示文本采用同一口径，未落盘状态的点不再用磁盘成功绿色。真实 Electron smoke 已驱动欢迎示例和 Ctrl+N 未命名文档，核对三处状态一致；组件与派生规则测试覆盖有/无路径及脏状态。
+
+随本项触及的 `AppComposition.tsx` 已从 530 行收敛到 449 行：窗口副作用、文档 chrome 上下文、标签筛选、模板新建/合集读取分别移入 `useAppWindowEffects`、`useDocumentChromeContext`、`useTagFilter`、`useDocumentCreationAndCollection`；新边界均有直接测试，未复制正文状态。其余 S05 保存中/晚到旧版本回执、真实中文 IME、焦点与九主题缩放矩阵及 S17 其他热点仍未完成；这项首修不代表 S05/Q03 全项验收。
+
 ## 2026-09-15 S03 当前有效结论
 
 S03 的 **P0 真实 Electron 防卡死硬门禁已通过**：生产构建中打开 5 MiB 文件，经 Milkdown 编辑、原生 Ctrl+S 保存后，磁盘 Markdown 同时含原文尾部与末次输入；资源包导出和 20 标签两轮切换也通过。三个独立运行批次的保存耗时为 211.56/226.47/185.64 ms，打开为 1272.37/1231.72/1212.5 ms，资源包导出为 60.74/52.33/54.29 ms，40 次暖切换 P95 为 29.9/29.6/29.4 ms；三个批次均无失败。阈值、夹具大小与结构未放宽。测试脚本先前把 Milkdown 转义后的 `PERF\_...` 与原标记判为不同文本，且尝试包装不可写的 preload bridge，形成错误的保存失败和 15 秒虚假耗时；本次改为从快捷键到磁盘确认直接计时，并同时验原文尾部与末次编辑。
@@ -34,7 +40,7 @@ S03 的 **P0 真实 Electron 防卡死硬门禁已通过**：生产构建中打�
 
 实现位于 `src/main/ipc/file-write-recovery.ts`；`file-io.ts` 保持编码读取/目录扫描职责，`file-handlers.ts` 在 `stat` 前先恢复，处理 destination 被失败复制删除的情况。恢复材料只存同目录隐藏文件；journal 不含绝对路径或正文，backup 仅在保存未确认期间保留旧确认内容。协议、边界与手工验证见 [可恢复桌面文件写入](file-write-recovery.md)。
 
-自动验证：复制中断后恢复、`prepared` journal 重启恢复、`committed` journal 清理、外部修改保留、编码读回、授权读取通过；`npm run typecheck`、`npm run lint -- --quiet`、`npm run test`（160 文件、1238 项）、`npm run build`、普通 Electron smoke 通过。S03 的固定长段落 5 MiB 性能硬门禁现已通过，结果见顶部；S01 未完成的仍是每注入点 20 次、进程终止、磁盘满/权限、符号链接、三平台文件身份和硬件掉电边界验证。
+自动验证：复制中断后恢复、`prepared` journal 重启恢复、`committed` journal 清理、外部修改保留、编码读回、授权读取通过；本次最终验证 `npm run typecheck`、`npm run lint -- --quiet`、`npm run test`（165 文件、1253 项）、`npm run build`、普通 Electron smoke 和 a11y 通过。S03 的固定长段落 5 MiB 性能硬门禁现已通过，结果见顶部；S01 未完成的仍是每注入点 20 次、进程终止、磁盘满/权限、符号链接、三平台文件身份和硬件掉电边界验证。
 
 ### S02：快照超时与关闭安全（首个正确性闭环完成，完整时序矩阵待验证）
 
@@ -224,12 +230,12 @@ S03 的 **P0 真实 Electron 防卡死硬门禁已通过**：生产构建中打�
 
 ### 发布前高优先级
 
-- 优化 5 MiB 文档的保存/关闭路径：超过 1 MiB 时优先复用已落账快照，避免重复同步序列化；真实 Electron 门禁仍需重新跑完以确认 `document.save` IPC、导出和 20 标签切换 P50/P95、内容一致性、监听释放与主/渲染进程内存。
+- S03 固定 5 MiB 长段落真实 Electron P0 门禁已有三次通过证据；未完成的是 M01 多节点形态/另一设备/8 小时稳定性、监听释放和主/渲染进程内存趋势，以及 S02 的保存/关闭完整时序矩阵。
 - 完成 Windows 安装包启动、文件关联、保存、导出验证；macOS/Linux 安装包与更新流程仍需对应平台环境。
 
 ### 架构与维护性
 
-- 仍超过项目行数门禁的文件：`src/main/ipc/file-handlers.ts`（654）、`src/renderer/src/lib/docx.ts`（599）、`app/workspace/useWorkspaceFiles.ts`（505）、`app/useAppSettings.ts`（496）、`Editor/overlays/useEditorOverlays.ts`（486）、`Editor/instance/useMilkdownInstance.ts`（485）。`AppComposition.tsx` 已随顶栏收敛完成第二轮拆分（447 → 449：顶栏宿主与插槽抽到 `app/TopBarSlots.tsx`、拖放抽到 `app/useMarkdownDrop.ts`、收藏抽到 `app/useSidebarFavorites.ts`），本轮加入 `<SkipLink />` 后到 450 行，正好贴门禁上限，需按命令域与导出域继续收敛；`useEditorContentReplacement.ts`（约 340）同样待续。
+- 当前仍超过项目行数门禁的文件（2026-09-15 实数）：`src/main/ipc/file-handlers.ts`（662）、`src/renderer/src/lib/docx.ts`（613）、`app/workspace/useWorkspaceFiles.ts`（505）、`app/useAppSettings.ts`（496）、`Editor/overlays/useEditorOverlays.ts`（486）、`Editor/instance/useMilkdownInstance.ts`（485）。本轮 `AppComposition.tsx` 由 530 行拆到 449 行，已回到 450 行门禁内；`useEditorContentReplacement.ts`（约 340）超过评估线，触及时仍需按职责拆分。上述未触及热点保留在 S17 账本，不因本项拆分而宣称维护债务全部完成。
 - 文档会话剩余风险集中在 5 MiB 大文档的保存耗时（见上方发布前高优先级），会话状态一致性、卸载取消与多窗口竞态已完成核验。
 
 ### UI 与功能迁移
@@ -266,8 +272,8 @@ S03 的 **P0 真实 Electron 防卡死硬门禁已通过**：生产构建中打�
 ## 建议继续顺序
 
 1. ~~修复关联 smoke 的过时选择器，恢复真实验证入口；补收藏重启读取、快捷键提示与文件计数，校准 CI 配置。~~（M0 已完成，见上文任务表）
-2. 验证大文档最后输入与缓存快照一致性（T05 快照契约先行），再处理序列化/保存性能；恢复 Electron 全链路性能门禁的通过证据。
-3. 以 `app/workspace/useWorkspaceFiles.ts`、`app/useAppSettings.ts`、`Editor/instance/useMilkdownInstance.ts`、`Editor/overlays/useEditorOverlays.ts` 和 `src/main/ipc/file-handlers.ts` 为拆分入口，AppComposition 等超限组件同样先拆职责再扩功能。
+2. S03 固定 5 MiB Electron P0 门禁已有通过证据；继续完成 M01 多形态、多设备与长运行，以及 S02 保存/关闭完整时序矩阵。
+3. 以 `app/workspace/useWorkspaceFiles.ts`、`app/useAppSettings.ts`、`Editor/instance/useMilkdownInstance.ts`、`Editor/overlays/useEditorOverlays.ts` 和 `src/main/ipc/file-handlers.ts` 为拆分入口；AppComposition 已回到门禁内，触及时仍须评估职责。
 4. 按下一版 UI 规范完成保存状态语义、顶栏/路径、轻大纲、小窗口、输入法、焦点和主题验证。
 5. 连接已有搜索与回访路径，稳定现有导出并进行目标用户试用。低频能力登记与主要懒加载已完成，不重复安排。
 6. 完成品牌/存储兼容决策、Windows 安装包以及 macOS/Linux 安装包和更新流程验证。

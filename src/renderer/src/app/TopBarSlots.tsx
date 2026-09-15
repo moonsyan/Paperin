@@ -5,6 +5,7 @@ import type { CurrentFileSource } from '../components/CurrentFileBanner'
 import type { RecentFile } from '../components/MenuBar'
 import type { OpenFile } from '../components/Sidebar'
 import type { ShortcutMap } from '../data/shortcuts'
+import type { DocumentStorageKind } from '../lib/document-save-status'
 import { AppTopBar } from './AppTopBar'
 
 /**
@@ -64,6 +65,7 @@ export interface TopBarFileContextProps {
   workspaceName?: string | null
   source: CurrentFileSource
   dirty: boolean
+  storageKind?: DocumentStorageKind
 }
 
 export function TopBarFileContext({
@@ -74,6 +76,7 @@ export function TopBarFileContext({
   workspaceName = null,
   source,
   dirty,
+  storageKind,
 }: TopBarFileContextProps): JSX.Element | null {
   if (!visible) return null
   return (
@@ -84,6 +87,7 @@ export function TopBarFileContext({
       workspaceName={workspaceName}
       source={source}
       dirty={dirty}
+      storageKind={storageKind}
     />
   )
 }
@@ -128,6 +132,7 @@ export interface AppTopBarHostProps {
   filePath?: string | null
   fileSource: CurrentFileSource
   fileDirty: boolean
+  fileStorageKind?: DocumentStorageKind
 }
 
 /**
@@ -161,7 +166,7 @@ export function AppTopBarHost(props: AppTopBarHostProps): JSX.Element {
         <TopBarFileContext
           visible={props.openFiles.length > 0} title={props.docTitle} path={props.filePath}
           workspacePath={props.workspacePath} workspaceName={props.workspaceName}
-          source={props.fileSource} dirty={props.fileDirty}
+          source={props.fileSource} dirty={props.fileDirty} storageKind={props.fileStorageKind}
         />
       }
     />

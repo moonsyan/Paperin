@@ -42,6 +42,16 @@ describe('StatusBar', () => {
     expect(screen.getByText('UTF-8 (BOM)')).not.toBeNull()
   })
 
+  it('示例与未命名文档没有磁盘路径时不显示已保存', () => {
+    const { rerender } = render(<StatusBar saved storageKind="unnamed" wordCount={0} lineCount={1} readTime={0} />)
+    expect(screen.getByText('尚未保存到磁盘')).toBeTruthy()
+    expect(screen.queryByText('已保存')).toBeNull()
+    rerender(<StatusBar saved storageKind="demo" wordCount={0} lineCount={1} readTime={0} />)
+    expect(screen.getByText('示例文档')).toBeTruthy()
+    rerender(<StatusBar saved={false} storageKind="demo" wordCount={0} lineCount={1} readTime={0} />)
+    expect(screen.getByText('示例 · 有未保存修改')).toBeTruthy()
+  })
+
   it('有选区时显示选中字数；标题与修改时间可选展示', () => {
     render(
       <StatusBar

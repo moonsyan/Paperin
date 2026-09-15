@@ -42,4 +42,19 @@ describe('CurrentFileBanner', () => {
     expect(screen.getByText('C:/Temp/note.md')).toBeTruthy()
     expect(screen.getByRole('status').getAttribute('data-source')).toBe('external')
   })
+
+  it('无路径的未命名文档即使没有编辑也不宣称已保存', () => {
+    render(<CurrentFileBanner title="未命名 1.md" source="workspace" dirty={false} />)
+    expect(screen.getByText('尚未保存到磁盘')).toBeTruthy()
+    expect(screen.queryByText('已保存')).toBeNull()
+    expect(screen.getByRole('status').getAttribute('aria-label')).toContain('尚未保存到磁盘')
+  })
+
+  it('无路径的示例文档区分阅读态和未保存修改', () => {
+    const { rerender } = render(<CurrentFileBanner title="欢迎使用.md" source="workspace" storageKind="demo" dirty={false} />)
+    expect(screen.getByText('示例文档')).toBeTruthy()
+    expect(screen.queryByText('已保存')).toBeNull()
+    rerender(<CurrentFileBanner title="欢迎使用.md" source="workspace" storageKind="demo" dirty />)
+    expect(screen.getByText('示例 · 有未保存修改')).toBeTruthy()
+  })
 })
