@@ -202,6 +202,47 @@ describe('useDocumentSaving 大文档快照契约（T05）', () => {
     expect(setToast).toHaveBeenCalledWith(expect.stringContaining('保存失败'))
   })
 
+  it('手动另存为等待期间切换会话时，不把旧结果套用到当前文档', async () => {
+    stubDesktopAPI()
+    const { options, setToast } = createHarness()
+    let resolveSaveAs: ((result: { ok: true; data: { path: string; name: string; modifiedTime: number } }) => void) | undefined
+    vi.mocked(window.desktopAPI.document.saveAs).mockImplementation(() => new Promise((resolve) => {
+      resolveSaveAs = resolve
+    }))
+    const { result } = renderHook(() => useDocumentSaving(options))
+    const saving = result.current.handleSaveAs()
+    await waitFor(() => expect(resolveSaveAs).toBeDefined())
+    options.state.activeFileIdRef.current = 'file-2'
+    options.state.activeSessionRef.current++
+    resolveSaveAs!({ ok: true, data: { path: 'D:/notes/saved.md', name: 'saved.md', modifiedTime: 42 } })
+
+    await saving
+
+    expect(options.state.setActiveFileId).not.toHaveBeenCalled()
+    expect(options.state.setOpenFiles).not.toHaveBeenCalled()
+    expect(setToast).toHaveBeenCalledWith(expect.stringContaining('文档已切换'))
+  })
+
+  it('手动另存为等待期间卸载时，不写入已卸载的会话', async () => {
+    stubDesktopAPI()
+    const { options, setToast } = createHarness()
+    let resolveSaveAs: ((result: { ok: true; data: { path: string; name: string; modifiedTime: number } }) => void) | undefined
+    vi.mocked(window.desktopAPI.document.saveAs).mockImplementation(() => new Promise((resolve) => {
+      resolveSaveAs = resolve
+    }))
+    const { result, unmount } = renderHook(() => useDocumentSaving(options))
+    const saving = result.current.handleSaveAs()
+    await waitFor(() => expect(resolveSaveAs).toBeDefined())
+    unmount()
+    resolveSaveAs!({ ok: true, data: { path: 'D:/notes/saved.md', name: 'saved.md', modifiedTime: 42 } })
+
+    await saving
+
+    expect(options.state.setActiveFileId).not.toHaveBeenCalled()
+    expect(options.state.setOpenFiles).not.toHaveBeenCalled()
+    expect(setToast).not.toHaveBeenCalled()
+  })
+
   it('快照无未落账输入时直接用缓存保存（零等待路径不变）', async () => {
     stubDesktopAPI()
     const { options, savedWith } = createHarness()
