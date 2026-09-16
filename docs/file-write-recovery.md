@@ -35,4 +35,4 @@ Windows、macOS 和 Linux 的桌面环境会把已有文件对象与图标位置
 
 ## 验证
 
-`src/main/ipc/file-io.test.ts` 覆盖复制中断后恢复旧确认版本、遗留 `prepared` journal 的读取恢复，以及遗留 `committed` journal 保留新版本。完整故障矩阵、跨平台文件身份和进程终止验证按 [战略验收协议](development/strategy-validation.md) 的 Q01 执行。
+`src/main/ipc/file-write-recovery.test.ts` 专门覆盖复制中断、备份复制失败和目标同步失败后的恢复，以及遗留 `prepared`/`committed` journal 的读取恢复与外部修改保留；`src/main/ipc/file-io.test.ts` 保持编码和目录 I/O 测试。完整故障矩阵、跨平台文件身份和进程终止验证按 [战略验收协议](development/strategy-validation.md) 的 Q01 执行。

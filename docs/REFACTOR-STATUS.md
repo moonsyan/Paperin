@@ -44,7 +44,7 @@ S03 的 **P0 真实 Electron 防卡死硬门禁已通过**：生产构建中打�
 
 为已有桌面文件新增同目录 journal/backup 协议：新内容先写入并同步临时文件，旧确认版本复制到校验 backup 后才覆盖原文件对象；目标同步且哈希校验完成后记录 `committed`，最后清理恢复材料。应用下次读取文件时会处理遗留 journal：未确认写入恢复最后确认版本，已确认写入只清理材料，绝不以旧 backup 覆盖后续外部修改。活动进程持有未确认 journal 时读取返回 `FILE_BUSY`，避免索引或打开读取部分内容。
 
-实现位于 `src/main/ipc/file-write-recovery.ts`；`file-io.ts` 保持编码读取/目录扫描职责，`file-handlers.ts` 在 `stat` 前先恢复，处理 destination 被失败复制删除的情况。恢复材料只存同目录隐藏文件；journal 不含绝对路径或正文，backup 仅在保存未确认期间保留旧确认内容。协议、边界与手工验证见 [可恢复桌面文件写入](file-write-recovery.md)。
+实现位于 `src/main/ipc/file-write-recovery.ts`；其故障矩阵直接测试已从 `file-io.test.ts` 拆至 `file-write-recovery.test.ts`，后者只负责恢复协议，前者保持编码和目录 I/O 职责。`file-handlers.ts` 在 `stat` 前先恢复，处理 destination 被失败复制删除的情况。恢复材料只存同目录隐藏文件；journal 不含绝对路径或正文，backup 仅在保存未确认期间保留旧确认内容。协议、边界与手工验证见 [可恢复桌面文件写入](file-write-recovery.md)。
 
 自动验证：恢复备份复制失败、复制中断后恢复、目标同步失败、`prepared` journal 重启恢复、`committed` journal 清理、外部修改保留、编码读回、授权读取通过；备份复制失败、目标覆盖复制中断、目标同步失败、`prepared` 重启恢复、`committed` 清理及已提交后的外部修改保留各在 20 个隔离临时目录连续通过。前三者每次保留或恢复最后确认版本并清理 journal/backup；后两者每次保留新版本或外部版本并清理材料。本次最终验证 `npm run typecheck`、`npm run lint -- --quiet`、`npm run test`（165 文件、1253 项）、`npm run build`、普通 Electron smoke 和 a11y 通过。S03 的固定长段落 5 MiB 性能硬门禁现已通过，结果见顶部；S01 未完成的仍是其他注入点 20 次、进程终止、磁盘满/权限、符号链接、三平台文件身份和硬件掉电边界验证。
 
