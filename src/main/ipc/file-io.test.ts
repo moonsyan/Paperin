@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'fs/promises'
 import { createHash } from 'crypto'
 import { tmpdir } from 'os'
-import { join } from 'path'
+import { basename, join } from 'path'
 import { afterEach, describe, expect, it } from 'vitest'
 import iconv from 'iconv-lite'
 import {
@@ -157,6 +157,33 @@ describe('可恢复桌面文件写入', () => {
     await expect(readFile(filePath, 'utf-8')).resolves.toBe('下一次确认版本')
     await expect(readFile(join(directory, '.恢复.md.paperin-save-journal'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
     await expect(readFile(join(directory, '.恢复.md.paperin-save-backup'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('目标覆盖复制中断连续 20 次时，均恢复最后确认版本', async () => {
+    for (let attempt = 1; attempt <= 20; attempt++) {
+      const directory = await createTemporaryDirectory()
+      const filePath = join(directory, `复制中断-${attempt}.md`)
+      const confirmed = `确认版本-${attempt}`
+      await writeFile(filePath, confirmed)
+      let copyCalls = 0
+
+      await expect(writeFileAtomicallyWithIo(filePath, `未确认版本-${attempt}`, undefined, {
+        copyFile: async (source, destination) => {
+          copyCalls++
+          if (copyCalls === 2) {
+            await writeFile(destination, `部分内容-${attempt}`)
+            throw new Error(`模拟目标覆盖中断-${attempt}`)
+          }
+          await writeFile(destination, await readFile(source))
+        },
+      })).rejects.toThrow(`模拟目标覆盖中断-${attempt}`)
+
+      await expect(readFile(filePath, 'utf-8')).resolves.toBe(confirmed)
+      await writeFileAtomically(filePath, `恢复后确认版本-${attempt}`)
+      await expect(readFile(filePath, 'utf-8')).resolves.toBe(`恢复后确认版本-${attempt}`)
+      await expect(readFile(join(directory, `.${basename(filePath)}.paperin-save-journal`), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(readFile(join(directory, `.${basename(filePath)}.paperin-save-backup`), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+    }
   })
 
   it('读取带有已中断保存记录的文件时恢复最后确认版本', async () => {

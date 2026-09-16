@@ -46,7 +46,7 @@ S03 的 **P0 真实 Electron 防卡死硬门禁已通过**：生产构建中打�
 
 实现位于 `src/main/ipc/file-write-recovery.ts`；`file-io.ts` 保持编码读取/目录扫描职责，`file-handlers.ts` 在 `stat` 前先恢复，处理 destination 被失败复制删除的情况。恢复材料只存同目录隐藏文件；journal 不含绝对路径或正文，backup 仅在保存未确认期间保留旧确认内容。协议、边界与手工验证见 [可恢复桌面文件写入](file-write-recovery.md)。
 
-自动验证：复制中断后恢复、`prepared` journal 重启恢复、`committed` journal 清理、外部修改保留、编码读回、授权读取通过；本次最终验证 `npm run typecheck`、`npm run lint -- --quiet`、`npm run test`（165 文件、1253 项）、`npm run build`、普通 Electron smoke 和 a11y 通过。S03 的固定长段落 5 MiB 性能硬门禁现已通过，结果见顶部；S01 未完成的仍是每注入点 20 次、进程终止、磁盘满/权限、符号链接、三平台文件身份和硬件掉电边界验证。
+自动验证：复制中断后恢复、`prepared` journal 重启恢复、`committed` journal 清理、外部修改保留、编码读回、授权读取通过；目标覆盖复制中断已在 20 个隔离临时目录连续通过，每次都恢复最后确认版本，后续保存并清理 journal/backup。本次最终验证 `npm run typecheck`、`npm run lint -- --quiet`、`npm run test`（165 文件、1253 项）、`npm run build`、普通 Electron smoke 和 a11y 通过。S03 的固定长段落 5 MiB 性能硬门禁现已通过，结果见顶部；S01 未完成的仍是其他注入点 20 次、进程终止、磁盘满/权限、符号链接、三平台文件身份和硬件掉电边界验证。
 
 ### S02：快照超时与关闭安全（首个正确性闭环完成，完整时序矩阵待验证）
 
