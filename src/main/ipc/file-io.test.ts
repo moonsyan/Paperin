@@ -207,6 +207,30 @@ describe('可恢复桌面文件写入', () => {
     await expect(readFile(join(directory, '.崩溃恢复.md.paperin-save-backup'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
+  it('prepared journal 重启恢复连续 20 次时，均保留最后确认版本', async () => {
+    const digest = (content: string) => createHash('sha256').update(content).digest('hex')
+    for (let attempt = 1; attempt <= 20; attempt++) {
+      const directory = await createTemporaryDirectory()
+      const fileName = `重启恢复-${attempt}.md`
+      const filePath = join(directory, fileName)
+      const confirmed = `最后确认版本-${attempt}`
+      const unconfirmed = `未确认版本-${attempt}`
+      await writeFile(filePath, `部分内容-${attempt}`)
+      await writeFile(join(directory, `.${fileName}.paperin-save-backup`), confirmed)
+      await writeFile(join(directory, `.${fileName}.paperin-save-journal`), JSON.stringify({
+        version: 1,
+        phase: 'prepared',
+        ownerPid: 2_147_483_647,
+        contentSha256: digest(unconfirmed),
+        backupSha256: digest(confirmed),
+      }))
+
+      await expect(readTextAutoEncoding(filePath)).resolves.toEqual({ content: confirmed, encoding: 'UTF-8' })
+      await expect(readFile(join(directory, `.${fileName}.paperin-save-journal`), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(readFile(join(directory, `.${fileName}.paperin-save-backup`), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+    }
+  })
+
   it('读取已提交的保存记录时保留新版本并清理恢复材料', async () => {
     const directory = await createTemporaryDirectory()
     const filePath = join(directory, '已提交.md')
