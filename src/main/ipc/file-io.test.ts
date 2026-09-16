@@ -186,6 +186,30 @@ describe('可恢复桌面文件写入', () => {
     }
   })
 
+  it('目标同步失败连续 20 次时，均恢复最后确认版本', async () => {
+    for (let attempt = 1; attempt <= 20; attempt++) {
+      const directory = await createTemporaryDirectory()
+      const fileName = `同步失败-${attempt}.md`
+      const filePath = join(directory, fileName)
+      const confirmed = `确认版本-${attempt}`
+      await writeFile(filePath, confirmed)
+      let targetSyncFailed = false
+
+      await expect(writeFileAtomicallyWithIo(filePath, `未确认版本-${attempt}`, undefined, {
+        syncFile: async (path) => {
+          if (path === filePath && !targetSyncFailed) {
+            targetSyncFailed = true
+            throw new Error(`模拟目标同步失败-${attempt}`)
+          }
+        },
+      })).rejects.toThrow(`模拟目标同步失败-${attempt}`)
+
+      await expect(readFile(filePath, 'utf-8')).resolves.toBe(confirmed)
+      await expect(readFile(join(directory, `.${fileName}.paperin-save-journal`), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(readFile(join(directory, `.${fileName}.paperin-save-backup`), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+    }
+  })
+
   it('读取带有已中断保存记录的文件时恢复最后确认版本', async () => {
     const directory = await createTemporaryDirectory()
     const filePath = join(directory, '崩溃恢复.md')
