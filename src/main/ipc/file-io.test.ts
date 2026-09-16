@@ -297,6 +297,31 @@ describe('可恢复桌面文件写入', () => {
     await expect(readFile(join(directory, '.外部修改.md.paperin-save-journal'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
     await expect(readFile(join(directory, '.外部修改.md.paperin-save-backup'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
   })
+
+  it('已提交后的外部修改连续 20 次时，清理不会覆盖外部版本', async () => {
+    const digest = (content: string) => createHash('sha256').update(content).digest('hex')
+    for (let attempt = 1; attempt <= 20; attempt++) {
+      const directory = await createTemporaryDirectory()
+      const fileName = `外部修改-${attempt}.md`
+      const filePath = join(directory, fileName)
+      const committed = `Paperin 已确认版本-${attempt}`
+      const previous = `上次确认版本-${attempt}`
+      const external = `外部编辑器新版本-${attempt}`
+      await writeFile(filePath, external)
+      await writeFile(join(directory, `.${fileName}.paperin-save-backup`), previous)
+      await writeFile(join(directory, `.${fileName}.paperin-save-journal`), JSON.stringify({
+        version: 1,
+        phase: 'committed',
+        ownerPid: 2_147_483_647,
+        contentSha256: digest(committed),
+        backupSha256: digest(previous),
+      }))
+
+      await expect(readTextAutoEncoding(filePath)).resolves.toEqual({ content: external, encoding: 'UTF-8' })
+      await expect(readFile(join(directory, `.${fileName}.paperin-save-journal`), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(readFile(join(directory, `.${fileName}.paperin-save-backup`), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+    }
+  })
 })
 
 describe('文件保存策略', () => {
