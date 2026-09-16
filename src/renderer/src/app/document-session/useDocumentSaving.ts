@@ -288,7 +288,12 @@ export function useDocumentSaving({
       if (result.ok && result.data) {
         if (!openFilesRef.current.some((openFile) => openFile.id === activeFileId)) return
         INITIAL_OR_SAVED.current[activeFileId] = content
-        const isCurrentContent = contentsRef.current[activeFileId] === content
+        // 磁盘回执只确认已提交的快照。若 IPC 等待期间编辑器又收到尚未
+        // markdownUpdated 落账的输入，缓存仍可能恰好相等，也必须保留 dirty。
+        const hasLatePendingInput = activeFileIdRef.current === activeFileId
+          && activeSessionRef.current === targetSession
+          && (editorRef.current?.hasPendingChanges() ?? false)
+        const isCurrentContent = contentsRef.current[activeFileId] === content && !hasLatePendingInput
         setSavedMap((prev) => ({ ...prev, [activeFileId]: isCurrentContent }))
         setFileMtime((prev) => ({ ...prev, [activeFileId]: result.data!.modifiedTime }))
         if (isCurrentContent) void clearDraft(activeFileId)

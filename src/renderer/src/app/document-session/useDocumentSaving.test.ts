@@ -7,6 +7,7 @@ import { DocumentSaveQueue } from '../../lib/document-save-queue'
 import type { AutoSaveSnapshot } from './types'
 import { useDocumentCloseSaving } from './useDocumentCloseSaving'
 import { requestConfirm } from '../../lib/confirm-dialog'
+import type { SaveResult } from '../../../../preload/api'
 
 vi.mock('../../lib/confirm-dialog', () => ({ requestConfirm: vi.fn().mockResolvedValue('save') }))
 
@@ -267,6 +268,27 @@ describe('useDocumentSaving 大文档快照契约（T05）', () => {
     await result.current.handleSave()
     await waitFor(() => expect(savedWith).toHaveLength(1))
     expect(savedWith[0][1]).toBe(BIG + '<last-keystroke>')
+  })
+
+  it('保存回执到达前出现未落账输入时，文档仍保持 dirty', async () => {
+    let pending = false
+    stubDesktopAPI()
+    const { options, setSavedMap } = createHarness({ hasPendingChanges: () => pending })
+    let resolveSave: ((result: SaveResult) => void) | undefined
+    options.saveQueueApi.saveWithEncodingFallback = vi.fn(() => new Promise<SaveResult>((resolve) => {
+      resolveSave = resolve
+    }))
+    const { result } = renderHook(() => useDocumentSaving(options))
+    const saving = result.current.handleSave()
+    await waitFor(() => expect(resolveSave).toBeDefined())
+    pending = true
+    resolveSave!({ ok: true, data: { modifiedTime: 1234 } })
+
+    await saving
+
+    const updates = vi.mocked(setSavedMap).mock.calls
+    const update = updates[updates.length - 1]?.[0]
+    expect(typeof update === 'function' && update({ 'file-1': true })['file-1']).toBe(false)
   })
 
   it('落账等待超时不写入旧缓存，并提示用户重试', async () => {
