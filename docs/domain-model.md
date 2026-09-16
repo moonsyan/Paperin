@@ -10,6 +10,8 @@ Manual Save As follows the same session-identity rule. Its native-dialog result 
 
 A successful ordinary save acknowledges only its submitted snapshot. If the active editor receives later input before that acknowledgement is applied, including input still pending its session snapshot, the record remains dirty until a later save confirms that input.
 
+The acknowledgement also belongs to the submitted file path. If that tab is renamed or moved while its save is in flight, the old-path result cannot advance the new-path `savedContent`, mtime, or saved state.
+
 Closing has the same version rule for every document size. `useDocumentCloseSaving` captures the file path, active session sequence and editor instance before it starts, then verifies them again after each asynchronous operation. A close can proceed only when the latest `content` still equals the confirmed saved baseline and the active editor has no pending input. Window close repeats this check after queue flushing and workspace-view persistence, so a late edit or newly opened tab cannot inherit an earlier close approval.
 
 Shared `DocumentRef` identifies workspace and external files. IDs remain stable across path migration; source and workspace identity are preserved. Supported encodings are UTF-8, UTF-8 BOM, UTF-16LE, UTF-16BE, and GBK.

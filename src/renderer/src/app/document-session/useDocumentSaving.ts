@@ -286,7 +286,14 @@ export function useDocumentSaving({
         }
       }
       if (result.ok && result.data) {
-        if (!openFilesRef.current.some((openFile) => openFile.id === activeFileId)) return
+        const currentFile = openFilesRef.current.find((openFile) => openFile.id === activeFileId)
+        if (!currentFile) return
+        // mtime 与保存基线只能属于发起请求时的路径。重命名或移动已将
+        // 同一标签指向新文件时，旧路径回执不能把新路径误标为已保存。
+        if (currentFile.path !== file.path) {
+          setToast('文件路径已变更，未将旧保存结果套用到当前标签')
+          return
+        }
         INITIAL_OR_SAVED.current[activeFileId] = content
         // 磁盘回执只确认已提交的快照。若 IPC 等待期间编辑器又收到尚未
         // markdownUpdated 落账的输入，缓存仍可能恰好相等，也必须保留 dirty。

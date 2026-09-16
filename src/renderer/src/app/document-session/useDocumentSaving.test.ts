@@ -102,7 +102,7 @@ const createHarness = (overrides: HarnessOverrides = {}) => {
     snapshotSettleTimeoutMs: 80,
   }
 
-  return { options, savedWith, setToast, contentsRef, setContents, setSavedMap }
+  return { options, savedWith, setToast, contentsRef, setContents, setSavedMap, setFileMtime }
 }
 
 describe('useDocumentSaving 大文档快照契约（T05）', () => {
@@ -289,6 +289,26 @@ describe('useDocumentSaving 大文档快照契约（T05）', () => {
     const updates = vi.mocked(setSavedMap).mock.calls
     const update = updates[updates.length - 1]?.[0]
     expect(typeof update === 'function' && update({ 'file-1': true })['file-1']).toBe(false)
+  })
+
+  it('保存等待期间路径变更时，不把旧路径回执套用到新路径标签', async () => {
+    stubDesktopAPI()
+    const { options, setSavedMap, setFileMtime, setToast } = createHarness()
+    let resolveSave: ((result: SaveResult) => void) | undefined
+    options.saveQueueApi.saveWithEncodingFallback = vi.fn(() => new Promise<SaveResult>((resolve) => {
+      resolveSave = resolve
+    }))
+    const { result } = renderHook(() => useDocumentSaving(options))
+    const saving = result.current.handleSave()
+    await waitFor(() => expect(resolveSave).toBeDefined())
+    options.state.openFilesRef.current = [{ id: 'file-1', name: 'moved.md', path: 'D:/archive/moved.md' }]
+    resolveSave!({ ok: true, data: { modifiedTime: 1234 } })
+
+    await saving
+
+    expect(setSavedMap).not.toHaveBeenCalled()
+    expect(setFileMtime).not.toHaveBeenCalled()
+    expect(setToast).toHaveBeenCalledWith(expect.stringContaining('路径已变更'))
   })
 
   it('落账等待超时不写入旧缓存，并提示用户重试', async () => {
