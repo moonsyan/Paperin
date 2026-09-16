@@ -5,10 +5,15 @@ import type { MutableRefObject } from 'react'
 import { useDocumentSaving, type UseDocumentSavingOptions } from './useDocumentSaving'
 import { DocumentSaveQueue } from '../../lib/document-save-queue'
 import type { AutoSaveSnapshot } from './types'
+import { useDocumentCloseSaving } from './useDocumentCloseSaving'
+import { requestConfirm } from '../../lib/confirm-dialog'
+
+vi.mock('../../lib/confirm-dialog', () => ({ requestConfirm: vi.fn().mockResolvedValue('save') }))
 
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  vi.mocked(requestConfirm).mockResolvedValue('save')
 })
 
 const stubDesktopAPI = () => {
@@ -100,6 +105,103 @@ const createHarness = (overrides: HarnessOverrides = {}) => {
 }
 
 describe('useDocumentSaving 大文档快照契约（T05）', () => {
+  it('未命名大文档缓存等于基线但仍有输入时，不可绕过快照等待关闭', async () => {
+    stubDesktopAPI()
+    const { options } = createHarness({ hasPendingChanges: () => true })
+    options.state.openFilesRef.current = [{ id: 'file-1', name: '未命名.md' }]
+    options.state.initialOrSavedRef.current['file-1'] = BIG
+    const { result } = renderHook(() => useDocumentSaving(options))
+    await expect(result.current.saveBeforeClose('file-1')).resolves.toBe(false)
+    expect(window.desktopAPI.document.saveAs).not.toHaveBeenCalled()
+  })
+
+  it.each([32, 1_000_000, 1_000_001, 5 * 1024 * 1024])('关闭等待期间新输入未落账时保持打开（%i 字符，30 次）', async (size) => {
+    stubDesktopAPI()
+    const content = 'x'.repeat(size)
+    for (let iteration = 0; iteration < 30; iteration++) {
+      let pending = false
+      const { options } = createHarness({ hasPendingChanges: () => pending })
+      options.state.contentsRef.current['file-1'] = content
+      const queue = new DocumentSaveQueue<AutoSaveSnapshot>(async () => {}, 1_000)
+      vi.spyOn(queue, 'flush').mockImplementation(async () => {
+        options.state.initialOrSavedRef.current['file-1'] = content
+        pending = true
+      })
+      options.saveQueueApi.saveQueueRef.current = queue
+      const { result, unmount } = renderHook(() => useDocumentSaving(options))
+      await expect(result.current.saveBeforeClose('file-1')).resolves.toBe(false)
+      pending = false
+      vi.mocked(queue.flush).mockResolvedValue(undefined)
+      await expect(result.current.saveBeforeClose('file-1')).resolves.toBe(true)
+      unmount()
+    }
+  })
+
+  it('另存为期间继续输入不能关闭未命名文档', async () => {
+    stubDesktopAPI()
+    const { options } = createHarness()
+    options.state.openFilesRef.current = [{ id: 'file-1', name: '未命名.md' }]
+    vi.mocked(window.desktopAPI.document.saveAs).mockImplementation(async () => {
+      options.state.contentsRef.current['file-1'] = BIG + '最后输入'
+      return { ok: true, data: { path: 'D:/notes/saved.md', name: 'saved.md', modifiedTime: 42 } }
+    })
+    const { result } = renderHook(() => useDocumentSaving(options))
+    await expect(result.current.saveBeforeClose('file-1')).resolves.toBe(false)
+    expect(options.state.contentsRef.current['file-1']).toContain('最后输入')
+  })
+
+  it('关闭等待期间 A→B→A 的旧请求不能关闭新会话', async () => {
+    stubDesktopAPI()
+    const { options } = createHarness()
+    const queue = new DocumentSaveQueue<AutoSaveSnapshot>(async () => {}, 1_000)
+    vi.spyOn(queue, 'flush').mockImplementation(async () => {
+      options.state.initialOrSavedRef.current['file-1'] = BIG
+      options.state.activeSessionRef.current += 2
+    })
+    options.saveQueueApi.saveQueueRef.current = queue
+    const { result } = renderHook(() => useDocumentSaving(options))
+    await expect(result.current.saveBeforeClose('file-1')).resolves.toBe(false)
+  })
+
+  it('关闭保存等待中卸载后不放行，也不产生提示或最近文件更新', async () => {
+    stubDesktopAPI()
+    const { options, setToast } = createHarness()
+    options.state.openFilesRef.current = [{ id: 'file-1', name: '未命名.md' }]
+    let completeSave: (() => void) | undefined
+    vi.mocked(window.desktopAPI.document.saveAs).mockImplementation(() => new Promise((resolve) => {
+      completeSave = () => resolve({ ok: true, data: { path: 'D:/notes/saved.md', name: 'saved.md', modifiedTime: 42 } })
+    }))
+    const { result, unmount } = renderHook(() => useDocumentCloseSaving(options))
+    const closing = result.current('file-1')
+    await waitFor(() => expect(completeSave).toBeDefined())
+    unmount()
+    completeSave!()
+    await expect(closing).resolves.toBe(false)
+    expect(options.recordRecent).not.toHaveBeenCalled()
+    expect(setToast).not.toHaveBeenCalled()
+  })
+
+  it.each(['cancel', 'discard', 'save'])('未命名关闭保留 %s 的明确决策', async (choice) => {
+    stubDesktopAPI()
+    const { options } = createHarness()
+    options.state.openFilesRef.current = [{ id: 'file-1', name: '未命名.md' }]
+    vi.mocked(requestConfirm).mockResolvedValue(choice)
+    vi.mocked(window.desktopAPI.document.saveAs).mockResolvedValue({ ok: true, data: { path: 'D:/notes/saved.md', name: 'saved.md', modifiedTime: 42 } })
+    const { result } = renderHook(() => useDocumentCloseSaving(options))
+    await expect(result.current('file-1')).resolves.toBe(choice !== 'cancel')
+    expect(window.desktopAPI.document.saveAs).toHaveBeenCalledTimes(choice === 'save' ? 1 : 0)
+  })
+
+  it('另存为调用拒绝时保持文档打开并提示重试', async () => {
+    stubDesktopAPI()
+    const { options, setToast } = createHarness()
+    options.state.openFilesRef.current = [{ id: 'file-1', name: '未命名.md' }]
+    vi.mocked(window.desktopAPI.document.saveAs).mockRejectedValue(new Error('IPC disconnected'))
+    const { result } = renderHook(() => useDocumentCloseSaving(options))
+    await expect(result.current('file-1')).resolves.toBe(false)
+    expect(setToast).toHaveBeenCalledWith(expect.stringContaining('保存失败'))
+  })
+
   it('快照无未落账输入时直接用缓存保存（零等待路径不变）', async () => {
     stubDesktopAPI()
     const { options, savedWith } = createHarness()

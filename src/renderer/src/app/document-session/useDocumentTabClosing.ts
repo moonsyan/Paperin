@@ -19,7 +19,7 @@ import { planTabRemoval } from './tab-close-plan'
 
 interface DocumentTabClosingOptions {
   state: DocumentState
-  editorRef: RefObject<EditorHandle>
+  editorRef: RefObject<Pick<EditorHandle, 'isReady' | 'getMarkdown' | 'hasPendingChanges'>>
   flushEditorContent: () => void
   replaceEditorContent: (fileId: string, content: string, mode?: 'initialize' | 'update' | 'ignore') => void
   pinPreviewTab: (fileId: string) => void
@@ -132,11 +132,13 @@ export function useDocumentTabClosing({
   }, [activeFileIdRef, clearDraft, contentsRef, draftPendingRef, initialOrSaved, openFilesRef, replaceEditorContent, saveQueueRef, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap])
 
   const saveAllBeforeWindowClose = useCallback(async (): Promise<boolean> => {
+    const confirmed = new Map<string, { path?: string; content: string }>()
     captureWorkspaceDocumentView(activeFileIdRef.current)
     flushEditorContent()
     for (const file of openFilesRef.current) {
       if (!await saveBeforeClose(file.id)) return false
       if (!file.path) removeClosedTabs([file.id])
+      else confirmed.set(file.id, { path: file.path, content: contentsRef.current[file.id] ?? '' })
     }
     await saveQueueRef.current?.flushAll()
     flushPersistedSettings()
@@ -144,8 +146,18 @@ export function useDocumentTabClosing({
       const result = await window.desktopAPI.workspaceState.saveDocuments(workspaceDocumentsRef.current)
       if (!result.ok) setToast('文档视图状态保存失败')
     }
+    // 逐标签确认之后还有异步写入；等待期间的新输入/新标签不能继承旧的关窗许可。
+    const changed = openFilesRef.current.some((file) => {
+      const snapshot = confirmed.get(file.id)
+      return !snapshot || snapshot.path !== file.path || snapshot.content !== (contentsRef.current[file.id] ?? '')
+        || (file.id === activeFileIdRef.current && editorRef.current?.hasPendingChanges())
+    })
+    if (changed) {
+      setToast('关闭等待期间出现了新修改或新文档，已取消关闭')
+      return false
+    }
     return true
-  }, [activeFileIdRef, captureWorkspaceDocumentView, flushEditorContent, openFilesRef, removeClosedTabs, saveBeforeClose, saveQueueRef, setToast, workspaceDocumentsRef, workspacePathRef])
+  }, [activeFileIdRef, captureWorkspaceDocumentView, contentsRef, editorRef, flushEditorContent, openFilesRef, removeClosedTabs, saveBeforeClose, saveQueueRef, setToast, workspaceDocumentsRef, workspacePathRef])
 
   useEffect(() => {
     const currentWindow = window as unknown as { __paperin_saveAll?: () => Promise<boolean> }

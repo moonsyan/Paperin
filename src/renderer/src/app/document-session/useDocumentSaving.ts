@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import type { MutableRefObject, RefObject } from 'react'
 import { toStoredImages } from '../../lib/image-path'
-import { isDocumentDirty } from '../../lib/document-tabs'
-import { requestConfirm } from '../../lib/confirm-dialog'
+import { useDocumentCloseSaving } from './useDocumentCloseSaving'
 import type { PendingDraft } from '../../hooks/useDraftPersistence'
 import { nextUntitled } from '../constants'
 import type { DocumentState } from './useDocumentState'
@@ -76,7 +75,6 @@ export function useDocumentSaving({
     saveWithEncodingFallback,
     recordHistory,
     resolveSelfConflict,
-    saveQueueRef,
   } = saveQueueApi
 
   const handleSaveAs = useCallback(async () => {
@@ -291,102 +289,9 @@ export function useDocumentSaving({
     await handleSaveAs()
   }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, activeSessionRef, contents, contentsRef, dirOfFile, editorRef, fileMtime, openFiles, openFilesRef, resolveSelfConflict, recordHistory, saveWithEncodingFallback, handleSaveAs, clearDraft, setContents, setFileMtime, setSavedMap, setToast, snapshotSettleTimeoutMs])
 
-  const saveBeforeClose = useCallback(async (id: string): Promise<boolean> => {
-    const file = openFilesRef.current.find((candidate) => candidate.id === id)
-    if (!file) return true
-    const content = liveContentOf(id)
-    if (!file.path) {
-      const dirty = isDocumentDirty(content, INITIAL_OR_SAVED.current[id] ?? '')
-      if (!dirty) return true
-      // 空白未命名文档无实质内容，直接丢弃不弹确认框
-      if (!content.trim()) return true
-      if (!window.desktopAPI) return false
-      // T1：关闭前决策交给用户——此前无条件弹另存为且取消即无法关闭，
-      // 未命名/演示文档没有任何"放弃修改"出口。现在提供三选，
-      // "不保存"直接关闭，"取消"保留文档原样
-      const choice = await requestConfirm({
-        title: '关闭文档',
-        message: `「${file.name}」尚未保存。是否保存并关闭？`,
-        buttons: [
-          { id: 'save', label: '保存', kind: 'primary' },
-          { id: 'discard', label: '不保存', kind: 'danger' },
-          { id: 'cancel', label: '取消' },
-        ],
-        defaultId: 'save',
-      })
-      if (choice === 'cancel') return false
-      if (choice === 'discard') return true
-      const result = await window.desktopAPI.document.saveAs(content, {
-        defaultPath: file.name,
-      })
-      if (!result.ok || !result.data) {
-        if (result.error?.code !== 'CANCELLED') setToast(`保存失败：${file.name}`)
-        // 另存为对话框被取消同样视为放弃本次关闭，标签/窗口保持原样
-        return false
-      }
-      recordRecent(result.data.path, result.data.name)
-      return true
-    }
-
-    // T05 快照契约：活动文档是大文档且防抖窗口内有输入时，先等快照落账，
-    // 否则 flush 排队的是落账前的旧内容、末次输入丢失（与 handleSave 同因）。
-    // 非活动文件的缓存是切换时同步 flush 过的，无此风险，零等待直接通过。
-    if (editorRef.current?.isReady() && id === activeFileIdRef.current) {
-      const cachedBeforeClose = contentsRef.current[id] ?? ''
-      if (shouldPreferCachedDocumentSnapshot(cachedBeforeClose)) {
-        const targetSession = activeSessionRef.current
-        const outcome = await ensureFreshSnapshot({
-          hasPendingChanges: () => editorRef.current?.hasPendingChanges() ?? false,
-          readSnapshot: () => contentsRef.current[id] ?? '',
-          isTargetCurrent: () => (
-            activeFileIdRef.current === id
-            && activeSessionRef.current === targetSession
-            && openFilesRef.current.some((candidate) => candidate.id === id)
-          ),
-        }, snapshotSettleTimeoutMs)
-        if (!outcome.settled) {
-          setToast(
-            outcome.reason === 'target-changed'
-              ? `「${file.name}」的编辑会话已切换，已取消关闭`
-              : `「${file.name}」仍在生成快照，未保存旧版本并已取消关闭`,
-          )
-          return false
-        }
-      }
-    }
-
-    try {
-      await saveQueueRef.current?.flush(id)
-    } catch {
-      // 首次冲刷失败不立刻中止：下方仍按最新实时内容再排一次写回；
-      // 仍失败则由最终 catch 交给用户决策（放弃修改/取消）
-    }
-    const currentContent = liveContentOf(id)
-    if (!isDocumentDirty(currentContent, INITIAL_OR_SAVED.current[id] ?? '')) return true
-    saveQueueRef.current?.schedule(id, {
-      path: file.path,
-      name: file.name,
-      content: currentContent,
-    })
-    try {
-      await saveQueueRef.current?.flush(id)
-      return !isDocumentDirty(contentsRef.current[id] ?? currentContent, INITIAL_OR_SAVED.current[id] ?? '')
-    } catch {
-      // 无法落盘（外部修改冲突/编码限制/磁盘只读）：不再静默中止关闭，
-      // 让用户选择放弃修改并关闭，而不是只能取消后干等
-      const choice = await requestConfirm({
-        title: '关闭文档',
-        message: `「${file.name}」未能保存（文件可能已被外部修改或磁盘不可写）。仍要关闭并放弃这些修改吗？`,
-        buttons: [
-          { id: 'discard', label: '放弃修改', kind: 'danger' },
-          { id: 'cancel', label: '取消' },
-        ],
-        defaultId: 'cancel',
-      })
-      return choice === 'discard'
-    }
-  }, [INITIAL_OR_SAVED, activeFileIdRef, activeSessionRef, contentsRef, editorRef, liveContentOf, openFilesRef, recordRecent, saveQueueRef, setToast, snapshotSettleTimeoutMs])
-
+  const saveBeforeClose = useDocumentCloseSaving({
+    state, editorRef, saveQueueApi, liveContentOf, recordRecent, setToast, snapshotSettleTimeoutMs,
+  })
   // 未保存状态同步到主进程（关闭时弹原生确认框，避免静默阻止关闭）
   const hasUnsaved = useMemo(() => Object.values(savedMap).some((s) => !s), [savedMap])
   useEffect(() => {
