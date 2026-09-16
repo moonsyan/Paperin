@@ -1,6 +1,6 @@
 # 兼容矩阵
 
-> 2026-09-14 更新：表内“保留/已迁移”表示能力或契约存在，不代表所有目标平台都已完成发布验证。S01 可恢复写入和 S02 快照/关闭保护已有工程回归；5 MiB 性能硬门禁、故障矩阵、真实 IME 与三平台安装仍未完成。当前完成度以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准，后续顺序见 [NEXT-DEVELOPMENT-PLAN](NEXT-DEVELOPMENT-PLAN.md)。
+> 2026-09-16 更新：表内“保留/已迁移”表示能力或契约存在，不代表所有目标平台都已完成发布验证。S01 已补齐多类恢复、并发和 20 次自动回归；S02 已补齐保存路径身份保护；5 MiB 完整体验性能、真实 IME 与三平台安装仍未完成。当前完成度以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准，后续顺序见 [NEXT-DEVELOPMENT-PLAN](NEXT-DEVELOPMENT-PLAN.md)。
 
 | 能力 | 旧实现 | 现有测试/依据 | 第一批状态 | 后续验证 |
 |---|---|---|---|---|

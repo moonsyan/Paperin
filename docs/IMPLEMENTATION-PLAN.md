@@ -2,7 +2,7 @@
 
 > 本文是新项目的执行手册。每个任务都必须形成可运行、可测试、可回退的独立增量；执行前先阅读根目录 `AGENTS.md`。
 
-> 2026-09-15 续期说明：下方保留原始实施目标与门禁，不以旧复选框推断当前完成度。战略取舍见 [PRODUCT-STRATEGY-ROADMAP](PRODUCT-STRATEGY-ROADMAP.md)，下一阶段按 [NEXT-DEVELOPMENT-PLAN](NEXT-DEVELOPMENT-PLAN.md) 的 S00–S17 执行，指标以 [战略验收协议](development/strategy-validation.md) 为准，当前事实以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准。S01 可恢复写入与 S02 超时/会话保护有首批工程证据，S03 固定 5 MiB Electron P0 硬门禁已通过三次，S05 无盘文档状态已完成首项修复；故障/时序矩阵、完整性能体验及平台验证仍未完成。旧 T01–T21 的追溯映射保留在新版计划中。
+> 2026-09-16 续期说明：下方保留原始实施目标与门禁，不以旧复选框推断当前完成度。战略取舍见 [PRODUCT-STRATEGY-ROADMAP](PRODUCT-STRATEGY-ROADMAP.md)，下一阶段按 [NEXT-DEVELOPMENT-PLAN](NEXT-DEVELOPMENT-PLAN.md) 的 S00–S17 执行，指标以 [战略验收协议](development/strategy-validation.md) 为准，当前事实以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准。S01 已补齐多类 20 次恢复与并发自动回归，S02 已补齐关闭、另存为、保存回执和路径身份保护，S03 固定 5 MiB Electron P0 硬门禁已通过；真实故障/平台/时序矩阵、完整性能体验和用户验证仍未完成。旧 T01–T21 的追溯映射保留在新版计划中。
 
 **目标：** 在保留 Paperin 现有文件、编辑器、搜索、导出、会话和安全能力的前提下，重建一个以知识库为默认上下文、当前文件为焦点、可持续扩展的本地优先 Markdown 工作台。
 
@@ -10,7 +10,7 @@
 
 **技术栈：** Electron、React、TypeScript strict、electron-vite、Milkdown/ProseMirror、mdast/micromark、原生 CSS Variables、Vitest、Testing Library、electron-builder。
 
-**依据：** `docs/TECH-STACK.md`、`docs/NEXT-PRODUCT-ASSESSMENT.md`、`docs/NEXT-UI-SPEC.md`、`design/soft-workbench/` 和当前 `src/` 实现。
+**依据：** `docs/TECH-STACK.md`、`docs/PRODUCT-STRATEGY-ROADMAP.md`、`docs/NEXT-UI-SPEC.md`、`design/soft-workbench/` 和当前 `src/` 实现。
 
 ## 全局门禁
 
@@ -40,7 +40,7 @@
 ### 文件
 
 - 参考：旧项目 `src/main/`、`src/preload/`、`src/shared/`、`src/renderer/src/`
-- 修改：`README.md`、`docs/TECH-STACK.md`、`docs/NEXT-PRODUCT-ASSESSMENT.md`
+- 修改：`README.md`、`docs/TECH-STACK.md`、`docs/PRODUCT-STRATEGY-ROADMAP.md`
 - 新增：`docs/compatibility-matrix.md`
 
 ### 步骤

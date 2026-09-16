@@ -105,12 +105,11 @@ npm run demo:soft     # 仅启动柔和工作台原型
 文档已经收敛为当前仍有用途的维护资料、设计规范和验证记录：
 
 - [`docs/PRODUCT-STRATEGY-ROADMAP.md`](./docs/PRODUCT-STRATEGY-ROADMAP.md)：战略定位、竞品事实校正、目标用户、增长与商业验证规则。
+- [`docs/README.md`](./docs/README.md)：文档入口、职责说明和按优先级整理的后续任务总表。
 - [`docs/development/strategy-validation.md`](./docs/development/strategy-validation.md)：正确性、性能、复用效率、留存与增长的验收指标及采样口径。
 - [`docs/REFACTOR-STATUS.md`](./docs/REFACTOR-STATUS.md)：当前 `master` 的唯一实时完成度和验证证据。
-- [`docs/NEXT-PRODUCT-ASSESSMENT.md`](./docs/NEXT-PRODUCT-ASSESSMENT.md)：产品定位、证据边界、风险和下一阶段判断。
 - [`docs/NEXT-UI-SPEC.md`](./docs/NEXT-UI-SPEC.md)：顶栏、侧栏、路径条、上下文面板、主题和窄窗口规范。
 - [`docs/NEXT-DEVELOPMENT-PLAN.md`](./docs/NEXT-DEVELOPMENT-PLAN.md)：战略落地的 S00–S17 任务、优先级、依赖、验收、回退及旧任务映射。
-- [`docs/SOFT-WORKBENCH-PLAN.md`](./docs/SOFT-WORKBENCH-PLAN.md)：柔和工作台与资料复用方向，以及原型到生产的映射。
 - [`docs/compatibility-matrix.md`](./docs/compatibility-matrix.md)：旧能力、当前实现、测试依据和平台验证边界。
 - [`docs/command-panels.md`](./docs/command-panels.md)：命令注册表、快捷键、面板插槽和低频能力入口。
 - [`docs/workspace-shell.md`](./docs/workspace-shell.md)：工作区壳层、路径来源、dirty 和窄窗口交互契约。
@@ -121,7 +120,7 @@ npm run demo:soft     # 仅启动柔和工作台原型
 - [`docs/ACCESSIBILITY-SMOKE.md`](./docs/ACCESSIBILITY-SMOKE.md)：主题可读性、焦点和人工冒烟范围。
 - [`docs/development/`](./docs/development/)：性能基线、主题基线和回归脚本数据。
 
-`docs/IMPLEMENTATION-PLAN.md` 是仓库开发门禁要求的执行手册；新的工作以 `NEXT-DEVELOPMENT-PLAN` 和 `REFACTOR-STATUS` 为准，历史一次性计划不再作为当前规范。
+`docs/IMPLEMENTATION-PLAN.md` 是仓库开发门禁要求的执行手册；战略取舍以 `PRODUCT-STRATEGY-ROADMAP` 为准，新的工程工作以 `NEXT-DEVELOPMENT-PLAN` 和 `REFACTOR-STATUS` 为准，历史一次性评估不再作为当前规范。
 
 ## 当前边界与后续方向
 

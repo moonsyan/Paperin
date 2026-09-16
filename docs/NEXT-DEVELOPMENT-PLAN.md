@@ -1,6 +1,6 @@
 # Paperin 下一阶段发展与实施计划
 
-> 版本：2.1｜2026-09-14｜代码基准：`fe76b96` / `0.6.0`。
+> 版本：2.2｜2026-09-16｜代码基准：`fe666e2` / `0.6.0`。
 > 按[战略定位](PRODUCT-STRATEGY-ROADMAP.md)推进；量化口径以[战略验收协议](development/strategy-validation.md)为准；实际结果只记入[REFACTOR-STATUS](REFACTOR-STATUS.md)。
 > 本版替代 2026-09-13 的执行顺序，旧 T01–T21 保留追溯映射。S01、S02 和 S03 已有下述工程增量；是否达到完整验收仍以状态表和验收协议为准。
 

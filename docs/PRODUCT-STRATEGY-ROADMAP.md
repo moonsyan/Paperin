@@ -1,6 +1,6 @@
 # Paperin 产品战略定位与发展规划
 
-> 版本：2.1｜日期：2026-09-14｜代码核对基准：`fe76b96` / `0.6.0`。
+> 版本：2.2｜日期：2026-09-16｜代码核对基准：`fe666e2` / `0.6.0`。
 > 原战略方向成立，但市场成立尚待证明。本版修正竞品事实、目标客群、优势证据、投入顺序和增长指标。
 > 执行入口：[实施计划](NEXT-DEVELOPMENT-PLAN.md)；指标口径：[战略验收协议](development/strategy-validation.md)；实际完成状态：[REFACTOR-STATUS](REFACTOR-STATUS.md)。
 

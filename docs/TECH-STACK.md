@@ -1,8 +1,10 @@
 # Paperin 技术栈评估
 
+更新时间：2026-09-16（Asia/Shanghai）。当前实际版本以 `package.json` 为准：Electron 43、React 18.3、Vite 5.4、electron-vite 2.3、TypeScript 5.7、Vitest 2.1；下方升级建议是候选路线，不是当前已完成迁移。
+
 ## 结论
 
-建议继续使用 Electron + React + TypeScript，但将版本基线升级到 Electron 现行稳定线、Node.js 20/22 LTS、Vite 6/7 对应的稳定组合后再开始正式迁移。不要为了追逐 Web 框架趋势而改用 Next.js、Tauri 或 React Native：这是本地优先桌面编辑器，文件系统、窗口、协议、原生对话框和跨平台打包是核心能力，Electron 的生态和现有代码资产更匹配。
+建议继续使用 Electron + React + TypeScript。当前版本先冻结到已验证组合，待 S01–S04 的数据安全和发布门禁完成后，再单独评估 Electron、Node、Vite 或 React 的升级。不要为了追逐 Web 框架趋势而改用 Next.js、Tauri 或 React Native：这是本地优先桌面编辑器，文件系统、窗口、协议、原生对话框和跨平台打包是核心能力，Electron 的生态和现有代码资产更匹配。
 
 推荐的第一阶段组合：
 
