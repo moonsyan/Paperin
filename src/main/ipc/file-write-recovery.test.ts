@@ -118,6 +118,33 @@ describe('可恢复桌面文件写入', () => {
     }
   })
 
+  it('临时写入拒绝连续 20 次时，不修改原版本或遗留恢复材料', async () => {
+    for (let attempt = 1; attempt <= 20; attempt++) {
+      const directory = await createTemporaryDirectory()
+      const fileName = `临时写入拒绝-${attempt}.md`
+      const filePath = join(directory, fileName)
+      const confirmed = `确认版本-${attempt}`
+      await writeFile(filePath, confirmed)
+      let writeRejected = false
+
+      await expect(writeFileAtomicallyWithIo(filePath, `未确认版本-${attempt}`, undefined, {
+        writeFile: async (path, content) => {
+          if (!writeRejected) {
+            writeRejected = true
+            const error = new Error(`模拟磁盘满或权限拒绝-${attempt}`)
+            Object.assign(error, { code: 'ENOSPC' })
+            throw error
+          }
+          await writeFile(path, content)
+        },
+      })).rejects.toMatchObject({ code: 'ENOSPC' })
+
+      await expect(readFile(filePath, 'utf-8')).resolves.toBe(confirmed)
+      await expect(readFile(join(directory, `.${fileName}.paperin-save-journal`), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(readFile(join(directory, `.${fileName}.paperin-save-backup`), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+    }
+  })
+
   it('读取带有已中断保存记录的文件时恢复最后确认版本', async () => {
     const directory = await createTemporaryDirectory()
     const filePath = join(directory, '崩溃恢复.md')
