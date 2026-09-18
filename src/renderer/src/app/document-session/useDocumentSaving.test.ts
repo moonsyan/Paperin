@@ -224,6 +224,29 @@ describe('useDocumentSaving 大文档快照契约（T05）', () => {
     expect(setToast).toHaveBeenCalledWith(expect.stringContaining('文档已切换'))
   })
 
+  it('另存为等待期间已有新快照时保留新内容并维持 dirty', async () => {
+    stubDesktopAPI()
+    const { options, setContents, setSavedMap } = createHarness()
+    let resolveSaveAs: ((result: { ok: true; data: { path: string; name: string; modifiedTime: number } }) => void) | undefined
+    vi.mocked(window.desktopAPI.document.saveAs).mockImplementation(() => new Promise((resolve) => {
+      resolveSaveAs = resolve
+    }))
+    const { result } = renderHook(() => useDocumentSaving(options))
+    const saving = result.current.handleSaveAs()
+    await waitFor(() => expect(resolveSaveAs).toBeDefined())
+    const newerContent = BIG + '<during-save-as>'
+    options.state.contentsRef.current = { 'file-1': newerContent }
+    resolveSaveAs!({ ok: true, data: { path: 'D:/notes/saved.md', name: 'saved.md', modifiedTime: 42 } })
+
+    await saving
+
+    const newId = 'file-D:/notes/saved.md'
+    const updateContents = vi.mocked(setContents).mock.calls.at(-1)?.[0]
+    const updateSavedMap = vi.mocked(setSavedMap).mock.calls.at(-1)?.[0]
+    expect(typeof updateContents === 'function' && updateContents({ 'file-1': BIG })[newId]).toBe(newerContent)
+    expect(typeof updateSavedMap === 'function' && updateSavedMap({ 'file-1': false })[newId]).toBe(false)
+  })
+
   it('手动另存为等待期间卸载时，不写入已卸载的会话', async () => {
     stubDesktopAPI()
     const { options, setToast } = createHarness()
