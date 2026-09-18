@@ -270,6 +270,25 @@ describe('useDocumentSaving 大文档快照契约（T05）', () => {
     expect(savedWith[0][1]).toBe(BIG + '<last-keystroke>')
   })
 
+  it('大文档另存为在防抖窗口内等待末次输入落账', async () => {
+    let pending = true
+    stubDesktopAPI()
+    const { options } = createHarness({ hasPendingChanges: () => pending })
+    vi.mocked(window.desktopAPI.document.saveAs).mockResolvedValue({
+      ok: true,
+      data: { path: 'D:/notes/saved.md', name: 'saved.md', modifiedTime: 42 },
+    })
+    setTimeout(() => {
+      pending = false
+      options.state.contentsRef.current = { 'file-1': BIG + '<last-keystroke>' }
+    }, 20)
+    const { result } = renderHook(() => useDocumentSaving(options))
+
+    await result.current.handleSaveAs()
+
+    expect(window.desktopAPI.document.saveAs).toHaveBeenCalledWith(BIG + '<last-keystroke>')
+  })
+
   it('保存回执到达前出现未落账输入时，文档仍保持 dirty', async () => {
     let pending = false
     stubDesktopAPI()

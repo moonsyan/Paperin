@@ -93,18 +93,31 @@ export function useDocumentSaving({
       && activeSessionRef.current === targetSession
       && editorRef.current === targetEditor
       && openFilesRef.current.some((file) => file.id === oldId && file.path === targetPath)
-    // 大文档保存优先使用 markdownUpdated 已落账的 ref 快照。同步调用
-    // getMarkdown() 会再次遍历整个 ProseMirror 文档，并可能把 Renderer
-    // 卡在 IPC 之前；普通文档仍读取编辑器，保留末次输入的低延迟语义。
     const cachedContent = contentsRef.current[oldId] ?? contents[oldId] ?? ''
-    const editorMd =
-      !shouldPreferCachedDocumentSnapshot(cachedContent) && editorRef.current?.isReady()
-        ? editorRef.current.getMarkdown()
-        : null
-    const content =
-      editorMd != null
+    let content: string
+    if (shouldPreferCachedDocumentSnapshot(cachedContent)) {
+      const outcome = await ensureFreshSnapshot({
+        hasPendingChanges: () => editorRef.current?.hasPendingChanges() ?? false,
+        readSnapshot: () => contentsRef.current[oldId] ?? contents[oldId] ?? '',
+        isTargetCurrent,
+      }, snapshotSettleTimeoutMs)
+      if (!outcome.settled) {
+        if (mounted.current) {
+          setToast(
+            outcome.reason === 'target-changed'
+              ? '文档已切换，未另存可能过期的快照；请返回原文档后重试'
+              : '文档仍在生成快照，未另存旧版本；请稍后再次保存',
+          )
+        }
+        return
+      }
+      content = outcome.content
+    } else {
+      const editorMd = editorRef.current?.isReady() ? editorRef.current.getMarkdown() : null
+      content = editorMd != null
         ? toStoredImages(editorMd, dirOfFile(oldId))
         : cachedContent
+    }
     const result = await window.desktopAPI.document.saveAs(content)
     if (!isTargetCurrent()) {
       if (mounted.current && result.ok && result.data) {
@@ -212,7 +225,7 @@ export function useDocumentSaving({
       return
     }
     if (targetAlreadyOpen) setToast('已覆盖并切换到已打开的同名文件')
-  }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, activeSessionRef, clearDraft, contents, contentsRef, dirOfFile, draftPendingRef, editorRef, mounted, openFilesRef, recordHistory, recordRecent, replaceEditorContent, saveDraft, savedMap, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, setToast])
+  }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, activeSessionRef, clearDraft, contents, contentsRef, dirOfFile, draftPendingRef, editorRef, mounted, openFilesRef, recordHistory, recordRecent, replaceEditorContent, saveDraft, savedMap, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, setToast, snapshotSettleTimeoutMs])
 
   const handleSave = useCallback(async () => {
     const file = openFiles.find((f) => f.id === activeFileId)
