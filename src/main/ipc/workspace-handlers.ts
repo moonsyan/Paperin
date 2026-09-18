@@ -203,7 +203,7 @@ export const registerWorkspaceHandlers = ({
 
   ipcMain.handle(CHANNELS.FILE_STAT, async (_event, filePath: string) => {
     if (typeof filePath !== 'string' || !filePath) return { ok: false, error: { code: 'INVALID_PATH' } }
-    if (!isTrustedPath(filePath) && !isFileTrustedForSave(filePath)) return { ok: false, error: { code: 'INVALID_PATH' } }
+    if (!isTrustedPath(filePath) && !(await isFileTrustedForSave(filePath))) return { ok: false, error: { code: 'INVALID_PATH' } }
     try { return { ok: true, data: { modifiedTime: (await stat(filePath)).mtimeMs } } } catch { return { ok: false, error: { code: 'NOT_FOUND' } } }
   })
 

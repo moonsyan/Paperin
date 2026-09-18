@@ -49,7 +49,7 @@ export async function restoreTrustFromDisk(): Promise<boolean> {
     const raw = await readFile(trustFile(), 'utf-8')
     const snapshot = JSON.parse(raw) as TrustSnapshot
     if (!snapshot || typeof snapshot !== 'object') return false
-    const lists: { items: unknown; apply: (item: string) => void }[] = [
+    const lists: { items: unknown; apply: (item: string) => void | Promise<void> }[] = [
       { items: snapshot.workspaces, apply: (w) => trustDirectory(w, { essential: true }) },
       { items: snapshot.files, apply: trustFileForSave },
       { items: snapshot.imageDirs, apply: allowImageDirectory },
@@ -57,7 +57,7 @@ export async function restoreTrustFromDisk(): Promise<boolean> {
     for (const { items, apply } of lists) {
       if (!Array.isArray(items)) continue
       for (let i = 0; i < items.length; i++) {
-        if (typeof items[i] === 'string' && items[i]) apply(items[i])
+        if (typeof items[i] === 'string' && items[i]) await apply(items[i])
       }
     }
     return true

@@ -3,6 +3,7 @@ import { ipcMain } from 'electron'
 import { CHANNELS } from '../../shared/ipc/channels'
 import type { FileHandlerDependencies } from './file-handlers'
 import { registerFileHandlers } from './file-handlers'
+import { registerImageFileHandlers } from './image-file-handlers'
 import { registerImageHostHandlers } from './image-host-handlers'
 
 type CapturedHandler = (event: unknown, payload: unknown) => Promise<{
@@ -77,5 +78,17 @@ describe('IPC 入参形状守卫：畸形载荷返回 INVALID_ARGUMENT 而非未
         getHandler(CHANNELS.IMAGE_UPLOAD)({}, { dataUrl: 'nope' }),
       ).resolves.toEqual({ ok: false, error: { code: 'UNSUPPORTED' } })
     })
+  })
+})
+
+describe('图片文件 IPC 注册边界', () => {
+  it('注册保存、列举和删除图片三个通道', () => {
+    registerImageFileHandlers({ isTrustedPath: () => false })
+
+    const channels = handleMock.mock.calls.map(([channel]) => channel)
+
+    expect(channels).toContain(CHANNELS.FILE_SAVE_IMAGE)
+    expect(channels).toContain(CHANNELS.FILE_LIST_IMAGES)
+    expect(channels).toContain(CHANNELS.FILE_DELETE_IMAGE)
   })
 })

@@ -1,20 +1,12 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
-import { mkdir, readdir, readFile, stat, writeFile } from 'fs/promises'
-import { basename, dirname, join } from 'path'
+import { BrowserWindow, dialog, ipcMain } from 'electron'
+import { readFile, stat } from 'fs/promises'
+import { basename, dirname } from 'path'
 import iconv from 'iconv-lite'
 import { CHANNELS } from '../../shared/ipc/channels'
-import {
-  allowImageDirectory,
-  isImageDirAllowed,
-  readImageAsDataUrl,
-} from '../image-protocol'
+import { allowImageDirectory, readImageAsDataUrl } from '../image-protocol'
 import { schedulePersistTrust } from '../session-trust'
-import { isFileTrustedForSave, trustDirectory, trustFileForSave } from '../trusted-paths'
-import type {
-  DocumentSaveArgs,
-  DocumentSaveEncoding,
-  DocumentSaveResult,
-} from './document-save-types'
+import { createSaveAsWriteTargetAuthorizer, getWriteTargetAuthorizer, isPathAuthorizedForReadOrSave, trustDirectory, trustFileForSave } from '../trusted-paths'
+import type { DocumentSaveArgs, DocumentSaveEncoding, DocumentSaveResult } from './document-save-types'
 import {
   getKnownFileState,
   MAX_DOCUMENT_FILE_SIZE,
@@ -26,23 +18,11 @@ import {
   UnsupportedEncodingError,
   writeFileAtomically,
 } from './file-io'
-import { isValidBase64Payload, MAX_IMAGE_BASE64_LENGTH, MAX_IMAGE_SIZE } from './image-payload'
+import { registerImageFileHandlers } from './image-file-handlers'
 import { acquireCrossProcessSaveLock, SaveLockIoError } from './save-lock'
-import { normalizeAttachmentDirectory, resolveAttachmentDirectory } from './attachment-path'
 
 const MAX_CSS_FILE_SIZE = 1024 * 1024
-/** 图片管理最多扫描的目录数，避免异常 IPC 参数导致大量目录遍历 */
-const MAX_IMAGE_LIST_DIRS = 20
-/** 图片管理最多返回的图片数，避免大量缩略图阻塞渲染进程 */
-const MAX_IMAGE_LIST_COUNT = 1000
-/** FILE_SAVE 允许的写回编码；与 file-io.ts 检测侧、DocumentSaveEncoding 保持一致 */
-const SAVE_ENCODINGS: ReadonlySet<DocumentSaveEncoding> = new Set([
-  'UTF-8',
-  'UTF-8-BOM',
-  'UTF-16LE',
-  'UTF-16BE',
-  'GBK',
-] as const)
+const SAVE_ENCODINGS: ReadonlySet<DocumentSaveEncoding> = new Set(['UTF-8', 'UTF-8-BOM', 'UTF-16LE', 'UTF-16BE', 'GBK'] as const)
 
 /** 同路径并发保存互斥（T-OCTOU）：按 path 串行化 FILE_SAVE 的完整写盘流程 */
 const saveLocks = new Map<string, Promise<unknown>>()
@@ -52,11 +32,10 @@ export interface FileHandlerDependencies {
 }
 
 export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies): void => {
-  /** 读取并返回一个 Markdown 文档（stat/体积/编码校验 + 文件状态登记）。
-   *  授权判定由各通道自行完成：FILE_READ 要求路径已授信，
-   *  FILE_READ_DROPPED 的路径必须来自预加载层 webUtils 解析的真实系统拖拽。 */
+  registerImageFileHandlers({ isTrustedPath })
   const readDocumentAtPath = async (
     filePath: string,
+    isTargetAuthorized?: (target: string) => Promise<boolean>,
   ): Promise<
     | { ok: true; data: { path: string; name: string; content: string; modifiedTime: number; encoding: string } }
     | { ok: false; error: { code: string; message?: string } }
@@ -64,7 +43,10 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
     try {
       // Recovery must run before stat: copyFile may remove its destination
       // after an interrupted overwrite, leaving only the verified backup.
-      await recoverInterruptedFileWrite(filePath)
+      await recoverInterruptedFileWrite(filePath, { isTargetAuthorized })
+      if (isTargetAuthorized && !(await isTargetAuthorized(filePath))) {
+        return { ok: false, error: { code: 'NOT_AUTHORIZED' } }
+      }
       const fileStat = await stat(filePath)
       if (!fileStat.isFile()) {
         return { ok: false, error: { code: 'NOT_FILE' } }
@@ -74,6 +56,9 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
           ok: false,
           error: { code: 'TOO_LARGE', message: 'Markdown 文件超过 20MB，无法打开' },
         }
+      }
+      if (isTargetAuthorized && !(await isTargetAuthorized(filePath))) {
+        return { ok: false, error: { code: 'NOT_AUTHORIZED' } }
       }
       const { content, encoding } = await readTextAutoEncoding(filePath)
       rememberFileState(filePath, { mtimeMs: fileStat.mtimeMs, size: fileStat.size })
@@ -120,9 +105,9 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
     // 图片读取白名单独立于 trustedRoots 再登记一份（只读权限，不扩大攻击面），
     // 即使目录信任被淘汰，文档里的图片仍可显示
     allowImageDirectory(dirname(filePath))
-    trustFileForSave(filePath)
+    await trustFileForSave(filePath)
     schedulePersistTrust()
-    return readDocumentAtPath(filePath)
+    return readDocumentAtPath(filePath, getWriteTargetAuthorizer(filePath))
   })
 
   // 按路径读取文件（会话恢复/重新打开已授权文档用，不弹对话框）。
@@ -134,7 +119,7 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
     if (typeof filePath !== 'string' || !filePath) {
       return { ok: false, error: { code: 'INVALID_PATH' } }
     }
-    if (!isTrustedPath(filePath) && !isFileTrustedForSave(filePath)) {
+    if (!(await isPathAuthorizedForReadOrSave(filePath))) {
       return {
         ok: false,
         error: {
@@ -143,7 +128,7 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
         },
       }
     }
-    return readDocumentAtPath(filePath)
+    return readDocumentAtPath(filePath, getWriteTargetAuthorizer(filePath))
   })
 
   // 读取拖入的文件。路径解析在预加载层完成（webUtils.getPathForFile）：
@@ -158,7 +143,7 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       // H1 修复：拖入的 .md 只授其目录"图片读取"权限（allowImageDirectory），
       // 该文件本身加入文件级保存白名单——不因读取而获得目录写/删/搜权限
       allowImageDirectory(dirname(filePath))
-      trustFileForSave(filePath)
+      await trustFileForSave(filePath)
       schedulePersistTrust()
     }
     return result
@@ -243,6 +228,7 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       if (!pre) {
         return { ok: false, error: { code: 'NOT_FOUND' } }
       }
+      const writeOptions = { isTargetAuthorized: getWriteTargetAuthorizer(args.path) }
       // 冲突检测（H6）：磁盘 mtime 明显比预期新、或文件尺寸与最近一次读/写不一致，
       // 均视为被外部修改，拒绝写入避免静默覆盖。
       // - mtime 容差 500ms 仅吸收本应用连续保存的时间戳抖动（NTFS 纳秒精度无需大容差）；
@@ -270,7 +256,7 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       // 无法映射的字符拒绝写入；带 BOM 的 UTF-8 写回 BOM（Y-L1，读取时记
       // 'UTF-8-BOM' 保存时不丢失）；其余统一 UTF-8
       if (args.encoding === 'UTF-8-BOM') {
-        await writeFileAtomically(args.path, `\uFEFF${args.content}`, pre.mode)
+        await writeFileAtomically(args.path, `\uFEFF${args.content}`, pre.mode, writeOptions)
       } else if (args.encoding === 'UTF-16LE' || args.encoding === 'UTF-16BE') {
         const bom =
           args.encoding === 'UTF-16LE'
@@ -280,7 +266,7 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
           args.encoding === 'UTF-16LE'
             ? Buffer.from(args.content, 'utf16le')
             : iconv.encode(args.content, 'utf-16be')
-        await writeFileAtomically(args.path, Buffer.concat([bom, body]), pre.mode)
+        await writeFileAtomically(args.path, Buffer.concat([bom, body]), pre.mode, writeOptions)
       } else if (args.encoding === 'GBK') {
         const encoded = iconv.encode(args.content, 'gbk')
         // 往返校验：GBK 无法映射的字符（emoji 等）会被 iconv 替换为 '?'，
@@ -294,9 +280,9 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
             },
           }
         }
-        await writeFileAtomically(args.path, encoded, pre.mode)
+        await writeFileAtomically(args.path, encoded, pre.mode, writeOptions)
       } else {
-        await writeFileAtomically(args.path, args.content, pre.mode)
+        await writeFileAtomically(args.path, args.content, pre.mode, writeOptions)
       }
       const fileStat = await stat(args.path)
       rememberFileState(args.path, { mtimeMs: fileStat.mtimeMs, size: fileStat.size })
@@ -333,7 +319,7 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       try {
         // L8：保存目标必须属于已授权根（打开的文档/对话框另存的位置），
         // 或为本应用读取过的 .md 精确文件（拖入/会话恢复，见 trusted-paths.ts）
-        if (!isTrustedPath(args.path) && !isFileTrustedForSave(args.path)) {
+        if (!(await isPathAuthorizedForReadOrSave(args.path))) {
           return { ok: false, error: { code: 'INVALID_PATH' } }
         }
         // L6：写入前校验体积，与打开上限保持一致——
@@ -430,9 +416,12 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       const result = dialogResult
 
       try {
-        // L8：用户经原生对话框选择的位置即授权（写穿与后续保存均可用）
+        const isTargetAuthorized = await createSaveAsWriteTargetAuthorizer(result.filePath)
+        if (!isTargetAuthorized) {
+          return { ok: false, error: { code: 'INVALID_PATH' } }
+        }
+        await writeFileAtomically(result.filePath, content, undefined, { isTargetAuthorized })
         trustDirectory(dirname(result.filePath))
-        await writeFileAtomically(result.filePath, content)
         // 返回真实落盘 mtime（渲染端用于下次保存的冲突检测，比 Date.now() 更准）
         let modifiedTime = 0
         try {
@@ -458,205 +447,4 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       }
     },
   )
-
-  // 保存剪贴板/拖入的图片，返回磁盘路径
-  ipcMain.handle(
-    CHANNELS.FILE_SAVE_IMAGE,
-    async (
-      _event,
-      args: {
-        dataUrl: string
-        docPath?: string
-        workspacePath?: string
-        workspaceAttachmentDirectory?: string | null
-        globalAttachmentDirectory?: string | null
-      },
-    ) => {
-      // L8：入参形状守卫——dataUrl 必须是字符串，docPath/workspacePath 提供时也须是；
-      // 否则下方解引用会以未分类 TypeError 直接 reject，绕过稳定错误码约定
-      if (
-        !args ||
-        typeof args !== 'object' ||
-        typeof args.dataUrl !== 'string' ||
-        (args.docPath !== undefined && typeof args.docPath !== 'string') ||
-        (args.workspacePath !== undefined && typeof args.workspacePath !== 'string') ||
-        (args.workspaceAttachmentDirectory !== undefined &&
-          args.workspaceAttachmentDirectory !== null &&
-          typeof args.workspaceAttachmentDirectory !== 'string') ||
-        (args.globalAttachmentDirectory !== undefined &&
-          args.globalAttachmentDirectory !== null &&
-          typeof args.globalAttachmentDirectory !== 'string')
-      ) {
-        return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
-      }
-      try {
-        // L8：文档/工作区路径必须已授信；未提供（未保存文档）时回退用户数据目录
-        // F-M：FILE_READ 为分散文件（拖入/会话恢复的 .md）授予 trustFileForSave，
-        // 这里只认完整信任根会让分散文件粘贴图片被 INVALID_PATH 拒绝——与 FILE_SAVE 一致
-        if (args.docPath && !isTrustedPath(args.docPath) && !isFileTrustedForSave(args.docPath)) {
-          return { ok: false, error: { code: 'INVALID_PATH' } }
-        }
-        if (args.workspacePath && !isTrustedPath(args.workspacePath)) {
-          return { ok: false, error: { code: 'INVALID_PATH' } }
-        }
-        if (
-          (args.workspaceAttachmentDirectory !== undefined &&
-            args.workspaceAttachmentDirectory !== null &&
-            !normalizeAttachmentDirectory(args.workspaceAttachmentDirectory)) ||
-          (args.globalAttachmentDirectory !== undefined &&
-            args.globalAttachmentDirectory !== null &&
-            !normalizeAttachmentDirectory(args.globalAttachmentDirectory))
-        ) {
-          return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
-        }
-        const match = args.dataUrl.match(
-          /^data:(image\/(png|jpe?g|gif|webp|bmp));base64,(.+)$/i,
-        )
-        if (!match) {
-          return { ok: false, error: { code: 'UNSUPPORTED' } }
-        }
-        if (match[3].length > MAX_IMAGE_BASE64_LENGTH) {
-          return {
-            ok: false,
-            error: { code: 'TOO_LARGE', message: '图片超过 20MB，无法保存' },
-          }
-        }
-        // L6：解码前校验，损坏的 base64 不再静默写出截断图片
-        if (!isValidBase64Payload(match[3])) {
-          return { ok: false, error: { code: 'INVALID_DATA', message: '图片数据损坏，无法保存' } }
-        }
-        const ext = match[2].toLowerCase().replace('jpeg', 'jpg')
-        const buffer = Buffer.from(match[3], 'base64')
-        if (buffer.length > MAX_IMAGE_SIZE) {
-          return {
-            ok: false,
-            error: { code: 'TOO_LARGE', message: '图片超过 20MB，无法保存' },
-          }
-        }
-
-        const resolution = resolveAttachmentDirectory({
-          docPath: args.docPath,
-          workspacePath: args.workspacePath,
-          workspaceDirectory: args.workspaceAttachmentDirectory,
-          globalDirectory: args.globalAttachmentDirectory,
-        })
-        const dir = args.docPath || args.workspacePath
-          ? resolution.directory
-          : join(app.getPath('userData'), 'images')
-        await mkdir(dir, { recursive: true })
-        let name = ''
-        let filePath = ''
-        let created = false
-        for (let attempt = 0; attempt < 100; attempt++) {
-          name = `image-${Date.now()}-${Math.floor(Math.random() * 1e4)}.${ext}`
-          filePath = join(dir, name)
-          try {
-            await writeFile(filePath, buffer, { flag: 'wx' })
-            created = true
-            break
-          } catch (err) {
-            if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
-          }
-        }
-        if (!created) {
-          return { ok: false, error: { code: 'NAME_EXHAUSTED' } }
-        }
-        allowImageDirectory(dir)
-        schedulePersistTrust()
-        const relativePath = args.docPath
-          ? `${resolution.relativeToDocument}/${name}`.replace(/^\.\//, '')
-          : undefined
-        return {
-          ok: true,
-          data: relativePath ? { path: filePath, name, relativePath } : { path: filePath, name },
-        }
-      } catch (err) {
-        return { ok: false, error: { code: 'IO_ERROR', message: String(err) } }
-      }
-    },
-  )
-
-  // 列出指定目录下的图片文件（图片管理面板）
-  ipcMain.handle(CHANNELS.FILE_LIST_IMAGES, async (_event, dirs: string[]) => {
-    if (
-      !Array.isArray(dirs) ||
-      dirs.length > MAX_IMAGE_LIST_DIRS ||
-      dirs.some(
-        (dir) =>
-          typeof dir !== 'string' ||
-          !dir ||
-          dir.length > 4096 ||
-          (!isTrustedPath(dir) && !isImageDirAllowed(dir)),
-      )
-    ) {
-      return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
-    }
-    const images: { path: string; name: string; size: number }[] = []
-    // 未保存文档的粘贴图片会保存到用户数据目录，图片管理也应当可见。
-    const imageDirs = [...dirs, join(app.getPath('userData'), 'images')]
-    const scanned = new Set<string>()
-    // 先收集候选路径（受上限约束），再并行 stat，避免 5000 张图片时串行
-    // 5000 次系统调用造成的明显延迟（Node Dirent 不携带 size，仍需 stat）。
-    const candidates: { path: string; name: string }[] = []
-    for (const dir of imageDirs) {
-      if (scanned.has(dir)) continue
-      scanned.add(dir)
-      try {
-        // L2：不再对任意传入目录授信。图片目录都是工作区/文档目录或
-        // userData/images 的子路径，打开文档/工作区与保存图片时已授信，
-        // 信任根对子路径自动覆盖，此处无需（也不应）扩展授权。
-        const entries = await readdir(dir, { withFileTypes: true })
-        for (const e of entries) {
-          if (!e.isFile()) continue
-          if (!/\.(png|jpe?g|gif|webp|bmp)$/i.test(e.name)) continue
-          candidates.push({ path: join(dir, e.name), name: e.name })
-          if (candidates.length >= MAX_IMAGE_LIST_COUNT) break
-        }
-        if (candidates.length >= MAX_IMAGE_LIST_COUNT) break
-      } catch {
-        /* 目录不存在则跳过 */
-      }
-    }
-    const stats = await Promise.all(
-      candidates.map((c) => stat(c.path).catch(() => null)),
-    )
-    for (let i = 0; i < candidates.length; i++) {
-      images.push({
-        path: candidates[i].path,
-        name: candidates[i].name,
-        size: stats[i]?.size ?? 0,
-      })
-    }
-    return { ok: true, data: { images, truncated: candidates.length >= MAX_IMAGE_LIST_COUNT } }
-  })
-
-  // 删除图片（移入回收站）
-  ipcMain.handle(CHANNELS.FILE_DELETE_IMAGE, async (_event, filePath: string) => {
-    if (typeof filePath !== 'string' || !filePath) {
-      return { ok: false, error: { code: 'INVALID_PATH' } }
-    }
-    // 仅允许图片扩展名（与 FILE_LIST_IMAGES/图片保存同口径）：图片目录白名单
-    // 覆盖所有已打开文档的目录，不限扩展名会绕过 FILE_DELETE 的工作区绑定
-    // 删除同目录的任意文件
-    if (!/\.(png|jpe?g|gif|webp|bmp)$/i.test(basename(filePath))) {
-      return { ok: false, error: { code: 'NOT_IMAGE' } }
-    }
-    // 与 FILE_LIST_IMAGES 同口径：图片读取白名单目录（拖入/会话恢复的 .md
-    // 只授"图片读取"范围）内的图片同样允许移入回收站——此前仅认完整信任根，
-    // 面板能列出（白名单放行）但删除被 INVALID_PATH 拒绝，出现"能看不能删"
-    if (!isTrustedPath(filePath) && !isImageDirAllowed(filePath)) {
-      return { ok: false, error: { code: 'INVALID_PATH' } }
-    }
-    try {
-      // M3：仅允许删除文件（同 FILE_DELETE）
-      const st = await stat(filePath)
-      if (!st.isFile()) {
-        return { ok: false, error: { code: 'NOT_FILE' } }
-      }
-      await shell.trashItem(filePath)
-      return { ok: true }
-    } catch (err) {
-      return { ok: false, error: { code: 'IO_ERROR', message: String(err) } }
-    }
-  })
 }

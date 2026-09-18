@@ -68,14 +68,14 @@ export function registerIpcHandlers(): void {
     if (restored) return
     // 升级迁移兜底：首次升级无持久化清单时，回退到会话文件的文件级信任
     // （散档可恢复）；绝不信任会话里的工作区路径——那是渲染层可写的字段
-    void getSetting('session').then((raw) => {
+    void getSetting('session').then(async (raw) => {
       const session = raw as { files?: { path?: string }[] } | undefined
       const files = session?.files ?? []
       for (let i = files.length - 1; i >= 0; i--) {
         const p = files[i]?.path
         if (typeof p === 'string' && p) {
           allowImageDirectory(dirname(p))
-          trustFileForSave(p)
+          await trustFileForSave(p)
         }
       }
     })

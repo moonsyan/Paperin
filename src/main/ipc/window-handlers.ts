@@ -25,7 +25,7 @@ export const registerWindowHandlers = ({ isTrustedPath }: WindowHandlerDependenc
     }
   })
 
-  ipcMain.handle(CHANNELS.WINDOW_NEW_WITH_FILE, (_event, filePath: string) => {
+  ipcMain.handle(CHANNELS.WINDOW_NEW_WITH_FILE, async (_event, filePath: string) => {
     try {
       if (!filePath || typeof filePath !== 'string') {
         return { ok: false, error: { code: 'INVALID_PATH' } }
@@ -33,10 +33,10 @@ export const registerWindowHandlers = ({ isTrustedPath }: WindowHandlerDependenc
       if (!windowCapacityOk()) {
         return { ok: false, error: { code: 'WINDOW_LIMIT' } }
       }
-      if (!isTrustedPath(filePath) && !isFileTrustedForSave(filePath)) {
+      if (!isTrustedPath(filePath) && !(await isFileTrustedForSave(filePath))) {
         return { ok: false, error: { code: 'INVALID_PATH' } }
       }
-      trustFileForSave(filePath)
+      await trustFileForSave(filePath)
       createWindow(true, filePath)
       return { ok: true }
     } catch {

@@ -1,4 +1,5 @@
-import { isAbsolute, relative, resolve } from 'path'
+import { realpath } from 'fs/promises'
+import { dirname, isAbsolute, relative, resolve } from 'path'
 
 /**
  * 信任根集合：mdimg 协议与文件 IPC 共用的授权目录（L2/L8）。
@@ -99,18 +100,37 @@ export function touchTrustedRoot(path: string): void {
 }
 
 /** 路径是否位于任一信任根内（含根自身与所有子路径） */
-export function isPathTrusted(filePath: string): boolean {  const resolved = resolve(filePath)
+const isPathInsideRoot = (root: string, filePath: string): boolean => {
+  const pathFromRoot = relative(root, filePath)
+  return pathFromRoot === '' || (!pathFromRoot.startsWith('..') && !isAbsolute(pathFromRoot))
+}
+
+export function isPathTrusted(filePath: string): boolean {
+  const resolved = resolve(filePath)
   const roots = Array.from(trustedRoots.keys())
   for (let i = 0; i < roots.length; i++) {
-    const pathFromRoot = relative(roots[i], resolved)
-    if (
-      pathFromRoot === '' ||
-      (!pathFromRoot.startsWith('..') && !isAbsolute(pathFromRoot))
-    ) {
-      return true
-    }
+    if (isPathInsideRoot(roots[i], resolved)) return true
   }
   return false
+}
+
+/**
+ * 词法路径位于已授权根内仍不足以授权访问：符号链接可能把读写引到根外。
+ * 仅对存在目标返回 true；新建文件继续由调用方的目录授权和写入流程处理。
+ */
+export const isPathTrustedAfterResolvingLinks = async (filePath: string): Promise<boolean> => {
+  if (!isPathTrusted(filePath)) return false
+  return isResolvedPathWithinTrustedRoots(filePath)
+}
+
+/** 以真实路径比较目标与全部已授权根，供已解析的写入目标做二次校验。 */
+export const isResolvedPathWithinTrustedRoots = async (filePath: string): Promise<boolean> => {
+  const realFilePath = await realpath(filePath).catch(() => null)
+  if (!realFilePath) return false
+  const realRoots = await Promise.all(
+    getTrustedRoots().map((root) => realpath(root).catch(() => null)),
+  )
+  return realRoots.some((root) => root !== null && isPathInsideRoot(root, realFilePath))
 }
 
 export function getTrustedRoots(): string[] {
@@ -126,27 +146,88 @@ export function getEssentialRoots(): string[] {
  * 文件级保存白名单（H1 修复）：FILE_READ 读过的 .md 精确路径。
  * FILE_SAVE 允许写回这些文件，但不再向其所在目录授予任何其它权限。
  */
-const trustedFiles = new Map<string, true>()
+interface TrustedFile {
+  realPath: string
+}
+
+/**
+ * 文件级授权同时绑定用户选择时的真实目标。只按词法路径保存白名单时，攻击者
+ * 可在授权后把该路径改为符号链接，令后续读写跟随至未授权文件。
+ */
+const trustedFiles = new Map<string, TrustedFile>()
 
 /** 文件级白名单数量上限：超出时淘汰最早加入的。
  *  持久化 files 清单上限（session-trust）与运行时共用此值，修改即同步生效。 */
 export const MAX_TRUSTED_FILES = 128
 
-export function trustFileForSave(filePath: string): void {
+export async function trustFileForSave(filePath: string): Promise<void> {
   if (!filePath) return
   const p = resolve(filePath)
-  if (trustedFiles.has(p)) return
+  const realPath = await realpath(p).catch(() => null)
+  if (!realPath) return
+  if (trustedFiles.has(p)) {
+    trustedFiles.set(p, { realPath })
+    return
+  }
   if (trustedFiles.size >= MAX_TRUSTED_FILES) {
     const oldest = trustedFiles.keys().next().value
     if (oldest !== undefined) trustedFiles.delete(oldest)
   }
-  trustedFiles.set(p, true)
+  trustedFiles.set(p, { realPath })
 }
 
 /** 该精确文件是否可写回（仅 FILE_SAVE 使用；目录其它操作仍需完整信任根） */
-export function isFileTrustedForSave(filePath: string): boolean {
+export async function isFileTrustedForSave(filePath: string): Promise<boolean> {
   if (!filePath) return false
-  return trustedFiles.has(resolve(filePath))
+  const trustedFile = trustedFiles.get(resolve(filePath))
+  if (!trustedFile) return false
+  const currentRealPath = await realpath(filePath).catch(() => null)
+  return currentRealPath === trustedFile.realPath
+}
+
+/**
+ * 工作区授权必须经 realpath 防止符号链接逃逸；精确文件白名单只代表用户对该
+ * 单个路径的明确授权，绝不授予同目录的其它路径。
+ */
+export const isPathAuthorizedForReadOrSave = async (filePath: string): Promise<boolean> => {
+  if (isPathTrusted(filePath)) return isPathTrustedAfterResolvingLinks(filePath)
+  return await isFileTrustedForSave(filePath)
+}
+
+/**
+ * 工作区写入必须在实际目标解析后重验根边界；精确文件授权只接受首次授权时
+ * 的同一真实目标，不扩大为目录授权，也不允许链接换靶。
+ */
+export const getWriteTargetAuthorizer = (
+  filePath: string,
+): ((target: string) => Promise<boolean>) | undefined => {
+  if (isPathTrusted(filePath)) return isResolvedPathWithinTrustedRoots
+  const trustedFile = trustedFiles.get(resolve(filePath))
+  if (!trustedFile) return undefined
+  return async (target: string): Promise<boolean> => {
+    const currentRealPath = await realpath(target).catch(() => null)
+    return currentRealPath === trustedFile.realPath
+  }
+}
+
+/**
+ * 原生“另存为”只授权用户刚刚选定的目标。已存在文件固定其真实身份；新文件
+ * 则固定其逻辑文件名和所选父目录的真实身份，避免对话框确认后被链接换靶。
+ */
+export const createSaveAsWriteTargetAuthorizer = async (
+  filePath: string,
+): Promise<((target: string) => Promise<boolean>) | null> => {
+  const selectedPath = resolve(filePath)
+  const selectedTarget = await realpath(selectedPath).catch(() => null)
+  const selectedDirectory = await realpath(dirname(selectedPath)).catch(() => null)
+  if (!selectedDirectory) return null
+  return async (target: string): Promise<boolean> => {
+    const realTarget = await realpath(target).catch(() => null)
+    if (selectedTarget) return realTarget === selectedTarget
+    if (realTarget || resolve(target) !== selectedPath) return false
+    const realDirectory = await realpath(dirname(target)).catch(() => null)
+    return realDirectory === selectedDirectory
+  }
 }
 
 /** 文件级保存白名单全量（供跨启动信任持久化） */

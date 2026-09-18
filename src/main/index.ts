@@ -112,7 +112,7 @@ const routeSystemOpenFile = async (candidate: string): Promise<boolean> => {
 
   // Association/open-file is an explicit OS user action. Grant only the file
   // itself for read/write, plus its directory for relative image reads.
-  trustFileForSave(filePath)
+  await trustFileForSave(filePath)
   allowImageDirectory(dirname(filePath))
   schedulePersistTrust()
 

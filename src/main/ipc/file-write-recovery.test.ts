@@ -3,7 +3,12 @@ import { createHash } from 'crypto'
 import { tmpdir } from 'os'
 import { basename, join } from 'path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { readTextAutoEncoding, writeFileAtomically, writeFileAtomicallyWithIo } from './file-io'
+import {
+  FileWriteRecoveryError,
+  readTextAutoEncoding,
+  writeFileAtomically,
+  writeFileAtomicallyWithIo,
+} from './file-io'
 
 const temporaryDirectories: string[] = []
 
@@ -18,6 +23,25 @@ afterEach(async () => {
 })
 
 describe('可恢复桌面文件写入', () => {
+  it('实际写入目标未获授权时拒绝保存，且不修改最后确认版本', async () => {
+    const directory = await createTemporaryDirectory()
+    const filePath = join(directory, '未授权目标.md')
+    await writeFile(filePath, '最后确认版本')
+    const authorizedTargets: string[] = []
+
+    await expect(writeFileAtomicallyWithIo(filePath, '未确认版本', undefined, {}, {
+      isTargetAuthorized: async (target) => {
+        authorizedTargets.push(target)
+        return false
+      },
+    })).rejects.toBeInstanceOf(FileWriteRecoveryError)
+
+    expect(authorizedTargets).toEqual([filePath])
+    await expect(readFile(filePath, 'utf-8')).resolves.toBe('最后确认版本')
+    await expect(readFile(join(directory, '.未授权目标.md.paperin-save-journal'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(readFile(join(directory, '.未授权目标.md.paperin-save-backup'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
   it('桌面文件覆盖中断后恢复最后确认版本，并在下次写入时清理恢复材料', async () => {
     const directory = await createTemporaryDirectory()
     const filePath = join(directory, '恢复.md')

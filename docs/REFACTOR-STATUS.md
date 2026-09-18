@@ -4,6 +4,12 @@
 
 本文是当前 `master` 的唯一实时完成度记录。实施计划和路线图描述目标，不因代码存在而自动视为完成；本清单只记录已经验证的行为，以及仍需继续处理的工作。
 
+## 2026-09-18 S01 实际目标授权与 S17 IPC 拆分（当前有效结论）
+
+工作区路径的读取与保存现在先解析真实路径并复核其仍位于已授权根内；`FILE_SAVE` 还把同一授权器传入可恢复写入边界，恢复和实际目标解析后各复核一次，避免词法路径检查与覆盖写入之间的符号链接换靶。用户通过系统操作明确授权的单个外部文件会绑定首次授权时的真实目标，后续路径失效或链接换靶将被拒绝，不会获得父目录权限。另存为对已存在文件固定真实目标，对新文件固定所选目录的真实身份。`file-handlers.ts` 的图片保存、列举和回收站删除已迁至 `image-file-handlers.ts`，原文件从 662 行降至 450 行；三条图片通道均在真实路径校验通过后才执行。
+
+自动验证覆盖真实目标授权被拒绝时不修改确认版本且不遗留恢复材料、精确文件授权失效、工作区附件目录链接至根外时的图片保存/枚举/删除拒绝，以及图片 IPC 参数回归。进程终止、真实磁盘满/权限和三平台文件身份仍须在适用环境执行 Q01，不能据此宣称完整平台矩阵通过。
+
 ## 2026-09-16 S02 关闭确认竞态补强（当前有效结论）
 
 关闭保存现由 `useDocumentCloseSaving` 统一处理。它在请求开始时绑定文件路径、活动会话序号与编辑器实例，并在快照等待、关闭确认、另存为、队列写入后再次核对身份、正文和编辑器未落账输入；不满足时保留文档并拒绝关闭。手动另存为也只会在原文件、会话和编辑器实例仍一致时更新标签，迟到的成功结果不会套用到已切换或卸载的会话。窗口关闭在逐标签确认之后，还会在队列和工作区视图持久化完成后复核全部标签，因此等待期间的新输入、新标签、路径迁移或未落账输入不会继承旧的关闭许可。
@@ -228,7 +234,8 @@ S03 的 **P0 真实 Electron 防卡死硬门禁已通过**：生产构建中打�
 | `npm run smoke` | 通过：打开工作区、新建、保存、冲突、重读、重命名、搜索、状态读取 |
 | `npm run perf:workspace-search-watch` | 通过：5000 文件末尾搜索；20000 watcher 事件去重，搜索 P95 约 437ms、刷新 P95 约 192ms |
 | `npm run perf:production` | 通过：生产索引、搜索、监听门禁；本次冷索引 1375ms、暖刷新 99ms、增量刷新 105ms |
-| `npm run perf:electron` | 修复前未通过：5 MiB 打开/DOM 编辑后，Milkdown 序列化超过 240s 仍未进入保存 IPC；已加入 >1 MiB 快照保存策略，完整门禁待重新跑完 |
+| `npm run perf:electron` | 2026-09-18 通过：5 MiB 真实打开 2673.2ms、编辑后保存 300.05ms、资源包导出 121.94ms；20 标签循环切换 40 次 P50 19.6ms、P95 82.5ms（最大 2493.9ms）。固定夹具的 P0 链路已验证；多节点形态、另一设备和 8 小时内存趋势仍待完成。 |
+| `npx electron-builder --win --publish never` | 2026-09-18 通过：生成未签名的 `Paperin-Setup-0.6.0.exe`（95,565,123 字节）及 blockmap；尚未执行隔离 Windows 环境的安装、升级、卸载与文件关联验证，不能作为发布候选。 |
 
 测试输出仍包含部分既有脚注/数学异常输入用例的预期诊断，以及 Vite CJS API 的弃用提示；它们不导致失败，但后续应继续收敛测试噪声。
 
@@ -241,7 +248,7 @@ S03 的 **P0 真实 Electron 防卡死硬门禁已通过**：生产构建中打�
 
 ### 架构与维护性
 
-- 当前仍超过项目行数门禁的文件（2026-09-15 实数）：`src/main/ipc/file-handlers.ts`（662）、`src/renderer/src/lib/docx.ts`（613）、`app/workspace/useWorkspaceFiles.ts`（505）、`app/useAppSettings.ts`（496）、`Editor/overlays/useEditorOverlays.ts`（486）、`Editor/instance/useMilkdownInstance.ts`（485）。本轮 `AppComposition.tsx` 由 530 行拆到 449 行，已回到 450 行门禁内；`useEditorContentReplacement.ts`（约 340）超过评估线，触及时仍需按职责拆分。上述未触及热点保留在 S17 账本，不因本项拆分而宣称维护债务全部完成。
+- 当前仍超过项目行数门禁的文件（2026-09-15 实数）：`src/renderer/src/lib/docx.ts`（613）、`app/workspace/useWorkspaceFiles.ts`（505）、`app/useAppSettings.ts`（496）、`Editor/overlays/useEditorOverlays.ts`（486）、`Editor/instance/useMilkdownInstance.ts`（485）。`file-handlers.ts` 已于 2026-09-18 通过迁出图片 IPC 降至 450 行；`AppComposition.tsx` 已由 530 行拆到 449 行。`useEditorContentReplacement.ts`（约 340）超过评估线，触及时仍需按职责拆分。上述未触及热点保留在 S17 账本，不因本项拆分而宣称维护债务全部完成。
 - 文档会话剩余风险集中在 5 MiB 大文档的保存耗时（见上方发布前高优先级），会话状态一致性、卸载取消与多窗口竞态已完成核验。
 
 ### UI 与功能迁移

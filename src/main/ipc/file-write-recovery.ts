@@ -44,6 +44,11 @@ interface RecoveryPaths {
 
 interface RecoveryOptions {
   allowActiveOwner?: boolean
+  isTargetAuthorized?: (target: string) => Promise<boolean>
+}
+
+export interface FileWriteOptions {
+  isTargetAuthorized?: (target: string) => Promise<boolean>
 }
 
 export class FileWriteRecoveryError extends Error {
@@ -97,6 +102,15 @@ const resolveTarget = async (
     if (isNotFound(error)) return { target: filePath, targetExists: false }
     throw error
   }
+}
+
+const ensureTargetAuthorized = async (
+  target: string,
+  isTargetAuthorized: ((target: string) => Promise<boolean>) | undefined,
+): Promise<void> => {
+  if (!isTargetAuthorized) return
+  if (await isTargetAuthorized(target)) return
+  throw new FileWriteRecoveryError('保存目标未获授权')
 }
 
 const recoveryPathsFor = (target: string): RecoveryPaths => ({
@@ -195,6 +209,7 @@ export const recoverInterruptedFileWriteWithIo = async (
 ): Promise<void> => {
   const io: FileWriteIo = { ...defaultFileWriteIo, ...overrides }
   const { target } = await resolveTarget(filePath, io)
+  await ensureTargetAuthorized(target, options.isTargetAuthorized)
   const paths = recoveryPathsFor(target)
   const journal = await readJournal(io, paths.journalPath)
   if (!journal) return
@@ -218,8 +233,10 @@ export const recoverInterruptedFileWriteWithIo = async (
   await cleanupRecoveryMaterials(io, paths)
 }
 
-export const recoverInterruptedFileWrite = async (filePath: string): Promise<void> =>
-  recoverInterruptedFileWriteWithIo(filePath)
+export const recoverInterruptedFileWrite = async (
+  filePath: string,
+  options?: FileWriteOptions,
+): Promise<void> => recoverInterruptedFileWriteWithIo(filePath, {}, options)
 
 /**
  * Existing desktop files are overwritten in place to preserve their OS file
@@ -232,10 +249,12 @@ export const writeFileAtomicallyWithIo = async (
   content: string | Uint8Array,
   mode?: number,
   overrides: Partial<FileWriteIo> = {},
+  options: FileWriteOptions = {},
 ): Promise<void> => {
   const io: FileWriteIo = { ...defaultFileWriteIo, ...overrides }
-  await recoverInterruptedFileWriteWithIo(filePath, io)
+  await recoverInterruptedFileWriteWithIo(filePath, io, options)
   const { target, targetExists } = await resolveTarget(filePath, io)
+  await ensureTargetAuthorized(target, options.isTargetAuthorized)
   const tempPath = transientPathFor(join(dirname(target), `.${basename(target)}`))
   try {
     await io.writeFile(tempPath, content)
@@ -282,7 +301,10 @@ export const writeFileAtomicallyWithIo = async (
     await cleanupRecoveryMaterials(io, paths)
   } catch (error) {
     try {
-      await recoverInterruptedFileWriteWithIo(filePath, io, { allowActiveOwner: true })
+      await recoverInterruptedFileWriteWithIo(filePath, io, {
+        allowActiveOwner: true,
+        isTargetAuthorized: options.isTargetAuthorized,
+      })
     } catch (recoveryError) {
       throw new FileWriteRecoveryError(`保存失败，且无法恢复最后确认版本：${String(recoveryError)}`)
     }
@@ -296,4 +318,5 @@ export const writeFileAtomically = async (
   filePath: string,
   content: string | Uint8Array,
   mode?: number,
-): Promise<void> => writeFileAtomicallyWithIo(filePath, content, mode)
+  options?: FileWriteOptions,
+): Promise<void> => writeFileAtomicallyWithIo(filePath, content, mode, {}, options)

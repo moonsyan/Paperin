@@ -61,6 +61,21 @@ function isPathWithinRoot(filePath: string, rootPath: string): boolean {
   )
 }
 
+/**
+ * 图片文件 IPC 的真实路径授权。图片只读白名单与完整工作区信任根都可用于
+ * 图片目录，但工作区内的符号链接不得把枚举、删除或保存导向根外。
+ */
+export const isImagePathAllowedAfterResolvingLinks = async (filePath: string): Promise<boolean> => {
+  const resolvedPath = resolve(filePath)
+  if (!isPathTrusted(resolvedPath) && !isImageDirAllowed(resolvedPath)) return false
+  const realFilePath = await realpath(resolvedPath).catch(() => null)
+  if (!realFilePath) return false
+  const roots = await Promise.all(
+    [...getTrustedRoots(), ...getImageReadDirs()].map((root) => realpath(root).catch(() => null)),
+  )
+  return roots.some((root) => root !== null && isPathWithinRoot(realFilePath, root))
+}
+
 function notFound(): Response {
   return new Response('Not Found', { status: 404 })
 }
@@ -87,16 +102,8 @@ async function resolveAllowedImagePath(requestUrl: string): Promise<string | nul
       return null
     }
 
-    const realFilePath = await realpath(resolvedPath)
-    const roots = await Promise.all(
-      [...getTrustedRoots(), ...getImageReadDirs()].map(async (root) =>
-        realpath(root).catch(() => null),
-      ),
-    )
-    if (!roots.some((root) => root && isPathWithinRoot(realFilePath, root))) {
-      return null
-    }
-    return realFilePath
+    if (!(await isImagePathAllowedAfterResolvingLinks(resolvedPath))) return null
+    return await realpath(resolvedPath)
   } catch {
     return null
   }
