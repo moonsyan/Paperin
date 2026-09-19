@@ -3,6 +3,7 @@ import type { Node as ProseNode } from '@milkdown/kit/prose/model'
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { analyzeDecorationChange } from './decoOptimize'
+import { isMermaidErrorSvg, mermaidFailureKind, mermaidStatusText, mermaidThemeOptions, sanitizeMermaidSource, sanitizeMermaidSvg } from './mermaid-source'
 import { viewportChangedKey, streamInsertKey, readVisibleRange } from '../viewport/editorViewport'
 
 const MERMAID_RENDER_DELAY = 420
@@ -92,11 +93,7 @@ const ensureMermaidReady = (theme: string): Promise<void> => {
   if (mermaidReadyTheme === theme && mermaidReadyPromise) return mermaidReadyPromise
   mermaidReadyTheme = theme
   mermaidReadyPromise = getMermaid().then((mermaid) => {
-    mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: 'strict',
-      theme: theme === 'dark' ? 'dark' : 'default',
-    })
+    mermaid.initialize(mermaidThemeOptions(theme))
   })
   return mermaidReadyPromise
 }
@@ -111,10 +108,7 @@ const yieldToEventLoop = (): Promise<void> =>
     ? new Promise<void>((resolve) => requestIdleCallback(() => resolve(), { timeout: 200 }))
     : new Promise<void>((resolve) => setTimeout(resolve, 0))
 
-const getErrorMessage = (error: unknown): string => {
-  if (error instanceof Error && error.message) return error.message.split('\n')[0]
-  return '请检查 Mermaid 语法'
-}
+const getErrorMessage = (error: unknown): string => mermaidStatusText(error)
 
 const observeThemeChanges = () => {
   if (themeObserver || typeof MutationObserver === 'undefined') return
@@ -140,6 +134,7 @@ class MermaidPreview {
   private renderPromise: Promise<void> | null = null
   private renderVersion = 0
   private isEditingSource = false
+  private attachWaits = 0
 
   constructor(view: EditorView, getPos: () => number | undefined, source: string) {
     this.view = view
@@ -178,12 +173,6 @@ class MermaidPreview {
     this.button = button
     activePreviews.add(this)
     observeThemeChanges()
-    // C-7：去掉原先基于 IntersectionObserver 的"进入视口才渲染"门控。
-    // 原因：widget 工厂返回 dom 时该 dom 还没挂到编辑器根，observed target
-    // 在某些 Chromium 版本下不会派发初始 entry，单图/靠视口图表永久停在
-    // "将在进入视口时渲染"。多图文档的渲染开销已经由 mermaidRenderQueue
-    // 串行队列 + renderVisibleRange 视口扫描保底，这里直接渲染即可。
-    // 同步入队：构造期间不等待 PR，然而调用方仍持有 Promise
     void this.renderNow()
   }
 
@@ -206,53 +195,64 @@ class MermaidPreview {
     }
     this.renderVersion += 1
     const version = this.renderVersion
-    const source = this.source
-    if (!source.trim()) {
+    const prepared = sanitizeMermaidSource(this.source)
+    if (!prepared) {
       this.preview.replaceChildren(this.status)
-      // 源码清空回到空态时同步清掉上一次渲染失败留下的错误样式
       this.status.classList.remove('is-error')
       this.status.textContent = '输入 Mermaid 图表源码'
       this.renderPromise = Promise.resolve()
       return this.renderPromise
     }
+    if (!this.dom.isConnected && this.attachWaits < 8) {
+      this.attachWaits += 1
+      this.renderPromise = new Promise((resolve) => {
+        requestAnimationFrame(() => {
+          void this.renderNow().then(resolve, () => resolve())
+        })
+      })
+      return this.renderPromise
+    }
+    this.attachWaits = 0
     this.preview.replaceChildren(this.status)
     this.status.classList.remove('is-error')
     this.status.textContent = '正在渲染图表…'
+    const draw = async (mermaid: Awaited<ReturnType<typeof getMermaid>>, text: string) => {
+      const id = `paperin-mermaid-${diagramSequence++}`
+      let timeoutHandle: ReturnType<typeof setTimeout> | undefined
+      const { svg, bindFunctions } = await Promise.race([
+        mermaid.render(id, text),
+        new Promise<never>((_, reject) => {
+          timeoutHandle = setTimeout(() => reject(new Error('渲染超时')), MERMAID_SINGLE_RENDER_TIMEOUT)
+        }),
+      ]).finally(() => {
+        if (timeoutHandle) clearTimeout(timeoutHandle)
+      })
+      if (isMermaidErrorSvg(svg)) throw new Error('Syntax error in text')
+      const safeSvg = sanitizeMermaidSvg(svg)
+      if (!safeSvg) throw new Error('图表结果不是可显示的 SVG')
+      if (!shouldCommitMermaidRender(activePreviews.has(this), version, this.renderVersion)) return
+      this.preview.innerHTML = safeSvg
+      bindFunctions?.(this.preview)
+    }
     this.renderPromise = getMermaid()
       .then(() =>
-        // C-5：串行队列内执行 mermaid.render（非并发安全），每次渲染前让出
-        // 主线程。mermaid.initialize 已抽离为按主题只初始化一次的 ensureMermaidReady。
-        // 单次渲染 15s 超时兜底，防止队列被一次挂起永久阻塞
         enqueueMermaidRender(async () => {
           const theme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'default'
           await ensureMermaidReady(theme)
           const mermaid = await getMermaid()
-          const id = `paperin-mermaid-${diagramSequence++}`
-          // 单次渲染 15s 超时兜底：用独立 timer 变量持有句柄，race 结束即
-          // clearTimeout，避免每次渲染残留一个最长 15s 的挂起定时器（多图
-          // 文档反复渲染会累积闲置 timer，延迟触发已无意义的 reject）
-          let timeoutHandle: ReturnType<typeof setTimeout> | undefined
-          const { svg, bindFunctions } = await Promise.race([
-            mermaid.render(id, source),
-            new Promise<never>((_, reject) => {
-              timeoutHandle = setTimeout(
-                () => reject(new Error('渲染超时')),
-                MERMAID_SINGLE_RENDER_TIMEOUT,
-              )
-            }),
-          ]).finally(() => {
-            if (timeoutHandle) clearTimeout(timeoutHandle)
-          })
-          if (!shouldCommitMermaidRender(activePreviews.has(this), version, this.renderVersion)) return
-          // Mermaid 在 strict 模式下生成 SVG，避免把未经处理的 Markdown 直接写入 DOM。
-          this.preview.innerHTML = svg
-          bindFunctions?.(this.preview)
+          try {
+            await draw(mermaid, prepared)
+          } catch (error) {
+            const message = error instanceof Error ? error.message : ''
+            if (mermaidFailureKind(message) !== 'temporary') throw error
+            await draw(mermaid, prepared)
+          }
         }),
       )
       .catch((error: unknown) => {
         if (!shouldCommitMermaidRender(activePreviews.has(this), version, this.renderVersion)) return
         this.preview.replaceChildren(this.status)
-        this.status.textContent = `图表语法错误：${getErrorMessage(error)}`
+        this.status.textContent = getErrorMessage(error)
         this.status.classList.add('is-error')
       })
       .finally(() => {

@@ -771,9 +771,16 @@
 .milkdown .mermaid-preview {
   min-height: 80px;
   padding: 14px;
-  /* 高度随内容自适应：长图向下延伸而非被裁切；宽图由 svg max-width:100% 缩放适配 */
-  overflow: visible;
+  overflow-x: auto;
   text-align: center;
+}
+.milkdown .mermaid-preview svg {
+  display: block;
+  /* Mermaid 会在 svg 上写 width/max-width:100%。按容器挤压时，HTML 标签不会跟着缩放，图就会叠在一起。 */
+  width: auto !important;
+  max-width: none !important;
+  height: auto !important;
+  margin: 0 auto;
 }
 .milkdown .mermaid-block.is-editing-source {
   position: relative;
@@ -800,12 +807,6 @@
 .milkdown .mermaid-block.is-editing-source .mermaid-source-toggle {
   background: var(--bg-hover);
 }
-.milkdown .mermaid-preview svg {
-  display: block;
-  max-width: 100%;
-  height: auto;
-  margin: 0 auto;
-}
 .milkdown .mermaid-status {
   padding: 18px 10px;
   color: var(--text-3);
@@ -815,6 +816,53 @@
 .milkdown .mermaid-status.is-error {
   color: #b06060;
   white-space: pre-wrap;
+}
+
+.milkdown pre:has(.structured-code-tools) {
+  padding-bottom: 34px;
+}
+.milkdown .structured-code-tools {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  max-width: calc(100% - 16px);
+}
+.milkdown .structured-code-btn,
+.milkdown .code-fold-toggle {
+  appearance: none;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg-menu);
+  color: var(--text-2);
+  font: inherit;
+  font-size: .72rem;
+  line-height: 1.4;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+.milkdown .structured-code-btn:hover,
+.milkdown .code-fold-toggle:hover,
+.milkdown .structured-code-btn:focus-visible,
+.milkdown .code-fold-toggle:focus-visible {
+  color: var(--text-1);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.milkdown .code-fold-toggle {
+  margin-right: 4px;
+  vertical-align: baseline;
+}
+.milkdown pre .code-fold-hidden {
+  display: none;
+}
+.milkdown .structured-code-status:not(:empty) {
+  color: #b06060;
+  font-size: .72rem;
 }
 
 /* ====== 搜索匹配高亮 ====== */
