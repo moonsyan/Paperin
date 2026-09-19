@@ -200,6 +200,26 @@ describe('workspace-index-service：预算与进度', () => {
       expect.objectContaining({ type: 'progress', scanned: 2, total: 2 }),
     )
   })
+
+  it('单篇身份变化时跳过该文件，其余文档仍进入索引', async () => {
+    const deps = createDeps({
+      'D:/notes/a.md': { content: MD('A'), mtimeMs: 10, size: 10 },
+      'D:/notes/b.md': { content: MD('B'), mtimeMs: 20, size: 10 },
+    })
+    const readFileText = deps.readFileText
+    deps.readFileText = async (path) => {
+      if (path.endsWith('b.md')) {
+        const error = new Error('文件在读取期间被替换')
+        error.name = 'FileIdentityChangedError'
+        throw error
+      }
+      return readFileText(path)
+    }
+    const service = createWorkspaceIndexService(deps)
+    const result = await service.refresh('D:/notes')
+    expect(result.truncated).toBe(true)
+    expect(Object.keys(result.index.documents)).toEqual(['D:/notes/a.md'])
+  })
 })
 
 describe('workspace-index-service：dispose', () => {

@@ -13,6 +13,7 @@ import {
   MAX_DOCUMENT_FILE_SIZE,
   MAX_EXPORT_FILE_SIZE,
   FileWriteRecoveryPendingError,
+  FileIdentityChangedError,
   readTextAutoEncoding,
   recoverInterruptedFileWrite,
   rememberFileState,
@@ -82,6 +83,9 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       }
       if (error instanceof UnsupportedEncodingError) {
         return { ok: false, error: { code: 'UNSUPPORTED_ENCODING', message: error.message } }
+      }
+      if (error instanceof FileIdentityChangedError) {
+        return { ok: false, error: { code: 'NOT_AUTHORIZED', message: error.message } }
       }
       return { ok: false, error: { code: 'IO_ERROR', message: String(error) } }
     }

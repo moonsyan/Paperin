@@ -1,5 +1,5 @@
 import { createHash } from 'crypto'
-import { readFile, readdir, lstat } from 'fs/promises'
+import { open, readdir, lstat } from 'fs/promises'
 import type { Dirent } from 'fs'
 import { join } from 'path'
 import iconv from 'iconv-lite'
@@ -83,6 +83,30 @@ export class UnsupportedEncodingError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'UnsupportedEncodingError'
+  }
+}
+
+/** 路径在 lstat 与打开句柄之间被换成符号链接或另一个文件。 */
+export class FileIdentityChangedError extends Error {
+  constructor() {
+    super('文件在读取期间被替换')
+    this.name = 'FileIdentityChangedError'
+  }
+}
+
+/** 只读取与 lstat 同一 inode 的普通文件，避免授权后路径被换成链接再被跟随。 */
+const readRegularFileBuffer = async (filePath: string): Promise<Buffer> => {
+  const linkStat = await lstat(filePath)
+  if (linkStat.isSymbolicLink() || !linkStat.isFile()) throw new FileIdentityChangedError()
+  const handle = await open(filePath, 'r')
+  try {
+    const opened = await handle.stat()
+    if (!opened.isFile() || opened.dev !== linkStat.dev || opened.ino !== linkStat.ino) {
+      throw new FileIdentityChangedError()
+    }
+    return Buffer.from(await handle.readFile())
+  } finally {
+    await handle.close()
   }
 }
 
@@ -276,7 +300,7 @@ export const readTextAutoEncoding = async (
   await recoverInterruptedFileWrite(filePath, {
     isTargetAuthorized: options?.isTargetAuthorized ?? isPathAuthorizedForReadOrSave,
   })
-  return decodeTextBuffer(await readFile(filePath))
+  return decodeTextBuffer(await readRegularFileBuffer(filePath))
 }
 
 export const isTraversableWorkspaceDirectory = async (

@@ -76,6 +76,20 @@ describe('文本编码读取', () => {
 
     await expect(readTextAutoEncoding(filePath)).rejects.toBeInstanceOf(UnsupportedEncodingError)
   })
+
+  it('符号链接不按路径跟随读取', async () => {
+    const directory = await createTemporaryDirectory()
+    const secret = join(directory, 'secret.md')
+    const link = join(directory, 'link.md')
+    await writeFile(secret, '机密', 'utf-8')
+    try {
+      await symlink(secret, link, 'file')
+    } catch {
+      return
+    }
+    const { FileIdentityChangedError } = await import('./file-io')
+    await expect(readTextAutoEncoding(link)).rejects.toBeInstanceOf(FileIdentityChangedError)
+  })
 })
 
 describe('残缺 UTF-8 探测', () => {

@@ -164,7 +164,17 @@ export const createWorkspaceIndexService = (
         ) {
           documents[meta.path] = previous
         } else {
-          const content = await deps.readFileText(meta.path)
+          let content: string
+          try {
+            content = await deps.readFileText(meta.path)
+          } catch (error) {
+            // 读取期间路径被换成链接时跳过这一篇，不能让单文件失败拖垮整库索引。
+            if (error instanceof Error && error.name === 'FileIdentityChangedError') {
+              truncated = true
+              continue
+            }
+            throw error
+          }
           check()
           const parsed = parseDocumentIndex({
             path: meta.path,

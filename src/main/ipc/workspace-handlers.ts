@@ -9,6 +9,7 @@ import { withinCallerWorkspace } from './workspace-scope'
 import {
   carryKnownFileState,
   forgetKnownFileState,
+  FileIdentityChangedError,
   readTextAutoEncoding,
   walkMarkdownTree,
 } from './file-io'
@@ -308,7 +309,13 @@ export const registerWorkspaceHandlers = ({
             const fileStat = await stat(path).catch(() => null)
             if (!fileStat || fileStat.size > 2 * 1024 * 1024) continue
             if (args.regex) {
-              const { content } = await readTextAutoEncoding(path)
+              let content: string
+              try {
+                ;({ content } = await readTextAutoEncoding(path))
+              } catch (error) {
+                if (error instanceof FileIdentityChangedError) continue
+                throw error
+              }
               const regexMatches = await runSharedRegexSearch(
                 content,
                 query,
@@ -328,7 +335,13 @@ export const registerWorkspaceHandlers = ({
             if (cached && mtimeSettled && cached.mtimeMs === fileStat.mtimeMs && cached.size === fileStat.size) {
               lines = cached.lines
             } else {
-              const { content } = await readTextAutoEncoding(path)
+              let content: string
+              try {
+                ;({ content } = await readTextAutoEncoding(path))
+              } catch (error) {
+                if (error instanceof FileIdentityChangedError) continue
+                throw error
+              }
               lines = content.split(/\r?\n/)
               if (mtimeSettled) {
                 cacheSearchLines(path, {
