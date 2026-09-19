@@ -1,7 +1,6 @@
-import { net } from 'electron'
+import type { FileHandle } from 'fs/promises'
 import { lstat, open, realpath } from 'fs/promises'
 import { extname, isAbsolute, relative, resolve } from 'path'
-import { pathToFileURL } from 'url'
 import { isPathTrusted, isResolvedPathWithinTrustedRoots } from './trusted-paths'
 
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'])
@@ -130,11 +129,53 @@ async function resolveAllowedImagePath(requestUrl: string): Promise<string | nul
   }
 }
 
+/** 只打开与 lstat 同一 inode 的普通文件。调用方负责关闭句柄，除非已交给流。 */
+const openPinnedRegularFile = async (
+  filePath: string,
+  maxBytes?: number,
+): Promise<FileHandle | null> => {
+  const linkStat = await lstat(filePath).catch(() => null)
+  if (!linkStat || linkStat.isSymbolicLink() || !linkStat.isFile()) return null
+  if (maxBytes !== undefined && linkStat.size > maxBytes) return null
+  const handle = await open(filePath, 'r').catch(() => null)
+  if (!handle) return null
+  try {
+    const opened = await handle.stat()
+    if (
+      !opened.isFile()
+      || opened.dev !== linkStat.dev
+      || opened.ino !== linkStat.ino
+      || (maxBytes !== undefined && opened.size > maxBytes)
+    ) {
+      await handle.close()
+      return null
+    }
+    return handle
+  } catch {
+    await handle.close().catch(() => {})
+    return null
+  }
+}
+
+const imageContentType = (filePath: string): string => {
+  const ext = extname(filePath).slice(1).toLowerCase()
+  return `image/${ext === 'jpg' ? 'jpeg' : ext}`
+}
+
 /** 为 mdimg 协议建立受限的本地图片读取，拒绝目录外及非图片资源。 */
 export async function fetchAllowedImage(requestUrl: string): Promise<Response> {
   const realFilePath = await resolveAllowedImagePath(requestUrl)
   if (!realFilePath) return notFound()
-  return net.fetch(pathToFileURL(realFilePath).toString())
+  const handle = await openPinnedRegularFile(realFilePath)
+  if (!handle) return notFound()
+  try {
+    return new Response(handle.readableWebStream({ type: 'bytes' }), {
+      headers: { 'Content-Type': imageContentType(realFilePath) },
+    })
+  } catch {
+    await handle.close().catch(() => {})
+    return notFound()
+  }
 }
 
 /** 导出内联单张图片大小上限：base64 经 IPC 一次性传输且写进导出文件，超限拒绝防 OOM */
@@ -149,22 +190,11 @@ export async function readImageAsDataUrl(requestUrl: string): Promise<string | n
   try {
     const realFilePath = await resolveAllowedImagePath(requestUrl)
     if (!realFilePath) return null
-    const linkStat = await lstat(realFilePath).catch(() => null)
-    if (!linkStat || linkStat.isSymbolicLink() || !linkStat.isFile() || linkStat.size > MAX_INLINE_IMAGE_BYTES) {
-      return null
-    }
-    const handle = await open(realFilePath, 'r')
+    const handle = await openPinnedRegularFile(realFilePath, MAX_INLINE_IMAGE_BYTES)
+    if (!handle) return null
     try {
-      const opened = await handle.stat()
-      if (
-        !opened.isFile()
-        || opened.dev !== linkStat.dev
-        || opened.ino !== linkStat.ino
-        || opened.size > MAX_INLINE_IMAGE_BYTES
-      ) return null
       const data = Buffer.from(await handle.readFile())
-      const ext = extname(realFilePath).slice(1).toLowerCase()
-      return `data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${data.toString('base64')}`
+      return `data:${imageContentType(realFilePath)};base64,${data.toString('base64')}`
     } finally {
       await handle.close()
     }

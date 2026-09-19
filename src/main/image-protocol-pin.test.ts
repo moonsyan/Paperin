@@ -66,4 +66,27 @@ describe('图片读取白名单钉住恢复', () => {
     expect(await readImageAsDataUrl(url)).toBeNull()
     await expect(readFile(secret)).resolves.toEqual(Buffer.from('secret'))
   })
+
+  it('协议读取普通图片，换成链接后不再流出目标内容', async () => {
+    const { allowImageDirectory, fetchAllowedImage } = await import('./image-protocol')
+    const directory = await tempDir('paperin-img-proto-')
+    const outside = await tempDir('paperin-img-proto-out-')
+    const image = join(directory, 'note.png')
+    const secret = join(outside, 'secret.png')
+    await writeFile(image, Buffer.from('visible'))
+    await writeFile(secret, Buffer.from('secret'))
+    allowImageDirectory(directory)
+    const url = `mdimg:///${image.replace(/\\/g, '/')}`
+    const shown = await fetchAllowedImage(url)
+    expect(shown.status).toBe(200)
+    expect(Buffer.from(await shown.arrayBuffer())).toEqual(Buffer.from('visible'))
+    await rm(image)
+    try {
+      await symlink(secret, image, 'file')
+    } catch {
+      return
+    }
+    expect((await fetchAllowedImage(url)).status).toBe(404)
+    await expect(readFile(secret)).resolves.toEqual(Buffer.from('secret'))
+  })
 })
