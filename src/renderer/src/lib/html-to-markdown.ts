@@ -9,8 +9,9 @@ export interface HtmlToMarkdownResult {
 const escapeText = (value: string): string => value.replace(/[\\`*_[\]#<>]/g, '\\$&')
 
 export const convertHtmlToMarkdown = (html: string): HtmlToMarkdownResult => {
-  const root = document.createElement('div')
-  root.innerHTML = html
+  // 剪贴板 HTML 可能带 img/onerror。innerHTML 会在渲染进程里加载并执行，
+  // 而这里能碰到 desktopAPI。DOMParser 只解析，不跑脚本、不拉图片。
+  const root = new DOMParser().parseFromString(html, 'text/html').body
   root.querySelectorAll('script,style,noscript,template').forEach((node) => node.remove())
   let remoteImages = 0
   let droppedImages = 0

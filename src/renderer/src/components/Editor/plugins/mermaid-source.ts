@@ -33,9 +33,10 @@ export function mermaidThemeOptions(theme: string) {
 }
 
 export function isMermaidErrorSvg(svg: string): boolean {
-  return /syntax error in text/i.test(svg)
-    || svg.includes('error-icon')
-    || svg.includes('aria-roledescription="error"')
+  // 成功的图也会内联主题 CSS，规则里就有 `.error-icon`。
+  // 子串匹配会把每张图画失败。只认错误图自己带上的 class / role。
+  return /<[^>]*\sclass\s*=\s*["'][^"']*\berror-icon\b/.test(svg)
+    || /<[^>]*\saria-roledescription\s*=\s*["']error["']/.test(svg)
 }
 
 /** 只把 Mermaid 画出的 svg 放进页面，并去掉脚本和事件属性。 */
@@ -44,7 +45,7 @@ export function sanitizeMermaidSvg(svg: string): string | null {
   if (!/^<svg[\s>]/i.test(trimmed) || !/<\/svg>\s*$/i.test(trimmed)) return null
   return trimmed
     .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/\s+on[a-z]+\s*=\s*(['"]).*?\1/gi, '')
+    .replace(/\s+on[a-z]+\s*=\s*(?:(['"]).*?\1|[^\s>]+)/gi, '')
     .replace(/javascript:/gi, '')
 }
 

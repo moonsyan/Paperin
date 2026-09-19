@@ -228,7 +228,8 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       if (!pre) {
         return { ok: false, error: { code: 'NOT_FOUND' } }
       }
-      const writeOptions = { isTargetAuthorized: getWriteTargetAuthorizer(args.path) }
+      // 等锁期间信任根可能已被淘汰。授权函数缺失时必须拒绝，不能当成已放行。
+      const writeOptions = { isTargetAuthorized: getWriteTargetAuthorizer(args.path) ?? (async () => false) }
       // 冲突检测（H6）：磁盘 mtime 明显比预期新、或文件尺寸与最近一次读/写不一致，
       // 均视为被外部修改，拒绝写入避免静默覆盖。
       // - mtime 容差 500ms 仅吸收本应用连续保存的时间戳抖动（NTFS 纳秒精度无需大容差）；
