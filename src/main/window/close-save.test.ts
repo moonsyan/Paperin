@@ -24,4 +24,30 @@ describe('窗口关闭保存等待', () => {
       vi.useRealTimers()
     }
   })
+
+  it('超时会通知放弃，但已启动的保存仍会继续跑完', async () => {
+    vi.useFakeTimers()
+    try {
+      let finished = false
+      const onTimeout = vi.fn()
+      const result = waitForCloseSave(
+        () => new Promise((resolve) => {
+          setTimeout(() => {
+            finished = true
+            resolve(true)
+          }, 20_000)
+        }),
+        15_000,
+        onTimeout,
+      )
+      await vi.advanceTimersByTimeAsync(15_000)
+      await expect(result).resolves.toBe('timedout')
+      expect(onTimeout).toHaveBeenCalledOnce()
+      expect(finished).toBe(false)
+      await vi.advanceTimersByTimeAsync(5_000)
+      expect(finished).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

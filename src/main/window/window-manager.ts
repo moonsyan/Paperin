@@ -146,17 +146,22 @@ export function createWindow(fresh = false, openFile?: string): BrowserWindow {
     e.preventDefault()
     closeSaveInProgress = true
     const wc = mainWindow.webContents
+    const savePromise = wc.executeJavaScript(
+      'window.__paperin_saveAll ? window.__paperin_saveAll() : Promise.resolve(false)',
+    )
     void waitForCloseSave(
-      () => wc.executeJavaScript(
-        'window.__paperin_saveAll ? window.__paperin_saveAll() : Promise.resolve(false)',
-      ),
+      () => savePromise,
       CLOSE_SAVE_TIMEOUT_MS,
-    ).then((outcome) => {
+      () => {
+        void wc.executeJavaScript(
+          'window.__paperin_abandonCloseSave ? window.__paperin_abandonCloseSave() : undefined',
+        ).catch(() => {})
+      },
+    ).then(async (outcome) => {
       if (mainWindow.isDestroyed()) return
       if (outcome !== 'saved') {
         // 窗口保持打开；用户主动取消（另存为对话框）不打扰，
         // 超时/异常则经渲染层轻提示告知原因并闪烁任务栏引起注意
-        closeSaveInProgress = false
         if (outcome === 'timedout' || outcome === 'failed') {
           const message =
             outcome === 'timedout'
@@ -167,6 +172,9 @@ export function createWindow(fresh = false, openFile?: string): BrowserWindow {
           ).catch(() => {})
           mainWindow.flashFrame(true)
         }
+        // 超时后等在途保存结束，才能开始下一次关窗，避免两路 saveAll 并行写盘
+        if (outcome === 'timedout') await savePromise.catch(() => {})
+        closeSaveInProgress = false
         return
       }
       mainWindow.destroy()

@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { MutableRefObject, RefObject } from 'react'
 import { toStoredImages } from '../../lib/image-path'
 import {
@@ -38,6 +38,7 @@ export interface DocumentTabClosingApi {
   discardPreviewTab: (nextFileId: string) => void
   removeClosedTabs: (ids: string[]) => void
   saveAllBeforeWindowClose: () => Promise<boolean>
+  abandonCloseSave: () => void
   handleCloseTab: (id: string) => Promise<void>
   handleCloseOtherTabs: (targetId: string) => void
   handleCloseAllTabs: () => void
@@ -131,7 +132,15 @@ export function useDocumentTabClosing({
     replaceEditorContent(nextActive.id, contentsRef.current[nextActive.id] ?? '')
   }, [activeFileIdRef, clearDraft, contentsRef, draftPendingRef, initialOrSaved, openFilesRef, replaceEditorContent, saveQueueRef, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap])
 
+  const closeSaveEpochRef = useRef(0)
+
+  const abandonCloseSave = useCallback(() => {
+    closeSaveEpochRef.current += 1
+  }, [])
+
   const saveAllBeforeWindowClose = useCallback(async (): Promise<boolean> => {
+    const epoch = closeSaveEpochRef.current + 1
+    closeSaveEpochRef.current = epoch
     const confirmed = new Map<string, { path?: string; content: string }>()
     captureWorkspaceDocumentView(activeFileIdRef.current)
     flushEditorContent()
@@ -146,6 +155,8 @@ export function useDocumentTabClosing({
       const result = await window.desktopAPI.workspaceState.saveDocuments(workspaceDocumentsRef.current)
       if (!result.ok) setToast('文档视图状态保存失败')
     }
+    // 超时放弃只作废这次关窗许可；已经启动的逐标签写入继续跑完。
+    if (closeSaveEpochRef.current !== epoch) return false
     // 逐标签确认之后还有异步写入；等待期间的新输入/新标签不能继承旧的关窗许可。
     const changed = openFilesRef.current.some((file) => {
       const snapshot = confirmed.get(file.id)
@@ -160,10 +171,17 @@ export function useDocumentTabClosing({
   }, [activeFileIdRef, captureWorkspaceDocumentView, contentsRef, editorRef, flushEditorContent, openFilesRef, removeClosedTabs, saveBeforeClose, saveQueueRef, setToast, workspaceDocumentsRef, workspacePathRef])
 
   useEffect(() => {
-    const currentWindow = window as unknown as { __paperin_saveAll?: () => Promise<boolean> }
+    const currentWindow = window as unknown as {
+      __paperin_saveAll?: () => Promise<boolean>
+      __paperin_abandonCloseSave?: () => void
+    }
     currentWindow.__paperin_saveAll = saveAllBeforeWindowClose
-    return () => { delete currentWindow.__paperin_saveAll }
-  }, [saveAllBeforeWindowClose])
+    currentWindow.__paperin_abandonCloseSave = abandonCloseSave
+    return () => {
+      delete currentWindow.__paperin_saveAll
+      delete currentWindow.__paperin_abandonCloseSave
+    }
+  }, [abandonCloseSave, saveAllBeforeWindowClose])
 
   const handleCloseTab = useCallback(async (id: string): Promise<void> => {
     if (id === activeFileIdRef.current) flushEditorContent()
@@ -199,7 +217,7 @@ export function useDocumentTabClosing({
     setOpenFiles(nextOpenFiles)
   }, [openFilesRef, setOpenFiles])
 
-  return { discardPreviewTab, removeClosedTabs, saveAllBeforeWindowClose, handleCloseTab, handleCloseOtherTabs, handleCloseAllTabs, handleTogglePinnedTab, handleReorderTabs }
+  return { discardPreviewTab, removeClosedTabs, saveAllBeforeWindowClose, abandonCloseSave, handleCloseTab, handleCloseOtherTabs, handleCloseAllTabs, handleTogglePinnedTab, handleReorderTabs }
 }
 
 const removeDocumentValue = <T,>(values: Record<string, T>, id: string): Record<string, T> => {

@@ -47,4 +47,30 @@ describe('窗口关闭最终确认', () => {
       expect(result.current.state.contentsRef.current['file-1']).toBe('等待期间新输入')
     }
   })
+
+  it('超时放弃后已启动的写入仍跑完，但不放行关闭', async () => {
+    const saveDocuments = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('window', Object.assign(window, { desktopAPI: { workspaceState: { saveDocuments } } }))
+    const queue = new DocumentSaveQueue<AutoSaveSnapshot>(async () => {}, 1_000)
+    const { result } = renderHook(() => {
+      const state = useDocumentState()
+      state.openFilesRef.current = [{ id: 'file-1', name: 'note.md', path: 'D:/notes/note.md' }]
+      state.contentsRef.current = { 'file-1': '已确认版本' }
+      state.activeFileIdRef.current = 'file-1'
+      const closing = useDocumentTabClosing({
+        state, editorRef: { current: { isReady: () => true, getMarkdown: () => '已确认版本', hasPendingChanges: () => false } }, flushEditorContent: vi.fn(),
+        replaceEditorContent: vi.fn(), pinPreviewTab: vi.fn(), dirOfFile: () => 'D:/notes',
+        saveBeforeClose: vi.fn().mockResolvedValue(true), saveQueueRef: { current: queue },
+        clearDraft: vi.fn().mockResolvedValue(undefined), draftPendingRef: { current: null },
+        captureWorkspaceDocumentView: vi.fn(), setToast: vi.fn(),
+        workspacePathRef: { current: 'D:/notes' }, workspaceDocumentsRef: { current: DEFAULT_WORKSPACE_DOCUMENTS },
+      })
+      return { closing }
+    })
+    vi.spyOn(queue, 'flushAll').mockImplementation(async () => {
+      result.current.closing.abandonCloseSave()
+    })
+    await expect(result.current.closing.saveAllBeforeWindowClose()).resolves.toBe(false)
+    expect(saveDocuments).toHaveBeenCalled()
+  })
 })

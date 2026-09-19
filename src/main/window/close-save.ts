@@ -10,17 +10,26 @@ export type CloseSaveOutcome = 'saved' | 'incomplete' | 'failed' | 'timedout'
 export const waitForCloseSave = async (
   save: () => Promise<unknown>,
   timeoutMs: number,
+  onTimeout?: () => void,
 ): Promise<CloseSaveOutcome> => {
   let timeout: ReturnType<typeof setTimeout> | null = null
+  const savePromise = Promise.resolve().then(save)
   try {
     const result = await Promise.race([
-      Promise.resolve().then(save),
+      savePromise,
       new Promise<CloseSaveOutcome>((resolve) => {
-        timeout = setTimeout(() => resolve('timedout'), timeoutMs)
+        timeout = setTimeout(() => {
+          onTimeout?.()
+          resolve('timedout')
+        }, timeoutMs)
       }),
     ])
     if (result === true) return 'saved'
-    if (result === 'timedout') return 'timedout'
+    if (result === 'timedout') {
+      // 超时只放弃这次关窗许可；已启动的写入继续跑完，避免半截文件。
+      void savePromise.catch(() => {})
+      return 'timedout'
+    }
     return 'incomplete'
   } catch {
     return 'failed'
