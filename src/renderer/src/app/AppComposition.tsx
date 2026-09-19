@@ -27,6 +27,7 @@ import { useWorkspaceLayoutPersistence } from './workspace/useWorkspaceLayoutPer
 import { useEditorSearch } from './useEditorSearch'
 
 import { useAppSettings } from './useAppSettings'
+import { useSessionPersistReady } from './useSessionPersistReady'
 import { useSidebarFavorites } from './useSidebarFavorites'
 import { useMarkdownDrop } from './useMarkdownDrop'
 import { useWorkspaceDrawers } from './useWorkspaceDrawers'
@@ -68,6 +69,7 @@ export function AppComposition(): JSX.Element {
     contentWidth, setContentWidth, lineHeight, setLineHeight,
     contentFont, setContentFont,
   } = useEditorViewState()
+  const { persistReady, syncFromSettings } = useSessionPersistReady()
 
   const [, setFocusOutlineTick] = useState(0)
   const [pdfOptsOpen, setPdfOptsOpen] = useState(false)
@@ -89,7 +91,7 @@ export function AppComposition(): JSX.Element {
     contextDockState, setContextDockState, handleThemeChange,
     handleWorkspaceThemeEnabledChange, handleCollapsedKeysChange,
     toast, setToast,
-  } = useWorkspaceState({ theme, setTheme, settingsReady: false })
+  } = useWorkspaceState({ theme, setTheme, settingsReady: persistReady })
 
   // === 搜索 ===
   const { searchMode, setSearchMode, searchCount, setSearchCount, searchCurrent, setSearchCurrent, searchPref, setSearchPref, searchEpoch, setSearchEpoch, closeSearch: resetSearchState, handlers: searchHandlers } = useEditorSearch({ editorRef })
@@ -98,9 +100,7 @@ export function AppComposition(): JSX.Element {
   const modalOpenRef = useRef(false)
   const fullscreenOpenRef = useRef(false)
   modalOpenRef.current = settingsOpen || helpView !== null || imagesOpen || pdfOptsOpen || publishOpen || wsSearchOpen || paletteOpen || versionHistoryOpen || confirmRequest !== null
-  // 图谱 auto-open 激活闸门：会话恢复打开工作区前置 false（图谱标签出现但
-  // 不盖住恢复的文档），useGraphView 消费一次后复位 true。默认 true = 手动
-  // 打开文件夹保持"自动展示图谱"的既有设计
+  // 会话恢复打开工作区时图谱标签不自动盖住文档；手动打开文件夹仍自动展示图谱
   const graphAutoActivateRef = useRef(true)
 
   const { sidebarWidth, setSidebarWidth, startSidebarResize, zoom, setZoom } = useAppLayout({
@@ -108,11 +108,11 @@ export function AppComposition(): JSX.Element {
   })
 
   // === 文档会话 ===
-  const { recentFiles, setRecentFiles, recordRecent } = useRecentFiles(false)
+  const { recentFiles, setRecentFiles, recordRecent } = useRecentFiles(persistReady)
   const {
     activeContent, activeFile, activeFileId, activeFileIdRef, clearDraft,
     contents, contentsRef, dirOfFile, docTitle, draftPendingRef, documents,
-    encodingMap, fileMtime, flushEditorContent, focusEditorSoon,
+    encodingMap, fileMtime, fileMtimeRef, flushEditorContent, focusEditorSoon,
     handleCloseAllTabs, handleCloseOtherTabs, handleCloseTab, handleEditorChange,
     handleNew, handleOpen, handleOpenFolder, handleReorderTabs, handleSave,
     handleSaveAs, handleSelectDemoFile, handleSelectWorkspaceFile,
@@ -121,7 +121,7 @@ export function AppComposition(): JSX.Element {
     setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime,
     setOpenFiles, setSavedMap, switchFile, saveWithEncodingFallback,
   } = useDocumentSession({
-    editorRef, titleRef, settingsReady: false, autosave, setToast,
+    editorRef, titleRef, settingsReady: persistReady, autosave, setToast,
     recordRecent, workspacePathRef, workspaceDocumentsRef, setWorkspace,
     setWorkspaceStateReady, setWorkspaceSettings, setWorkspaceDocuments,
     setWorkspaceCollapsedKeys, setSidebarWidth, setSidebarActiveTab,
@@ -143,6 +143,7 @@ export function AppComposition(): JSX.Element {
     lineHeight, contentFont, zoom, sidebarWidth,
   })
   const { settingsReady } = settings
+  syncFromSettings(settingsReady)
 
   // === 窄窗口抽屉协调（T11）：持久化偏好与瞬时 overlay 分离 ===
   const drawers = useWorkspaceDrawers({
@@ -223,10 +224,10 @@ export function AppComposition(): JSX.Element {
   const workspaceFilesBridge = useMemo<DocumentWorkspaceBridge>(() => ({
     openDocumentPath: openWorkspaceFile, openFolder: handleOpenFolder,
     liveContentOf, saveWithEncodingFallback, flushEditorContent, replaceEditorContent,
-    switchFile, clearDraft, openFilesRef, contentsRef, activeFileIdRef,
+    switchFile, clearDraft, openFilesRef, contentsRef, activeFileIdRef, fileMtimeRef,
     initialOrSavedRef: INITIAL_OR_SAVED, draftPendingRef, setOpenFiles, setContents,
     setSavedMap, setFileMtime, setEncodingMap, setActiveFileId, setDocTitle,
-  }), [INITIAL_OR_SAVED, activeFileIdRef, clearDraft, contentsRef, draftPendingRef, flushEditorContent, handleOpenFolder, openWorkspaceFile, liveContentOf, openFilesRef, replaceEditorContent, saveWithEncodingFallback, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, switchFile])
+  }), [INITIAL_OR_SAVED, activeFileIdRef, clearDraft, contentsRef, draftPendingRef, fileMtimeRef, flushEditorContent, handleOpenFolder, openWorkspaceFile, liveContentOf, openFilesRef, replaceEditorContent, saveWithEncodingFallback, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, switchFile])
 
   const { createFile: handleCreateFile, renameFile: handleRenameFile, moveFile: handleMoveFile, deleteFile: handleDeleteFile, openInNewWindow: handleOpenInNewWindow } = useWorkspaceController({
     workspace, openFiles, savedMap, fileMtime, bridge: workspaceFilesBridge, setToast, closeAllTabs: handleCloseAllTabs,
