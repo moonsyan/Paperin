@@ -6,6 +6,7 @@ import iconv from 'iconv-lite'
 import {
   encodedDocumentByteLength,
   forgetKnownFileState,
+  carryKnownFileState,
   getKnownFileState,
   isIncompleteUtf8Sequence,
   inspectSaveConflict,
@@ -116,6 +117,20 @@ describe('文件状态记录', () => {
     forgetKnownFileState(filePath)
 
     expect(getKnownFileState(filePath)).toBeUndefined()
+  })
+
+  it('重命名后把内容哈希带到新路径，尺寸变化时不沿用旧哈希', () => {
+    const from = '/tmp/旧名.md'
+    const to = '/tmp/新名.md'
+    rememberFileState(from, { mtimeMs: 100, size: 12, contentSha256: 'a'.repeat(64) })
+
+    carryKnownFileState(from, to, { mtimeMs: 200, size: 12 })
+
+    expect(getKnownFileState(from)).toBeUndefined()
+    expect(getKnownFileState(to)?.contentSha256).toBe('a'.repeat(64))
+
+    carryKnownFileState(to, from, { mtimeMs: 300, size: 13 })
+    expect(getKnownFileState(from)?.contentSha256).toBeUndefined()
   })
 })
 

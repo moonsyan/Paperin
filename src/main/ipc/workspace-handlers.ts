@@ -7,9 +7,9 @@ import { schedulePersistTrust } from '../session-trust'
 import { isPathAuthorizedForReadOrSave, trustDirectory } from '../trusted-paths'
 import { withinCallerWorkspace } from './workspace-scope'
 import {
+  carryKnownFileState,
   forgetKnownFileState,
   readTextAutoEncoding,
-  rememberFileState,
   walkMarkdownTree,
 } from './file-io'
 import type { FolderTreeNode } from './file-io'
@@ -157,12 +157,11 @@ export const registerWorkspaceHandlers = ({
     try {
       await rename(args.path, target)
       const targetStat = await stat(target).catch(() => null)
-      forgetKnownFileState(args.path)
       forgetLinkIndexCache(args.path)
       forgetTagIndexCache(args.path)
-      // 版本快照随文件迁移到新路径，旧路径哈希目录不残留
       await moveSnapshots(historyRoot(), args.path, target)
-      if (targetStat) rememberFileState(target, { mtimeMs: targetStat.mtimeMs, size: targetStat.size })
+      if (targetStat) carryKnownFileState(args.path, target, { mtimeMs: targetStat.mtimeMs, size: targetStat.size })
+      else forgetKnownFileState(args.path)
       return { ok: true, data: { path: target, name, modifiedTime: targetStat?.mtimeMs ?? 0 } }
     } catch (error) {
       return { ok: false, error: { code: 'IO_ERROR', message: String(error) } }
@@ -201,13 +200,12 @@ export const registerWorkspaceHandlers = ({
         return { ok: false, error: { code: 'INVALID_TARGET' } }
       }
       await rename(args.path, target)
-      forgetKnownFileState(args.path)
       forgetLinkIndexCache(args.path)
       forgetTagIndexCache(args.path)
-      // 版本快照随文件迁移到新路径，旧路径哈希目录不残留
       await moveSnapshots(historyRoot(), args.path, target)
       const targetStat = await stat(target).catch(() => null)
-      if (targetStat) rememberFileState(target, { mtimeMs: targetStat.mtimeMs, size: targetStat.size })
+      if (targetStat) carryKnownFileState(args.path, target, { mtimeMs: targetStat.mtimeMs, size: targetStat.size })
+      else forgetKnownFileState(args.path)
       return { ok: true, data: { path: target, name: basename(target), modifiedTime: targetStat?.mtimeMs ?? 0 } }
     } catch (error) {
       return { ok: false, error: { code: 'IO_ERROR', message: String(error) } }

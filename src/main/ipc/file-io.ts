@@ -109,6 +109,21 @@ export const forgetKnownFileState = (path: string): void => {
   lastKnownFileState.delete(path)
 }
 
+/** 重命名/移动不改内容。尺寸一致时把内容哈希带到新路径，避免下次保存丢掉冲突基线。 */
+export const carryKnownFileState = (
+  from: string,
+  to: string,
+  next: { mtimeMs: number; size: number },
+): void => {
+  const previous = getKnownFileState(from)
+  forgetKnownFileState(from)
+  rememberFileState(to, {
+    mtimeMs: next.mtimeMs,
+    size: next.size,
+    contentSha256: previous?.size === next.size ? previous.contentSha256 : undefined,
+  })
+}
+
 /** 单篇 Markdown 文档读取/保存上限，避免误选超大文件拖垮主进程与编辑器 */
 export const MAX_DOCUMENT_FILE_SIZE = 20 * 1024 * 1024
 
