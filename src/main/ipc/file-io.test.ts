@@ -6,6 +6,7 @@ import iconv from 'iconv-lite'
 import {
   forgetKnownFileState,
   getKnownFileState,
+  isIncompleteUtf8Sequence,
   readTextAutoEncoding,
   rememberFileState,
   UnsupportedEncodingError,
@@ -61,6 +62,22 @@ describe('文本编码读取', () => {
     await writeFile(filePath, Buffer.from([0xff, 0xfe, 0x00, 0x00, 0x61, 0x00, 0x00, 0x00]))
 
     await expect(readTextAutoEncoding(filePath)).rejects.toBeInstanceOf(UnsupportedEncodingError)
+  })
+
+  it('残缺 UTF-8 不猜成 GBK，避免再保存时写坏原文', async () => {
+    const directory = await createTemporaryDirectory()
+    const filePath = join(directory, 'truncated.md')
+    await writeFile(filePath, Buffer.from('中文笔记', 'utf-8').subarray(0, -1))
+
+    await expect(readTextAutoEncoding(filePath)).rejects.toBeInstanceOf(UnsupportedEncodingError)
+  })
+})
+
+describe('残缺 UTF-8 探测', () => {
+  it('识别截断的多字节序列，完整 GBK 不误判', () => {
+    expect(isIncompleteUtf8Sequence(Buffer.from('中文笔记', 'utf-8').subarray(0, -1))).toBe(true)
+    expect(isIncompleteUtf8Sequence(iconv.encode('中文', 'gbk'))).toBe(false)
+    expect(isIncompleteUtf8Sequence(Buffer.from('ascii only'))).toBe(false)
   })
 })
 

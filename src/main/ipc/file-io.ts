@@ -125,6 +125,39 @@ const tryUtf16ByZeroBytes = (buf: Buffer): { content: string; encoding: string }
   return null
 }
 
+/** 文件以合法 UTF-8 开头但在末尾截断多字节序列时，不能再猜成 GBK。 */
+export const isIncompleteUtf8Sequence = (buf: Buffer): boolean => {
+  let index = 0
+  while (index < buf.length) {
+    const byte = buf[index]!
+    if (byte <= 0x7f) {
+      index += 1
+      continue
+    }
+    let needed = 0
+    if (byte >= 0xc2 && byte <= 0xdf) needed = 1
+    else if (byte >= 0xe0 && byte <= 0xef) needed = 2
+    else if (byte >= 0xf0 && byte <= 0xf4) needed = 3
+    else return false
+    if (index + needed >= buf.length) return true
+    for (let offset = 1; offset <= needed; offset += 1) {
+      const next = buf[index + offset]!
+      if (next < 0x80 || next > 0xbf) return false
+    }
+    index += 1 + needed
+  }
+  return false
+}
+
+const tryDecodeGbk = (buf: Buffer): string | null => {
+  if (isIncompleteUtf8Sequence(buf)) return null
+  const content = iconv.decode(buf, 'gbk')
+  if (content.includes('\u0000') || content.includes('\uFFFD')) return null
+  const roundTrip = iconv.encode(content, 'gbk')
+  if (!Buffer.from(roundTrip).equals(buf)) return null
+  return content
+}
+
 export const readTextAutoEncoding = async (
   filePath: string,
 ): Promise<{ content: string; encoding: string }> => {
@@ -162,12 +195,11 @@ export const readTextAutoEncoding = async (
     }
     return { content, encoding: 'UTF-8' }
   } catch {
-    const content = new TextDecoder('gbk').decode(buf)
-    if (content.includes('\u0000')) {
-      const zero = tryUtf16ByZeroBytes(buf)
-      if (zero) return zero
-    }
-    return { content, encoding: 'GBK' }
+    const zero = tryUtf16ByZeroBytes(buf)
+    if (zero) return zero
+    const gbk = tryDecodeGbk(buf)
+    if (gbk !== null) return { content: gbk, encoding: 'GBK' }
+    throw new UnsupportedEncodingError('无法识别文件编码，请先转为 UTF-8')
   }
 }
 
