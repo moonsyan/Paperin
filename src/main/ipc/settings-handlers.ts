@@ -57,12 +57,18 @@ export const registerSettingsHandlers = (): void => {
 
   ipcMain.handle(
     CHANNELS.SETTINGS_UPSERT_DRAFT,
-    async (_event, args: { id: string; content: string }) => {
+    async (_event, args: { id: string; content: string; baselineSha256?: string }) => {
       if (!args || typeof args.id !== 'string' || !args.id || args.id.length > 512 || typeof args.content !== 'string') {
         return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
       }
+      if (
+        args.baselineSha256 !== undefined
+        && (typeof args.baselineSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(args.baselineSha256))
+      ) {
+        return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
+      }
       try {
-        await upsertDraft(args.id, args.content)
+        await upsertDraft(args.id, args.content, args.baselineSha256)
         return { ok: true }
       } catch (error) {
         if (error instanceof SettingsStoreError) {

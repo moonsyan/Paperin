@@ -146,7 +146,7 @@ export interface DesktopAPI {
     setCustomCss(value: { name: string; content: string } | null): Promise<{ ok: boolean; error?: { code: string; message?: string } }>
     /** 写入导出模板 CSS（HTML/PDF 导出用；校验同上；null = 移除恢复默认样式） */
     setExportCss(value: { name: string; content: string } | null): Promise<{ ok: boolean; error?: { code: string; message?: string } }>
-    upsertDraft(id: string, content: string): Promise<{ ok: boolean; error?: { code: string; message?: string } }>
+    upsertDraft(id: string, content: string, baselineSha256?: string): Promise<{ ok: boolean; error?: { code: string; message?: string } }>
     deleteDraft(id: string): Promise<{ ok: boolean; error?: { code: string; message?: string } }>
   }
   history: {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { MutableRefObject } from 'react'
-import { deleteDraft, saveDraft as persistDraft } from '../lib/drafts'
+import { deleteDraft, saveDraft as persistDraft, sha256Text } from '../lib/drafts'
 
 export interface PendingDraft {
   id: string
@@ -13,6 +13,8 @@ interface UseDraftPersistenceOptions {
   ready: boolean
   /** E4：切换标签冲刷草稿时读取编辑器实时内容，避免 200ms 防抖窗口内内容滞后 */
   getLiveContent?: (id: string) => string
+  /** 起草时的已保存正文。恢复时用它的哈希判断磁盘有没有被外部改过。 */
+  getBaseline?: (id: string) => string | undefined
   /**
    * 禁用草稿持久化（fresh 窗口）：草稿经 settings-store 共享，fresh 窗口
    * 写入/删除草稿会覆盖或误删主窗口同一文件的未保存内容（两个窗口对同一
@@ -30,6 +32,7 @@ export function useDraftPersistence({
   content,
   ready,
   getLiveContent,
+  getBaseline,
   enabled = true,
 }: UseDraftPersistenceOptions): {
   clearDraft: (id: string) => Promise<void>
@@ -42,6 +45,8 @@ export function useDraftPersistence({
   /** E5：已显式清除草稿的 id（关闭标签、丢弃修改等），
    *  防抖定时器与切换冲刷都要跳过，避免草稿被"复活" */
   const clearedDraftsRef = useRef<Set<string>>(new Set())
+  const getBaselineRef = useRef(getBaseline)
+  getBaselineRef.current = getBaseline
 
   const clearDraft = useCallback(async (id: string) => {
     if (!enabled) return
@@ -55,7 +60,9 @@ export function useDraftPersistence({
 
   const saveDraft = useCallback(async (id: string, draftContent: string) => {
     if (!enabled) return
-    await persistDraft(id, draftContent)
+    const baseline = getBaselineRef.current?.(id)
+    const baselineSha256 = baseline === undefined ? undefined : await sha256Text(baseline)
+    await persistDraft(id, draftContent, baselineSha256)
   }, [enabled])
 
   const flushPendingDraft = useCallback(() => {

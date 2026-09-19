@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
+import { shouldApplyDraftOverDisk } from '../../lib/drafts'
 import type { DraftMap } from '../../lib/drafts'
 import type { OpenFile } from '../../components/Sidebar'
 import { DEMO_FILES, DEFAULT_FILE_ID } from '../../data/demo-files'
@@ -124,20 +125,20 @@ export function useDocumentRestore({
       const baseline =
         id in restoredContents ? restoredContents[id] : INITIAL_CONTENTS[id]
       if (baseline === undefined || d.content === baseline) continue
-      // B6：恢复草稿前重新 stat 磁盘文件；若读取后又被外部修改，
-      // 则丢弃草稿以磁盘最新内容为准，避免旧草稿覆盖新修改
       const fl = restoredFiles.find((x) => x.id === id)
       if (fl?.path) {
         const st = await window.desktopAPI.document.stat(fl.path)
         if (isCancelled()) return
-        if (st.ok && st.data) {
-          // 磁盘 mtime 比草稿保存时刻还新 = 草稿保存后文件被外部修改：
-          // 草稿是旧内容，恢复会覆盖外部新修改——丢弃草稿以磁盘为准
-          //（保存成功后草稿会被清除，正常残留草稿的 savedAt 必然晚于
-          //  最后保存 mtime；只有崩溃残留或外部修改才会触发此分支）
-          if (typeof d.savedAt === 'number' && st.data.modifiedTime > d.savedAt) continue
-          if (Math.abs(st.data.modifiedTime - (restoredMtimes[id] ?? 0)) > 3000) continue
-        }
+        const diskMtime = st.ok && st.data ? st.data.modifiedTime : undefined
+        if (!await shouldApplyDraftOverDisk({
+          draftContent: d.content,
+          diskContent: baseline,
+          baselineSha256: d.baselineSha256,
+          savedAt: d.savedAt,
+          diskMtime,
+          readMtime: restoredMtimes[id],
+        })) continue
+        if (isCancelled()) return
       }
       baselineById[id] = baseline
       restoredContents[id] = d.content

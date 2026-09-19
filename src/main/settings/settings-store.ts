@@ -235,12 +235,14 @@ export function setSetting(key: string, value: unknown): Promise<void> {
  * 原子写入一篇草稿。草稿字典只在主进程队列中读取和更新，
  * 防止多个渲染进程持有旧副本并相互覆盖。
  */
-export function upsertDraft(id: string, content: string): Promise<void> {
+export function upsertDraft(id: string, content: string, baselineSha256?: string): Promise<void> {
   const task = writeQueue.then(async () => {
     await applySettingUpdate('drafts', (current) => {
       const drafts: Record<string, unknown> =
         current && typeof current === 'object' ? { ...current } : {}
-      drafts[id] = { content, savedAt: Date.now() }
+      drafts[id] = baselineSha256
+        ? { content, savedAt: Date.now(), baselineSha256 }
+        : { content, savedAt: Date.now() }
       return drafts
     })
   })

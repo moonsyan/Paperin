@@ -57,6 +57,7 @@ export function useDocumentSession({
     activeFileId,
     activeFileIdRef,
     contentsRef,
+    initialOrSavedRef,
     openFiles,
     openFilesRef,
     setOpenFiles,
@@ -99,6 +100,7 @@ export function useDocumentSession({
     ready: settingsReady,
     // E4：切换标签冲刷草稿时读编辑器实时内容，避免 200ms 防抖窗口内内容滞后
     getLiveContent: liveContentOf,
+    getBaseline: (id) => initialOrSavedRef.current[id],
     // fresh 窗口禁用草稿：草稿经 settings-store 与主窗口共享，
     // fresh 窗口写/删会覆盖或误删主窗口同一文件的未保存内容
     enabled: !FRESH_MODE,

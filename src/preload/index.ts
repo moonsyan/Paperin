@@ -244,8 +244,8 @@ const desktopAPI = {
     /** 写入导出模板 CSS（HTML/PDF 导出追加在默认样式之后；校验同上） */
     setExportCss: (value: { name: string; content: string } | null) =>
       ipcRenderer.invoke(CHANNELS.SETTINGS_SET_EXPORT_CSS, value),
-    upsertDraft: (id: string, content: string) =>
-      ipcRenderer.invoke(CHANNELS.SETTINGS_UPSERT_DRAFT, { id, content }),
+    upsertDraft: (id: string, content: string, baselineSha256?: string) =>
+      ipcRenderer.invoke(CHANNELS.SETTINGS_UPSERT_DRAFT, { id, content, baselineSha256 }),
     deleteDraft: (id: string) => ipcRenderer.invoke(CHANNELS.SETTINGS_DELETE_DRAFT, id),
   },
 
