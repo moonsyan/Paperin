@@ -1,4 +1,4 @@
-import { lstat, mkdtemp, mkdir, rm, symlink, writeFile } from 'fs/promises'
+import { lstat, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -71,5 +71,48 @@ describe('解析后的信任根边界', () => {
     trustDirectory(workspace)
 
     await expect(isPathTrustedAfterResolvingLinks(link)).resolves.toBe(false)
+  })
+})
+
+describe('对话框导出目标身份', () => {
+  it('写盘前核对另存为选定目标的真实路径', async () => {
+    const { writeIfDialogTargetStillAuthorized } = await import('./trusted-paths')
+    const directory = await createTemporaryDirectory('paperin-dialog-write-')
+    const target = join(directory, 'export.pdf')
+    await writeFile(target, 'old')
+
+    const written = await writeIfDialogTargetStillAuthorized(target, async (path) => {
+      await writeFile(path, 'new')
+    })
+    expect(written).toBe('written')
+    expect(await readFile(target, 'utf-8')).toBe('new')
+  })
+
+  it('目标在授权后被换成根外链接时拒绝写入', async () => {
+    const { createSaveAsWriteTargetAuthorizer, writeIfDialogTargetStillAuthorized } = await import('./trusted-paths')
+    const directory = await createTemporaryDirectory('paperin-dialog-swap-')
+    const outside = await createTemporaryDirectory('paperin-dialog-outside-')
+    const target = join(directory, 'export.pdf')
+    const privateFile = join(outside, 'private.pdf')
+    await writeFile(target, 'chosen')
+    await writeFile(privateFile, 'secret')
+    const authorizer = await createSaveAsWriteTargetAuthorizer(target)
+    expect(authorizer).toBeTypeOf('function')
+
+    await rm(target)
+    let linkCreated = true
+    try {
+      await symlink(privateFile, target, 'file')
+      linkCreated = (await lstat(target)).isSymbolicLink()
+    } catch {
+      linkCreated = false
+    }
+    if (!linkCreated) return
+
+    const written = await writeIfDialogTargetStillAuthorized(target, async (path) => {
+      await writeFile(path, 'hijacked')
+    }, authorizer)
+    expect(written).toBe('invalid-path')
+    expect(await readFile(privateFile, 'utf-8')).toBe('secret')
   })
 })

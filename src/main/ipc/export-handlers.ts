@@ -5,7 +5,7 @@ import { mkdir, rename, rm, stat, unlink, writeFile } from 'fs/promises'
 import { extname, join } from 'path'
 import { CHANNELS } from '../../shared/ipc/channels'
 import { MAX_DOCUMENT_FILE_SIZE } from './file-io'
-import { isPathTrusted, trustDirectory } from '../trusted-paths'
+import { createSaveAsWriteTargetAuthorizer, isPathTrusted, trustDirectory, writeIfDialogTargetStillAuthorized } from '../trusted-paths'
 
 const execFileAsync = promisify(execFile)
 
@@ -78,6 +78,10 @@ export const registerExportHandlers = (): void => {
       }
       if (save.canceled || !save.filePath) {
         return { ok: false, error: { code: 'CANCELLED' } }
+      }
+      const isPdfTargetAuthorized = await createSaveAsWriteTargetAuthorizer(save.filePath)
+      if (!isPdfTargetAuthorized) {
+        return { ok: false, error: { code: 'INVALID_PATH' } }
       }
 
       // 隐藏窗口加载文档 HTML，等待渲染完成后打印。
@@ -152,7 +156,16 @@ export const registerExportHandlers = (): void => {
             ? `<div style="${headerFooterStyle}text-align:center;"><span class="pageNumber"></span> / <span class="totalPages"></span></div>`
             : '',
         })
-        await writeFile(save.filePath, pdf)
+        const pdfWritten = await writeIfDialogTargetStillAuthorized(
+          save.filePath,
+          async (target) => {
+            await writeFile(target, pdf)
+          },
+          isPdfTargetAuthorized,
+        )
+        if (pdfWritten === 'invalid-path') {
+          return { ok: false, error: { code: 'INVALID_PATH' } }
+        }
         return { ok: true, data: { path: save.filePath } }
       } catch (error) {
         return { ok: false, error: { code: 'PDF_ERROR', message: String(error) } }
@@ -218,6 +231,10 @@ export const registerExportHandlers = (): void => {
       if (save.canceled || !save.filePath) {
         return { ok: false, error: { code: 'CANCELLED' } }
       }
+      const isPandocTargetAuthorized = await createSaveAsWriteTargetAuthorizer(save.filePath)
+      if (!isPandocTargetAuthorized) {
+        return { ok: false, error: { code: 'INVALID_PATH' } }
+      }
 
       // 扩展名 → pandoc 输出格式
       const fmtMap: Record<string, string> = {
@@ -236,20 +253,20 @@ export const registerExportHandlers = (): void => {
       )
       try {
         await writeFile(tmpIn, markdown, 'utf-8')
-        // L4：60s 超时——大文档或 hung 的 pandoc 进程不能无限阻塞 IPC
-        await execFileAsync(
-          'pandoc',
-          [
-            '-f',
-            'markdown',
-            '-t',
-            fmt,
-            tmpIn,
-            '-o',
-            save.filePath,
-          ],
-          { timeout: 60_000 },
+        const pandocWritten = await writeIfDialogTargetStillAuthorized(
+          save.filePath,
+          async (target) => {
+            await execFileAsync(
+              'pandoc',
+              ['-f', 'markdown', '-t', fmt, tmpIn, '-o', target],
+              { timeout: 60_000 },
+            )
+          },
+          isPandocTargetAuthorized,
         )
+        if (pandocWritten === 'invalid-path') {
+          return { ok: false, error: { code: 'INVALID_PATH' } }
+        }
         return { ok: true, data: { path: save.filePath } }
       } catch (err) {
         return { ok: false, error: { code: 'PANDOC_ERROR', message: String(err) } }

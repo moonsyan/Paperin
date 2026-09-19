@@ -2,6 +2,7 @@ import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { writeFile } from 'fs/promises'
 import { deflateRawSync } from 'zlib'
 import { CHANNELS } from '../../shared/ipc/channels'
+import { writeIfDialogTargetStillAuthorized } from '../trusted-paths'
 
 /* ==================== 零依赖 DOCX 导出：OOXML ZIP 打包与写盘 ====================
  *
@@ -197,7 +198,12 @@ export const registerDocxExportHandler = (): void => {
         }
 
         const zip = buildZip(entries)
-        await writeFile(result.filePath, zip)
+        const written = await writeIfDialogTargetStillAuthorized(result.filePath, async (target) => {
+          await writeFile(target, zip)
+        })
+        if (written === 'invalid-path') {
+          return { ok: false, error: { code: 'INVALID_PATH' } }
+        }
         return { ok: true, data: { path: result.filePath } }
       } catch (error) {
         return { ok: false, error: { code: 'IO_ERROR', message: String(error) } }

@@ -230,6 +230,22 @@ export const createSaveAsWriteTargetAuthorizer = async (
   }
 }
 
+/**
+ * 对话框选定目标后、真正写盘前再核对真实身份。打印 PDF 等耗时操作期间
+ * 目标可能被换成链接，不能只用对话框返回的逻辑路径。
+ */
+export const writeIfDialogTargetStillAuthorized = async (
+  filePath: string,
+  write: (target: string) => Promise<void>,
+  existingAuthorizer?: ((target: string) => Promise<boolean>) | null,
+): Promise<'written' | 'invalid-path'> => {
+  const isTargetAuthorized = existingAuthorizer ?? await createSaveAsWriteTargetAuthorizer(filePath)
+  if (!isTargetAuthorized) return 'invalid-path'
+  if (!await isTargetAuthorized(filePath)) return 'invalid-path'
+  await write(filePath)
+  return 'written'
+}
+
 /** 文件级保存白名单全量（供跨启动信任持久化） */
 export function getTrustedFiles(): string[] {
   return Array.from(trustedFiles.keys())
