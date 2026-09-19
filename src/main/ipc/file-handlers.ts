@@ -1,5 +1,5 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
-import { readFile, stat } from 'fs/promises'
+import { lstat, stat } from 'fs/promises'
 import { basename, dirname } from 'path'
 import iconv from 'iconv-lite'
 import { CHANNELS } from '../../shared/ipc/channels'
@@ -183,17 +183,17 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
     try {
       const filePath = result.filePaths[0]
       // 选 CSS 只读取这一份内容用于主题/导出预览，不能把所在目录变成信任根。
-      const fileStat = await stat(filePath)
-      if (!fileStat.isFile()) {
+      // stat 会跟随链接，必须先看 lstat，避免对话框返回后路径被换成别的文件。
+      const linkStat = await lstat(filePath)
+      if (linkStat.isSymbolicLink() || !linkStat.isFile()) {
         return { ok: false, error: { code: 'IO_ERROR', message: '选择的不是普通文件' } }
       }
-      // 必须在 readFile 前检查，避免误选超大文件造成内存峰值。
-      if (fileStat.size > MAX_CSS_FILE_SIZE) {
+      if (linkStat.size > MAX_CSS_FILE_SIZE) {
         return { ok: false, error: { code: 'TOO_LARGE', message: 'CSS 文件过大（>1MB）' } }
       }
-      const content = await readFile(filePath, 'utf-8')
-      // 读取期间文件可能被替换，再次校验避免超限内容进入渲染进程。
-      if (Buffer.byteLength(content, 'utf-8') > MAX_CSS_FILE_SIZE) {
+      const bytes = await readRegularFileBuffer(filePath)
+      const content = bytes.toString('utf-8')
+      if (bytes.length > MAX_CSS_FILE_SIZE) {
         return { ok: false, error: { code: 'TOO_LARGE', message: 'CSS 文件过大（>1MB）' } }
       }
       return {

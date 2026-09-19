@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterAll } from 'vitest'
 import { ipcMain, dialog, BrowserWindow } from 'electron'
-import { mkdtemp, rm, writeFile } from 'fs/promises'
+import { mkdtemp, readFile, rm, symlink, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { CHANNELS } from '../../shared/ipc/channels'
@@ -67,5 +67,24 @@ describe('FILE_PICK_CSS 授权范围', () => {
 
     const read = await getHandler(CHANNELS.FILE_READ)({ sender: { id: 1 } }, sibling)
     expect(read).toMatchObject({ ok: false, error: { code: 'NOT_AUTHORIZED' } })
+  })
+
+  it('所选路径是符号链接时不读出链接目标', async () => {
+    const cssPath = join(tempDir, 'theme.css')
+    const secret = join(tempDir, 'secret.css')
+    await writeFile(secret, 'body{color:secret}', 'utf-8')
+    try {
+      await symlink(secret, cssPath, 'file')
+    } catch {
+      return
+    }
+    vi.mocked(dialog.showOpenDialog).mockResolvedValue({
+      canceled: false,
+      filePaths: [cssPath],
+    })
+    const picked = await getHandler(CHANNELS.FILE_PICK_CSS)({ sender: { id: 1 } })
+    expect(picked.ok).toBe(false)
+    expect(picked.data?.content).toBeUndefined()
+    await expect(readFile(secret, 'utf-8')).resolves.toBe('body{color:secret}')
   })
 })
