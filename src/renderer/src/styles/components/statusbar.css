@@ -37,6 +37,7 @@
   transition: background 200ms;
 }
 .st-dot.unsaved { background: #F5BF4F; }
+.st-dot.saving { background: var(--accent); }
 .st-dot.unpersisted { background: var(--text-3); }
 
 /* 选中字数提示 */

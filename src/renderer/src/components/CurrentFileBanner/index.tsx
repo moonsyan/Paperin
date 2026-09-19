@@ -1,7 +1,7 @@
 import type { JSX } from 'react'
 import { displayPath } from '../../lib/path-display'
 import { documentSaveStatusLabel } from '../../lib/document-save-status'
-import type { DocumentStorageKind } from '../../lib/document-save-status'
+import type { DocumentSaveActivity, DocumentStorageKind } from '../../lib/document-save-status'
 
 export type CurrentFileSource = 'workspace' | 'external'
 
@@ -13,6 +13,7 @@ export interface CurrentFileBannerProps {
   source: CurrentFileSource
   dirty: boolean
   storageKind?: DocumentStorageKind
+  saveActivity?: DocumentSaveActivity
 }
 
 /**
@@ -32,10 +33,18 @@ export function CurrentFileBanner({
   source,
   dirty,
   storageKind = path ? 'disk' : 'unnamed',
+  saveActivity = 'idle',
 }: CurrentFileBannerProps): JSX.Element {
   const sourceLabel = storageKind === 'demo' ? '示例' : storageKind === 'unnamed' ? '未命名文档' : source === 'workspace' ? '知识库文件' : '外部文件'
-  const statusLabel = documentSaveStatusLabel(storageKind, dirty)
+  const statusLabel = documentSaveStatusLabel(storageKind, dirty, saveActivity)
   const pathLabel = displayPath(path, workspacePath, source)
+  const statusTone = saveActivity === 'saving'
+    ? 'is-saving'
+    : saveActivity !== 'idle' || dirty
+      ? 'is-dirty'
+      : storageKind === 'disk'
+        ? 'is-saved'
+        : 'is-unpersisted'
 
   return (
     <div
@@ -46,12 +55,13 @@ export function CurrentFileBanner({
       data-source={source}
       data-dirty={dirty ? 'true' : 'false'}
       data-storage-kind={storageKind}
+      data-save-activity={saveActivity}
       title={`${workspaceName ?? '本地工作区'} · ${sourceLabel} · ${pathLabel} · ${statusLabel}`}
     >
       <span className="current-file-banner-marker" aria-hidden="true" />
       <span className="current-file-banner-source">{sourceLabel}</span>
       <span className="current-file-banner-path" title={pathLabel}>{pathLabel}</span>
-      <span className={`current-file-banner-status ${dirty ? 'is-dirty' : storageKind === 'disk' ? 'is-saved' : 'is-unpersisted'}`}>
+      <span className={`current-file-banner-status ${statusTone}`}>
         <span className="current-file-banner-status-dot" aria-hidden="true" />
         {statusLabel}
       </span>

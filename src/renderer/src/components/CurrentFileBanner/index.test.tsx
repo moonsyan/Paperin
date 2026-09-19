@@ -57,4 +57,18 @@ describe('CurrentFileBanner', () => {
     rerender(<CurrentFileBanner title="欢迎使用.md" source="workspace" storageKind="demo" dirty />)
     expect(screen.getByText('示例 · 有未保存修改')).toBeTruthy()
   })
+
+  it('保存中文案优先于已保存', () => {
+    render(
+      <CurrentFileBanner
+        title="设计记录"
+        path="D:/Notes/design.md"
+        source="workspace"
+        dirty={false}
+        saveActivity="saving"
+      />,
+    )
+    expect(screen.getByText('正在保存…')).toBeTruthy()
+    expect(screen.getByRole('status').getAttribute('data-save-activity')).toBe('saving')
+  })
 })

@@ -143,7 +143,7 @@ export function useDocumentSession({
 
   /* ==================== 手动保存流程 ==================== */
 
-  const { handleSave, handleSaveAs, saveBeforeClose } = useDocumentSaving({
+  const { handleSave, handleSaveAs, saveBeforeClose, saveActivity } = useDocumentSaving({
     state: documentState,
     editorRef,
     saveQueueApi,
@@ -281,6 +281,7 @@ export function useDocumentSession({
     activeFile: documentState.activeFile,
     activeContent,
     saved: documentState.saved,
+    saveActivity,
     // 会话状态 setter（供工作区文件操作等相邻域就地迁移记录）
     setOpenFiles: documentState.setOpenFiles,
     setContents: documentState.setContents,

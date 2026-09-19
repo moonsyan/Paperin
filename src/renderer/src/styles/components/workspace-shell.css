@@ -74,7 +74,8 @@
   white-space: nowrap;
 }
 
-.current-file-banner-status.is-dirty { color: var(--accent); }
+.current-file-banner-status.is-dirty,
+.current-file-banner-status.is-saving { color: var(--accent); }
 .current-file-banner-status-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 
 /* 窄窗口：只留来源标记，路径交给标签页与侧栏 */

@@ -10,4 +10,11 @@ describe('documentSaveStatusLabel', () => {
     expect(documentSaveStatusLabel('unnamed', false)).toBe('尚未保存到磁盘')
     expect(documentSaveStatusLabel('unnamed', true)).toContain('有修改')
   })
+
+  it('保存中和失败分支优先于已保存文案', () => {
+    expect(documentSaveStatusLabel('disk', false, 'saving')).toBe('正在保存…')
+    expect(documentSaveStatusLabel('disk', true, 'conflict')).toBe('文件已被其他程序修改')
+    expect(documentSaveStatusLabel('disk', true, 'encoding')).toBe('当前编码无法保存这些字符')
+    expect(documentSaveStatusLabel('unnamed', true, 'failed')).toBe('保存失败，编辑内容仍保留')
+  })
 })

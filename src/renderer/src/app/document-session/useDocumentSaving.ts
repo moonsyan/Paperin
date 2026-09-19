@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MutableRefObject, RefObject } from 'react'
 import { toStoredImages } from '../../lib/image-path'
 import { useDocumentCloseSaving } from './useDocumentCloseSaving'
@@ -9,6 +9,8 @@ import type { DocumentSaveQueueApi } from './useDocumentSaveQueue'
 import type { EditorHandle } from '../../components/Editor'
 import { shouldPreferCachedDocumentSnapshot } from './large-document-save'
 import { ensureFreshSnapshot } from './ensure-snapshot'
+import { resolveSaveReceipt } from './save-receipt'
+import type { DocumentSaveActivity } from '../../lib/document-save-status'
 
 export interface UseDocumentSavingOptions {
   state: DocumentState
@@ -34,6 +36,7 @@ export interface DocumentSavingApi {
   handleSave: () => Promise<void>
   handleSaveAs: () => Promise<void>
   saveBeforeClose: (id: string) => Promise<boolean>
+  saveActivity: DocumentSaveActivity
 }
 
 /** 手动保存流程：保存 / 另存为 / 关闭前保存与未保存状态上报。
@@ -81,10 +84,23 @@ export function useDocumentSaving({
     mounted.current = true
     return () => { mounted.current = false }
   }, [])
+  const saveEpoch = useRef(0)
+  const [saveNotice, setSaveNotice] = useState<{ fileId: string; activity: DocumentSaveActivity } | null>(null)
+  const saveActivity: DocumentSaveActivity = saveNotice?.fileId === activeFileId ? saveNotice.activity : 'idle'
+  const beginSave = useCallback((fileId: string): number => {
+    const epoch = ++saveEpoch.current
+    setSaveNotice({ fileId, activity: 'saving' })
+    return epoch
+  }, [])
+  const finishSave = useCallback((fileId: string, epoch: number, activity: DocumentSaveActivity) => {
+    if (saveEpoch.current !== epoch) return
+    setSaveNotice(activity === 'idle' || activity === 'saving' ? null : { fileId, activity })
+  }, [])
 
   const handleSaveAs = useCallback(async () => {
     if (!window.desktopAPI) return
     const oldId = activeFileId
+    const epoch = beginSave(oldId)
     const targetSession = activeSessionRef.current
     const targetEditor = editorRef.current
     const targetPath = openFilesRef.current.find((file) => file.id === oldId)?.path
@@ -102,6 +118,7 @@ export function useDocumentSaving({
         isTargetCurrent,
       }, snapshotSettleTimeoutMs)
       if (!outcome.settled) {
+        finishSave(oldId, epoch, 'idle')
         if (mounted.current) {
           setToast(
             outcome.reason === 'target-changed'
@@ -120,12 +137,14 @@ export function useDocumentSaving({
     }
     const result = await window.desktopAPI.document.saveAs(content)
     if (!isTargetCurrent()) {
+      finishSave(oldId, epoch, 'idle')
       if (mounted.current && result.ok && result.data) {
         setToast('另存为已完成，但文档已切换，未替换当前标签')
       }
       return
     }
     if (!result.ok || !result.data) {
+      finishSave(oldId, epoch, result.error?.code === 'CANCELLED' ? 'idle' : 'failed')
       if (result.error?.code !== 'CANCELLED') {
         setToast('另存为失败，请检查目标文件权限或磁盘空间')
       }
@@ -151,6 +170,9 @@ export function useDocumentSaving({
       ? INITIAL_OR_SAVED.current[newId] ?? ''
       : ''
     const modifiedTime = result.data.modifiedTime || Date.now()
+    const latestContent = contentsRef.current[oldId]
+    const hasLatePendingInput = editorRef.current?.hasPendingChanges() ?? false
+    const receipt = resolveSaveReceipt(content, latestContent, hasLatePendingInput)
 
     // 文件身份以磁盘路径为准。另存为后若仍沿用 untitled-/旧路径 ID，
     // 从工作区再次打开同一文件会生成重复标签，重命名和移动也无法命中它。
@@ -183,15 +205,19 @@ export function useDocumentSaving({
     })()
     // 另存为会改变文件 ID，必须立即同步镜像，避免编辑器回调写入旧 ID。
     openFilesRef.current = nextOpenFiles
+    const nextContents = { ...contentsRef.current, [newId]: receipt.content }
+    if (newId !== oldId) delete nextContents[oldId]
+    if (retainUnsavedTarget) nextContents[retainedTargetId] = retainedTargetContent
+    contentsRef.current = nextContents
     setOpenFiles(nextOpenFiles)
     setContents((prev) => {
-      const next = { ...prev, [newId]: content }
+      const next = { ...prev, [newId]: receipt.content }
       if (newId !== oldId) delete next[oldId]
       if (retainUnsavedTarget) next[retainedTargetId] = retainedTargetContent
       return next
     })
     setSavedMap((prev) => {
-      const next = { ...prev, [newId]: true }
+      const next = { ...prev, [newId]: receipt.saved }
       if (newId !== oldId) delete next[oldId]
       if (retainUnsavedTarget) next[retainedTargetId] = false
       return next
@@ -215,17 +241,19 @@ export function useDocumentSaving({
     // M7：另存为改变文档目录后，编辑器内 mdimg 仍按旧目录解析；
     // 按新目录重新迁移并重渲染，否则下一键保存就把旧目录绝对路径写进新文件
     if (newId !== oldId) {
-      replaceEditorContent(newId, content, 'update')
+      replaceEditorContent(newId, receipt.content, 'update')
     }
     void clearDraft(oldId)
-    if (newId !== oldId) void clearDraft(newId)
+    if (newId !== oldId && receipt.saved) void clearDraft(newId)
+    if (!receipt.saved) void saveDraft(newId, receipt.content).catch(() => {})
+    finishSave(newId, epoch, 'idle')
     if (retainUnsavedTarget) {
       void saveDraft(retainedTargetId, retainedTargetContent).catch(() => {})
       setToast('已覆盖目标文件，原未保存内容已保留为副本')
       return
     }
     if (targetAlreadyOpen) setToast('已覆盖并切换到已打开的同名文件')
-  }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, activeSessionRef, clearDraft, contents, contentsRef, dirOfFile, draftPendingRef, editorRef, mounted, openFilesRef, recordHistory, recordRecent, replaceEditorContent, saveDraft, savedMap, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, setToast, snapshotSettleTimeoutMs])
+  }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, activeSessionRef, beginSave, clearDraft, contents, contentsRef, dirOfFile, draftPendingRef, editorRef, finishSave, mounted, openFilesRef, recordHistory, recordRecent, replaceEditorContent, saveDraft, savedMap, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, setToast, snapshotSettleTimeoutMs])
 
   const handleSave = useCallback(async () => {
     const file = openFiles.find((f) => f.id === activeFileId)
@@ -275,6 +303,7 @@ export function useDocumentSaving({
 
     // 有磁盘路径：直接保存（带外部冲突检测）
     if (file.path && window.desktopAPI) {
+      const epoch = beginSave(activeFileId)
       const doSave = (withCheck: boolean) =>
         saveWithEncodingFallback(
           file.path!,
@@ -294,31 +323,45 @@ export function useDocumentSaving({
           const overwrite = window.confirm(
             '该文件已被其他程序修改，仍然要覆盖保存吗？\n\n选择"取消"可保留当前编辑内容，稍后另存为。',
           )
-          if (!overwrite) return
+          if (!overwrite) {
+            finishSave(activeFileId, epoch, 'conflict')
+            return
+          }
           result = await doSave(false)
         }
       }
       if (result.ok && result.data) {
         const currentFile = openFilesRef.current.find((openFile) => openFile.id === activeFileId)
-        if (!currentFile) return
+        if (!currentFile) {
+          finishSave(activeFileId, epoch, 'idle')
+          return
+        }
         // mtime 与保存基线只能属于发起请求时的路径。重命名或移动已将
         // 同一标签指向新文件时，旧路径回执不能把新路径误标为已保存。
         if (currentFile.path !== file.path) {
+          finishSave(activeFileId, epoch, 'idle')
           setToast('文件路径已变更，未将旧保存结果套用到当前标签')
           return
         }
         INITIAL_OR_SAVED.current[activeFileId] = content
         // 磁盘回执只确认已提交的快照。若 IPC 等待期间编辑器又收到尚未
         // markdownUpdated 落账的输入，缓存仍可能恰好相等，也必须保留 dirty。
-        const hasLatePendingInput = activeFileIdRef.current === activeFileId
+        const sessionStillCurrent = activeFileIdRef.current === activeFileId
           && activeSessionRef.current === targetSession
-          && (editorRef.current?.hasPendingChanges() ?? false)
-        const isCurrentContent = contentsRef.current[activeFileId] === content && !hasLatePendingInput
-        setSavedMap((prev) => ({ ...prev, [activeFileId]: isCurrentContent }))
+        const receipt = resolveSaveReceipt(
+          content,
+          contentsRef.current[activeFileId],
+          sessionStillCurrent && (editorRef.current?.hasPendingChanges() ?? false),
+        )
+        setSavedMap((prev) => ({ ...prev, [activeFileId]: receipt.saved }))
         setFileMtime((prev) => ({ ...prev, [activeFileId]: result.data!.modifiedTime }))
-        if (isCurrentContent) void clearDraft(activeFileId)
+        if (receipt.saved) void clearDraft(activeFileId)
         recordHistory(file.path)
-      } else if (result.error?.code !== 'ENCODING_LOSS') {
+        finishSave(activeFileId, epoch, 'idle')
+      } else if (result.error?.code === 'ENCODING_LOSS') {
+        finishSave(activeFileId, epoch, 'encoding')
+      } else {
+        finishSave(activeFileId, epoch, 'failed')
         setToast(
           result.error?.code === 'NOT_FOUND'
             ? '原文件已不存在，请使用另存为保存当前内容'
@@ -331,7 +374,7 @@ export function useDocumentSaving({
     }
     // 无路径：另存为
     await handleSaveAs()
-  }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, activeSessionRef, contents, contentsRef, dirOfFile, editorRef, fileMtime, openFiles, openFilesRef, resolveSelfConflict, recordHistory, saveWithEncodingFallback, handleSaveAs, clearDraft, setContents, setFileMtime, setSavedMap, setToast, snapshotSettleTimeoutMs])
+  }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, activeSessionRef, beginSave, contents, contentsRef, dirOfFile, editorRef, fileMtime, finishSave, openFiles, openFilesRef, resolveSelfConflict, recordHistory, saveWithEncodingFallback, handleSaveAs, clearDraft, setContents, setFileMtime, setSavedMap, setToast, snapshotSettleTimeoutMs])
 
   const saveBeforeClose = useDocumentCloseSaving({
     state, editorRef, saveQueueApi, liveContentOf, recordRecent, setToast, snapshotSettleTimeoutMs,
@@ -342,5 +385,5 @@ export function useDocumentSaving({
     window.desktopAPI?.window.setUnsaved(hasUnsaved)
   }, [hasUnsaved])
 
-  return { handleSave, handleSaveAs, saveBeforeClose }
+  return { handleSave, handleSaveAs, saveBeforeClose, saveActivity }
 }

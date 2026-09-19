@@ -129,6 +129,31 @@ describe('StatusBar', () => {
     expect(onGoalChange).toHaveBeenCalledTimes(1)
   })
 
+  it('保存中和失败状态优先于已保存文案', () => {
+    const { rerender } = render(<StatusBar saved wordCount={0} lineCount={1} readTime={0} saveActivity="saving" />)
+    expect(screen.getByText('正在保存…')).toBeTruthy()
+    rerender(<StatusBar saved={false} wordCount={0} lineCount={1} readTime={0} saveActivity="failed" />)
+    expect(screen.getByText('保存失败，编辑内容仍保留')).toBeTruthy()
+  })
+
+  it('输入法组合态中的 Escape 不关闭字数目标', () => {
+    render(
+      <StatusBar
+        saved
+        wordCount={0}
+        lineCount={1}
+        readTime={0}
+        goalWords={null}
+        goalPercent={null}
+        onGoalChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByText('设置目标'))
+    const input = screen.getByLabelText('本文档目标字数')
+    fireEvent.keyDown(input, { key: 'Escape', isComposing: true })
+    expect(screen.getByLabelText('本文档目标字数')).toBeTruthy()
+  })
+
   it('“跟随全局”移除本文档覆盖', () => {
     const onGoalChange = vi.fn()
     render(

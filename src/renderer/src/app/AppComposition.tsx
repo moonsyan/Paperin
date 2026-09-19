@@ -117,7 +117,7 @@ export function AppComposition(): JSX.Element {
     handleNew, handleOpen, handleOpenFolder, handleReorderTabs, handleSave,
     handleSaveAs, handleSelectDemoFile, handleSelectWorkspaceFile,
     handleTogglePinnedTab, INITIAL_OR_SAVED, liveContentOf, openFiles,
-    openFilesRef, replaceEditorContent, restoreFromSessionData, saved, savedMap,
+    openFilesRef, replaceEditorContent, restoreFromSessionData, saved, savedMap, saveActivity,
     setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime,
     setOpenFiles, setSavedMap, switchFile, saveWithEncodingFallback,
   } = useDocumentSession({
@@ -326,7 +326,7 @@ export function AppComposition(): JSX.Element {
         onTogglePinnedTab={handleTogglePinnedTab} onReorderTabs={handleReorderTabs}
         graphTabOpen={graphTabOpen} graphTabActive={graphTabActive}
         onActivateGraphTab={() => setGraphTabActive(true)} onCloseGraphTab={closeGraphView}
-        filePath={activeFile?.path} fileSource={currentFileSource} fileDirty={!saved}
+        filePath={activeFile?.path} fileSource={currentFileSource} fileDirty={!saved} fileSaveActivity={saveActivity}
         fileStorageKind={storageKind}
       />
 
@@ -376,7 +376,7 @@ export function AppComposition(): JSX.Element {
       </WorkspaceShell>
 
       <StatusBar
-        saved={saved} storageKind={storageKind}
+        saved={saved} storageKind={storageKind} saveActivity={saveActivity}
         wordCount={wordCount} lineCount={lineCount} readTime={readTime}
         cursorLine={cursorPos.line} cursorCol={cursorPos.col} currentHeading={cursorPos.heading}
         modifiedTime={fileMtime[activeFileId]} selectedChars={cursorPos.selected}

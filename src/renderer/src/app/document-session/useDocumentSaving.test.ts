@@ -241,8 +241,10 @@ describe('useDocumentSaving 大文档快照契约（T05）', () => {
     await saving
 
     const newId = 'file-D:/notes/saved.md'
-    const updateContents = vi.mocked(setContents).mock.calls.at(-1)?.[0]
-    const updateSavedMap = vi.mocked(setSavedMap).mock.calls.at(-1)?.[0]
+    const contentCalls = vi.mocked(setContents).mock.calls
+    const savedCalls = vi.mocked(setSavedMap).mock.calls
+    const updateContents = contentCalls[contentCalls.length - 1]?.[0]
+    const updateSavedMap = savedCalls[savedCalls.length - 1]?.[0]
     expect(typeof updateContents === 'function' && updateContents({ 'file-1': BIG })[newId]).toBe(newerContent)
     expect(typeof updateSavedMap === 'function' && updateSavedMap({ 'file-1': false })[newId]).toBe(false)
   })
