@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { version } from '../../../../../package.json'
 import type { ShortcutMap } from '../../data/shortcuts'
 import { isImeComposing } from '../../lib/keyboard'
@@ -35,6 +35,7 @@ const SHORTCUT_GROUPS: { title: string; items: [string, string, string?][] }[] =
       ['Ctrl+N', '新建文档', 'new'],
       ['Ctrl+O', '打开文件', 'open'],
       ['Ctrl+Shift+O', '打开文件夹', 'openFolder'],
+      ['Ctrl+P', '快速打开（文件跳转）', 'commandPalette'],
       ['Ctrl+S', '保存', 'save'],
       ['Ctrl+Shift+S', '另存为', 'saveAs'],
       ['Ctrl+W', '关闭标签页', 'closeTab'],
@@ -193,25 +194,47 @@ function levelOf(words: number): number {
  * 帮助弹窗：快捷键一览 / Markdown 语法 / 关于
  */
 export function HelpDialog({ view, onClose, stats, shortcuts }: HelpDialogProps): JSX.Element | null {
-  // Esc 关闭
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!view) return
+    closeButtonRef.current?.focus()
+  }, [view])
+
   useEffect(() => {
     if (!view) return
     const handler = (e: KeyboardEvent) => {
       if (isImeComposing(e)) return
-      if (e.key === 'Escape') onClose()
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      e.stopPropagation()
+      onClose()
     }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    window.addEventListener('keydown', handler, true)
+    return () => window.removeEventListener('keydown', handler, true)
   }, [view, onClose])
 
   if (!view) return null
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog help-dialog" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="dialog help-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="help-dialog-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="help-header">
-          <span className="help-title">{TITLES[view]}</span>
-          <button type="button" className="dialog-close" onClick={onClose} aria-label="关闭" title="关闭">
+          <span id="help-dialog-title" className="help-title">{TITLES[view]}</span>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            className="dialog-close"
+            onClick={onClose}
+            aria-label="关闭"
+            title="关闭"
+          >
             <svg viewBox="0 0 24 24">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
