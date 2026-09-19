@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 import { isMermaidErrorSvg, mermaidFailureKind, mermaidStatusText, sanitizeMermaidSource, sanitizeMermaidSvg } from './mermaid-source'
 
@@ -33,5 +34,16 @@ describe('mermaid 失败说明', () => {
     expect(cleaned).not.toContain('onload')
     expect(cleaned).not.toContain('alert')
     expect(sanitizeMermaidSvg('<div>不是图</div>')).toBeNull()
+  })
+
+  it('去掉 iframe、无空白事件属性和 javascript/data URL', () => {
+    const cleaned = sanitizeMermaidSvg(
+      '<svg><foreignObject><iframe src="data:text/html,x"></iframe><img src="x"onerror="alert(1)"/></foreignObject><a href="javascript:alert(1)">x</a></svg>',
+    )
+    expect(cleaned).toContain('<svg')
+    expect(cleaned).not.toMatch(/iframe/i)
+    expect(cleaned).not.toMatch(/onerror/i)
+    expect(cleaned).not.toMatch(/javascript:/i)
+    expect(cleaned).not.toMatch(/data:text\/html/i)
   })
 })

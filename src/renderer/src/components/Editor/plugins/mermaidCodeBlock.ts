@@ -231,7 +231,9 @@ class MermaidPreview {
       const safeSvg = sanitizeMermaidSvg(svg)
       if (!safeSvg) throw new Error('图表结果不是可显示的 SVG')
       if (!shouldCommitMermaidRender(activePreviews.has(this), version, this.renderVersion)) return
-      this.preview.innerHTML = safeSvg
+      const parsedSvg = new DOMParser().parseFromString(safeSvg, 'text/html').body.querySelector('svg')
+      if (!parsedSvg) return
+      this.preview.replaceChildren(parsedSvg)
       bindFunctions?.(this.preview)
     }
     this.renderPromise = getMermaid()

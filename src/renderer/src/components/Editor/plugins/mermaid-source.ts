@@ -39,14 +39,64 @@ export function isMermaidErrorSvg(svg: string): boolean {
     || /<[^>]*\saria-roledescription\s*=\s*["']error["']/.test(svg)
 }
 
-/** 只把 Mermaid 画出的 svg 放进页面，并去掉脚本和事件属性。 */
+/** 只把 Mermaid 画出的 svg 放进页面。正则去脚本不够：htmlLabels 能带 iframe / 无空白事件属性。 */
+const MERMAID_FORBIDDEN_TAGS = new Set([
+  'script',
+  'iframe',
+  'object',
+  'embed',
+  'applet',
+  'form',
+  'input',
+  'textarea',
+  'button',
+  'select',
+  'link',
+  'meta',
+  'base',
+  'video',
+  'audio',
+  'frame',
+  'frameset',
+])
+
+const isUnsafeMermaidUrl = (value: string): boolean => {
+  const trimmed = value.trim()
+  if (trimmed === '' || trimmed.startsWith('#')) return false
+  if (/^(?:https?:|mailto:)/i.test(trimmed)) return false
+  if (/^data:image\//i.test(trimmed)) return false
+  return /^(?:javascript:|vbscript:|data:)/i.test(trimmed)
+}
+
+const sanitizeMermaidElement = (element: Element): void => {
+  for (const child of Array.from(element.children)) {
+    if (MERMAID_FORBIDDEN_TAGS.has(child.localName.toLowerCase())) {
+      child.remove()
+      continue
+    }
+    sanitizeMermaidElement(child)
+  }
+  for (const attr of Array.from(element.attributes)) {
+    const name = attr.name.toLowerCase()
+    if (name.startsWith('on') || name === 'srcdoc' || name === 'xlink:href' || name === 'href' || name === 'src') {
+      if (name.startsWith('on') || name === 'srcdoc' || isUnsafeMermaidUrl(attr.value)) {
+        element.removeAttribute(attr.name)
+      }
+    }
+  }
+  if (element.localName.toLowerCase() === 'style') {
+    element.textContent = (element.textContent ?? '').replace(/<\s*\/\s*style/gi, '')
+  }
+}
+
 export function sanitizeMermaidSvg(svg: string): string | null {
   const trimmed = svg.trim().replace(/^<\?xml[\s\S]*?\?>/i, '').trim()
   if (!/^<svg[\s>]/i.test(trimmed) || !/<\/svg>\s*$/i.test(trimmed)) return null
-  return trimmed
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/\s+on[a-z]+\s*=\s*(?:(['"]).*?\1|[^\s>]+)/gi, '')
-    .replace(/javascript:/gi, '')
+  const parsed = new DOMParser().parseFromString(trimmed, 'text/html')
+  const root = parsed.body.querySelector('svg')
+  if (!root) return null
+  sanitizeMermaidElement(root)
+  return root.outerHTML
 }
 
 export function mermaidFailureKind(message: string): 'syntax' | 'temporary' {
