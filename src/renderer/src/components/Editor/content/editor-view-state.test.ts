@@ -104,6 +104,7 @@ describe('applyViewState', () => {
     expect(readState().selection.anchor).toBe(1)
     expect(readState().selection.head).toBe(3)
     expect(scroll?.scrollTop).toBe(180)
+    expect(view.focus).toHaveBeenCalled()
   })
 
   it('越界位置钳到文档范围内且不抛错', () => {

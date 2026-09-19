@@ -1,10 +1,11 @@
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, useRef } from 'react'
 import { CommandPalette } from '../components/CommandPalette'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import type { ActiveConfirmRequest } from '../components/ConfirmDialog'
 import type { HelpView, WritingStats } from '../components/HelpDialog'
 import type { PdfOptions } from '../components/ExportPdfDialog'
 import type { EditorHandle } from '../components/Editor'
+import type { EditorViewState } from '../components/Editor/content/editor-view-state'
 import { buildSourceCitation, citationTargetsCurrentDocument } from '../lib/source-citation'
 import type { PublishOptions, PublishScope } from '../lib/export-bundle'
 
@@ -148,6 +149,8 @@ export interface AppDialogsProps {
   // 确认对话框
   confirmRequest: ActiveConfirmRequest | null
   onConfirmResolve: (id: string) => void
+  /** 记住本次工作区搜索词，供下次打开同一知识库时填回。不保存正文。 */
+  onRememberSearchQuery?: (query: string) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -194,7 +197,15 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
     wsSearchOpen, onCloseWorkspaceSearch, workspaceIndex, onSelectSearchResult,
     activeFileId, editorRef,
     confirmRequest, onConfirmResolve,
+    onRememberSearchQuery,
   } = props
+  const writingPlaceRef = useRef<EditorViewState | null>(null)
+  const searchOpenRef = useRef(false)
+  if (wsSearchOpen && !searchOpenRef.current) {
+    writingPlaceRef.current = editorRef.current?.getViewState() ?? null
+  }
+  if (!wsSearchOpen) writingPlaceRef.current = null
+  searchOpenRef.current = wsSearchOpen
 
   return (
     <>
@@ -316,6 +327,8 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
             onClose={onCloseWorkspaceSearch}
             onSelect={onSelectSearchResult}
             activeFileId={activeFileId}
+            initialQuery={workspaceSettings.editor.lastSearchQuery ?? ''}
+            onQueryCommit={onRememberSearchQuery}
             onInsertCitation={(match) => {
               if (!citationTargetsCurrentDocument(match.capturedFileId, activeFileId)) {
                 setToast('文档已切换，未把旧搜索结果插入当前文章')
@@ -326,8 +339,11 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
                 setToast('编辑器尚未就绪，未插入引用')
                 return
               }
+              const place = writingPlaceRef.current
+              if (place) editor.restoreViewState(place)
               editor.insertMd(buildSourceCitation(match.preview, activeFilePath, match.path))
-              setToast('已插入来源引用，可用撤销收回')
+              onCloseWorkspaceSearch()
+              setToast('已插入来源引用，已回到原位置，可用撤销收回')
             }}
           />
         </Suspense>

@@ -159,7 +159,7 @@ describe('工作区状态校验', () => {
     })).toEqual({
       schemaVersion: 1,
       appearance: { theme: 'inherit' },
-      editor: { attachmentDirectory: null },
+      editor: { attachmentDirectory: null, lastSearchQuery: '' },
     })
   })
 
@@ -167,12 +167,14 @@ describe('工作区状态校验', () => {
     expect(parseWorkspaceSettings({})).toEqual({
       schemaVersion: 1,
       appearance: { theme: 'inherit' },
-      editor: { attachmentDirectory: null },
+      editor: { attachmentDirectory: null, lastSearchQuery: '' },
     })
     expect(parseWorkspaceSettings({ editor: { attachmentDirectory: ' media\\images/ ' } })).toEqual({
       schemaVersion: 1,
       appearance: { theme: 'inherit' },
-      editor: { attachmentDirectory: 'media/images' },
+      editor: { attachmentDirectory: 'media/images', lastSearchQuery: '' },
     })
+    expect(parseWorkspaceSettings({ editor: { lastSearchQuery: ' 研究\n笔记 ' } }).editor.lastSearchQuery).toBe('研究 笔记')
+    expect(parseWorkspaceSettings({}).editor.lastSearchQuery).toBe('')
   })
 })

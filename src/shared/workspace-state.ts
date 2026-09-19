@@ -36,6 +36,8 @@ export interface WorkspaceSettingsState {
   }
   editor: {
     attachmentDirectory: string | null
+    /** 上次工作区搜索词。旧设置缺省为空，不保存正文。 */
+    lastSearchQuery: string
   }
 }
 
@@ -79,7 +81,7 @@ export interface WorkspaceStateBundle {
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettingsState = {
   schemaVersion: WORKSPACE_STATE_SCHEMA_VERSION,
   appearance: { theme: 'inherit' },
-  editor: { attachmentDirectory: null },
+  editor: { attachmentDirectory: null, lastSearchQuery: '' },
 }
 
 export const DEFAULT_WORKSPACE_LAYOUT: WorkspaceLayoutState = {
@@ -145,10 +147,13 @@ export const parseWorkspaceSettings = (value: unknown): WorkspaceSettingsState =
     typeof editor?.attachmentDirectory === 'string'
       ? normalizeWorkspaceRelativePath(editor.attachmentDirectory)
       : null
+  const lastSearchQuery = typeof editor?.lastSearchQuery === 'string'
+    ? editor.lastSearchQuery.replace(/[\r\n\u0000]/g, ' ').trim().slice(0, 256)
+    : ''
   return {
     schemaVersion: WORKSPACE_STATE_SCHEMA_VERSION,
     appearance: { theme },
-    editor: { attachmentDirectory },
+    editor: { attachmentDirectory, lastSearchQuery },
   }
 }
 

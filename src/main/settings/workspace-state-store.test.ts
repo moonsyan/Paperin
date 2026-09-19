@@ -106,7 +106,7 @@ describe('工作区状态存储', () => {
     await Promise.all([
       store.updateSettings(rootPath, async (current) => {
         await new Promise((resolve) => setTimeout(resolve, 20))
-        return { ...current, editor: { attachmentDirectory: 'from-a' } }
+        return { ...current, editor: { ...current.editor, attachmentDirectory: 'from-a' } }
       }),
       store.updateSettings(rootPath, (current) => ({
         ...current,

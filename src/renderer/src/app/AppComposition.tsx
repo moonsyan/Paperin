@@ -415,7 +415,7 @@ export function AppComposition(): JSX.Element {
         onWorkspaceAttachmentDirectoryChange={(value) => {
           const normalized = value?.trim() ? normalizeWorkspaceRelativePath(value) : null
           if (value?.trim() && !normalized) { setToast('附件目录必须是工作区内的相对路径'); return }
-          setWorkspaceSettings((c) => ({ ...c, editor: { attachmentDirectory: normalized } }))
+          setWorkspaceSettings((c) => ({ ...c, editor: { ...c.editor, attachmentDirectory: normalized } }))
         }}
         shortcuts={settings.shortcuts} onShortcutsChange={settings.setShortcuts}
         helpView={helpView} onCloseHelp={closeHelp} writingStats={writingStats}
@@ -434,7 +434,7 @@ export function AppComposition(): JSX.Element {
         activeFilePath={activeFile?.path ?? null} activeFileName={activeFile?.name ?? ''}
         currentContent={liveContentOf(activeFileId)}
         onRestoreVersion={(content) => { setVersionHistoryOpen(false); replaceEditorContent(activeFileId, content, 'update'); setToast('已恢复历史版本到编辑器（未保存），确认后按 Ctrl+S 写入磁盘') }}
-        wsSearchOpen={wsSearchOpen} onCloseWorkspaceSearch={closeWorkspaceSearch} workspaceIndex={workspaceIndex} activeFileId={activeFileId} editorRef={editorRef}
+        wsSearchOpen={wsSearchOpen} onCloseWorkspaceSearch={closeWorkspaceSearch} workspaceIndex={workspaceIndex} activeFileId={activeFileId} editorRef={editorRef} onRememberSearchQuery={(query) => setWorkspaceSettings((current) => ({ ...current, editor: { ...current.editor, lastSearchQuery: query } }))}
         onSelectSearchResult={(path, query, opts) => {
           setWsSearchOpen(false)
           void reveal({ path, search: { query, useRegex: opts?.useRegex, caseSensitive: opts?.caseSensitive } })

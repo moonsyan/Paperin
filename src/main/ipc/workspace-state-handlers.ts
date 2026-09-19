@@ -87,7 +87,7 @@ export const registerWorkspaceStateHandlers = ({
       // 读-改-写整体入队：避免并发窗口的后写者基于旧快照覆盖先写者的其他设置字段
       const next = await workspaceStateStore.updateSettings(rootPath, (current) => ({
         ...current,
-        editor: { attachmentDirectory: directory },
+        editor: { ...current.editor, attachmentDirectory: directory },
       }))
       return { ok: true, data: { directory: next.editor.attachmentDirectory } }
     } catch (error) {

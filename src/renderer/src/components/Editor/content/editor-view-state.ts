@@ -56,6 +56,7 @@ export const applyViewState = (
   } catch {
     // 文档结构变化导致位置不可用时保留默认选区。
   }
+  view.focus()
   restoreScrollTop(container, state.scrollTop)
 }
 
