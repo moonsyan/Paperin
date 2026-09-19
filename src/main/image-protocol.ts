@@ -37,6 +37,20 @@ export function getImageReadDirs(): string[] {
   return Array.from(imageReadDirs.keys())
 }
 
+/** 首次解析后钉住的图片目录真实路径。尚未解析或未登记时返回 null。 */
+export function getPinnedImageDir(directory: string): string | null {
+  if (!directory) return null
+  return imageReadDirs.get(resolve(directory))?.pinnedReal ?? null
+}
+
+/** 启动恢复时写回上次钉住的图片目录，避免重启后第一次读取重新钉到换靶目标。 */
+export function restorePinnedImageDir(directory: string, pinnedReal: string): void {
+  if (!directory || !pinnedReal || !isAbsolute(pinnedReal)) return
+  const entry = imageReadDirs.get(resolve(directory))
+  if (!entry || entry.pinnedReal !== null) return
+  entry.pinnedReal = pinnedReal
+}
+
 /** 路径是否位于任一图片读取白名单目录内（供 mdimg 协议与只读 IPC 使用） */
 export function isImageDirAllowed(filePath: string): boolean {
   const resolved = resolve(filePath)

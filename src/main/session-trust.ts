@@ -11,7 +11,13 @@ import {
   trustDirectory,
   trustFileForSave,
 } from './trusted-paths'
-import { allowImageDirectory, getImageReadDirs, MAX_IMAGE_READ_DIRS } from './image-protocol'
+import {
+  allowImageDirectory,
+  getImageReadDirs,
+  getPinnedImageDir,
+  MAX_IMAGE_READ_DIRS,
+  restorePinnedImageDir,
+} from './image-protocol'
 
 /**
  * 跨启动信任持久化（H：会话预信任伪造）。
@@ -43,6 +49,8 @@ interface TrustSnapshot {
   imageDirs: string[]
   /** 词法工作区根 → 首次解析钉住的真实路径。缺省时按旧快照，第一次访问再钉。 */
   pinnedRoots?: Record<string, string>
+  /** 图片读取白名单目录 → 首次解析钉住的真实路径。 */
+  pinnedImageDirs?: Record<string, string>
 }
 
 const trustFile = (): string => join(app.getPath('userData'), TRUST_FILE_NAME)
@@ -60,7 +68,11 @@ export async function restoreTrustFromDisk(): Promise<boolean> {
         if (typeof pinned === 'string') restorePinnedTrustRoot(w, pinned)
       } },
       { items: snapshot.files, apply: trustFileForSave },
-      { items: snapshot.imageDirs, apply: allowImageDirectory },
+      { items: snapshot.imageDirs, apply: (dir) => {
+        allowImageDirectory(dir)
+        const pinned = snapshot.pinnedImageDirs?.[dir]
+        if (typeof pinned === 'string') restorePinnedImageDir(dir, pinned)
+      } },
     ]
     for (const { items, apply } of lists) {
       if (!Array.isArray(items)) continue
@@ -72,6 +84,24 @@ export async function restoreTrustFromDisk(): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+const collectStoredPins = (
+  paths: string[],
+  currentOf: (path: string) => string | null,
+  previous: unknown,
+): Record<string, string> => {
+  const stored = previous && typeof previous === 'object' && !Array.isArray(previous)
+    ? previous as Record<string, unknown>
+    : null
+  const pins: Record<string, string> = {}
+  for (const path of paths) {
+    const current = currentOf(path)
+    const earlier = stored && typeof stored[path] === 'string' ? stored[path] : null
+    const pinned = current ?? earlier
+    if (pinned) pins[path] = pinned
+  }
+  return pins
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null
@@ -127,18 +157,10 @@ async function persistTrustSnapshot(): Promise<void> {
       files: union(mineFiles, existing?.files).slice(-MAX_PERSISTED_FILES),
       imageDirs: union(mineImageDirs, existing?.imageDirs).slice(-MAX_PERSISTED_IMAGE_DIRS),
     }
-    const previousPins = existing?.pinnedRoots
-    const storedPins = previousPins && typeof previousPins === 'object' && !Array.isArray(previousPins)
-      ? previousPins
-      : null
-    const pinnedRoots: Record<string, string> = {}
-    for (const path of snapshot.workspaces) {
-      const current = getPinnedTrustRoot(path)
-      const previous = storedPins && typeof storedPins[path] === 'string' ? storedPins[path] : null
-      const pinned = current ?? previous
-      if (pinned) pinnedRoots[path] = pinned
-    }
+    const pinnedRoots = collectStoredPins(snapshot.workspaces, getPinnedTrustRoot, existing?.pinnedRoots)
+    const pinnedImageDirs = collectStoredPins(snapshot.imageDirs, getPinnedImageDir, existing?.pinnedImageDirs)
     if (Object.keys(pinnedRoots).length > 0) snapshot.pinnedRoots = pinnedRoots
+    if (Object.keys(pinnedImageDirs).length > 0) snapshot.pinnedImageDirs = pinnedImageDirs
     const tmp = `${file}.${process.pid}-${Date.now()}.tmp`
     await writeFile(tmp, JSON.stringify(snapshot), 'utf-8')
     await rename(tmp, file)
