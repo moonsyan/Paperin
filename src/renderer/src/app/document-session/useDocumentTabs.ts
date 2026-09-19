@@ -37,7 +37,8 @@ export interface UseDocumentTabsOptions {
 export interface DocumentTabsApi {
   discardPreviewTab: (fileId: string) => void
   switchFile: (id: string) => Promise<void>
-  handleNew: () => void
+  leaveCurrentDocument: () => Promise<boolean>
+  handleNew: () => Promise<void>
   handleSelectDemoFile: (id: string, pinned?: boolean) => void
   handleOpen: () => Promise<void>
   handleSelectWorkspaceFile: (path: string, pinned?: boolean) => Promise<boolean>
@@ -77,6 +78,22 @@ export function useDocumentTabs(options: UseDocumentTabsOptions): DocumentTabsAp
     captureWorkspaceDocumentView,
     setToast, workspacePathRef, workspaceDocumentsRef,
   })
+  const leaveCurrentDocument = useCallback(async (): Promise<boolean> => {
+    const leavingId = activeFileIdRef.current
+    const settled = await waitForLeaveSnapshot({
+      hasPendingChanges: () => editorRef.current?.hasPendingChanges() ?? false,
+      readSnapshot: () => contentsRef.current[leavingId] ?? '',
+      isTargetCurrent: () => activeFileIdRef.current === leavingId,
+    }, contentsRef.current[leavingId] ?? '')
+    if (!settled) {
+      if (activeFileIdRef.current === leavingId) {
+        setToast('大文档仍有未落账输入，已取消操作')
+      }
+      return false
+    }
+    flushEditorContent()
+    return true
+  }, [activeFileIdRef, contentsRef, editorRef, flushEditorContent, setToast])
   const switchGenerationRef = useRef(0)
   const switchFile = useCallback(async (id: string) => {
     if (id === activeFileIdRef.current) return
@@ -111,14 +128,15 @@ export function useDocumentTabs(options: UseDocumentTabsOptions): DocumentTabsAp
     focusEditorSoon()
   }, [activeFileIdRef, captureWorkspaceDocumentView, contentsRef, editorRef, flushEditorContent, focusEditorSoon, latestWorkspaceSelectionRef, openFilesRef, replaceEditorContent, restoreWorkspaceDocumentView, setActiveFileId, setDocTitle, setToast, titleRef])
   const opening = useDocumentTabOpening({
-    state, titleRef, flushEditorContent, replaceEditorContent, pinPreviewTab,
-    discardPreviewTab: closing.discardPreviewTab, switchFile, focusEditorSoon, recordRecent, setToast,
+    state, titleRef, replaceEditorContent, pinPreviewTab,
+    discardPreviewTab: closing.discardPreviewTab, switchFile, leaveCurrentDocument, focusEditorSoon, recordRecent, setToast,
     latestWorkspaceSelectionRef, openingWorkspaceFilesRef,
   })
   return {
     ...closing,
     ...opening,
     switchFile,
+    leaveCurrentDocument,
     captureWorkspaceDocumentView,
     restoreWorkspaceDocumentView,
   }

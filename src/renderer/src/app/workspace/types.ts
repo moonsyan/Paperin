@@ -35,6 +35,8 @@ export interface DocumentWorkspaceBridge {
   ): Promise<SaveResult>
   /** 把防抖窗口内的编辑器输入立即落账到 contents（移动文件夹前必须调用） */
   flushEditorContent(): void
+  /** 离开当前大文档前等待 listener 快照；超时返回 false，调用方应中止结构变更 */
+  leaveCurrentDocument(): Promise<boolean>
   /** 替换编辑器内容并同步会话状态（移动后按新目录重渲染相对图片路径） */
   replaceEditorContent(
     fileId: string,

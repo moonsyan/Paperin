@@ -30,7 +30,7 @@ export interface UseWorkspaceFolderOpenOptions {
   captureWorkspaceDocumentView: (fileId: string) => void
   restoreWorkspaceDocumentView: (fileId: string, tries?: number) => void
   switchFile: (id: string) => void | Promise<void>
-  handleNew: () => void
+  handleNew: () => void | Promise<void>
   replaceEditorContent: (
     fileId: string,
     content: string,

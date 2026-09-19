@@ -6,7 +6,7 @@ import type { EditorHandle } from '../components/Editor'
 import { useDocumentCreationAndCollection } from './useDocumentCreationAndCollection'
 
 describe('useDocumentCreationAndCollection', () => {
-  it('模板写入新建会话并保持未保存，不写入原文档', () => {
+  it('模板写入新建会话并保持未保存，不写入原文档', async () => {
     const { result } = renderHook(() => {
       const activeFileIdRef = useRef('old')
       const editorRef = useRef<EditorHandle>(null)
@@ -18,7 +18,7 @@ describe('useDocumentCreationAndCollection', () => {
       })
       return { ...actions, contents, savedMap }
     })
-    act(() => result.current.handleNewFromTemplate('readme'))
+    await act(async () => { await result.current.handleNewFromTemplate('readme') })
     expect(result.current.contents.old).toBe('原文')
     expect(result.current.savedMap.old).toBe(true)
     expect(result.current.contents['untitled-1']).toContain('# ')

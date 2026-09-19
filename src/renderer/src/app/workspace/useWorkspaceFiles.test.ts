@@ -76,6 +76,7 @@ function createFixture(overrides: Overrides = {}): Fixture {
       async () => ({ ok: true as const, data: { modifiedTime: 111 } }),
     ),
     flushEditorContent: vi.fn(),
+    leaveCurrentDocument: vi.fn(async () => true),
     replaceEditorContent: vi.fn(),
     switchFile: vi.fn(),
     clearDraft: vi.fn(async () => {}),
@@ -162,6 +163,15 @@ describe('useWorkspaceFiles', () => {
     const ops = renderOps(fx)
     await act(() => ops.handleRenameFile('/w/a.md', 'b.md'))
     expect(fx.setToast).toHaveBeenCalledWith(expect.stringContaining('已被外部修改，已中止重命名'))
+    expect(fx.ipcFns.renameFile).not.toHaveBeenCalled()
+  })
+
+  it('活动文档快照未落账时中止重命名', async () => {
+    const fx = createFixture({ session: { leaveCurrentDocument: vi.fn(async () => false) } })
+    const ops = renderOps(fx)
+    await act(async () => {
+      await expect(ops.handleRenameFile('/w/a.md', 'r.md')).resolves.toBe(false)
+    })
     expect(fx.ipcFns.renameFile).not.toHaveBeenCalled()
   })
 

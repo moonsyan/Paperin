@@ -9,11 +9,11 @@ import type { DocumentState } from './useDocumentState'
 interface DocumentTabOpeningOptions {
   state: DocumentState
   titleRef: RefObject<HTMLDivElement>
-  flushEditorContent: () => void
   replaceEditorContent: (fileId: string, content: string, mode?: 'initialize' | 'update' | 'ignore') => void
   pinPreviewTab: (fileId: string) => void
   discardPreviewTab: (fileId: string) => void
   switchFile: (id: string) => void | Promise<void>
+  leaveCurrentDocument: () => Promise<boolean>
   focusEditorSoon: () => void
   recordRecent: (path: string, name: string) => void
   setToast: (message: string) => void
@@ -22,7 +22,7 @@ interface DocumentTabOpeningOptions {
 }
 
 export interface DocumentTabOpeningApi {
-  handleNew: () => void
+  handleNew: () => Promise<void>
   handleSelectDemoFile: (id: string, pinned?: boolean) => void
   handleOpen: () => Promise<void>
   handleSelectWorkspaceFile: (path: string, pinned?: boolean) => Promise<boolean>
@@ -32,11 +32,11 @@ export interface DocumentTabOpeningApi {
 export function useDocumentTabOpening({
   state,
   titleRef,
-  flushEditorContent,
   replaceEditorContent,
   pinPreviewTab,
   discardPreviewTab,
   switchFile,
+  leaveCurrentDocument,
   focusEditorSoon,
   recordRecent,
   setToast,
@@ -72,28 +72,30 @@ export function useDocumentTabOpening({
     focusEditorSoon()
   }, [activeFileIdRef, contentsRef, focusEditorSoon, initialOrSaved, openFilesRef, replaceEditorContent, setActiveFileId, setContents, setDocTitle, setOpenFiles, setSavedMap])
 
-  const handleNew = useCallback(() => {
+  const handleNew = useCallback(async () => {
     latestWorkspaceSelectionRef.current = ''
-    flushEditorContent()
+    if (!await leaveCurrentDocument()) return
     titleRef.current?.blur()
     const file = nextUntitled()
     activateNewFile(file, '')
-  }, [activateNewFile, flushEditorContent, latestWorkspaceSelectionRef, titleRef])
+  }, [activateNewFile, latestWorkspaceSelectionRef, leaveCurrentDocument, titleRef])
 
   const handleSelectDemoFile = useCallback((id: string, pinned = true) => {
-    const demoFile = DEMO_FILES[id]
-    if (!demoFile) return
-    const existed = openFiles.find((file) => file.id === id)
-    if (existed) {
-      if (pinned && existed.preview) pinPreviewTab(id)
-      switchFile(id)
-      return
-    }
-    if (!pinned) discardPreviewTab(id)
-    flushEditorContent()
-    const file = { id, name: demoFile.name, preview: !pinned }
-    activateNewFile(file, demoFile.content)
-  }, [activateNewFile, discardPreviewTab, flushEditorContent, openFiles, pinPreviewTab, switchFile])
+    void (async () => {
+      const demoFile = DEMO_FILES[id]
+      if (!demoFile) return
+      const existed = openFiles.find((file) => file.id === id)
+      if (existed) {
+        if (pinned && existed.preview) pinPreviewTab(id)
+        await switchFile(id)
+        return
+      }
+      if (!pinned) discardPreviewTab(id)
+      if (!await leaveCurrentDocument()) return
+      const file = { id, name: demoFile.name, preview: !pinned }
+      activateNewFile(file, demoFile.content)
+    })()
+  }, [activateNewFile, discardPreviewTab, leaveCurrentDocument, openFiles, pinPreviewTab, switchFile])
 
   const handleOpen = useCallback(async () => {
     if (!window.desktopAPI) return
@@ -107,8 +109,6 @@ export function useDocumentTabOpening({
       }
       return
     }
-    flushEditorContent()
-    titleRef.current?.blur()
     const { path, name, content } = result.data
     if (result.data.encoding) setEncodingMap((previous) => ({ ...previous, [`file-${path}`]: result.data!.encoding! }))
     const existed = openFiles.find((file) => sameFilePath(file.path, path))
@@ -117,11 +117,13 @@ export function useDocumentTabOpening({
       await switchFile(existed.id)
       return
     }
+    if (!await leaveCurrentDocument()) return
+    titleRef.current?.blur()
     const file = { id: `file-${path}`, name, path }
     activateNewFile(file, content)
     setFileMtime((previous) => ({ ...previous, [file.id]: result.data!.modifiedTime }))
     recordRecent(path, name)
-  }, [activateNewFile, flushEditorContent, latestWorkspaceSelectionRef, openFiles, pinPreviewTab, recordRecent, setEncodingMap, setFileMtime, setToast, switchFile, titleRef])
+  }, [activateNewFile, latestWorkspaceSelectionRef, leaveCurrentDocument, openFiles, pinPreviewTab, recordRecent, setEncodingMap, setFileMtime, setToast, switchFile, titleRef])
 
   const handleSelectWorkspaceFile = useCallback(async (path: string, pinned = true): Promise<boolean> => {
     latestWorkspaceSelectionRef.current = path
@@ -149,7 +151,7 @@ export function useDocumentTabOpening({
       pinned,
       state,
       titleRef,
-      flushEditorContent,
+      leaveCurrentDocument,
       replaceEditorContent,
       discardPreviewTab,
       pinPreviewTab,
@@ -166,14 +168,14 @@ export function useDocumentTabOpening({
         openingWorkspaceFilesRef.current.delete(path)
       }
     }
-  }, [discardPreviewTab, flushEditorContent, focusEditorSoon, latestWorkspaceSelectionRef, openFilesRef, openingWorkspaceFilesRef, pinPreviewTab, recordRecent, replaceEditorContent, setToast, state, switchFile, titleRef])
+  }, [discardPreviewTab, focusEditorSoon, latestWorkspaceSelectionRef, leaveCurrentDocument, openFilesRef, openingWorkspaceFilesRef, pinPreviewTab, recordRecent, replaceEditorContent, setToast, state, switchFile, titleRef])
 
   return { handleNew, handleSelectDemoFile, handleOpen, handleSelectWorkspaceFile }
 }
 
 interface OpenWorkspaceFileOptions extends Pick<DocumentTabOpeningOptions,
-  'titleRef' | 'flushEditorContent' | 'replaceEditorContent' | 'discardPreviewTab' | 'pinPreviewTab' |
-  'focusEditorSoon' | 'recordRecent' | 'setToast' | 'latestWorkspaceSelectionRef'> {
+  'titleRef' | 'replaceEditorContent' | 'discardPreviewTab' | 'pinPreviewTab' |
+  'focusEditorSoon' | 'recordRecent' | 'setToast' | 'latestWorkspaceSelectionRef' | 'leaveCurrentDocument'> {
   path: string
   id: string
   pinned: boolean
@@ -186,7 +188,7 @@ const openWorkspaceFile = async ({
   pinned,
   state,
   titleRef,
-  flushEditorContent,
+  leaveCurrentDocument,
   replaceEditorContent,
   discardPreviewTab,
   pinPreviewTab,
@@ -209,7 +211,7 @@ const openWorkspaceFile = async ({
     return isLatest
   }
   if (isLatest) {
-    flushEditorContent()
+    if (!await leaveCurrentDocument()) return false
     titleRef.current?.blur()
   }
   const { name, content } = result.data

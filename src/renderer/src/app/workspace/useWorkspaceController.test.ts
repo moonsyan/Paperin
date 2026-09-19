@@ -77,6 +77,7 @@ function createFixture(overrides: Overrides = {}): Fixture {
       async () => ({ ok: true as const, data: { modifiedTime: 111 } }),
     ),
     flushEditorContent: vi.fn(),
+    leaveCurrentDocument: vi.fn(async () => true),
     replaceEditorContent: vi.fn(),
     switchFile: vi.fn(),
     clearDraft: vi.fn(async () => {}),

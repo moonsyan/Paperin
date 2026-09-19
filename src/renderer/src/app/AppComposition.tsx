@@ -112,7 +112,7 @@ export function AppComposition(): JSX.Element {
   const {
     activeContent, activeFile, activeFileId, activeFileIdRef, clearDraft,
     contents, contentsRef, dirOfFile, docTitle, draftPendingRef, documents,
-    encodingMap, fileMtime, fileMtimeRef, flushEditorContent, focusEditorSoon,
+    encodingMap, fileMtime, fileMtimeRef, flushEditorContent, leaveCurrentDocument, focusEditorSoon,
     handleCloseAllTabs, handleCloseOtherTabs, handleCloseTab, handleEditorChange,
     handleNew, handleOpen, handleOpenFolder, handleReorderTabs, handleSave,
     handleSaveAs, handleSelectDemoFile, handleSelectWorkspaceFile,
@@ -223,11 +223,11 @@ export function AppComposition(): JSX.Element {
   // === 工作区文件操作 ===
   const workspaceFilesBridge = useMemo<DocumentWorkspaceBridge>(() => ({
     openDocumentPath: openWorkspaceFile, openFolder: handleOpenFolder,
-    liveContentOf, saveWithEncodingFallback, flushEditorContent, replaceEditorContent,
+    liveContentOf, saveWithEncodingFallback, flushEditorContent, leaveCurrentDocument, replaceEditorContent,
     switchFile, clearDraft, openFilesRef, contentsRef, activeFileIdRef, fileMtimeRef,
     initialOrSavedRef: INITIAL_OR_SAVED, draftPendingRef, setOpenFiles, setContents,
     setSavedMap, setFileMtime, setEncodingMap, setActiveFileId, setDocTitle,
-  }), [INITIAL_OR_SAVED, activeFileIdRef, clearDraft, contentsRef, draftPendingRef, fileMtimeRef, flushEditorContent, handleOpenFolder, openWorkspaceFile, liveContentOf, openFilesRef, replaceEditorContent, saveWithEncodingFallback, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, switchFile])
+  }), [INITIAL_OR_SAVED, activeFileIdRef, clearDraft, contentsRef, draftPendingRef, fileMtimeRef, flushEditorContent, handleOpenFolder, leaveCurrentDocument, openWorkspaceFile, liveContentOf, openFilesRef, replaceEditorContent, saveWithEncodingFallback, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, switchFile])
 
   const { createFile: handleCreateFile, renameFile: handleRenameFile, moveFile: handleMoveFile, deleteFile: handleDeleteFile, openInNewWindow: handleOpenInNewWindow } = useWorkspaceController({
     workspace, openFiles, savedMap, fileMtime, bridge: workspaceFilesBridge, setToast, closeAllTabs: handleCloseAllTabs,

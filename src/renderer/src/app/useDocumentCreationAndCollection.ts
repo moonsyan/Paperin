@@ -10,7 +10,7 @@ import { resolveCollectionEntries } from './resolve-collection-entries'
 interface DocumentCreationAndCollectionOptions {
   activeFileIdRef: MutableRefObject<string>
   editorRef: RefObject<EditorHandle>
-  handleNew: () => void
+  handleNew: () => void | Promise<void>
   setContents: Dispatch<SetStateAction<Record<string, string>>>
   setSavedMap: Dispatch<SetStateAction<Record<string, boolean>>>
   workspaceIndex: WorkspaceIndex | null
@@ -21,13 +21,14 @@ interface DocumentCreationAndCollectionOptions {
 export function useDocumentCreationAndCollection({
   activeFileIdRef, editorRef, handleNew, setContents, setSavedMap, workspaceIndex, documents,
 }: DocumentCreationAndCollectionOptions) {
-  const handleNewFromTemplate = useCallback((template: DocumentTemplate) => {
+  const handleNewFromTemplate = useCallback(async (template: DocumentTemplate) => {
     const content = createDocumentFromTemplate(template, {})
-    handleNew()
+    const previous = activeFileIdRef.current
+    await handleNew()
     const newId = activeFileIdRef.current
-    if (!newId) return
-    setContents((previous) => ({ ...previous, [newId]: content }))
-    setSavedMap((previous) => ({ ...previous, [newId]: false }))
+    if (!newId || newId === previous) return
+    setContents((previousContents) => ({ ...previousContents, [newId]: content }))
+    setSavedMap((previousSaved) => ({ ...previousSaved, [newId]: false }))
     editorRef.current?.replaceContent(content)
   }, [activeFileIdRef, editorRef, handleNew, setContents, setSavedMap])
 

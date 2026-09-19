@@ -301,6 +301,7 @@ export function useDocumentSession({
     handleEditorChange,
     replaceEditorContent,
     flushEditorContent,
+    leaveCurrentDocument: tabs.leaveCurrentDocument,
     liveContentOf,
     dirOfFile,
     // 文件操作

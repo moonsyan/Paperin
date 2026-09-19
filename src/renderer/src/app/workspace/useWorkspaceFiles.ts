@@ -53,6 +53,7 @@ export function useWorkspaceFiles({
     replaceEditorContent,
     switchFile,
     flushEditorContent,
+    leaveCurrentDocument,
     openFilesRef,
     contentsRef,
     activeFileIdRef,
@@ -69,8 +70,11 @@ export function useWorkspaceFiles({
   } = bridge
   const mtimeOf = (fileId: string): number | undefined =>
     fileMtimeRef.current[fileId] ?? fileMtime[fileId]
-  const flushActiveIf = (fileId: string): void => {
-    if (activeFileIdRef.current === fileId) flushEditorContent()
+  const flushActiveIf = async (fileId: string): Promise<boolean> => {
+    if (activeFileIdRef.current !== fileId) return true
+    if (!await leaveCurrentDocument()) return false
+    flushEditorContent()
+    return true
   }
   const needsSave = (fileId: string): boolean =>
     isDocumentDirty(liveContentOf(fileId), initialOrSavedRef.current[fileId] ?? '')
@@ -112,7 +116,7 @@ export function useWorkspaceFiles({
       // 用旧 id 迁移会把记录/内容搬到错误键下，产生重复标签 id 或内容丢失
       const currentRecord = openFilesRef.current.find((f) => sameFilePath(f.path, path))
       const currentId = currentRecord?.id ?? `file-${path}`
-      flushActiveIf(currentId)
+      if (!await flushActiveIf(currentId)) return false
       let pending: string | undefined
       if (needsSave(currentId) && contentsRef.current[currentId] !== undefined) {
         pending = liveContentOf(currentId)
@@ -223,7 +227,7 @@ export function useWorkspaceFiles({
       await refreshWorkspace()
       return true
     },
-    [savedMap, fileMtime, liveContentOf, saveWithEncodingFallback, refreshWorkspace, clearDraft, flushEditorContent, setToast, openFilesRef, contentsRef, initialOrSavedRef, draftPendingRef, activeFileIdRef, fileMtimeRef, setOpenFiles, setContents, setSavedMap, setFileMtime, setEncodingMap, setActiveFileId, setDocTitle],
+    [savedMap, fileMtime, liveContentOf, saveWithEncodingFallback, refreshWorkspace, clearDraft, flushEditorContent, leaveCurrentDocument, setToast, openFilesRef, contentsRef, initialOrSavedRef, draftPendingRef, activeFileIdRef, fileMtimeRef, setOpenFiles, setContents, setSavedMap, setFileMtime, setEncodingMap, setActiveFileId, setDocTitle],
   )
 
   const handleDeleteFile = useCallback(
@@ -233,7 +237,7 @@ export function useWorkspaceFiles({
       // 按归一比较取真实标签 id，否则删除后写回被跳过、标签残留成幽灵
       const delRecord = openFilesRef.current.find((f) => sameFilePath(f.path, path))
       const delId = delRecord?.id ?? `file-${path}`
-      flushActiveIf(delId)
+      if (!await flushActiveIf(delId)) return false
       // 删除前先写回未保存内容，避免编辑丢失（与 rename/move 保持一致）
       if (needsSave(delId)) {
         // interactive：GBK 含不可映射字符时弹降级确认而非误报"保存失败，已取消删除"
@@ -306,7 +310,7 @@ export function useWorkspaceFiles({
       }
       return true
     },
-    [refreshWorkspace, switchFile, clearDraft, savedMap, liveContentOf, fileMtime, saveWithEncodingFallback, flushEditorContent, setToast, openFilesRef, contentsRef, initialOrSavedRef, draftPendingRef, activeFileIdRef, fileMtimeRef, setOpenFiles, setContents, setSavedMap, setFileMtime, setEncodingMap],
+    [refreshWorkspace, switchFile, clearDraft, savedMap, liveContentOf, fileMtime, saveWithEncodingFallback, flushEditorContent, leaveCurrentDocument, setToast, openFilesRef, contentsRef, initialOrSavedRef, draftPendingRef, activeFileIdRef, fileMtimeRef, setOpenFiles, setContents, setSavedMap, setFileMtime, setEncodingMap],
   )
 
   const handleMoveFile = useCallback(
@@ -327,6 +331,7 @@ export function useWorkspaceFiles({
       // 必须在 openFilesRef 迁移之前调用：flush 的守卫按 openFilesRef 判定文件
       // 是否仍存在，迁移后旧 id 已被替换，flush 会静默跳过——末次输入就丢了。
       // 同时保证下方脏文件循环写入的基线取自最新内容（INITIAL_OR_SAVED 与磁盘一致）
+      if (activeIsMoved && !await leaveCurrentDocument()) return false
       if (activeIsMoved) flushEditorContent()
       const dirty = openFiles.filter(
         (f) => f.path && isUnder(f.path) && needsSave(f.id),
@@ -495,7 +500,7 @@ export function useWorkspaceFiles({
       await refreshWorkspace()
       return true
     },
-    [openFiles, savedMap, fileMtime, liveContentOf, saveWithEncodingFallback, refreshWorkspace, clearDraft, replaceEditorContent, flushEditorContent, setToast, openFilesRef, contentsRef, initialOrSavedRef, draftPendingRef, activeFileIdRef, fileMtimeRef, setOpenFiles, setContents, setSavedMap, setFileMtime, setEncodingMap, setActiveFileId],
+    [openFiles, savedMap, fileMtime, liveContentOf, saveWithEncodingFallback, refreshWorkspace, clearDraft, replaceEditorContent, flushEditorContent, leaveCurrentDocument, setToast, openFilesRef, contentsRef, initialOrSavedRef, draftPendingRef, activeFileIdRef, fileMtimeRef, setOpenFiles, setContents, setSavedMap, setFileMtime, setEncodingMap, setActiveFileId],
   )
 
   /** 右键在新窗口打开文件（U7） */
