@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import {
   ensureFreshSnapshot,
+  waitForLeaveSnapshot,
   SNAPSHOT_SETTLE_POLL_MS,
   SNAPSHOT_SETTLE_TIMEOUT_MS,
 } from './ensure-snapshot'
@@ -94,5 +95,41 @@ describe('ensureFreshSnapshot 快照契约', () => {
       settled: false,
       reason: 'target-changed',
     })
+  })
+})
+
+describe('waitForLeaveSnapshot', () => {
+  it('普通文档或已落账的大文档立即放行', async () => {
+    const delay = vi.fn().mockResolvedValue(undefined)
+    await expect(waitForLeaveSnapshot(
+      { hasPendingChanges: () => true, readSnapshot: () => '# 短', delay },
+      '# 短',
+    )).resolves.toBe(true)
+    await expect(waitForLeaveSnapshot(
+      { hasPendingChanges: () => false, readSnapshot: () => 'x'.repeat(1_000_001), delay },
+      'x'.repeat(1_000_001),
+    )).resolves.toBe(true)
+    expect(delay).not.toHaveBeenCalled()
+  })
+
+  it('大文档仍有未落账输入时等到快照，超时则拦住切换', async () => {
+    let pending = true
+    const delay = vi.fn().mockImplementation(async () => {
+      pending = false
+    })
+    await expect(waitForLeaveSnapshot(
+      { hasPendingChanges: () => pending, readSnapshot: () => 'x'.repeat(1_000_001), delay },
+      'x'.repeat(1_000_001),
+    )).resolves.toBe(true)
+
+    await expect(waitForLeaveSnapshot(
+      {
+        hasPendingChanges: () => true,
+        readSnapshot: () => 'x'.repeat(1_000_001),
+        delay: async () => {},
+      },
+      'x'.repeat(1_000_001),
+      0,
+    )).resolves.toBe(false)
   })
 })

@@ -13,7 +13,7 @@ interface DocumentTabOpeningOptions {
   replaceEditorContent: (fileId: string, content: string, mode?: 'initialize' | 'update' | 'ignore') => void
   pinPreviewTab: (fileId: string) => void
   discardPreviewTab: (fileId: string) => void
-  switchFile: (id: string) => void
+  switchFile: (id: string) => void | Promise<void>
   focusEditorSoon: () => void
   recordRecent: (path: string, name: string) => void
   setToast: (message: string) => void
@@ -114,7 +114,7 @@ export function useDocumentTabOpening({
     const existed = openFiles.find((file) => sameFilePath(file.path, path))
     if (existed) {
       if (existed.preview) pinPreviewTab(existed.id)
-      switchFile(existed.id)
+      await switchFile(existed.id)
       return
     }
     const file = { id: `file-${path}`, name, path }
@@ -129,7 +129,7 @@ export function useDocumentTabOpening({
     const existed = openFilesRef.current.find((file) => sameFilePath(file.path, path))
     if (existed) {
       if (pinned && existed.preview) pinPreviewTab(existed.id)
-      switchFile(existed.id)
+      await switchFile(existed.id)
       return true
     }
     if (!window.desktopAPI) return false
@@ -139,7 +139,7 @@ export function useDocumentTabOpening({
       if (opened && pinned) pinPreviewTab(id)
       if (opened && latestWorkspaceSelectionRef.current === path) {
         const nowOpen = openFilesRef.current.find((file) => file.id === id)
-        if (nowOpen) switchFile(id)
+        if (nowOpen) await switchFile(id)
       }
       return opened
     }

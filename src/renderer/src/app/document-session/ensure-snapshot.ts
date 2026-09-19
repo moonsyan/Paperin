@@ -46,6 +46,8 @@ export interface SnapshotOutcome {
   reason?: 'timeout' | 'target-changed'
 }
 
+import { shouldPreferCachedDocumentSnapshot } from './large-document-save'
+
 const defaultDelay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
 /**
@@ -79,4 +81,18 @@ export const ensureFreshSnapshot = async (
     }
   }
   return { content: deps.readSnapshot(), settled: false, reason: 'timeout' }
+}
+
+/**
+ * 离开当前文档前：普通文档或已落账的大文档立即放行；大文档仍有未落账输入时
+ * 等到 listener 快照，超时则拦住切换，避免 replaceEditorContent 冲掉末次按键。
+ */
+export const waitForLeaveSnapshot = async (
+  deps: EnsureSnapshotDeps,
+  cachedContent: string,
+  timeoutMs: number = SNAPSHOT_SETTLE_TIMEOUT_MS,
+): Promise<boolean> => {
+  if (!shouldPreferCachedDocumentSnapshot(cachedContent)) return true
+  const outcome = await ensureFreshSnapshot(deps, timeoutMs)
+  return outcome.settled
 }

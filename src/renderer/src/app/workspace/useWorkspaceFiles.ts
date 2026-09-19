@@ -302,7 +302,7 @@ export function useWorkspaceFiles({
           neighborId && openFilesRef.current.some((f) => f.id === neighborId)
             ? neighborId
             : openFilesRef.current[0]?.id
-        if (target) switchFile(target)
+        if (target) await switchFile(target)
       }
       return true
     },

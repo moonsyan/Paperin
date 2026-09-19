@@ -44,7 +44,7 @@ export interface DocumentWorkspaceBridge {
 
   /* ── 标签切换与草稿 ── */
 
-  switchFile(id: string): void
+  switchFile(id: string): void | Promise<void>
   clearDraft(id: string): Promise<void>
 
   /* ── 会话记录就地迁移（ref 镜像 + React setter） ── */

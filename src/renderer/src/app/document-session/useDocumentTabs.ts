@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import type { MutableRefObject, RefObject } from 'react'
 import type { PendingDraft } from '../../hooks/useDraftPersistence'
 import type { DocumentSaveQueue } from '../../lib/document-save-queue'
@@ -9,6 +9,7 @@ import type { AutoSaveSnapshot } from './types'
 import { useDocumentTabClosing } from './useDocumentTabClosing'
 import { useDocumentTabOpening } from './useDocumentTabOpening'
 import { useWorkspaceDocumentView } from './useWorkspaceDocumentView'
+import { waitForLeaveSnapshot } from './ensure-snapshot'
 
 export interface UseDocumentTabsOptions {
   state: DocumentState
@@ -35,7 +36,7 @@ export interface UseDocumentTabsOptions {
 
 export interface DocumentTabsApi {
   discardPreviewTab: (fileId: string) => void
-  switchFile: (id: string) => void
+  switchFile: (id: string) => Promise<void>
   handleNew: () => void
   handleSelectDemoFile: (id: string, pinned?: boolean) => void
   handleOpen: () => Promise<void>
@@ -76,12 +77,30 @@ export function useDocumentTabs(options: UseDocumentTabsOptions): DocumentTabsAp
     captureWorkspaceDocumentView,
     setToast, workspacePathRef, workspaceDocumentsRef,
   })
-  const switchFile = useCallback((id: string) => {
+  const switchGenerationRef = useRef(0)
+  const switchFile = useCallback(async (id: string) => {
     if (id === activeFileIdRef.current) return
     latestWorkspaceSelectionRef.current = ''
     if (!openFilesRef.current.some((file) => file.id === id)) return
-    captureWorkspaceDocumentView(activeFileIdRef.current)
-    flushEditorContent()
+    const requestId = ++switchGenerationRef.current
+    const leavingId = activeFileIdRef.current
+    captureWorkspaceDocumentView(leavingId)
+    const settled = await waitForLeaveSnapshot({
+      hasPendingChanges: () => editorRef.current?.hasPendingChanges() ?? false,
+      readSnapshot: () => contentsRef.current[leavingId] ?? '',
+      isTargetCurrent: () =>
+        activeFileIdRef.current === leavingId && requestId === switchGenerationRef.current,
+    }, contentsRef.current[leavingId] ?? '')
+    if (requestId !== switchGenerationRef.current) return
+    if (!settled) {
+      if (activeFileIdRef.current === leavingId) {
+        setToast('大文档仍有未落账输入，已取消切换')
+      }
+      return
+    }
+    if (id === activeFileIdRef.current) return
+    if (!openFilesRef.current.some((file) => file.id === id)) return
+    if (activeFileIdRef.current === leavingId) flushEditorContent()
     titleRef.current?.blur()
     activeFileIdRef.current = id
     setActiveFileId(id)
@@ -90,7 +109,7 @@ export function useDocumentTabs(options: UseDocumentTabsOptions): DocumentTabsAp
     replaceEditorContent(id, contentsRef.current[id] ?? '')
     restoreWorkspaceDocumentView(id)
     focusEditorSoon()
-  }, [activeFileIdRef, captureWorkspaceDocumentView, contentsRef, flushEditorContent, focusEditorSoon, latestWorkspaceSelectionRef, openFilesRef, replaceEditorContent, restoreWorkspaceDocumentView, setActiveFileId, setDocTitle, titleRef])
+  }, [activeFileIdRef, captureWorkspaceDocumentView, contentsRef, editorRef, flushEditorContent, focusEditorSoon, latestWorkspaceSelectionRef, openFilesRef, replaceEditorContent, restoreWorkspaceDocumentView, setActiveFileId, setDocTitle, setToast, titleRef])
   const opening = useDocumentTabOpening({
     state, titleRef, flushEditorContent, replaceEditorContent, pinPreviewTab,
     discardPreviewTab: closing.discardPreviewTab, switchFile, focusEditorSoon, recordRecent, setToast,

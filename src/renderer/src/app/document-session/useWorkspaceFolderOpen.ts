@@ -29,7 +29,7 @@ export interface UseWorkspaceFolderOpenOptions {
   setToast: (message: string) => void
   captureWorkspaceDocumentView: (fileId: string) => void
   restoreWorkspaceDocumentView: (fileId: string, tries?: number) => void
-  switchFile: (id: string) => void
+  switchFile: (id: string) => void | Promise<void>
   handleNew: () => void
   replaceEditorContent: (
     fileId: string,
