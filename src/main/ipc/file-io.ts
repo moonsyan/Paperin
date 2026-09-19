@@ -209,17 +209,9 @@ const tryDecodeGbk = (buf: Buffer): string | null => {
   return content
 }
 
-export const readTextAutoEncoding = async (
-  filePath: string,
-  options?: { isTargetAuthorized?: (target: string) => Promise<boolean> },
-): Promise<{ content: string; encoding: string; contentSha256: string }> => {
-  // A crashed in-place desktop save may leave a verified recovery journal.
-  // Recover before any reader (open, index, history) consumes a partial file.
-  // 未授权路径跳过会写盘的恢复，避免索引把 backup 写到信任根外。
-  await recoverInterruptedFileWrite(filePath, {
-    isTargetAuthorized: options?.isTargetAuthorized ?? isPathAuthorizedForReadOrSave,
-  })
-  const buf = await readFile(filePath)
+export const decodeTextBuffer = (
+  buf: Buffer,
+): { content: string; encoding: string; contentSha256: string } => {
   const contentSha256 = sha256Hex(buf)
   if (buf.length >= 4 && buf[0] === 0xff && buf[1] === 0xfe && buf[2] === 0x00 && buf[3] === 0x00) {
     throw new UnsupportedEncodingError('UTF-32LE 编码暂不支持，请先转为 UTF-8')
@@ -257,6 +249,19 @@ export const readTextAutoEncoding = async (
     if (gbk !== null) return { content: gbk, encoding: 'GBK', contentSha256 }
     throw new UnsupportedEncodingError('无法识别文件编码，请先转为 UTF-8')
   }
+}
+
+export const readTextAutoEncoding = async (
+  filePath: string,
+  options?: { isTargetAuthorized?: (target: string) => Promise<boolean> },
+): Promise<{ content: string; encoding: string; contentSha256: string }> => {
+  // A crashed in-place desktop save may leave a verified recovery journal.
+  // Recover before any reader (open, index, history) consumes a partial file.
+  // 未授权路径跳过会写盘的恢复，避免索引把 backup 写到信任根外。
+  await recoverInterruptedFileWrite(filePath, {
+    isTargetAuthorized: options?.isTargetAuthorized ?? isPathAuthorizedForReadOrSave,
+  })
+  return decodeTextBuffer(await readFile(filePath))
 }
 
 export const isTraversableWorkspaceDirectory = async (

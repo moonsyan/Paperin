@@ -1,9 +1,15 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, afterEach } from 'vitest'
+import { mkdtemp, readFile, rm, symlink, writeFile } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
+import { trustDirectory } from '../trusted-paths'
 import {
   MAX_SNAPSHOTS_PER_FILE,
   MAX_SNAPSHOTS_TOTAL_BYTES,
+  listSnapshots,
   parseSnapshotTime,
   planPrune,
+  recordSnapshot,
   snapshotDirName,
 } from './version-store'
 
@@ -53,5 +59,36 @@ describe('planPrune', () => {
     // 超限单条被淘汰后，后续小快照仍按剩余预算保留
     expect(keep.map((m) => m.t)).toEqual([4, 2])
     expect(remove.map((m) => m.t)).toEqual([3])
+  })
+})
+
+const created: string[] = []
+
+afterEach(async () => {
+  await Promise.all(created.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
+})
+
+describe('recordSnapshot', () => {
+  it('符号链接不记入历史，普通文件会记下正文', async () => {
+    const workspace = await mkdtemp(join(tmpdir(), 'paperin-history-src-'))
+    const snapshots = await mkdtemp(join(tmpdir(), 'paperin-history-snap-'))
+    created.push(workspace, snapshots)
+    trustDirectory(workspace)
+    const secret = join(workspace, 'secret.md')
+    const link = join(workspace, 'link.md')
+    const regular = join(workspace, 'note.md')
+    await writeFile(secret, '机密', 'utf-8')
+    await writeFile(regular, '可见正文', 'utf-8')
+    try {
+      await symlink(secret, link, 'file')
+    } catch {
+      return
+    }
+    expect(await recordSnapshot(snapshots, link)).toBe(false)
+    expect(await listSnapshots(snapshots, link)).toEqual([])
+    expect(await recordSnapshot(snapshots, regular)).toBe(true)
+    const metas = await listSnapshots(snapshots, regular)
+    expect(metas).toHaveLength(1)
+    await expect(readFile(join(snapshots, snapshotDirName(regular), `${metas[0]!.t}.md`), 'utf8')).resolves.toBe('可见正文')
   })
 })

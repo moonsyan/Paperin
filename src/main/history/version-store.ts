@@ -1,7 +1,8 @@
 import { createHash } from 'crypto'
-import { mkdir, readFile, readdir, rename, rm, stat, unlink, writeFile } from 'fs/promises'
+import { lstat, mkdir, open, readFile, readdir, rename, rm, stat, unlink, writeFile } from 'fs/promises'
 import { join } from 'path'
-import { readTextAutoEncoding } from '../ipc/file-io'
+import { decodeTextBuffer } from '../ipc/file-io'
+import { isPathAuthorizedForReadOrSave } from '../trusted-paths'
 
 /* ==================== 本地版本快照存储 ==================== */
 
@@ -90,12 +91,36 @@ export async function listSnapshots(root: string, filePath: string): Promise<Sna
  * - 写入后按上限淘汰最旧快照
  * 返回是否实际写入。
  */
+/** 打开句柄后核对 inode，避免授权后路径被换成符号链接再被跟随读取。 */
+const readRegularFileBytes = async (filePath: string): Promise<Buffer | null> => {
+  const linkStat = await lstat(filePath).catch(() => null)
+  if (!linkStat || linkStat.isSymbolicLink() || !linkStat.isFile() || linkStat.size > MAX_SOURCE_FILE_SIZE) {
+    return null
+  }
+  if (!(await isPathAuthorizedForReadOrSave(filePath))) return null
+  const handle = await open(filePath, 'r').catch(() => null)
+  if (!handle) return null
+  try {
+    const opened = await handle.stat()
+    if (
+      !opened.isFile()
+      || opened.isSymbolicLink()
+      || opened.dev !== linkStat.dev
+      || opened.ino !== linkStat.ino
+      || opened.size > MAX_SOURCE_FILE_SIZE
+    ) return null
+    return Buffer.from(await handle.readFile())
+  } finally {
+    await handle.close()
+  }
+}
+
 export async function recordSnapshot(root: string, filePath: string): Promise<boolean> {
-  const st = await stat(filePath).catch(() => null)
-  if (!st || !st.isFile() || st.size > MAX_SOURCE_FILE_SIZE) return false
+  const bytes = await readRegularFileBytes(filePath)
+  if (!bytes) return false
   let content: string
   try {
-    ;({ content } = await readTextAutoEncoding(filePath))
+    ;({ content } = decodeTextBuffer(bytes))
   } catch {
     return false
   }
