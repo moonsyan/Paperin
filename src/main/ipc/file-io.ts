@@ -2,6 +2,7 @@ import { readFile, readdir, lstat } from 'fs/promises'
 import type { Dirent } from 'fs'
 import { join } from 'path'
 import iconv from 'iconv-lite'
+import type { DocumentSaveEncoding } from './document-save-types'
 import { recoverInterruptedFileWrite } from './file-write-recovery'
 export {
   FileWriteRecoveryError,
@@ -73,6 +74,19 @@ export const forgetKnownFileState = (path: string): void => {
 
 /** 单篇 Markdown 文档读取/保存上限，避免误选超大文件拖垮主进程与编辑器 */
 export const MAX_DOCUMENT_FILE_SIZE = 20 * 1024 * 1024
+
+/** 按实际落盘编码计算体积；UTF-16 约为 UTF-8 的两倍，不能用 UTF-8 字节数当上限。 */
+export const encodedDocumentByteLength = (
+  content: string,
+  encoding?: DocumentSaveEncoding,
+): number => {
+  if (encoding === 'UTF-16LE' || encoding === 'UTF-16BE') {
+    return 2 + Buffer.byteLength(content, 'utf16le')
+  }
+  if (encoding === 'UTF-8-BOM') return 3 + Buffer.byteLength(content, 'utf-8')
+  if (encoding === 'GBK') return iconv.encode(content, 'gbk').length
+  return Buffer.byteLength(content, 'utf-8')
+}
 
 /** 导出载荷上限（PDF/HTML 等）：内联 base64 图片后远超原文，放宽到 100MB 仅防失控写出 */
 export const MAX_EXPORT_FILE_SIZE = 100 * 1024 * 1024

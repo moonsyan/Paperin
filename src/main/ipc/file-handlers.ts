@@ -8,6 +8,7 @@ import { schedulePersistTrust } from '../session-trust'
 import { createSaveAsWriteTargetAuthorizer, getWriteTargetAuthorizer, isPathAuthorizedForReadOrSave, trustDirectory, trustFileForSave } from '../trusted-paths'
 import type { DocumentSaveArgs, DocumentSaveEncoding, DocumentSaveResult } from './document-save-types'
 import {
+  encodedDocumentByteLength,
   getKnownFileState,
   MAX_DOCUMENT_FILE_SIZE,
   MAX_EXPORT_FILE_SIZE,
@@ -61,14 +62,15 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
         return { ok: false, error: { code: 'NOT_AUTHORIZED' } }
       }
       const { content, encoding } = await readTextAutoEncoding(filePath)
-      rememberFileState(filePath, { mtimeMs: fileStat.mtimeMs, size: fileStat.size })
+      const afterRead = await stat(filePath)
+      rememberFileState(filePath, { mtimeMs: afterRead.mtimeMs, size: afterRead.size })
       return {
         ok: true,
         data: {
           path: filePath,
           name: filePath.split(/[/\\]/).pop() || 'untitled.md',
           content,
-          modifiedTime: fileStat.mtimeMs,
+          modifiedTime: afterRead.mtimeMs,
           encoding,
         },
       }
@@ -329,7 +331,7 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
         }
         // L6：写入前校验体积，与打开上限保持一致——
         // 渲染端异常（内存溢出回写、循环拼接）不能写出超限文件
-        if (Buffer.byteLength(args.content ?? '', 'utf-8') > MAX_DOCUMENT_FILE_SIZE) {
+        if (encodedDocumentByteLength(args.content ?? '', args.encoding) > MAX_DOCUMENT_FILE_SIZE) {
           return {
             ok: false,
             error: { code: 'TOO_LARGE', message: 'Markdown 文件超过 20MB，无法保存' },

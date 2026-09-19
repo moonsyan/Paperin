@@ -4,9 +4,11 @@ import { join } from 'path'
 import { afterEach, describe, expect, it } from 'vitest'
 import iconv from 'iconv-lite'
 import {
+  encodedDocumentByteLength,
   forgetKnownFileState,
   getKnownFileState,
   isIncompleteUtf8Sequence,
+  MAX_DOCUMENT_FILE_SIZE,
   readTextAutoEncoding,
   rememberFileState,
   UnsupportedEncodingError,
@@ -78,6 +80,15 @@ describe('残缺 UTF-8 探测', () => {
     expect(isIncompleteUtf8Sequence(Buffer.from('中文笔记', 'utf-8').subarray(0, -1))).toBe(true)
     expect(isIncompleteUtf8Sequence(iconv.encode('中文', 'gbk'))).toBe(false)
     expect(isIncompleteUtf8Sequence(Buffer.from('ascii only'))).toBe(false)
+  })
+})
+
+describe('保存体积按落盘编码计算', () => {
+  it('UTF-16 计入 BOM 且约为 UTF-8 的两倍', () => {
+    const content = '中文笔记'
+    expect(encodedDocumentByteLength(content, 'UTF-8')).toBe(Buffer.byteLength(content, 'utf-8'))
+    expect(encodedDocumentByteLength(content, 'UTF-16LE')).toBe(2 + Buffer.byteLength(content, 'utf16le'))
+    expect(encodedDocumentByteLength('x'.repeat(11 * 1024 * 1024), 'UTF-16LE')).toBeGreaterThan(MAX_DOCUMENT_FILE_SIZE)
   })
 })
 
