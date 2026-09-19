@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   FileWriteRecoveryError,
   readTextAutoEncoding,
+  recoverInterruptedFileWrite,
   writeFileAtomically,
   writeFileAtomicallyWithIo,
 } from './file-io'
@@ -36,7 +37,8 @@ describe('可恢复桌面文件写入', () => {
       },
     })).rejects.toBeInstanceOf(FileWriteRecoveryError)
 
-    expect(authorizedTargets).toEqual([filePath])
+    expect(authorizedTargets[0]).toBe(filePath)
+    expect(new Set(authorizedTargets)).toEqual(new Set([filePath]))
     await expect(readFile(filePath, 'utf-8')).resolves.toBe('最后确认版本')
     await expect(readFile(join(directory, '.未授权目标.md.paperin-save-journal'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
     await expect(readFile(join(directory, '.未授权目标.md.paperin-save-backup'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
@@ -185,7 +187,7 @@ describe('可恢复桌面文件写入', () => {
       backupSha256: digest(confirmed),
     }))
 
-    await expect(readTextAutoEncoding(filePath)).resolves.toEqual({ content: confirmed, encoding: 'UTF-8' })
+    await expect(readTextAutoEncoding(filePath, { isTargetAuthorized: async () => true })).resolves.toMatchObject({ content: confirmed, encoding: 'UTF-8' })
     await expect(readFile(join(directory, '.崩溃恢复.md.paperin-save-journal'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
     await expect(readFile(join(directory, '.崩溃恢复.md.paperin-save-backup'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
   })
@@ -206,7 +208,7 @@ describe('可恢复桌面文件写入', () => {
       backupSha256: digest(confirmed),
     }))
 
-    await expect(readTextAutoEncoding(filePath)).resolves.toEqual({ content: unconfirmed, encoding: 'UTF-8' })
+    await expect(readTextAutoEncoding(filePath, { isTargetAuthorized: async () => true })).resolves.toMatchObject({ content: unconfirmed, encoding: 'UTF-8' })
     await expect(readFile(join(directory, '.已写出未提交.md.paperin-save-journal'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
     await expect(readFile(join(directory, '.已写出未提交.md.paperin-save-backup'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
   })
@@ -229,7 +231,7 @@ describe('可恢复桌面文件写入', () => {
         backupSha256: digest(confirmed),
       }))
 
-      await expect(readTextAutoEncoding(filePath)).resolves.toEqual({ content: confirmed, encoding: 'UTF-8' })
+      await expect(readTextAutoEncoding(filePath, { isTargetAuthorized: async () => true })).resolves.toMatchObject({ content: confirmed, encoding: 'UTF-8' })
       await expect(readFile(join(directory, `.${fileName}.paperin-save-journal`), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
       await expect(readFile(join(directory, `.${fileName}.paperin-save-backup`), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
     }
@@ -251,7 +253,7 @@ describe('可恢复桌面文件写入', () => {
       backupSha256: digest(previous),
     }))
 
-    await expect(readTextAutoEncoding(filePath)).resolves.toEqual({ content: confirmed, encoding: 'UTF-8' })
+    await expect(readTextAutoEncoding(filePath, { isTargetAuthorized: async () => true })).resolves.toMatchObject({ content: confirmed, encoding: 'UTF-8' })
     await expect(readFile(join(directory, '.已提交.md.paperin-save-journal'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
     await expect(readFile(join(directory, '.已提交.md.paperin-save-backup'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
   })
@@ -274,7 +276,7 @@ describe('可恢复桌面文件写入', () => {
         backupSha256: digest(previous),
       }))
 
-      await expect(readTextAutoEncoding(filePath)).resolves.toEqual({ content: committed, encoding: 'UTF-8' })
+      await expect(readTextAutoEncoding(filePath, { isTargetAuthorized: async () => true })).resolves.toMatchObject({ content: committed, encoding: 'UTF-8' })
       await expect(readFile(join(directory, `.${fileName}.paperin-save-journal`), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
       await expect(readFile(join(directory, `.${fileName}.paperin-save-backup`), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
     }
@@ -297,7 +299,7 @@ describe('可恢复桌面文件写入', () => {
       backupSha256: digest(previous),
     }))
 
-    await expect(readTextAutoEncoding(filePath)).resolves.toEqual({ content: external, encoding: 'UTF-8' })
+    await expect(readTextAutoEncoding(filePath, { isTargetAuthorized: async () => true })).resolves.toMatchObject({ content: external, encoding: 'UTF-8' })
     await expect(readFile(join(directory, '.外部修改.md.paperin-save-journal'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
     await expect(readFile(join(directory, '.外部修改.md.paperin-save-backup'), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
   })
@@ -321,9 +323,30 @@ describe('可恢复桌面文件写入', () => {
         backupSha256: digest(previous),
       }))
 
-      await expect(readTextAutoEncoding(filePath)).resolves.toEqual({ content: external, encoding: 'UTF-8' })
+      await expect(readTextAutoEncoding(filePath, { isTargetAuthorized: async () => true })).resolves.toMatchObject({ content: external, encoding: 'UTF-8' })
       await expect(readFile(join(directory, `.${fileName}.paperin-save-journal`), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
       await expect(readFile(join(directory, `.${fileName}.paperin-save-backup`), 'utf-8')).rejects.toMatchObject({ code: 'ENOENT' })
     }
+  })
+
+  it('授权函数拒绝时不把 backup 写回目标', async () => {
+    const directory = await createTemporaryDirectory()
+    const filePath = join(directory, '未授权恢复.md')
+    const confirmed = '最后确认版本'
+    const damaged = '损坏的部分内容'
+    const digest = (content: string) => createHash('sha256').update(content).digest('hex')
+    await writeFile(filePath, damaged)
+    await writeFile(join(directory, '.未授权恢复.md.paperin-save-backup'), confirmed)
+    await writeFile(join(directory, '.未授权恢复.md.paperin-save-journal'), JSON.stringify({
+      version: 1,
+      phase: 'prepared',
+      ownerPid: 2_147_483_647,
+      contentSha256: digest('未确认版本'),
+      backupSha256: digest(confirmed),
+    }))
+
+    await recoverInterruptedFileWrite(filePath, { isTargetAuthorized: async () => false })
+    await expect(readFile(filePath, 'utf-8')).resolves.toBe(damaged)
+    await expect(readFile(join(directory, '.未授权恢复.md.paperin-save-journal'), 'utf-8')).resolves.toContain('prepared')
   })
 })

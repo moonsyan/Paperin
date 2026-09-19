@@ -8,7 +8,9 @@ import {
   forgetKnownFileState,
   getKnownFileState,
   isIncompleteUtf8Sequence,
+  inspectSaveConflict,
   MAX_DOCUMENT_FILE_SIZE,
+  sha256Hex,
   readTextAutoEncoding,
   rememberFileState,
   UnsupportedEncodingError,
@@ -35,7 +37,7 @@ describe('文本编码读取', () => {
     const filePath = join(directory, '带-bom.md')
     await writeFile(filePath, Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from('中文')]))
 
-    await expect(readTextAutoEncoding(filePath)).resolves.toEqual({
+    await expect(readTextAutoEncoding(filePath)).resolves.toMatchObject({
       content: '中文',
       encoding: 'UTF-8-BOM',
     })
@@ -48,11 +50,11 @@ describe('文本编码读取', () => {
     await writeFile(utf16Path, Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('中文', 'utf16le')]))
     await writeFile(gbkPath, iconv.encode('中文', 'gbk'))
 
-    await expect(readTextAutoEncoding(utf16Path)).resolves.toEqual({
+    await expect(readTextAutoEncoding(utf16Path)).resolves.toMatchObject({
       content: '中文',
       encoding: 'UTF-16LE',
     })
-    await expect(readTextAutoEncoding(gbkPath)).resolves.toEqual({
+    await expect(readTextAutoEncoding(gbkPath)).resolves.toMatchObject({
       content: '中文',
       encoding: 'GBK',
     })
@@ -114,6 +116,30 @@ describe('文件状态记录', () => {
     forgetKnownFileState(filePath)
 
     expect(getKnownFileState(filePath)).toBeUndefined()
+  })
+})
+
+describe('保存冲突检查', () => {
+  it('mtime 与尺寸都未变但内容哈希不同时判定冲突', () => {
+    const known = { mtimeMs: 100, size: 12, contentSha256: sha256Hex('上次确认') }
+    const current = { mtimeMs: 100, size: 12 }
+    expect(inspectSaveConflict({ current, expectedMtime: 100, known }).needsContentHash).toBe(true)
+    expect(inspectSaveConflict({
+      current,
+      expectedMtime: 100,
+      known,
+      currentSha256: sha256Hex('外部等长替换'),
+    })).toEqual({ conflict: true, needsContentHash: false })
+  })
+
+  it('内容哈希与上次一致时不冲突', () => {
+    const digest = sha256Hex('上次确认')
+    expect(inspectSaveConflict({
+      current: { mtimeMs: 100, size: 12 },
+      expectedMtime: 100,
+      known: { mtimeMs: 100, size: 12, contentSha256: digest },
+      currentSha256: digest,
+    })).toEqual({ conflict: false, needsContentHash: false })
   })
 })
 

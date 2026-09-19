@@ -16,6 +16,8 @@ import {
   readTextAutoEncoding,
   recoverInterruptedFileWrite,
   rememberFileState,
+  inspectSaveConflict,
+  sha256Hex,
   UnsupportedEncodingError,
   writeFileAtomically,
 } from './file-io'
@@ -61,9 +63,9 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       if (isTargetAuthorized && !(await isTargetAuthorized(filePath))) {
         return { ok: false, error: { code: 'NOT_AUTHORIZED' } }
       }
-      const { content, encoding } = await readTextAutoEncoding(filePath)
+      const { content, encoding, contentSha256 } = await readTextAutoEncoding(filePath, { isTargetAuthorized })
       const afterRead = await stat(filePath)
-      rememberFileState(filePath, { mtimeMs: afterRead.mtimeMs, size: afterRead.size })
+      rememberFileState(filePath, { mtimeMs: afterRead.mtimeMs, size: afterRead.size, contentSha256 })
       return {
         ok: true,
         data: {
@@ -231,25 +233,22 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       }
       // 等锁期间信任根可能已被淘汰。授权函数缺失时必须拒绝，不能当成已放行。
       const writeOptions = { isTargetAuthorized: getWriteTargetAuthorizer(args.path) ?? (async () => false) }
-      // 冲突检测（H6）：磁盘 mtime 明显比预期新、或文件尺寸与最近一次读/写不一致，
-      // 均视为被外部修改，拒绝写入避免静默覆盖。
-      // - mtime 容差 500ms 仅吸收本应用连续保存的时间戳抖动（NTFS 纳秒精度无需大容差）；
-      // - 尺寸维度可捕获 FAT32 同时间片内被编辑、以及 git checkout / cp -p 等
-      //   旧 mtime 的外部修改（此前 3 秒无条件容差会让这些修改被静默覆盖）。
+      // 冲突检测（H6）：mtime、尺寸，以及等长且未推新 mtime 时的内容哈希。
+      // mtime 容差 500ms 只吸收本应用连续保存抖动；尺寸捕获 FAT/cp -p；
+      // 哈希捕获保留 mtime 且等长的外部替换。
       const known = getKnownFileState(args.path)
-      // expectedMtime 必须是有限数字（NaN 能通过 typeof 检查但比较恒 false，
-      // 会让 mtime 维度静默失效）；主进程自记的 known.mtimeMs 作为第二道
-      // 依据，渲染层传入坏值时仍能拦下外部修改
       const expectedMtime =
         typeof args.expectedMtime === 'number' && Number.isFinite(args.expectedMtime)
           ? args.expectedMtime
           : null
       const forceOverwrite = args.forceOverwrite === true
-      const conflict =
-        !forceOverwrite &&
-        ((expectedMtime !== null && pre.mtimeMs > expectedMtime + 500) ||
-          (known !== undefined &&
-            (pre.size !== known.size || pre.mtimeMs > known.mtimeMs + 500)))
+      let currentSha256: string | undefined
+      let conflictCheck = inspectSaveConflict({ current: pre, expectedMtime, known })
+      if (!forceOverwrite && conflictCheck.needsContentHash) {
+        currentSha256 = sha256Hex(await readFile(args.path))
+        conflictCheck = inspectSaveConflict({ current: pre, expectedMtime, known, currentSha256 })
+      }
+      const conflict = !forceOverwrite && conflictCheck.conflict
       if (conflict) {
         return {
           ok: false,
@@ -289,7 +288,11 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
         await writeFileAtomically(args.path, args.content, pre.mode, writeOptions)
       }
       const fileStat = await stat(args.path)
-      rememberFileState(args.path, { mtimeMs: fileStat.mtimeMs, size: fileStat.size })
+      rememberFileState(args.path, {
+        mtimeMs: fileStat.mtimeMs,
+        size: fileStat.size,
+        contentSha256: sha256Hex(await readFile(args.path)),
+      })
       return { ok: true, data: { modifiedTime: fileStat.mtimeMs } }
     } catch (err) {
       return { ok: false, error: { code: 'IO_ERROR', message: String(err) } }
@@ -437,6 +440,7 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
           rememberFileState(result.filePath, {
             mtimeMs: fileStat.mtimeMs,
             size: fileStat.size,
+            contentSha256: sha256Hex(await readFile(result.filePath)),
           })
         } catch {
           /* stat 失败不阻断，渲染端会降级用当前时间 */

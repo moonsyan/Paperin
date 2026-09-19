@@ -1,7 +1,9 @@
+import { createHash } from 'crypto'
 import { readFile, readdir, lstat } from 'fs/promises'
 import type { Dirent } from 'fs'
 import { join } from 'path'
 import iconv from 'iconv-lite'
+import { isPathAuthorizedForReadOrSave } from '../trusted-paths'
 import type { DocumentSaveEncoding } from './document-save-types'
 import { recoverInterruptedFileWrite } from './file-write-recovery'
 export {
@@ -17,7 +19,42 @@ const MAX_FILE_STATE_ENTRIES = 4096
 const MAX_TREE_DEPTH = 5
 const MAX_TREE_NODES = 2000
 
-const lastKnownFileState = new Map<string, { mtimeMs: number; size: number }>()
+export interface KnownFileState {
+  mtimeMs: number
+  size: number
+  contentSha256?: string
+}
+
+const lastKnownFileState = new Map<string, KnownFileState>()
+
+export const sha256Hex = (bytes: Uint8Array | string): string =>
+  createHash('sha256').update(bytes).digest('hex')
+
+/**
+ * mtime/尺寸对 cp -p、FAT 同时间片和等长替换不够用。已知内容哈希且尚未判定冲突时，
+ * 调用方应再哈希当前磁盘字节。
+ */
+export const inspectSaveConflict = (input: {
+  current: { mtimeMs: number; size: number }
+  expectedMtime: number | null
+  known?: KnownFileState
+  currentSha256?: string
+}): { conflict: boolean; needsContentHash: boolean } => {
+  const { current, expectedMtime, known, currentSha256 } = input
+  if (expectedMtime !== null && current.mtimeMs > expectedMtime + 500) {
+    return { conflict: true, needsContentHash: false }
+  }
+  if (known && (current.size !== known.size || current.mtimeMs > known.mtimeMs + 500)) {
+    return { conflict: true, needsContentHash: false }
+  }
+  if (known?.contentSha256 && !currentSha256) {
+    return { conflict: false, needsContentHash: true }
+  }
+  if (known?.contentSha256 && currentSha256 && currentSha256 !== known.contentSha256) {
+    return { conflict: true, needsContentHash: false }
+  }
+  return { conflict: false, needsContentHash: false }
+}
 
 export interface FolderTreeNode {
   name: string
@@ -51,7 +88,7 @@ export class UnsupportedEncodingError extends Error {
 
 export const rememberFileState = (
   path: string,
-  state: { mtimeMs: number; size: number },
+  state: KnownFileState,
 ): void => {
   if (lastKnownFileState.has(path)) {
     lastKnownFileState.set(path, state)
@@ -66,7 +103,7 @@ export const rememberFileState = (
 
 export const getKnownFileState = (
   path: string,
-): { mtimeMs: number; size: number } | undefined => lastKnownFileState.get(path)
+): KnownFileState | undefined => lastKnownFileState.get(path)
 
 export const forgetKnownFileState = (path: string): void => {
   lastKnownFileState.delete(path)
@@ -174,11 +211,16 @@ const tryDecodeGbk = (buf: Buffer): string | null => {
 
 export const readTextAutoEncoding = async (
   filePath: string,
-): Promise<{ content: string; encoding: string }> => {
+  options?: { isTargetAuthorized?: (target: string) => Promise<boolean> },
+): Promise<{ content: string; encoding: string; contentSha256: string }> => {
   // A crashed in-place desktop save may leave a verified recovery journal.
   // Recover before any reader (open, index, history) consumes a partial file.
-  await recoverInterruptedFileWrite(filePath)
+  // 未授权路径跳过会写盘的恢复，避免索引把 backup 写到信任根外。
+  await recoverInterruptedFileWrite(filePath, {
+    isTargetAuthorized: options?.isTargetAuthorized ?? isPathAuthorizedForReadOrSave,
+  })
   const buf = await readFile(filePath)
+  const contentSha256 = sha256Hex(buf)
   if (buf.length >= 4 && buf[0] === 0xff && buf[1] === 0xfe && buf[2] === 0x00 && buf[3] === 0x00) {
     throw new UnsupportedEncodingError('UTF-32LE 编码暂不支持，请先转为 UTF-8')
   }
@@ -186,33 +228,33 @@ export const readTextAutoEncoding = async (
     throw new UnsupportedEncodingError('UTF-32BE 编码暂不支持，请先转为 UTF-8')
   }
   if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) {
-    return { content: buf.subarray(2).toString('utf16le'), encoding: 'UTF-16LE' }
+    return { content: buf.subarray(2).toString('utf16le'), encoding: 'UTF-16LE', contentSha256 }
   }
   if (buf.length >= 2 && buf[0] === 0xfe && buf[1] === 0xff) {
-    return { content: iconv.decode(buf.subarray(2), 'utf-16be'), encoding: 'UTF-16BE' }
+    return { content: iconv.decode(buf.subarray(2), 'utf-16be'), encoding: 'UTF-16BE', contentSha256 }
   }
   if (buf.length >= 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf) {
-    return { content: buf.subarray(3).toString('utf-8'), encoding: 'UTF-8-BOM' }
+    return { content: buf.subarray(3).toString('utf-8'), encoding: 'UTF-8-BOM', contentSha256 }
   }
   const utf16 = detectUtf16NoBom(buf)
   if (utf16 === 'UTF-16LE') {
-    return { content: buf.toString('utf16le'), encoding: 'UTF-16LE' }
+    return { content: buf.toString('utf16le'), encoding: 'UTF-16LE', contentSha256 }
   }
   if (utf16 === 'UTF-16BE') {
-    return { content: iconv.decode(buf, 'utf-16be'), encoding: 'UTF-16BE' }
+    return { content: iconv.decode(buf, 'utf-16be'), encoding: 'UTF-16BE', contentSha256 }
   }
   try {
     const content = new TextDecoder('utf-8', { fatal: true }).decode(buf)
     if (content.includes('\u0000')) {
       const zero = tryUtf16ByZeroBytes(buf)
-      if (zero) return zero
+      if (zero) return { ...zero, contentSha256 }
     }
-    return { content, encoding: 'UTF-8' }
+    return { content, encoding: 'UTF-8', contentSha256 }
   } catch {
     const zero = tryUtf16ByZeroBytes(buf)
-    if (zero) return zero
+    if (zero) return { ...zero, contentSha256 }
     const gbk = tryDecodeGbk(buf)
-    if (gbk !== null) return { content: gbk, encoding: 'GBK' }
+    if (gbk !== null) return { content: gbk, encoding: 'GBK', contentSha256 }
     throw new UnsupportedEncodingError('无法识别文件编码，请先转为 UTF-8')
   }
 }

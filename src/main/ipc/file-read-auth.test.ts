@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterAll } from 'vitest'
 import { ipcMain } from 'electron'
-import { lstat, mkdtemp, readFile, rm, symlink, unlink, writeFile } from 'fs/promises'
+import { lstat, mkdtemp, readFile, rm, stat, symlink, unlink, utimes, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { CHANNELS } from '../../shared/ipc/channels'
@@ -175,5 +175,24 @@ describe('FILE_SAVE 与 FILE_READ 授权联动', () => {
       save({}, { path: target, content: '# 我的版本\n', forceOverwrite: true }),
     ).resolves.toMatchObject({ ok: true })
     await expect(readFile(target, 'utf-8')).resolves.toBe('# 我的版本\n')
+  })
+
+  it('保留 mtime 的等长外部替换也会 CONFLICT', async () => {
+    const target = join(tempDir2, '等长.md')
+    const original = '# 打开时内容\n'
+    const external = '# 外部等长文\n'
+    expect(Buffer.byteLength(original)).toBe(Buffer.byteLength(external))
+    await writeFile(target, original, 'utf-8')
+    const read = await getHandler(CHANNELS.FILE_READ_DROPPED)({}, target)
+    expect(read.ok).toBe(true)
+    const expectedMtime = read.data?.modifiedTime as number
+    const before = await stat(target)
+    await writeFile(target, external, 'utf-8')
+    await utimes(target, before.atime, before.mtime)
+    const save = getHandler(CHANNELS.FILE_SAVE)
+    await expect(
+      save({}, { path: target, content: '# 我的版本\n', expectedMtime }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'CONFLICT' } })
+    await expect(readFile(target, 'utf-8')).resolves.toBe(external)
   })
 })

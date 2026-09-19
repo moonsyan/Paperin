@@ -209,7 +209,8 @@ export const recoverInterruptedFileWriteWithIo = async (
 ): Promise<void> => {
   const io: FileWriteIo = { ...defaultFileWriteIo, ...overrides }
   const { target } = await resolveTarget(filePath, io)
-  await ensureTargetAuthorized(target, options.isTargetAuthorized)
+  // 读取传入的授权函数若拒绝，跳过会写盘的恢复。写入测试可以不传授权函数。
+  if (options.isTargetAuthorized && !await options.isTargetAuthorized(target)) return
   const paths = recoveryPathsFor(target)
   const journal = await readJournal(io, paths.journalPath)
   if (!journal) return
