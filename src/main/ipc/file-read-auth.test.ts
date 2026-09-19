@@ -8,6 +8,7 @@ import { registerFileHandlers } from './file-handlers'
 import {
   isFileTrustedForSave,
   isPathTrusted,
+  trustDirectory,
   trustFileForSave,
 } from '../trusted-paths'
 
@@ -194,5 +195,32 @@ describe('FILE_SAVE 与 FILE_READ 授权联动', () => {
       save({}, { path: target, content: '# 我的版本\n', expectedMtime }),
     ).resolves.toMatchObject({ ok: false, error: { code: 'CONFLICT' } })
     await expect(readFile(target, 'utf-8')).resolves.toBe(external)
+  })
+
+  it('工作区内换成链接后，等长保存不会改写链接目标', async () => {
+    trustDirectory(tempDir2)
+    const target = join(tempDir2, '笔记.md')
+    const secret = join(tempDir2, '另一篇.md')
+    const original = '打开时正文'
+    const hidden = '根外秘密文'
+    expect(Buffer.byteLength(original)).toBe(Buffer.byteLength(hidden))
+    await writeFile(target, original, 'utf-8')
+    await writeFile(secret, hidden, 'utf-8')
+    const read = await getHandler(CHANNELS.FILE_READ)({}, target)
+    expect(read.ok).toBe(true)
+    const before = await stat(target)
+    await unlink(target)
+    try {
+      await symlink(secret, target, 'file')
+    } catch {
+      await writeFile(target, original, 'utf-8')
+      return
+    }
+    await utimes(secret, before.atime, before.mtime)
+    const save = getHandler(CHANNELS.FILE_SAVE)
+    await expect(
+      save({}, { path: target, content: '我的新正文', expectedMtime: before.mtimeMs }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'NOT_AUTHORIZED' } })
+    await expect(readFile(secret, 'utf-8')).resolves.toBe(hidden)
   })
 })

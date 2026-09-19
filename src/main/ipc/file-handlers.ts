@@ -15,6 +15,7 @@ import {
   FileWriteRecoveryPendingError,
   FileIdentityChangedError,
   readTextAutoEncoding,
+  readRegularFileBuffer,
   recoverInterruptedFileWrite,
   rememberFileState,
   inspectSaveConflict,
@@ -244,7 +245,14 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       let currentSha256: string | undefined
       let conflictCheck = inspectSaveConflict({ current: pre, expectedMtime, known })
       if (!forceOverwrite && conflictCheck.needsContentHash) {
-        currentSha256 = sha256Hex(await readFile(args.path))
+        try {
+          currentSha256 = sha256Hex(await readRegularFileBuffer(args.path))
+        } catch (error) {
+          if (error instanceof FileIdentityChangedError) {
+            return { ok: false, error: { code: 'NOT_AUTHORIZED', message: error.message } }
+          }
+          throw error
+        }
         conflictCheck = inspectSaveConflict({ current: pre, expectedMtime, known, currentSha256 })
       }
       const conflict = !forceOverwrite && conflictCheck.conflict
@@ -257,8 +265,10 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       // 编码写回：UTF-16 保持原编码（BOM 保留）；GBK 写回原编码并做往返校验，
       // 无法映射的字符拒绝写入；带 BOM 的 UTF-8 写回 BOM（Y-L1，读取时记
       // 'UTF-8-BOM' 保存时不丢失）；其余统一 UTF-8
+      let payload: string | Uint8Array = args.content
       if (args.encoding === 'UTF-8-BOM') {
-        await writeFileAtomically(args.path, `\uFEFF${args.content}`, pre.mode, writeOptions)
+        payload = `\uFEFF${args.content}`
+        await writeFileAtomically(args.path, payload, pre.mode, writeOptions)
       } else if (args.encoding === 'UTF-16LE' || args.encoding === 'UTF-16BE') {
         const bom =
           args.encoding === 'UTF-16LE'
@@ -268,7 +278,8 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
           args.encoding === 'UTF-16LE'
             ? Buffer.from(args.content, 'utf16le')
             : iconv.encode(args.content, 'utf-16be')
-        await writeFileAtomically(args.path, Buffer.concat([bom, body]), pre.mode, writeOptions)
+        payload = Buffer.concat([bom, body])
+        await writeFileAtomically(args.path, payload, pre.mode, writeOptions)
       } else if (args.encoding === 'GBK') {
         const encoded = iconv.encode(args.content, 'gbk')
         // 往返校验：GBK 无法映射的字符（emoji 等）会被 iconv 替换为 '?'，
@@ -282,15 +293,16 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
             },
           }
         }
-        await writeFileAtomically(args.path, encoded, pre.mode, writeOptions)
+        payload = encoded
+        await writeFileAtomically(args.path, payload, pre.mode, writeOptions)
       } else {
-        await writeFileAtomically(args.path, args.content, pre.mode, writeOptions)
+        await writeFileAtomically(args.path, payload, pre.mode, writeOptions)
       }
       const fileStat = await stat(args.path)
       rememberFileState(args.path, {
         mtimeMs: fileStat.mtimeMs,
         size: fileStat.size,
-        contentSha256: sha256Hex(await readFile(args.path)),
+        contentSha256: sha256Hex(payload),
       })
       return { ok: true, data: { modifiedTime: fileStat.mtimeMs } }
     } catch (err) {
@@ -441,7 +453,7 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
           rememberFileState(result.filePath, {
             mtimeMs: fileStat.mtimeMs,
             size: fileStat.size,
-            contentSha256: sha256Hex(await readFile(result.filePath)),
+            contentSha256: sha256Hex(content),
           })
         } catch {
           /* stat 失败不阻断，渲染端会降级用当前时间 */

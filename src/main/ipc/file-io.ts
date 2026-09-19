@@ -95,7 +95,7 @@ export class FileIdentityChangedError extends Error {
 }
 
 /** 只读取与 lstat 同一 inode 的普通文件，避免授权后路径被换成链接再被跟随。 */
-const readRegularFileBuffer = async (filePath: string): Promise<Buffer> => {
+export const readRegularFileBuffer = async (filePath: string): Promise<Buffer> => {
   const linkStat = await lstat(filePath)
   if (linkStat.isSymbolicLink() || !linkStat.isFile()) throw new FileIdentityChangedError()
   const handle = await open(filePath, 'r')
