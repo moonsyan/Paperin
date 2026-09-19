@@ -14,6 +14,8 @@ interface BacklinksPanelProps {
   truncated: boolean
   /** 打开链接指向的文件（query 用于接力文档内搜索定位到具体行） */
   onOpenLink: (path: string, query: string) => void
+  /** 把这条链接的片段插入当前文章，不打开来源文件。 */
+  onInsertCitation?: (path: string, preview: string) => void
   /** 目标未解析时提示 */
   onUnresolvedClick: (target: string) => void
   /** 打开知识图谱视图 */
@@ -37,11 +39,13 @@ const EdgeRow = ({
   edge,
   mode,
   onOpenLink,
+  onInsertCitation,
   onUnresolvedClick,
 }: {
   edge: BacklinkEdge
   mode: 'source' | 'target'
   onOpenLink: (path: string, query: string) => void
+  onInsertCitation?: (path: string, preview: string) => void
   onUnresolvedClick: (target: string) => void
 }): JSX.Element => {
   const path = mode === 'source' ? edge.sourcePath : edge.targetPath
@@ -50,18 +54,30 @@ const EdgeRow = ({
     ? `${label}（${displayDir(path)}）`
     : `未解析目标：${edge.target}`
   return (
-    <button
-      type="button"
-      className={`backlink-row ${path ? '' : 'unresolved'}`}
-      onClick={() => {
-        if (path) onOpenLink(path, edge.alias || edge.target)
-        else onUnresolvedClick(edge.target)
-      }}
-      title={title}
-    >
-      <span className="backlink-name">{label}</span>
-      <span className="backlink-preview">{edge.preview}</span>
-    </button>
+    <div className="backlink-item">
+      <button
+        type="button"
+        className={`backlink-row ${path ? '' : 'unresolved'}`}
+        onClick={() => {
+          if (path) onOpenLink(path, edge.alias || edge.target)
+          else onUnresolvedClick(edge.target)
+        }}
+        title={title}
+      >
+        <span className="backlink-name">{label}</span>
+        <span className="backlink-preview">{edge.preview}</span>
+      </button>
+      {path && onInsertCitation && (
+        <button
+          type="button"
+          className="backlink-insert"
+          aria-label={`把「${label}」的片段插入当前文章`}
+          onClick={() => onInsertCitation(path, edge.preview)}
+        >
+          插入引用
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -72,6 +88,7 @@ export const BacklinksPanel = ({
   loading,
   truncated,
   onOpenLink,
+  onInsertCitation,
   onUnresolvedClick,
   onOpenGraph,
 }: BacklinksPanelProps): JSX.Element => {
@@ -107,6 +124,7 @@ export const BacklinksPanel = ({
                 edge={edge}
                 mode="source"
                 onOpenLink={onOpenLink}
+                onInsertCitation={onInsertCitation}
                 onUnresolvedClick={onUnresolvedClick}
               />
             ))}
@@ -126,6 +144,7 @@ export const BacklinksPanel = ({
                 edge={edge}
                 mode="target"
                 onOpenLink={onOpenLink}
+                onInsertCitation={onInsertCitation}
                 onUnresolvedClick={onUnresolvedClick}
               />
             ))}

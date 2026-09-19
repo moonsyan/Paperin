@@ -25,13 +25,25 @@ export const relativeMarkdownHref = (fromFile: string, toFile: string): string =
   return encodeHref(`${up}${down}` || toParts[toParts.length - 1] || to)
 }
 
+/** GitHub 兼容的标题锚点。不是标题行时返回 null，不发明私有链接。 */
+export const headingAnchor = (line: string): string | null => {
+  const heading = /^(#{1,6})\s+(.+?)\s*#*$/.exec(line.trim())
+  if (!heading) return null
+  const text = heading[2].replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').trim().toLowerCase()
+  const slug = text.replace(/\s+/g, '-').replace(/[^0-9a-z\u3400-\u9fff-]/g, '')
+  return slug || null
+}
+
 /** 插入时的文本快照加来源链接。不读取、不改写源文件。 */
 export const buildSourceCitation = (snippet: string, fromFile: string | null, toFile: string): string => {
   const lines = snippet.replace(/\r\n/g, '\n').trim().split('\n').slice(0, 8)
   const quoted = (lines.length > 0 ? lines : ['']).map((line) => `> ${line}`).join('\n')
-  const label = slash(toFile).split('/').pop()?.replace(/\.md$/i, '') || '来源'
+  const anchor = headingAnchor(lines[0] ?? '')
+  const fileLabel = slash(toFile).split('/').pop()?.replace(/\.md$/i, '') || '来源'
+  const label = anchor ? (lines[0] ?? '').replace(/^#{1,6}\s+/, '').replace(/\s+#+$/, '').trim() || fileLabel : fileLabel
   const href = fromFile ? relativeMarkdownHref(fromFile, toFile) : encodeHref(slash(toFile))
-  return `${quoted}\n>\n> 来源：[${label}](${href})\n`
+  const hrefWithAnchor = anchor ? `${href}#${encodeURIComponent(anchor)}` : href
+  return `${quoted}\n>\n> 来源：[${label}](${hrefWithAnchor})\n`
 }
 
 export const citationTargetsCurrentDocument = (capturedFileId: string, currentFileId: string): boolean =>

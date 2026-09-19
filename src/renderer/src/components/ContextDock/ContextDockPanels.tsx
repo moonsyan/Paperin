@@ -25,6 +25,7 @@ export interface ContextDockContentProps {
   linksLoading?: boolean
   linksTruncated?: boolean
   onOpenLink?: (path: string, query: string) => void
+  onInsertCitation?: (path: string, preview: string) => void
   onUnresolvedLinkClick?: (target: string) => void
   onOpenGraphView?: () => void
   tagsFiles?: WorkspaceTagIndexEntry[] | null
@@ -87,6 +88,7 @@ export function ContextDockPanelContent({
   linksLoading = false,
   linksTruncated = false,
   onOpenLink = NOOP_LINK,
+  onInsertCitation,
   onUnresolvedLinkClick = NOOP_STRING,
   onOpenGraphView = NOOP,
   tagsFiles = null,
@@ -124,7 +126,7 @@ export function ContextDockPanelContent({
         <OutlinePanel content={content} docKey={activeFileId} activeOutlineIndex={activeOutlineIndex} onOutlineClick={onOutlineClick} />
       )}
       {!panel.render && panel.id === 'links' && (
-        <BacklinksPanel graph={workspaceIndex ? null : linkGraph} viewModel={sidebarViewModel} activeFilePath={activeLinkPath} loading={linksLoading} truncated={linksTruncated} onOpenLink={onOpenLink} onUnresolvedClick={onUnresolvedLinkClick} onOpenGraph={onOpenGraphView} />
+        <BacklinksPanel graph={workspaceIndex ? null : linkGraph} viewModel={sidebarViewModel} activeFilePath={activeLinkPath} loading={linksLoading} truncated={linksTruncated} onOpenLink={onOpenLink} onInsertCitation={onInsertCitation} onUnresolvedClick={onUnresolvedLinkClick} onOpenGraph={onOpenGraphView} />
       )}
       {!panel.render && panel.id === 'tags' && (
         <TagsPanel files={tagsFiles} loading={tagsLoading} truncated={tagsTruncated} activeTag={tagFilter?.tag ?? null} onToggleTag={onToggleTagFilter} onOpenFile={onOpenWorkspaceFile} />

@@ -19,6 +19,7 @@ import type { TypographyIssue } from '../lib/chinese-typography'
 import type { SearchBarHandlers } from './useEditorSearch'
 import { SKIP_LINK_TARGET_ID } from './SkipLink'
 import { workspaceCompatibilityNotes } from '../lib/workspace-compatibility'
+import { insertCitationFromPanel } from '../lib/insert-citation'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -311,6 +312,14 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
         linksLoading={linksLoading}
         linksTruncated={linksTruncated}
         onOpenLink={onOpenLink}
+        onInsertCitation={(sourcePath, preview) => insertCitationFromPanel({
+          editor: editorRef.current,
+          activeFileId,
+          fromFile: activeFilePath ?? null,
+          toFile: sourcePath,
+          preview,
+          notify: onNotify,
+        })}
         onUnresolvedLinkClick={(target) => onNotify(`链接目标未创建：${target}`)}
         onOpenGraphView={onOpenGraphView}
         tagsFiles={tagIndex?.files ?? null}
