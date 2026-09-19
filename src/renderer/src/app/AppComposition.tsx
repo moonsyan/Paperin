@@ -434,7 +434,7 @@ export function AppComposition(): JSX.Element {
         activeFilePath={activeFile?.path ?? null} activeFileName={activeFile?.name ?? ''}
         currentContent={liveContentOf(activeFileId)}
         onRestoreVersion={(content) => { setVersionHistoryOpen(false); replaceEditorContent(activeFileId, content, 'update'); setToast('已恢复历史版本到编辑器（未保存），确认后按 Ctrl+S 写入磁盘') }}
-        wsSearchOpen={wsSearchOpen} onCloseWorkspaceSearch={closeWorkspaceSearch} workspaceIndex={workspaceIndex}
+        wsSearchOpen={wsSearchOpen} onCloseWorkspaceSearch={closeWorkspaceSearch} workspaceIndex={workspaceIndex} activeFileId={activeFileId} editorRef={editorRef}
         onSelectSearchResult={(path, query, opts) => {
           setWsSearchOpen(false)
           void reveal({ path, search: { query, useRegex: opts?.useRegex, caseSensitive: opts?.caseSensitive } })

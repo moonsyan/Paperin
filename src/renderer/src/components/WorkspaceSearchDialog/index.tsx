@@ -61,6 +61,10 @@ interface WorkspaceSearchDialogProps {
   onClose: () => void
   /** 点击结果：打开对应文件（并把查询词带入文档内搜索） */
   onSelect: (path: string, query: string, opts?: { caseSensitive: boolean; useRegex: boolean }) => void
+  /** 把命中片段作为来源快照插入当前文章；不打开、不修改来源文件。 */
+  onInsertCitation?: (match: { path: string; preview: string; capturedFileId: string }) => void
+  /** 打开搜索时的活动文档。组件随对话框挂载，用来拒绝把旧结果插入后来换成的文章。 */
+  activeFileId?: string
 }
 
 /**
@@ -74,7 +78,10 @@ export function WorkspaceSearchDialog({
   workspaceIndex = null,
   onClose,
   onSelect,
+  onInsertCitation,
+  activeFileId = '',
 }: WorkspaceSearchDialogProps): JSX.Element | null {
+  const capturedFileId = useRef(activeFileId).current
   const [query, setQuery] = useState('')
   const [caseSensitive, setCaseSensitive] = useState(false)
   const [useRegex, setUseRegex] = useState(false)
@@ -253,24 +260,38 @@ export function WorkspaceSearchDialog({
             )}
             {!loading &&
               matches.map((m, i) => (
-                <button
-                  type="button"
+                <div
                   key={`${m.path}-${m.line}-${i}`}
                   className="ws-result-item"
-                  onClick={() => {
-                    if (m.generation !== undefined && workspaceIndex && m.generation !== workspaceIndex.generation) return
-                    onSelect(m.path, m.generation === undefined ? query.trim() : '', { caseSensitive, useRegex })
-                  }}
                   title={m.path}
                 >
-                  <div className="ws-result-loc">
-                    {m.path.split(/[\\/]/).pop()}
-                    <span className="ws-result-line"> : {m.line}</span>
-                  </div>
-                  <div className="ws-result-preview">
-                    {renderHighlightedPreview(m.preview, query.trim(), caseSensitive, useRegex)}
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    className="ws-result-open"
+                    onClick={() => {
+                      if (m.generation !== undefined && workspaceIndex && m.generation !== workspaceIndex.generation) return
+                      onSelect(m.path, m.generation === undefined ? query.trim() : '', { caseSensitive, useRegex })
+                    }}
+                  >
+                    <div className="ws-result-loc">
+                      {m.path.split(/[\\/]/).pop()}
+                      <span className="ws-result-line"> : {m.line}</span>
+                    </div>
+                    <div className="ws-result-preview">
+                      {renderHighlightedPreview(m.preview, query.trim(), caseSensitive, useRegex)}
+                    </div>
+                  </button>
+                  {onInsertCitation && (
+                    <button
+                      type="button"
+                      className="ws-result-insert"
+                      aria-label={`把「${m.path.split(/[\\/]/).pop() ?? '来源'}」的片段插入当前文章`}
+                      onClick={() => onInsertCitation({ path: m.path, preview: m.preview, capturedFileId })}
+                    >
+                      插入引用
+                    </button>
+                  )}
+                </div>
               ))}
             {truncated && (
               <div className="ws-empty">结果过多，仅显示前 200 条</div>

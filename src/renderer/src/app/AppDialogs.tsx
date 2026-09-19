@@ -4,8 +4,9 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import type { ActiveConfirmRequest } from '../components/ConfirmDialog'
 import type { HelpView, WritingStats } from '../components/HelpDialog'
 import type { PdfOptions } from '../components/ExportPdfDialog'
-import type { PublishOptions } from '../lib/export-bundle'
-import type { PublishScope } from '../lib/export-bundle'
+import type { EditorHandle } from '../components/Editor'
+import { buildSourceCitation, citationTargetsCurrentDocument } from '../lib/source-citation'
+import type { PublishOptions, PublishScope } from '../lib/export-bundle'
 
 /**
  * 低频对话框懒加载：设置 / 帮助 / 图片 / PDF 选项 / 发布 / 版本历史 / 工作区全文搜索
@@ -142,6 +143,8 @@ export interface AppDialogsProps {
   onCloseWorkspaceSearch: () => void
   workspaceIndex: WorkspaceIndex | null
   onSelectSearchResult: (path: string, query: string, opts?: { useRegex?: boolean; caseSensitive?: boolean }) => void
+  activeFileId: string
+  editorRef: { current: EditorHandle | null }
   // 确认对话框
   confirmRequest: ActiveConfirmRequest | null
   onConfirmResolve: (id: string) => void
@@ -189,6 +192,7 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
     versionHistoryOpen, onCloseVersionHistory,
     activeFilePath, activeFileName, currentContent, onRestoreVersion,
     wsSearchOpen, onCloseWorkspaceSearch, workspaceIndex, onSelectSearchResult,
+    activeFileId, editorRef,
     confirmRequest, onConfirmResolve,
   } = props
 
@@ -311,6 +315,20 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
             workspaceIndex={workspaceIndex}
             onClose={onCloseWorkspaceSearch}
             onSelect={onSelectSearchResult}
+            activeFileId={activeFileId}
+            onInsertCitation={(match) => {
+              if (!citationTargetsCurrentDocument(match.capturedFileId, activeFileId)) {
+                setToast('文档已切换，未把旧搜索结果插入当前文章')
+                return
+              }
+              const editor = editorRef.current
+              if (!editor) {
+                setToast('编辑器尚未就绪，未插入引用')
+                return
+              }
+              editor.insertMd(buildSourceCitation(match.preview, activeFilePath, match.path))
+              setToast('已插入来源引用，可用撤销收回')
+            }}
           />
         </Suspense>
       )}

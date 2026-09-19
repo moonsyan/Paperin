@@ -252,21 +252,27 @@ button.dialog-btn.danger:hover { background: var(--danger-h); border-color: var(
 .ws-results::-webkit-scrollbar { width: 4px; }
 .ws-results::-webkit-scrollbar-thumb { background: var(--text-4); border-radius: 2px; }
 .ws-result-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   padding: 7px 10px;
   border-radius: var(--radius);
-  cursor: pointer;
   transition: background 80ms;
 }
-button.ws-result-item {
-  width: 100%;
+.ws-result-open,
+.ws-result-insert {
   border: 0;
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
+  cursor: pointer;
 }
+.ws-result-open { flex: 1; min-width: 0; }
+.ws-result-insert { flex: 0 0 auto; color: var(--accent); font-size: .72rem; }
 .ws-result-item:hover { background: var(--bg-hover); }
-button.ws-result-item:focus-visible,
+.ws-result-open:focus-visible,
+.ws-result-insert:focus-visible,
 button.search-regex:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
