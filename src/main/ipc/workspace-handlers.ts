@@ -123,7 +123,7 @@ export const registerWorkspaceHandlers = ({
       try { await stat(target) } catch { available = true; break }
     }
     if (!available) return { ok: false, error: { code: 'NAME_EXHAUSTED' } }
-    if (!(await withinWindow(event, args.dir))) {
+    if (!(await withinWindow(event, args.dir)) || !(await withinWindow(event, target))) {
       return { ok: false, error: { code: 'INVALID_TARGET' } }
     }
     try {
@@ -150,6 +150,9 @@ export const registerWorkspaceHandlers = ({
       if (sourceRealPath !== targetRealPath || normalized(args.path) !== normalized(target)) {
         return { ok: false, error: { code: 'EXISTS' } }
       }
+    }
+    if (!(await withinWindow(event, args.path)) || !(await withinWindow(event, target))) {
+      return { ok: false, error: { code: 'INVALID_PATH' } }
     }
     try {
       await rename(args.path, target)
@@ -190,6 +193,13 @@ export const registerWorkspaceHandlers = ({
       if (targetDir === source || targetDir.startsWith(source + sep)) return { ok: false, error: { code: 'INVALID_TARGET' } }
       const target = join(args.targetDir, basename(args.path))
       if (target !== args.path && await stat(target).catch(() => null)) return { ok: false, error: { code: 'EXISTS' } }
+      if (
+        !(await withinWindow(event, args.path))
+        || !(await withinWindow(event, args.targetDir))
+        || !(await withinWindow(event, target))
+      ) {
+        return { ok: false, error: { code: 'INVALID_TARGET' } }
+      }
       await rename(args.path, target)
       forgetKnownFileState(args.path)
       forgetLinkIndexCache(args.path)
@@ -216,6 +226,7 @@ export const registerWorkspaceHandlers = ({
     }
     try {
       if (!(await stat(filePath)).isFile()) return { ok: false, error: { code: 'NOT_FILE' } }
+      if (!(await withinWindow(event, filePath))) return { ok: false, error: { code: 'INVALID_PATH' } }
       await shell.trashItem(filePath)
       forgetKnownFileState(filePath)
       forgetLinkIndexCache(filePath)
