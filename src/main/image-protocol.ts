@@ -1,5 +1,5 @@
 import { net } from 'electron'
-import { readFile, realpath } from 'fs/promises'
+import { lstat, open, realpath } from 'fs/promises'
 import { extname, isAbsolute, relative, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import { isPathTrusted, isResolvedPathWithinTrustedRoots } from './trusted-paths'
@@ -149,10 +149,25 @@ export async function readImageAsDataUrl(requestUrl: string): Promise<string | n
   try {
     const realFilePath = await resolveAllowedImagePath(requestUrl)
     if (!realFilePath) return null
-    const data = await readFile(realFilePath)
-    if (data.length > MAX_INLINE_IMAGE_BYTES) return null
-    const ext = extname(realFilePath).slice(1).toLowerCase()
-    return `data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${data.toString('base64')}`
+    const linkStat = await lstat(realFilePath).catch(() => null)
+    if (!linkStat || linkStat.isSymbolicLink() || !linkStat.isFile() || linkStat.size > MAX_INLINE_IMAGE_BYTES) {
+      return null
+    }
+    const handle = await open(realFilePath, 'r')
+    try {
+      const opened = await handle.stat()
+      if (
+        !opened.isFile()
+        || opened.dev !== linkStat.dev
+        || opened.ino !== linkStat.ino
+        || opened.size > MAX_INLINE_IMAGE_BYTES
+      ) return null
+      const data = Buffer.from(await handle.readFile())
+      const ext = extname(realFilePath).slice(1).toLowerCase()
+      return `data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${data.toString('base64')}`
+    } finally {
+      await handle.close()
+    }
   } catch {
     return null
   }

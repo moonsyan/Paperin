@@ -1,4 +1,4 @@
-import { mkdtemp, rm, symlink, writeFile } from 'fs/promises'
+import { mkdtemp, readFile, rm, symlink, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -43,5 +43,27 @@ describe('图片读取白名单钉住恢复', () => {
       return
     }
     await expect(isImagePathAllowedAfterResolvingLinks(join(junction, 'secret.png'))).resolves.toBe(false)
+  })
+
+  it('导出内联不读取换成链接后的图片', async () => {
+    const { allowImageDirectory, readImageAsDataUrl } = await import('./image-protocol')
+    const directory = await tempDir('paperin-img-inline-')
+    const outside = await tempDir('paperin-img-inline-out-')
+    const image = join(directory, 'note.png')
+    const secret = join(outside, 'secret.png')
+    await writeFile(image, Buffer.from('visible'))
+    await writeFile(secret, Buffer.from('secret'))
+    allowImageDirectory(directory)
+    const url = `mdimg:///${image.replace(/\\/g, '/')}`
+    const inline = await readImageAsDataUrl(url)
+    expect(inline).toContain(Buffer.from('visible').toString('base64'))
+    await rm(image)
+    try {
+      await symlink(secret, image, 'file')
+    } catch {
+      return
+    }
+    expect(await readImageAsDataUrl(url)).toBeNull()
+    await expect(readFile(secret)).resolves.toEqual(Buffer.from('secret'))
   })
 })
