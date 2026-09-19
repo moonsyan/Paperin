@@ -235,7 +235,7 @@ export function AppComposition(): JSX.Element {
 
   // === 导出 ===
   const { handleNewFromTemplate, resolveCollectionEntriesFn } = useDocumentCreationAndCollection({
-    activeFileIdRef, editorRef, handleNew, setContents, setSavedMap, workspaceIndex, documents,
+    activeFileIdRef, editorRef, handleNew, setContents, setSavedMap, workspaceIndex, documents, liveContentOf,
   })
 
   const { handleExportHtml, handleDoExportPdf, handleExportMarkdown, handleExportPandoc, handleExportDocx, handlePublishBundle, handleCopyRichText, isExportActive } = useExports({

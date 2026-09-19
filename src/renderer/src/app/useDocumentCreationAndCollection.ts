@@ -15,11 +15,12 @@ interface DocumentCreationAndCollectionOptions {
   setSavedMap: Dispatch<SetStateAction<Record<string, boolean>>>
   workspaceIndex: WorkspaceIndex | null
   documents: Record<string, { path?: string }>
+  liveContentOf?: (id: string) => string
 }
 
-/** 新文档模板只进入编辑会话；集合导出从当前文档路径读取独立文件。 */
+/** 新文档模板只进入编辑会话；集合导出优先用已打开文档的实时正文。 */
 export function useDocumentCreationAndCollection({
-  activeFileIdRef, editorRef, handleNew, setContents, setSavedMap, workspaceIndex, documents,
+  activeFileIdRef, editorRef, handleNew, setContents, setSavedMap, workspaceIndex, documents, liveContentOf,
 }: DocumentCreationAndCollectionOptions) {
   const handleNewFromTemplate = useCallback(async (template: DocumentTemplate) => {
     const content = createDocumentFromTemplate(template, {})
@@ -38,8 +39,13 @@ export function useDocumentCreationAndCollection({
       workspaceIndex,
       activePath: documents[activeFileIdRef.current]?.path ?? '',
       readDocument: (path) => window.desktopAPI.document.read(path),
+      openContents: liveContentOf
+        ? Object.entries(documents).flatMap(([id, doc]) => (
+          doc.path ? [{ path: doc.path, content: liveContentOf(id) }] : []
+        ))
+        : undefined,
     })
-  }, [activeFileIdRef, documents, workspaceIndex])
+  }, [activeFileIdRef, documents, liveContentOf, workspaceIndex])
 
   return { handleNewFromTemplate, resolveCollectionEntriesFn }
 }

@@ -6,11 +6,19 @@ import {
   type CollectionEntry,
 } from '../lib/document-collection'
 import { toEditorImages } from '../lib/image-path'
+import { sameFilePath } from './document-session/filePath'
+
+export interface OpenDocumentContent {
+  path: string
+  content: string
+}
 
 export interface ResolveCollectionEntriesOptions {
   workspaceIndex: WorkspaceIndex | null
   activePath: string
   readDocument: (path: string) => Promise<{ ok: boolean; data?: { content?: string } }>
+  /** 已打开标签的实时正文。有匹配时不再读磁盘，避免集合导出丢掉未保存修改。 */
+  openContents?: readonly OpenDocumentContent[]
 }
 
 /**
@@ -19,7 +27,7 @@ export interface ResolveCollectionEntriesOptions {
  */
 export async function resolveCollectionEntries(
   scope: Exclude<PublishScope, { kind: 'document' }>,
-  { workspaceIndex, activePath, readDocument }: ResolveCollectionEntriesOptions,
+  { workspaceIndex, activePath, readDocument, openContents }: ResolveCollectionEntriesOptions,
 ): Promise<CollectionEntry[]> {
   if (!workspaceIndex) throw new Error('请先打开工作区后再使用集合导出')
   const lastSep = Math.max(activePath.lastIndexOf('/'), activePath.lastIndexOf('\\'))
@@ -33,8 +41,12 @@ export async function resolveCollectionEntries(
   if (selected.length > 200) throw new Error(`集合范围包含 ${selected.length} 篇文档（上限 200），请缩小范围`)
   const entries: CollectionEntry[] = []
   for (const doc of selected) {
-    const res = await readDocument(doc.path)
-    const content = res.ok && typeof res.data?.content === 'string' ? res.data.content : null
+    const live = openContents?.find((item) => sameFilePath(item.path, doc.path))
+    const content = live
+      ? live.content
+      : await readDocument(doc.path).then((res) => (
+        res.ok && typeof res.data?.content === 'string' ? res.data.content : null
+      ))
     if (content == null) throw new Error(`无法读取文档：${doc.path}`)
     const imgSep = Math.max(doc.path.lastIndexOf('/'), doc.path.lastIndexOf('\\'))
     entries.push({
