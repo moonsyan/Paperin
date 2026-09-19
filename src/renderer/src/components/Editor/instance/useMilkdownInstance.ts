@@ -50,12 +50,13 @@ import { tableColResizePlugin } from '../plugins/tableColResize'
 import { taskListCheckboxPlugin } from '../plugins/taskListCheckbox'
 import { linkClickPlugin } from '../plugins/linkClick'
 import { mermaidPreviewPlugin } from '../plugins/mermaidCodeBlock'
+import { structuredCodePlugin } from '../plugins/structuredCodeBlock'
 import { configureCodeBlockRefractor } from '../plugins/syntaxHighlighting'
 import { mathEditablePlugin } from '../plugins/mathEditable'
 import { imagePlaceholderPlugin } from '../plugins/imagePlaceholder'
 import { markdownPastePlugin } from '../plugins/markdownPaste'
+import { blockImagePastePlugin } from '../plugins/blockImagePaste'
 import { ensureFootnoteDefinitions } from '../../../lib/footnote-normalize'
-import { MAX_IMAGE_SIZE } from '../useImageInsertion'
 import { collectActiveHeading } from '../navigation/editorHeadings'
 import {
   installViewportTracker,
@@ -155,36 +156,12 @@ export const useMilkdownInstance = ({
         .use($prose(() => tableColResizePlugin))
         // 搜索高亮插件
         .use($prose(() => searchPlugin))
-        // M11：剪贴板同时带 <img> 与图片文件（网页"复制图片"）时，
-        // PM 原生 handlePaste 会解析 HTML 先插一张图，React 侧再保存文件插一张。
-        // 有图片文件时返回 true 消费粘贴，交给 React 侧唯一插入。
-        // M4：仅当 React 侧确实能插入图片时才消费——无 desktopAPI 或全部图片
-        // 超限时放行 PM 默认粘贴，让剪贴板里的文字/HTML 正常插入
-        .use(
-          $prose(() => {
-            const key = new PluginKey('block-pm-image-paste')
-            return new Plugin({
-              key,
-              props: {
-                handlePaste: (_view, event) => {
-                  const dt = event.clipboardData
-                  if (!dt) return false
-                  if (!window.desktopAPI) return false
-                  const files = Array.from(dt.files)
-                  for (let i = 0; i < files.length; i++) {
-                    const f = files[i]
-                    if (f.type.startsWith('image/') && f.size <= MAX_IMAGE_SIZE) return true
-                  }
-                  return false
-                },
-              },
-            })
-          }),
-        )
+        .use(blockImagePastePlugin)
         // 代码块 spellcheck 排除 + 图片 draggable（装饰方式，避免 DOM 变异乒乓）
         .use($prose(() => nodeAttrsPlugin))
         // Mermaid 预览使用装饰组件，源码始终保留为 Milkdown 原生代码块。
         .use($prose(() => mermaidPreviewPlugin))
+        .use($prose(() => structuredCodePlugin))
         // 代码块行号（开关由 codeLineNumbers prop 控制，装饰 widget 实现）
         .use($prose(() => lineNumPlugin))
         // 块级上下文标记（光标所在块高亮）
