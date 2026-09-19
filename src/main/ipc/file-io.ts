@@ -1,4 +1,4 @@
-import { readFile, readdir } from 'fs/promises'
+import { readFile, readdir, lstat } from 'fs/promises'
 import type { Dirent } from 'fs'
 import { join } from 'path'
 import iconv from 'iconv-lite'
@@ -171,6 +171,16 @@ export const readTextAutoEncoding = async (
   }
 }
 
+export const isTraversableWorkspaceDirectory = async (
+  directory: string,
+  entry: Dirent,
+): Promise<boolean> => {
+  if (entry.name.startsWith('.') || entry.name === 'node_modules') return false
+  if (entry.isSymbolicLink() || !entry.isDirectory()) return false
+  const stats = await lstat(join(directory, entry.name)).catch(() => null)
+  return Boolean(stats?.isDirectory() && !stats.isSymbolicLink())
+}
+
 export const walkMarkdownTree = async (
   dir: string,
   depth: number,
@@ -190,11 +200,13 @@ export const walkMarkdownTree = async (
   }
   const byName = (left: { name: string }, right: { name: string }) =>
     left.name.localeCompare(right.name, 'zh-CN')
-  const dirs = entries
-    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules')
-    .sort(byName)
+  const dirs: Dirent[] = []
+  for (const entry of entries) {
+    if (await isTraversableWorkspaceDirectory(dir, entry)) dirs.push(entry)
+  }
+  dirs.sort(byName)
   const files = entries
-    .filter((entry) => entry.isFile() && /\.(md|markdown)$/i.test(entry.name))
+    .filter((entry) => !entry.isSymbolicLink() && entry.isFile() && /\.(md|markdown)$/i.test(entry.name))
     .sort(byName)
 
   const nodes: FolderTreeNode[] = []

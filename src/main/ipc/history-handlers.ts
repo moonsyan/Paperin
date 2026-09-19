@@ -7,6 +7,7 @@ import {
   readSnapshot,
   recordSnapshot,
 } from '../history/version-store'
+import { isPathAuthorizedForReadOrSave } from '../trusted-paths'
 
 /* ==================== 版本历史（本地保存快照） ==================== */
 
@@ -18,21 +19,17 @@ export interface HistoryHandlersDependencies {
 /** 历史目录：userData/version-history（按路径哈希分目录，不写入工作区） */
 export const historyRoot = (): string => join(app.getPath('userData'), 'version-history')
 
-/** 已保存过的磁盘文件允许查询/记录历史（信任文件或信任根内均可） */
-const canAccessHistory = async (
-  deps: HistoryHandlersDependencies,
-  filePath: unknown,
-): Promise<boolean> => {
+/** 已保存过的磁盘文件允许查询/记录历史；真实路径必须仍在授权范围内 */
+const canAccessHistory = async (filePath: unknown): Promise<boolean> => {
   if (typeof filePath !== 'string' || filePath.length === 0) return false
-  if (deps.isTrustedPath(filePath)) return true
-  return await deps.isFileTrustedForSave(filePath)
+  return await isPathAuthorizedForReadOrSave(filePath)
 }
 
-export const registerHistoryHandlers = (deps: HistoryHandlersDependencies): void => {
+export const registerHistoryHandlers = (_deps: HistoryHandlersDependencies): void => {
   ipcMain.handle(CHANNELS.HISTORY_RECORD, async (_event, args: { path?: string }) => {
     try {
       const filePath = args?.path
-      if (typeof filePath !== 'string' || !(await canAccessHistory(deps, filePath))) {
+      if (typeof filePath !== 'string' || !(await canAccessHistory(filePath))) {
         return { ok: false, error: { code: 'INVALID_TARGET' } }
       }
       const recorded = await recordSnapshot(historyRoot(), filePath)
@@ -45,7 +42,7 @@ export const registerHistoryHandlers = (deps: HistoryHandlersDependencies): void
   ipcMain.handle(CHANNELS.HISTORY_LIST, async (_event, args: { path?: string }) => {
     try {
       const filePath = args?.path
-      if (typeof filePath !== 'string' || !(await canAccessHistory(deps, filePath))) {
+      if (typeof filePath !== 'string' || !(await canAccessHistory(filePath))) {
         return { ok: false, error: { code: 'INVALID_TARGET' } }
       }
       const snapshots = await listSnapshots(historyRoot(), filePath)
@@ -60,7 +57,7 @@ export const registerHistoryHandlers = (deps: HistoryHandlersDependencies): void
     async (_event, args: { path?: string; t?: unknown }) => {
       try {
         const filePath = args?.path
-        if (typeof filePath !== 'string' || !(await canAccessHistory(deps, filePath))) {
+        if (typeof filePath !== 'string' || !(await canAccessHistory(filePath))) {
           return { ok: false, error: { code: 'INVALID_TARGET' } }
         }
         if (typeof args.t !== 'number') {

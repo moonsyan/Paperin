@@ -4,7 +4,7 @@ import { realpath, rename, stat, writeFile } from 'fs/promises'
 import { basename, dirname, join, sep } from 'path'
 import { CHANNELS } from '../../shared/ipc/channels'
 import { schedulePersistTrust } from '../session-trust'
-import { isFileTrustedForSave, trustDirectory } from '../trusted-paths'
+import { isPathAuthorizedForReadOrSave, trustDirectory } from '../trusted-paths'
 import { withinCallerWorkspace } from './workspace-scope'
 import {
   forgetKnownFileState,
@@ -203,7 +203,7 @@ export const registerWorkspaceHandlers = ({
 
   ipcMain.handle(CHANNELS.FILE_STAT, async (_event, filePath: string) => {
     if (typeof filePath !== 'string' || !filePath) return { ok: false, error: { code: 'INVALID_PATH' } }
-    if (!isTrustedPath(filePath) && !(await isFileTrustedForSave(filePath))) return { ok: false, error: { code: 'INVALID_PATH' } }
+    if (!(await isPathAuthorizedForReadOrSave(filePath))) return { ok: false, error: { code: 'INVALID_PATH' } }
     try { return { ok: true, data: { modifiedTime: (await stat(filePath)).mtimeMs } } } catch { return { ok: false, error: { code: 'NOT_FOUND' } } }
   })
 

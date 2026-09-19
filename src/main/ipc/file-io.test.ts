@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'fs/promises'
+import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -129,6 +129,24 @@ describe('Markdown 目录树', () => {
     expect(paths).toContain('一级.md')
     expect(paths).toContain('二级.md')
     expect(budget).toMatchObject({ files: 3, truncated: true })
+  })
+
+  it('不跟随目录符号链接或 junction 走出工作区', async () => {
+    const directory = await createTemporaryDirectory()
+    const outside = await createTemporaryDirectory()
+    await writeFile(join(outside, '逃逸.md'), '# 根外')
+    const linked = join(directory, '外链')
+    try {
+      await symlink(outside, linked, process.platform === 'win32' ? 'junction' : 'dir')
+    } catch {
+      return
+    }
+    await writeFile(join(directory, '本地.md'), '# 本地')
+
+    const tree = await walkMarkdownTree(directory, 0, { nodes: 0, truncated: false })
+    const serialized = JSON.stringify(tree)
+    expect(serialized).toContain('本地.md')
+    expect(serialized).not.toContain('逃逸.md')
   })
 })
 

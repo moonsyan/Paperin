@@ -1,15 +1,12 @@
 import { readdir, stat } from 'fs/promises'
 import { dirname, isAbsolute, relative, resolve } from 'path'
-import { readTextAutoEncoding } from '../ipc/file-io'
+import { isTraversableWorkspaceDirectory, readTextAutoEncoding } from '../ipc/file-io'
 import type { WorkspaceFileMeta, WorkspaceIndexServiceDeps } from './workspace-index-service'
 
 type WorkspaceIndexFilesystemDependencies = Pick<
   WorkspaceIndexServiceDeps,
   'listMarkdownFiles' | 'readFileText' | 'resolveResourcePath'
 >
-
-const isExcludedDirectory = (name: string): boolean =>
-  name.startsWith('.') || name === 'node_modules'
 
 /**
  * 生产索引使用的真实文件系统适配器。
@@ -27,11 +24,11 @@ export const createWorkspaceIndexFilesystemDependencies = (): WorkspaceIndexFile
       for (const entry of entries) {
         if (limit !== undefined && files.length >= limit) return
         const path = resolve(directory, entry.name)
-        if (entry.isDirectory()) {
-          if (!isExcludedDirectory(entry.name)) await walk(path)
+        if (await isTraversableWorkspaceDirectory(directory, entry)) {
+          await walk(path)
           continue
         }
-        if (!entry.isFile() || !/\.(?:md|markdown)$/i.test(entry.name)) continue
+        if (entry.isSymbolicLink() || !entry.isFile() || !/\.(?:md|markdown)$/i.test(entry.name)) continue
         const fileStat = await stat(path).catch(() => null)
         if (!fileStat?.isFile()) continue
         files.push({ path, size: fileStat.size, mtimeMs: fileStat.mtimeMs })

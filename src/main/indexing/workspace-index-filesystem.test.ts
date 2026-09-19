@@ -38,6 +38,24 @@ describe('workspace index filesystem dependencies', () => {
     expect(files.every((file) => file.size > 0 && file.mtimeMs > 0)).toBe(true)
   })
 
+  it('不跟随目录符号链接或 junction 走出工作区', async () => {
+    const root = await createTempRoot()
+    const outside = await createTempRoot()
+    await writeFile(join(outside, '逃逸.md'), '# 根外', 'utf-8')
+    const linked = join(root, '外链')
+    try {
+      const { symlink } = await import('fs/promises')
+      await symlink(outside, linked, process.platform === 'win32' ? 'junction' : 'dir')
+    } catch {
+      return
+    }
+    await writeFile(join(root, '本地.md'), '# 本地', 'utf-8')
+
+    const deps = createWorkspaceIndexFilesystemDependencies()
+    const files = await deps.listMarkdownFiles(root)
+    expect(files.map((file) => file.path)).toEqual([join(root, '本地.md')])
+  })
+
   it('资源解析只接受工作区内部已经存在的文件', async () => {
     const root = await createTempRoot()
     const noteDir = join(root, 'notes')
