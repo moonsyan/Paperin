@@ -5,7 +5,7 @@ import iconv from 'iconv-lite'
 import { CHANNELS } from '../../shared/ipc/channels'
 import { allowImageDirectory, readImageAsDataUrl } from '../image-protocol'
 import { schedulePersistTrust } from '../session-trust'
-import { createSaveAsWriteTargetAuthorizer, getWriteTargetAuthorizer, isPathAuthorizedForReadOrSave, trustDirectory, trustFileForSave } from '../trusted-paths'
+import { createSaveAsWriteTargetAuthorizer, getWriteTargetAuthorizer, isPathAuthorizedForReadOrSave, trustFileForSave } from '../trusted-paths'
 import type { DocumentSaveArgs, DocumentSaveEncoding, DocumentSaveResult } from './document-save-types'
 import {
   encodedDocumentByteLength,
@@ -101,13 +101,8 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
     }
 
     const filePath = result.filePaths[0]
-    // H1 修复：对话框选择 = 用户明确授权，授完整信任根；
-    // 该文件本身另加入文件级保存白名单
-    trustDirectory(dirname(filePath))
-    // Y-L4：目录信任根非保底（64 上限，最早淘汰）——打开第 65 个目录后
-    // 最早的根被淘汰，已打开文件的 mdimg 图片读取随之失效（图片破图）。
-    // 图片读取白名单独立于 trustedRoots 再登记一份（只读权限，不扩大攻击面），
-    // 即使目录信任被淘汰，文档里的图片仍可显示
+    // 对话框只表示用户要打开这一篇。父目录获得图片读取；写权限只给这个文件。
+    // 整目录写入要走“打开文件夹”。
     allowImageDirectory(dirname(filePath))
     await trustFileForSave(filePath)
     schedulePersistTrust()
@@ -431,7 +426,9 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
           return { ok: false, error: { code: 'INVALID_PATH' } }
         }
         await writeFileAtomically(result.filePath, content, undefined, { isTargetAuthorized })
-        trustDirectory(dirname(result.filePath))
+        allowImageDirectory(dirname(result.filePath))
+        await trustFileForSave(result.filePath)
+        schedulePersistTrust()
         // 返回真实落盘 mtime（渲染端用于下次保存的冲突检测，比 Date.now() 更准）
         let modifiedTime = 0
         try {
