@@ -1,3 +1,4 @@
+import type { Dispatch, SetStateAction } from 'react'
 import { Suspense, lazy, useRef } from 'react'
 import { CommandPalette } from '../components/CommandPalette'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -46,6 +47,8 @@ import type { CommandContext } from './commands/app-command'
 import type { WorkspaceIndex } from '../../../shared/workspace-index'
 import type { WorkspaceInfo } from '../components/Sidebar'
 import type { WorkspaceSettingsState } from '../../../shared/workspace-state'
+import { rememberRecentCitation } from '../../../shared/workspace-state'
+import { resolveWorkspacePath, toWorkspaceRelativePath } from '../lib/workspace-state'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -59,6 +62,7 @@ export interface AppDialogsProps {
   onThemeChange: (theme: string) => void
   workspace: WorkspaceInfo | null
   workspaceSettings: WorkspaceSettingsState
+  setWorkspaceSettings: Dispatch<SetStateAction<WorkspaceSettingsState>>
   onWorkspaceThemeEnabledChange: (enabled: boolean) => void
   fontSize: number
   onFontSizeChange: (v: number) => void
@@ -170,7 +174,7 @@ export interface AppDialogsProps {
 export function AppDialogs(props: AppDialogsProps): JSX.Element {
   const {
     settingsOpen, onCloseSettings, effectiveTheme, onThemeChange,
-    workspace, workspaceSettings, onWorkspaceThemeEnabledChange,
+    workspace, workspaceSettings, setWorkspaceSettings, onWorkspaceThemeEnabledChange,
     fontSize, onFontSizeChange, contentWidth, onContentWidthChange,
     lineHeight, onLineHeightChange, contentFont, onContentFontChange,
     zoom, onZoomChange, autosave, onAutosaveChange,
@@ -329,6 +333,20 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
             activeFileId={activeFileId}
             initialQuery={workspaceSettings.editor.lastSearchQuery ?? ''}
             onQueryCommit={onRememberSearchQuery}
+            recentCitations={workspaceSettings.editor.recentCitations}
+            onOpenRecent={(relativePath) => {
+              if (!window.desktopAPI) return
+              const absolute = resolveWorkspacePath(workspace.path, relativePath, window.desktopAPI.platform)
+              if (!absolute) return
+              onSelectSearchResult(absolute, '')
+            }}
+            onClearNavigation={() => {
+              setWorkspaceSettings((current) => ({
+                ...current,
+                editor: { ...current.editor, lastSearchQuery: '', recentCitations: [] },
+              }))
+              setToast('已清除搜索词和最近引用，正文没有改动')
+            }}
             onInsertCitation={(match) => {
               if (!citationTargetsCurrentDocument(match.capturedFileId, activeFileId)) {
                 setToast('文档已切换，未把旧搜索结果插入当前文章')
@@ -342,6 +360,13 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
               const place = writingPlaceRef.current
               if (place) editor.restoreViewState(place)
               editor.insertMd(buildSourceCitation(match.preview, activeFilePath, match.path))
+              const relative = toWorkspaceRelativePath(workspace.path, match.path, window.desktopAPI?.platform === 'win32')
+              if (relative) {
+                setWorkspaceSettings((current) => ({
+                  ...current,
+                  editor: { ...current.editor, recentCitations: rememberRecentCitation(current.editor.recentCitations, relative) },
+                }))
+              }
               onCloseWorkspaceSearch()
               setToast('已插入来源引用，已回到原位置，可用撤销收回')
             }}

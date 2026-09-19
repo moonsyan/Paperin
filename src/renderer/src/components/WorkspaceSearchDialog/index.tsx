@@ -3,6 +3,7 @@ import { isImeComposing } from '../../lib/keyboard'
 import type { WorkspaceIndex } from '../../../../shared/workspace-index'
 import { SEARCH_SCOPE_LABEL, searchCoverageNotes } from '../../lib/search-rank'
 import { SearchResultList } from './SearchResultList'
+import { RecentCitations } from './RecentCitations'
 import { useWorkspaceSearch } from './useWorkspaceSearch'
 
 interface WorkspaceSearchDialogProps {
@@ -23,6 +24,10 @@ interface WorkspaceSearchDialogProps {
   initialQuery?: string
   /** 用户执行搜索后记住查询词，不保存正文。 */
   onQueryCommit?: (query: string) => void
+  /** 最近引用的库内相对路径。只作入口，不自动打开。 */
+  recentCitations?: readonly string[]
+  onOpenRecent?: (relativePath: string) => void
+  onClearNavigation?: () => void
 }
 
 /**
@@ -39,6 +44,9 @@ export function WorkspaceSearchDialog({
   activeFileId = '',
   initialQuery = '',
   onQueryCommit,
+  recentCitations = [],
+  onOpenRecent,
+  onClearNavigation,
 }: WorkspaceSearchDialogProps): JSX.Element | null {
   const capturedFileId = useRef(activeFileId).current
   const search = useWorkspaceSearch({
@@ -116,6 +124,16 @@ export function WorkspaceSearchDialog({
             </button>
           </div>
           <p className="ws-scope">{SEARCH_SCOPE_LABEL}</p>
+          {!search.searched && onOpenRecent && onClearNavigation && (
+            <RecentCitations
+              paths={recentCitations}
+              onOpen={onOpenRecent}
+              onClear={() => {
+                search.setQuery('')
+                onClearNavigation()
+              }}
+            />
+          )}
           {search.error && <div className="ws-error">{search.error}</div>}
           <SearchResultList
             loading={search.loading}

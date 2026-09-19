@@ -7,6 +7,7 @@ export const WORKSPACE_LAYOUT_SCHEMA_VERSION = 2 as const
 export const MAX_WORKSPACE_TABS = 200
 export const MAX_COLLAPSED_DIRECTORIES = 2000
 export const MAX_DOCUMENT_VIEW_STATES = 500
+export const MAX_RECENT_CITATIONS = 8
 
 const MIN_SIDEBAR_WIDTH = 180
 const MAX_SIDEBAR_WIDTH = 600
@@ -38,6 +39,8 @@ export interface WorkspaceSettingsState {
     attachmentDirectory: string | null
     /** 上次工作区搜索词。旧设置缺省为空，不保存正文。 */
     lastSearchQuery: string
+    /** 最近插入过的来源，只存工作区相对路径，不存正文。 */
+    recentCitations: string[]
   }
 }
 
@@ -81,7 +84,7 @@ export interface WorkspaceStateBundle {
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettingsState = {
   schemaVersion: WORKSPACE_STATE_SCHEMA_VERSION,
   appearance: { theme: 'inherit' },
-  editor: { attachmentDirectory: null, lastSearchQuery: '' },
+  editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [] },
 }
 
 export const DEFAULT_WORKSPACE_LAYOUT: WorkspaceLayoutState = {
@@ -150,11 +153,27 @@ export const parseWorkspaceSettings = (value: unknown): WorkspaceSettingsState =
   const lastSearchQuery = typeof editor?.lastSearchQuery === 'string'
     ? editor.lastSearchQuery.replace(/[\r\n\u0000]/g, ' ').trim().slice(0, 256)
     : ''
+  const requestedCitations = Array.isArray(editor?.recentCitations) ? editor.recentCitations : []
+  const recentCitations: string[] = []
+  for (const candidate of requestedCitations) {
+    if (typeof candidate !== 'string') continue
+    const path = normalizeWorkspaceRelativePath(candidate)
+    if (!path || recentCitations.includes(path)) continue
+    recentCitations.push(path)
+    if (recentCitations.length >= MAX_RECENT_CITATIONS) break
+  }
   return {
     schemaVersion: WORKSPACE_STATE_SCHEMA_VERSION,
     appearance: { theme },
-    editor: { attachmentDirectory, lastSearchQuery },
+    editor: { attachmentDirectory, lastSearchQuery, recentCitations },
   }
+}
+
+/** 记住一条来源路径。绝对路径和越界路径会被丢掉，列表不超过 8 条。 */
+export const rememberRecentCitation = (current: readonly string[], relativePath: string): string[] => {
+  const path = normalizeWorkspaceRelativePath(relativePath)
+  if (!path) return [...current]
+  return [path, ...current.filter((item) => item !== path)].slice(0, MAX_RECENT_CITATIONS)
 }
 
 /** 侧栏视图联合类型（单一来源）：新增视图时此处与 Sidebar 组件同步扩展 */

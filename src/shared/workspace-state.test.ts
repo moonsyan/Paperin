@@ -4,6 +4,7 @@ import {
   parseWorkspaceLayout,
   parseWorkspaceSettings,
   normalizeWorkspaceRelativePath,
+  rememberRecentCitation,
 } from './workspace-state'
 
 describe('工作区状态校验', () => {
@@ -159,7 +160,7 @@ describe('工作区状态校验', () => {
     })).toEqual({
       schemaVersion: 1,
       appearance: { theme: 'inherit' },
-      editor: { attachmentDirectory: null, lastSearchQuery: '' },
+      editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [] },
     })
   })
 
@@ -167,14 +168,24 @@ describe('工作区状态校验', () => {
     expect(parseWorkspaceSettings({})).toEqual({
       schemaVersion: 1,
       appearance: { theme: 'inherit' },
-      editor: { attachmentDirectory: null, lastSearchQuery: '' },
+      editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [] },
     })
     expect(parseWorkspaceSettings({ editor: { attachmentDirectory: ' media\\images/ ' } })).toEqual({
       schemaVersion: 1,
       appearance: { theme: 'inherit' },
-      editor: { attachmentDirectory: 'media/images', lastSearchQuery: '' },
+      editor: { attachmentDirectory: 'media/images', lastSearchQuery: '', recentCitations: [] },
     })
     expect(parseWorkspaceSettings({ editor: { lastSearchQuery: ' 研究\n笔记 ' } }).editor.lastSearchQuery).toBe('研究 笔记')
     expect(parseWorkspaceSettings({}).editor.lastSearchQuery).toBe('')
+  })
+
+  it('最近引用只保留库内相对路径，可清空且不接收正文', () => {
+    expect(rememberRecentCitation([], '资料/文章.md')).toEqual(['资料/文章.md'])
+    expect(rememberRecentCitation(['资料/文章.md', '其他.md'], '资料/文章.md')).toEqual(['资料/文章.md', '其他.md'])
+    expect(rememberRecentCitation([], 'D:/外部/笔记.md')).toEqual([])
+    expect(parseWorkspaceSettings({
+      editor: { recentCitations: ['资料/文章.md', '../秘密.md', '资料/文章.md'] },
+    }).editor.recentCitations).toEqual(['资料/文章.md'])
+    expect(parseWorkspaceSettings({}).editor.recentCitations).toEqual([])
   })
 })

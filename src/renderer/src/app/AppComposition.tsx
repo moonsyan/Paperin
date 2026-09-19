@@ -387,7 +387,7 @@ export function AppComposition(): JSX.Element {
       <AppDialogs
         settingsOpen={settingsOpen} onCloseSettings={closeSettings}
         effectiveTheme={effectiveTheme} onThemeChange={handleThemeChange}
-        workspace={workspace} workspaceSettings={workspaceSettings}
+        workspace={workspace} workspaceSettings={workspaceSettings} setWorkspaceSettings={setWorkspaceSettings}
         onWorkspaceThemeEnabledChange={handleWorkspaceThemeEnabledChange}
         fontSize={fontSize} onFontSizeChange={setFontSize}
         contentWidth={contentWidth} onContentWidthChange={setContentWidth}

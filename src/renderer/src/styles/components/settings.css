@@ -309,6 +309,18 @@ button.search-regex:focus-visible {
   font-size: .72rem;
   line-height: 1.45;
 }
+.ws-recent { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.ws-recent-head { display: flex; align-items: center; justify-content: space-between; font-size: .72rem; color: var(--text-3); }
+.ws-recent-clear, .ws-recent-item {
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  text-align: left;
+  cursor: pointer;
+}
+.ws-recent-clear { color: var(--accent); font-size: .72rem; }
+.ws-recent-item { padding: 4px 0; font-size: .78rem; }
+.ws-recent-clear:focus-visible, .ws-recent-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .ws-error {
   font-size: .7rem;
   color: #b06060;
