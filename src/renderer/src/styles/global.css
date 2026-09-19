@@ -372,6 +372,16 @@ html[data-platform='darwin'] .topbar {
   font-size: .74rem;
   color: var(--text-4);
 }
+.start-notices {
+  margin: 18px auto 0;
+  max-width: 28rem;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+  font-size: .74rem;
+  line-height: 1.5;
+  color: var(--text-3);
+}
 
 .sidebar-toggle {
   position: absolute;

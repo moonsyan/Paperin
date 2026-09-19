@@ -11,6 +11,8 @@ interface StartScreenProps {
    * - 有库：主要动作是「在此知识库新建」，并提示继续最近编辑
    */
   hasWorkspace?: boolean
+  /** 打开知识库后的只读兼容说明。不改原文。 */
+  notices?: readonly string[]
 }
 
 /**
@@ -18,7 +20,7 @@ interface StartScreenProps {
  * 左侧文件夹树始终保留，用户可从中点击样例文件，或用此处按钮创建/打开文档。
  * 关闭全部标签不会被欢迎页强行接管为重新打开图谱等动作——本组件只提供主动作。
  */
-export function StartScreen({ onNew, onOpen, onOpenFolder, hasWorkspace = false }: StartScreenProps): JSX.Element {
+export function StartScreen({ onNew, onOpen, onOpenFolder, hasWorkspace = false, notices = [] }: StartScreenProps): JSX.Element {
   return (
     <div className="start-screen">
       <div className="start-inner">
@@ -74,6 +76,11 @@ export function StartScreen({ onNew, onOpen, onOpenFolder, hasWorkspace = false 
             </>
           )}
         </div>
+        {notices.length > 0 && (
+          <ul className="start-notices">
+            {notices.map((notice) => <li key={notice}>{notice}</li>)}
+          </ul>
+        )}
         {hasWorkspace ? (
           <p className="start-hint">要继续上次写作，可打开侧栏的「最近编辑」列表</p>
         ) : (

@@ -18,6 +18,7 @@ import type { WorkspaceIndex, DiagnosticRecord } from '../../../shared/workspace
 import type { TypographyIssue } from '../lib/chinese-typography'
 import type { SearchBarHandlers } from './useEditorSearch'
 import { SKIP_LINK_TARGET_ID } from './SkipLink'
+import { workspaceCompatibilityNotes } from '../lib/workspace-compatibility'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -290,7 +291,7 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
           )}
           <EditorMargin context={editorMarginContext} />
           {openFiles.length === 0 && (
-            <StartScreen onNew={onNew} onOpen={onOpen} onOpenFolder={onOpenFolder} hasWorkspace={workspace !== null} />
+            <StartScreen onNew={onNew} onOpen={onOpen} onOpenFolder={onOpenFolder} hasWorkspace={workspace !== null} notices={workspaceCompatibilityNotes(workspaceIndex)} />
           )}
         </div>
       </div>

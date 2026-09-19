@@ -26,6 +26,20 @@ describe('StartScreen（NEXT-UI-SPEC §7 空状态主动作）', () => {
     expect(screen.queryByText(/样例文件/)).toBeNull()
   })
 
+  it('有知识库时展示只读兼容说明，不提供改写原文的动作', () => {
+    render(
+      <StartScreen
+        onNew={vi.fn()}
+        onOpen={vi.fn()}
+        onOpenFolder={vi.fn()}
+        hasWorkspace
+        notices={['索引没有覆盖全部文件，搜索和检查不能当成完整结果。']}
+      />,
+    )
+    expect(screen.getByText(/不能当成完整结果/)).toBeTruthy()
+    expect(document.body.textContent).not.toContain('改写原文')
+  })
+
   it('不自动渲染任何「登录/同步」类动作（不要求登录）', () => {
     render(<StartScreen onNew={vi.fn()} onOpen={vi.fn()} onOpenFolder={vi.fn()} />)
     expect(document.body.textContent).not.toContain('登录')

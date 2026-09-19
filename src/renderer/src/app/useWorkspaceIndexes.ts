@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import type { WorkspaceIndex, DiagnosticRecord } from '../../../shared/workspace-index'
 import { collectDiagnostics } from '../lib/diagnostics'
+import { workspaceCompatibilityNotes, workspaceCompatibilityToast } from '../lib/workspace-compatibility'
 import { useWorkspaceLinks } from '../hooks/useWorkspaceLinks'
 import { useWorkspaceTags } from '../hooks/useWorkspaceTags'
 import type { WorkspaceInfo } from '../components/Sidebar'
@@ -56,6 +57,7 @@ export function useWorkspaceIndexes({
 }: UseWorkspaceIndexesOptions): UseWorkspaceIndexesResult {
   const [workspaceIndex, setWorkspaceIndex] = useState<WorkspaceIndex | null>(null)
   const [indexLoading, setIndexLoading] = useState(false)
+  const announcedPathRef = useRef<string | null>(null)
 
   // --- 工作区索引加载与事件订阅 ---
   useEffect(() => {
@@ -96,6 +98,14 @@ export function useWorkspaceIndexes({
       void api.cancel(workspace.path)
     }
   }, [setToast, workspace?.path])
+
+  useEffect(() => {
+    if (!workspace?.path || indexLoading || !workspaceIndex) return
+    if (announcedPathRef.current === workspace.path) return
+    announcedPathRef.current = workspace.path
+    const message = workspaceCompatibilityToast(workspaceCompatibilityNotes(workspaceIndex))
+    if (message) setToast(message)
+  }, [indexLoading, setToast, workspace?.path, workspaceIndex])
 
   // --- 诊断记录（从索引派生） ---
   const diagnostics = useMemo<DiagnosticRecord[]>(
