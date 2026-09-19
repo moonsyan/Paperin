@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Dispatch, PointerEvent as ReactPointerEvent, RefObject, SetStateAction } from 'react'
+import { isImeComposing } from '../../lib/keyboard'
 
 export interface GraphViewportSize {
   width: number
@@ -73,6 +74,7 @@ export function useGraphViewport(active: boolean, onClose: () => void): GraphVie
   useEffect(() => {
     if (!active) return
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (isImeComposing(event)) return
       if (event.key === 'Escape' && !(event.target instanceof HTMLInputElement)) onClose()
     }
     document.addEventListener('keydown', handleKeyDown)

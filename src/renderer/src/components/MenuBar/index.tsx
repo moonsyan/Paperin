@@ -4,6 +4,7 @@ import { CompactMenu } from './CompactMenu'
 import { buildMenus, MENU_LABELS } from './menu-definitions'
 import type { MenuItemDef } from './menu-definitions'
 import type { ShortcutMap } from '../../data/shortcuts'
+import { isImeComposing } from '../../lib/keyboard'
 
 /** 最近打开的磁盘文件 */
 export interface RecentFile {
@@ -128,6 +129,7 @@ function LegacyMenuBar({ onAction, recentFiles = [], shortcuts, isActionEnabled 
     event: React.KeyboardEvent<HTMLButtonElement>,
     key: string,
   ) => {
+    if (isImeComposing(event.nativeEvent)) return
     if (event.key === 'Escape') {
       setOpenKey(null)
       return
@@ -167,6 +169,7 @@ function LegacyMenuBar({ onAction, recentFiles = [], shortcuts, isActionEnabled 
 
   /** 下拉内方向键/Home/End 导航与 Esc 关闭（role="menu" 的键盘可达性） */
   const handleDropdownKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (isImeComposing(event.nativeEvent)) return
     if (event.key === 'Escape') {
       event.preventDefault()
       setOpenKey(null)

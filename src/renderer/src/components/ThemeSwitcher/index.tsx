@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { isImeComposing } from '../../lib/keyboard'
 
 interface ThemeSwitcherProps {
   currentTheme: string
@@ -32,7 +33,8 @@ export function ThemeSwitcher({ currentTheme, onThemeChange }: ThemeSwitcherProp
   // D4：Esc 关闭（与菜单栏行为一致；此前只能点击外部关闭）
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
+      if (isImeComposing(e) || e.key !== 'Escape') return
+      setOpen(false)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)

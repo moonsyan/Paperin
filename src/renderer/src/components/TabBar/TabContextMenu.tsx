@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { isImeComposing } from '../../lib/keyboard'
 
 export interface TabContextMenuState {
   x: number
@@ -37,6 +38,7 @@ export function TabContextMenu({
       if (!(event.target instanceof Element) || !event.target.closest('.tab-ctx-menu')) onDismiss(false)
     }
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (isImeComposing(event)) return
       if (event.key === 'Escape') {
         event.preventDefault()
         onDismiss(true)
