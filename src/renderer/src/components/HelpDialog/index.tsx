@@ -117,6 +117,7 @@ const SYNTAX_GROUPS: { title: string; items: { name: string; code: string }[] }[
     title: '块级元素',
     items: [
       { name: '代码块', code: '```python（回车后输入代码）' },
+      { name: 'JSON / YAML', code: '```json 或 ```yaml。块右下角可格式化、压成一行，行首可折叠一段' },
       { name: '表格', code: '| 列1 | 列2 |（换行 | --- | --- |）' },
       { name: '分割线', code: '---' },
       { name: '链接 / 图片', code: '[文字](链接)  /  ![说明](图片)' },

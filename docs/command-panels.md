@@ -8,6 +8,8 @@ Paperin 的菜单、快捷键和命令面板共享 `app/commands/app-command-reg
 
 写作模板通过 `newTemplate:article`（技术文章）和 `newTemplate:decision`（决策记录）创建新的未保存文档。内容是普通 Markdown，不写品牌署名，也不覆盖已经打开的文件。README、API、设计文档和变更日志模板仍然保留。
 
+JSON 和 YAML 代码块右下角可以格式化或压成一行。有缩进的代码块可以在行首折叠一段，折叠只改变显示，不改文件里的文字。
+
 面板通过 `app/panels/panel-registry.ts` 注册到固定 slot：
 
 | slot                | 用途             |
