@@ -337,7 +337,7 @@ export const registerWorkspaceHandlers = ({
             }
             if (matchCapped) break
           }
-          return { ok: true, data: { matches, truncated: scanTruncated || matchCapped } }
+          return { ok: true, data: { matches, truncated: scanTruncated || matchCapped, scanTruncated, matchCapped } }
         } catch (error) {
           if (error instanceof Error && error.message === 'REGEX_TIMEOUT') {
             return {

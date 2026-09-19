@@ -298,10 +298,16 @@ button.search-regex:focus-visible {
   border-radius: 2px;
 }
 .ws-empty {
-  padding: 18px 0;
+  padding: 18px 8px;
   text-align: center;
-  font-size: .74rem;
   color: var(--text-4);
+  font-size: .78rem;
+}
+.ws-scope {
+  margin: 0 0 8px;
+  color: var(--text-3);
+  font-size: .72rem;
+  line-height: 1.45;
 }
 .ws-error {
   font-size: .7rem;

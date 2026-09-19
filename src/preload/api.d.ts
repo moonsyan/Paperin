@@ -107,6 +107,10 @@ export interface DesktopAPI {
       data?: {
         matches: { path: string; line: number; preview: string }[]
         truncated: boolean
+        /** 扫描预算或文件数上限导致没扫完。缺省时由 truncated 与结果数推断。 */
+        scanTruncated?: boolean
+        /** 命中条数达到 200。与 scanTruncated 分开，避免把未扫完说成结果过多。 */
+        matchCapped?: boolean
       }
       error?: { code: string; message?: string }
     }>
