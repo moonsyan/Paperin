@@ -187,6 +187,7 @@ describe('useCommandRegistry', () => {
       'closeTab', 'closeOtherTabs', 'closeAllTabs',
       'images', 'publish', 'exportPdf', 'exportHtml', 'exportMarkdown', 'exportDocx', 'exportPandoc',
       'newTemplate:readme', 'newTemplate:api', 'newTemplate:design', 'newTemplate:changelog',
+      'newTemplate:article', 'newTemplate:decision',
       'find', 'replace', 'wsSearch', 'commandPalette',
       'toggleSidebar', 'toggleFocus', 'togglePreview', 'zoomIn', 'zoomOut', 'zoomReset', 'typewriter',
       'outline', 'linksPanel', 'tagsPanel', 'propertiesPanel', 'qualityPanel', 'graph', 'versionHistory',

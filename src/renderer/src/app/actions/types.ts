@@ -4,6 +4,7 @@ import type { ContextDockState } from '../../components/ContextDock/context-dock
 import type { HelpView } from '../../components/HelpDialog'
 import type { SidebarView } from '../../../../shared/workspace-state'
 import type { AppliedLayoutState } from '../workspace/layout-preset'
+import type { DocumentTemplate } from '../../lib/document-collection'
 
 /**
  * useAppActions 入口参数。集中定义在 actions 子目录，方便各拆分模块按需要
@@ -70,7 +71,7 @@ export interface UseAppActionsOptions {
   setPdfOptsOpen: Dispatch<SetStateAction<boolean>>
   setPublishOpen: Dispatch<SetStateAction<boolean>>
   /** 从开发者模板创建新文档并打开（命令面板动作） */
-  handleNewFromTemplate?: (template: 'readme' | 'api' | 'design' | 'changelog') => void
+  handleNewFromTemplate?: (template: DocumentTemplate) => void
   setWsSearchOpen: Dispatch<SetStateAction<boolean>>
   setPaletteOpen: Dispatch<SetStateAction<boolean>>
   setVersionHistoryOpen: Dispatch<SetStateAction<boolean>>

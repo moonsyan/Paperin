@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react'
 import type { EditorHandle } from '../components/Editor'
 import { createDocumentFromTemplate } from '../lib/document-collection'
+import type { DocumentTemplate } from '../lib/document-collection'
 import type { PublishScope } from '../lib/export-bundle'
 import type { WorkspaceIndex } from '../../../shared/workspace-index'
 import { resolveCollectionEntries } from './resolve-collection-entries'
@@ -20,7 +21,7 @@ interface DocumentCreationAndCollectionOptions {
 export function useDocumentCreationAndCollection({
   activeFileIdRef, editorRef, handleNew, setContents, setSavedMap, workspaceIndex, documents,
 }: DocumentCreationAndCollectionOptions) {
-  const handleNewFromTemplate = useCallback((template: 'readme' | 'api' | 'design' | 'changelog') => {
+  const handleNewFromTemplate = useCallback((template: DocumentTemplate) => {
     const content = createDocumentFromTemplate(template, {})
     handleNew()
     const newId = activeFileIdRef.current

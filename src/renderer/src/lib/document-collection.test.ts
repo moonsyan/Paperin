@@ -169,6 +169,23 @@ describe('createDocumentFromTemplate', () => {
     expect(changelog).toContain('### 新增')
   })
 
+  it('技术文章和决策记录是普通 Markdown，且不强制品牌署名', () => {
+    const article = createDocumentFromTemplate('article', { title: '如何配置本地预览' })
+    expect(article).toContain('# 如何配置本地预览')
+    expect(article).toContain('## 步骤')
+    expect(article).toContain('## 参考')
+    expect(article).not.toContain('Paperin')
+
+    const decision = createDocumentFromTemplate('decision', { title: '是否采用相对链接' })
+    expect(decision).toContain('# 是否采用相对链接')
+    expect(decision).toContain('## 问题')
+    expect(decision).toContain('## 资料来源')
+    expect(decision).toContain('## 结论')
+    expect(decision).toContain('## 交付检查')
+    expect(decision).not.toContain('{{')
+    expect(decision).not.toContain('Paperin')
+  })
+
   it('变量缺失时使用明确默认值，不残留空占位符', () => {
     const readme = createDocumentFromTemplate('readme', {})
     expect(readme).not.toContain('{{')

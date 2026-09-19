@@ -42,6 +42,8 @@ const COMMANDS: PaletteCommand[] = [
   { id: 'newTemplate:api', label: '新建文档模板：API 文档' },
   { id: 'newTemplate:design', label: '新建文档模板：设计文档' },
   { id: 'newTemplate:changelog', label: '新建文档模板：变更日志' },
+  { id: 'newTemplate:article', label: '新建文档模板：技术文章' },
+  { id: 'newTemplate:decision', label: '新建文档模板：决策记录' },
   { id: 'open', label: '打开文件' },
   { id: 'openFolder', label: '打开文件夹' },
   { id: 'save', label: '保存' },

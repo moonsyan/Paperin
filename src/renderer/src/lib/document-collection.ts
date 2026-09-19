@@ -4,6 +4,8 @@ import { mathFromMarkdown } from 'mdast-util-math'
 import { gfm } from 'micromark-extension-gfm'
 import { math } from 'micromark-extension-math'
 import { extractFrontmatterRaw, parseFrontmatterYaml } from './frontmatter-parser'
+import { isWritingTemplate, renderWritingTemplate } from './writing-templates'
+import type { WritingTemplateId } from './writing-templates'
 
 /* ==================== 文档集合发布与开发者文档模板 ====================
  *
@@ -17,7 +19,7 @@ import { extractFrontmatterRaw, parseFrontmatterYaml } from './frontmatter-parse
  * （集合导出不内嵌 KaTeX 字体），复杂排版建议逐篇使用当前文档导出。
  */
 
-export type DocumentTemplate = 'readme' | 'api' | 'design' | 'changelog'
+export type DocumentTemplate = 'readme' | 'api' | 'design' | 'changelog' | WritingTemplateId
 
 export interface CollectionEntry {
   path: string
@@ -264,7 +266,7 @@ const TEMPLATE_DEFAULTS: Record<string, string> = {
   baseUrl: 'https://api.example.com',
 }
 
-const TEMPLATES: Record<DocumentTemplate, (v: Record<string, string>) => string> = {
+const TEMPLATES: Record<Exclude<DocumentTemplate, WritingTemplateId>, (v: Record<string, string>) => string> = {
   readme: (v) => `# ${v.name}
 
 > ${v.description}
@@ -403,11 +405,12 @@ export const createDocumentFromTemplate = (
   template: DocumentTemplate,
   variables: Record<string, string> = {},
 ): string => {
-  const builder = TEMPLATES[template]
-  if (!builder) return ''
   const resolved: Record<string, string> = { ...TEMPLATE_DEFAULTS, date: todayText() }
   for (const [key, value] of Object.entries(variables)) {
     if (typeof value === 'string' && value.trim()) resolved[key] = value.trim()
   }
+  if (isWritingTemplate(template)) return renderWritingTemplate(template, resolved)
+  const builder = TEMPLATES[template]
+  if (!builder) return ''
   return builder(resolved)
 }

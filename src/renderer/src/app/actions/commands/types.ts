@@ -1,6 +1,7 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type { ContextDockPanel } from '../../../components/ContextDock/context-dock-state'
 import type { HelpView } from '../../../components/HelpDialog'
+import type { DocumentTemplate } from '../../../lib/document-collection'
 
 /**
  * 应用层动作处理器集合：菜单、右键菜单、快捷键和命令面板共享的命令实现
@@ -19,7 +20,7 @@ export interface ActionHandlers {
   handleCloseOtherTabs: (id: string) => void
   handleCloseAllTabs: () => void
   /** 从开发者模板创建新文档并打开（命令面板动作） */
-  handleNewFromTemplate?: (template: 'readme' | 'api' | 'design' | 'changelog') => void
+  handleNewFromTemplate?: (template: DocumentTemplate) => void
   /* 导出 */
   handleExportHtml: () => Promise<void>
   handleExportMarkdown: () => Promise<void>

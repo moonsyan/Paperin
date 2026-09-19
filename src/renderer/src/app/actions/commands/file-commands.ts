@@ -1,13 +1,16 @@
 import type { AppCommand } from '../../commands/app-command'
+import type { DocumentTemplate } from '../../../lib/document-collection'
 import type { ActionHandlersRef } from './types'
 
-const TEMPLATES = ['readme', 'api', 'design', 'changelog'] as const
+const TEMPLATES: DocumentTemplate[] = ['readme', 'api', 'design', 'changelog', 'article', 'decision']
 
-const TEMPLATE_TITLES: Record<(typeof TEMPLATES)[number], string> = {
+const TEMPLATE_TITLES: Record<DocumentTemplate, string> = {
   readme: '新建 README 模板文档',
   api: '新建 API 文档模板',
   design: '新建设计文档模板',
   changelog: '新建更新日志模板',
+  article: '新建技术文章模板',
+  decision: '新建决策记录模板',
 }
 
 /**
