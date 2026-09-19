@@ -150,7 +150,7 @@ export function useDocumentTabClosing({
       else confirmed.set(file.id, { path: file.path, content: contentsRef.current[file.id] ?? '' })
     }
     await saveQueueRef.current?.flushAll()
-    flushPersistedSettings()
+    await flushPersistedSettings()
     if (workspacePathRef.current && window.desktopAPI) {
       const result = await window.desktopAPI.workspaceState.saveDocuments(workspaceDocumentsRef.current)
       if (!result.ok) setToast('文档视图状态保存失败')
