@@ -83,6 +83,7 @@ function createFixture(overrides: Overrides = {}): Fixture {
     openFilesRef,
     contentsRef,
     activeFileIdRef: { current: FILE_A.id },
+    fileMtimeRef: { current: overrides.fileMtime ?? { [FILE_A.id]: 10, [FILE_B.id]: 20 } },
     initialOrSavedRef,
     draftPendingRef,
     setOpenFiles: vi.fn(),

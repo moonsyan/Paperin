@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { OpenFile, WorkspaceInfo } from '../../components/Sidebar'
-import { getNeighborTabId } from '../../lib/document-tabs'
+import { getNeighborTabId, isDocumentDirty } from '../../lib/document-tabs'
 import { sameDesktopFilePath } from '../../lib/desktop-file-path'
 import type { DocumentWorkspaceBridge } from './types'
 
@@ -56,6 +56,7 @@ export function useWorkspaceFiles({
     openFilesRef,
     contentsRef,
     activeFileIdRef,
+    fileMtimeRef,
     initialOrSavedRef,
     draftPendingRef,
     setOpenFiles,
@@ -66,6 +67,13 @@ export function useWorkspaceFiles({
     setActiveFileId,
     setDocTitle,
   } = bridge
+  const mtimeOf = (fileId: string): number | undefined =>
+    fileMtimeRef.current[fileId] ?? fileMtime[fileId]
+  const flushActiveIf = (fileId: string): void => {
+    if (activeFileIdRef.current === fileId) flushEditorContent()
+  }
+  const needsSave = (fileId: string): boolean =>
+    isDocumentDirty(liveContentOf(fileId), initialOrSavedRef.current[fileId] ?? '')
   /** 重新扫描工作区目录（增删改后刷新文件树）。
    *  刷新只是同步文件结构，不改变编辑上下文：preserveActiveTab=true
    *  禁止恢复路径按布局记录重放活动标签——否则新建/重命名提交后，
@@ -104,11 +112,12 @@ export function useWorkspaceFiles({
       // 用旧 id 迁移会把记录/内容搬到错误键下，产生重复标签 id 或内容丢失
       const currentRecord = openFilesRef.current.find((f) => sameFilePath(f.path, path))
       const currentId = currentRecord?.id ?? `file-${path}`
+      flushActiveIf(currentId)
       let pending: string | undefined
-      if (savedMap[currentId] === false && contentsRef.current[currentId] !== undefined) {
+      if (needsSave(currentId) && contentsRef.current[currentId] !== undefined) {
         pending = liveContentOf(currentId)
         // interactive：GBK 内容含不可映射字符时弹降级确认而非误报"保存失败，已中止"
-        const saveRes = await saveWithEncodingFallback(path, pending, fileMtime[currentId], currentId, true)
+        const saveRes = await saveWithEncodingFallback(path, pending, mtimeOf(currentId), currentId, true)
         if (!saveRes.ok) {
           setToast(
             saveRes.error?.code === 'CONFLICT'
@@ -214,7 +223,7 @@ export function useWorkspaceFiles({
       await refreshWorkspace()
       return true
     },
-    [savedMap, fileMtime, liveContentOf, saveWithEncodingFallback, refreshWorkspace, clearDraft, setToast, openFilesRef, contentsRef, initialOrSavedRef, draftPendingRef, activeFileIdRef, setOpenFiles, setContents, setSavedMap, setFileMtime, setEncodingMap, setActiveFileId, setDocTitle],
+    [savedMap, fileMtime, liveContentOf, saveWithEncodingFallback, refreshWorkspace, clearDraft, flushEditorContent, setToast, openFilesRef, contentsRef, initialOrSavedRef, draftPendingRef, activeFileIdRef, fileMtimeRef, setOpenFiles, setContents, setSavedMap, setFileMtime, setEncodingMap, setActiveFileId, setDocTitle],
   )
 
   const handleDeleteFile = useCallback(
@@ -224,13 +233,14 @@ export function useWorkspaceFiles({
       // 按归一比较取真实标签 id，否则删除后写回被跳过、标签残留成幽灵
       const delRecord = openFilesRef.current.find((f) => sameFilePath(f.path, path))
       const delId = delRecord?.id ?? `file-${path}`
+      flushActiveIf(delId)
       // 删除前先写回未保存内容，避免编辑丢失（与 rename/move 保持一致）
-      if (savedMap[delId] === false) {
+      if (needsSave(delId)) {
         // interactive：GBK 含不可映射字符时弹降级确认而非误报"保存失败，已取消删除"
         const saveRes = await saveWithEncodingFallback(
           path,
           liveContentOf(delId),
-          fileMtime[delId],
+          mtimeOf(delId),
           delId,
           true,
         )
@@ -296,7 +306,7 @@ export function useWorkspaceFiles({
       }
       return true
     },
-    [refreshWorkspace, switchFile, clearDraft, savedMap, liveContentOf, fileMtime, saveWithEncodingFallback, setToast, openFilesRef, contentsRef, initialOrSavedRef, draftPendingRef, activeFileIdRef, setOpenFiles, setContents, setSavedMap, setFileMtime, setEncodingMap],
+    [refreshWorkspace, switchFile, clearDraft, savedMap, liveContentOf, fileMtime, saveWithEncodingFallback, flushEditorContent, setToast, openFilesRef, contentsRef, initialOrSavedRef, draftPendingRef, activeFileIdRef, fileMtimeRef, setOpenFiles, setContents, setSavedMap, setFileMtime, setEncodingMap],
   )
 
   const handleMoveFile = useCallback(
@@ -318,16 +328,15 @@ export function useWorkspaceFiles({
       // 是否仍存在，迁移后旧 id 已被替换，flush 会静默跳过——末次输入就丢了。
       // 同时保证下方脏文件循环写入的基线取自最新内容（INITIAL_OR_SAVED 与磁盘一致）
       if (activeIsMoved) flushEditorContent()
-      // 先写回受影响文件的未保存内容，避免移动后编辑丢失（带冲突检测，外部修改过的不静默覆盖）
       const dirty = openFiles.filter(
-        (f) => f.path && isUnder(f.path) && savedMap[f.id] === false,
+        (f) => f.path && isUnder(f.path) && needsSave(f.id),
       )
       for (const f of dirty) {
         // interactive：GBK 含不可映射字符时弹降级确认而非误报"移动前保存失败，已中止"
         const saveRes = await saveWithEncodingFallback(
           f.path!,
           liveContentOf(f.id),
-          fileMtime[f.id],
+          mtimeOf(f.id),
           f.id,
           true,
         )
@@ -486,7 +495,7 @@ export function useWorkspaceFiles({
       await refreshWorkspace()
       return true
     },
-    [openFiles, savedMap, fileMtime, liveContentOf, saveWithEncodingFallback, refreshWorkspace, clearDraft, replaceEditorContent, flushEditorContent, setToast, openFilesRef, contentsRef, initialOrSavedRef, draftPendingRef, activeFileIdRef, setOpenFiles, setContents, setSavedMap, setFileMtime, setEncodingMap, setActiveFileId],
+    [openFiles, savedMap, fileMtime, liveContentOf, saveWithEncodingFallback, refreshWorkspace, clearDraft, replaceEditorContent, flushEditorContent, setToast, openFilesRef, contentsRef, initialOrSavedRef, draftPendingRef, activeFileIdRef, fileMtimeRef, setOpenFiles, setContents, setSavedMap, setFileMtime, setEncodingMap, setActiveFileId],
   )
 
   /** 右键在新窗口打开文件（U7） */

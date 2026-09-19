@@ -31,6 +31,7 @@ export interface DocumentWorkspaceBridge {
     expectedMtime: number | undefined,
     fileId: string,
     interactive?: boolean,
+    options?: { forceOverwrite?: boolean },
   ): Promise<SaveResult>
   /** 把防抖窗口内的编辑器输入立即落账到 contents（移动文件夹前必须调用） */
   flushEditorContent(): void
@@ -51,6 +52,8 @@ export interface DocumentWorkspaceBridge {
   openFilesRef: MutableRefObject<OpenFile[]>
   contentsRef: MutableRefObject<Record<string, string>>
   activeFileIdRef: MutableRefObject<string>
+  /** 保存冲突检测用的磁盘 mtime；await 期间以 ref 为准，避免用过期闭包误报 CONFLICT */
+  fileMtimeRef: MutableRefObject<Record<string, number>>
   /** 脏检查基线（INITIAL_OR_SAVED）：结构变更后新 id 的基线随之搬迁 */
   initialOrSavedRef: MutableRefObject<Record<string, string>>
   /** 防抖中的待写草稿：源 id 迁移后同步改写目标 id，避免写回旧路径 */

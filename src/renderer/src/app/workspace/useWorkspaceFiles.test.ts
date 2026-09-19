@@ -82,6 +82,7 @@ function createFixture(overrides: Overrides = {}): Fixture {
     openFilesRef,
     contentsRef,
     activeFileIdRef: { current: FILE_A.id },
+    fileMtimeRef: { current: overrides.fileMtime ?? { [FILE_A.id]: 10, [FILE_B.id]: 20 } },
     initialOrSavedRef,
     draftPendingRef,
     setOpenFiles: vi.fn(),
@@ -196,6 +197,7 @@ describe('useWorkspaceFiles', () => {
   it('删除未修改文件后移除记录并切到相邻标签', async () => {
     const fx = createFixture()
     fx.savedMap[FILE_A.id] = true
+    fx.bridge.initialOrSavedRef.current[FILE_A.id] = 'A 内容'
     const ops = renderOps(fx)
     await act(() => ops.handleDeleteFile('/w/a.md'))
     expect(fx.ipcFns.deleteFile).toHaveBeenCalledWith('/w/a.md')
@@ -212,6 +214,46 @@ describe('useWorkspaceFiles', () => {
     expect(fx.setToast).toHaveBeenCalledWith(expect.stringContaining('已被外部修改，已取消删除'))
     expect(fx.ipcFns.deleteFile).not.toHaveBeenCalled()
     expect(fx.bridge.openFilesRef.current.some((f) => f.id === FILE_A.id)).toBe(true)
+  })
+
+  it('savedMap 仍为已保存时，重命名活动文件仍 flush 并写回实时内容', async () => {
+    const fx = createFixture({
+      savedMap: { [FILE_A.id]: true, [FILE_B.id]: true },
+    })
+    fx.bridge.initialOrSavedRef.current[FILE_A.id] = '磁盘旧内容'
+    ;(fx.bridge.liveContentOf as ReturnType<typeof vi.fn>).mockReturnValue('防抖窗口内的输入')
+    const ops = renderOps(fx)
+    await act(() => ops.handleRenameFile('/w/a.md', 'r.md'))
+
+    expect(fx.bridge.flushEditorContent).toHaveBeenCalled()
+    expect(fx.bridge.saveWithEncodingFallback).toHaveBeenCalledWith(
+      '/w/a.md',
+      '防抖窗口内的输入',
+      10,
+      FILE_A.id,
+      true,
+    )
+    expect(fx.ipcFns.renameFile).toHaveBeenCalled()
+  })
+
+  it('savedMap 仍为已保存时，删除活动文件仍 flush 并先写回再删除', async () => {
+    const fx = createFixture({
+      savedMap: { [FILE_A.id]: true, [FILE_B.id]: true },
+    })
+    fx.bridge.initialOrSavedRef.current[FILE_A.id] = '磁盘旧内容'
+    ;(fx.bridge.liveContentOf as ReturnType<typeof vi.fn>).mockReturnValue('还没落账的输入')
+    const ops = renderOps(fx)
+    await act(() => ops.handleDeleteFile('/w/a.md'))
+
+    expect(fx.bridge.flushEditorContent).toHaveBeenCalled()
+    expect(fx.bridge.saveWithEncodingFallback).toHaveBeenCalledWith(
+      '/w/a.md',
+      '还没落账的输入',
+      10,
+      FILE_A.id,
+      true,
+    )
+    expect(fx.ipcFns.deleteFile).toHaveBeenCalledWith('/w/a.md')
   })
 
   it('移动活动文件时先落账再迁移 id 并按新目录重渲染', async () => {
