@@ -169,7 +169,9 @@ export async function fetchAllowedImage(requestUrl: string): Promise<Response> {
   const handle = await openPinnedRegularFile(realFilePath)
   if (!handle) return notFound()
   try {
-    return new Response(handle.readableWebStream({ type: 'bytes' }), {
+    // Node 的 FileHandle 流与 DOM BodyInit 不是同一套类型，运行时 Response 可以接收。
+    const body = handle.readableWebStream() as unknown as BodyInit
+    return new Response(body, {
       headers: { 'Content-Type': imageContentType(realFilePath) },
     })
   } catch {
