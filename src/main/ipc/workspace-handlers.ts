@@ -123,6 +123,9 @@ export const registerWorkspaceHandlers = ({
       try { await stat(target) } catch { available = true; break }
     }
     if (!available) return { ok: false, error: { code: 'NAME_EXHAUSTED' } }
+    if (!(await withinWindow(event, args.dir))) {
+      return { ok: false, error: { code: 'INVALID_TARGET' } }
+    }
     try {
       await writeFile(target, `# ${name.replace(/\.(md|markdown)$/i, '')}\n\n`, { encoding: 'utf-8', flag: 'wx' })
       return { ok: true, data: { path: target, name } }
