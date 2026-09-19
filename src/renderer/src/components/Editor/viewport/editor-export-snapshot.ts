@@ -51,13 +51,13 @@ const stripOverlayClasses = (root: HTMLElement): void => {
     .querySelectorAll('.block-active, .bracket-match')
     .forEach((element) => element.classList.remove('block-active', 'bracket-match'))
   root
-    .querySelectorAll('.folded-hidden')
-    .forEach((element) => element.classList.remove('folded-hidden'))
+    .querySelectorAll('.folded-hidden, .code-fold-hidden')
+    .forEach((element) => element.classList.remove('folded-hidden', 'code-fold-hidden'))
 }
 
 const stripEditorChrome = (root: HTMLElement): void => {
   root
-    .querySelectorAll('.code-line-numbers, .fold-toggle')
+    .querySelectorAll('.code-line-numbers, .fold-toggle, .structured-code-tools, .code-fold-toggle')
     .forEach((element) => element.remove())
   root.querySelectorAll('.mermaid-toolbar').forEach((element) => element.remove())
   root.querySelectorAll('.mermaid-block.is-editing-source').forEach((element) => {

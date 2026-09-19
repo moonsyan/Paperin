@@ -390,7 +390,7 @@ export const useEditorOverlays = ({
 
   const getCodeText = (pre: HTMLElement): string => {
     const clone = pre.cloneNode(true) as HTMLElement
-    clone.querySelectorAll('.code-line-numbers').forEach((element) => element.remove())
+    clone.querySelectorAll('.code-line-numbers, .structured-code-tools, .code-fold-toggle').forEach((element) => element.remove())
     return clone.textContent ?? ''
   }
 

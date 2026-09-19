@@ -30,6 +30,9 @@ const editorDom = (): HTMLElement => {
     <span class="bracket-match">[</span>
     <div class="code-line-numbers">1</div>
     <button class="fold-toggle">折叠</button>
+    <div class="structured-code-tools">格式化</div>
+    <button class="code-fold-toggle">▾</button>
+    <span class="code-fold-hidden">被折叠的代码</span>
     <div class="mermaid-block is-editing-source">
       <div class="mermaid-preview"><svg viewBox="0 0 10 10"></svg></div>
       <div class="mermaid-toolbar">工具栏</div>
@@ -131,6 +134,10 @@ describe('buildPreviewHtml', () => {
     expect(html).not.toContain('folded-hidden')
     expect(html).not.toContain('code-line-numbers')
     expect(html).not.toContain('fold-toggle')
+    expect(html).not.toContain('structured-code-tools')
+    expect(html).not.toContain('code-fold-toggle')
+    expect(html).not.toContain('code-fold-hidden')
+    expect(html).toContain('被折叠的代码')
     expect(html).not.toContain('mermaid-toolbar')
     expect(release).toHaveBeenCalledWith(view)
   })
