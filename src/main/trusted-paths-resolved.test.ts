@@ -142,4 +142,31 @@ describe('对话框导出目标身份', () => {
     expect(written).toBe('invalid-path')
     expect(await readFile(privateFile, 'utf-8')).toBe('secret')
   })
+
+  it('恢复已钉住的真实根后，重启前换靶的 junction 不能扩大授权', async () => {
+    const { isResolvedPathWithinTrustedRoots, restorePinnedTrustRoot, trustDirectory } = await import('./trusted-paths')
+    const { realpath } = await import('fs/promises')
+    const parent = await createTemporaryDirectory('paperin-pin-restore-')
+    const original = await createTemporaryDirectory('paperin-pin-restore-in-')
+    const rebound = await createTemporaryDirectory('paperin-pin-restore-out-')
+    const junction = join(parent, 'workspace')
+    await writeFile(join(original, '笔记.md'), '# 原\n')
+    await writeFile(join(rebound, '秘密.md'), '# 根外\n')
+    try {
+      await symlink(original, junction, 'junction')
+    } catch {
+      return
+    }
+    const pinned = await realpath(junction)
+    trustDirectory(junction)
+    restorePinnedTrustRoot(junction, pinned)
+    await expect(isResolvedPathWithinTrustedRoots(join(junction, '笔记.md'))).resolves.toBe(true)
+    await rm(junction, { recursive: true, force: true })
+    try {
+      await symlink(rebound, junction, 'junction')
+    } catch {
+      return
+    }
+    await expect(isResolvedPathWithinTrustedRoots(join(junction, '秘密.md'))).resolves.toBe(false)
+  })
 })

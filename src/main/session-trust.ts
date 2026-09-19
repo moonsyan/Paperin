@@ -3,9 +3,11 @@ import { mkdir, readFile, rename, writeFile } from 'fs/promises'
 import { join } from 'path'
 import {
   getEssentialRoots,
+  getPinnedTrustRoot,
   getTrustedFiles,
   MAX_TRUSTED_FILES,
   MAX_TRUSTED_ROOTS,
+  restorePinnedTrustRoot,
   trustDirectory,
   trustFileForSave,
 } from './trusted-paths'
@@ -39,6 +41,8 @@ interface TrustSnapshot {
   workspaces: string[]
   files: string[]
   imageDirs: string[]
+  /** 词法工作区根 → 首次解析钉住的真实路径。缺省时按旧快照，第一次访问再钉。 */
+  pinnedRoots?: Record<string, string>
 }
 
 const trustFile = (): string => join(app.getPath('userData'), TRUST_FILE_NAME)
@@ -50,7 +54,11 @@ export async function restoreTrustFromDisk(): Promise<boolean> {
     const snapshot = JSON.parse(raw) as TrustSnapshot
     if (!snapshot || typeof snapshot !== 'object') return false
     const lists: { items: unknown; apply: (item: string) => void | Promise<void> }[] = [
-      { items: snapshot.workspaces, apply: (w) => trustDirectory(w, { essential: true }) },
+      { items: snapshot.workspaces, apply: (w) => {
+        trustDirectory(w, { essential: true })
+        const pinned = snapshot.pinnedRoots?.[w]
+        if (typeof pinned === 'string') restorePinnedTrustRoot(w, pinned)
+      } },
       { items: snapshot.files, apply: trustFileForSave },
       { items: snapshot.imageDirs, apply: allowImageDirectory },
     ]
@@ -119,6 +127,18 @@ async function persistTrustSnapshot(): Promise<void> {
       files: union(mineFiles, existing?.files).slice(-MAX_PERSISTED_FILES),
       imageDirs: union(mineImageDirs, existing?.imageDirs).slice(-MAX_PERSISTED_IMAGE_DIRS),
     }
+    const previousPins = existing?.pinnedRoots
+    const storedPins = previousPins && typeof previousPins === 'object' && !Array.isArray(previousPins)
+      ? previousPins
+      : null
+    const pinnedRoots: Record<string, string> = {}
+    for (const path of snapshot.workspaces) {
+      const current = getPinnedTrustRoot(path)
+      const previous = storedPins && typeof storedPins[path] === 'string' ? storedPins[path] : null
+      const pinned = current ?? previous
+      if (pinned) pinnedRoots[path] = pinned
+    }
+    if (Object.keys(pinnedRoots).length > 0) snapshot.pinnedRoots = pinnedRoots
     const tmp = `${file}.${process.pid}-${Date.now()}.tmp`
     await writeFile(tmp, JSON.stringify(snapshot), 'utf-8')
     await rename(tmp, file)

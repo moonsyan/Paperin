@@ -151,6 +151,14 @@ export function getPinnedTrustRoot(directory: string): string | null {
   return trustedRoots.get(resolve(directory))?.pinnedReal ?? null
 }
 
+/** 启动恢复时写回上次钉住的真实根，避免重启后第一次解析把换靶后的 junction 当成新授权。 */
+export function restorePinnedTrustRoot(directory: string, pinnedReal: string): void {
+  if (!directory || !pinnedReal || !isAbsolute(pinnedReal)) return
+  const entry = trustedRoots.get(resolve(directory))
+  if (!entry || entry.pinnedReal !== null) return
+  entry.pinnedReal = pinnedReal
+}
+
 /** 保底信任根（工作区、应用自有目录）：供持久化快照区分可恢复的工作区 */
 export function getEssentialRoots(): string[] {
   return Array.from(essentialRoots)
