@@ -253,9 +253,10 @@ S03 的 **P0 真实 Electron 防卡死硬门禁已通过**：生产构建中打�
 
 ### UI 与功能迁移
 
-- quiet-workspace 视觉语言已完成主要迁移：顶栏四层 chrome 收敛为单条 52px 三区顶栏（正文首屏回收约 114px）、侧栏改为五段式（搜索触发框 / 快捷导航 / 集合标题 / 文件树 / 底部区）、新增「雾白」「夜松」两套留白绿调主题并把排版尺度落到主题作用域样式、补齐全局 `prefers-reduced-motion`。剩余：窄窗口侧栏与 ContextDock 共用一套 scrim 机制尚未统一；AppearancePanel 的主题样张卡未引入；ContextDock「仅大纲」窄栏极简模式未实现。
+- quiet-workspace 视觉语言已完成主要迁移：顶栏四层 chrome 收敛为单条 52px 三区顶栏、侧栏五段式、雾白/夜松主题和 `prefers-reduced-motion`。窄窗口 scrim、主题样张和轻量大纲已在 T11/T13 落地，不再列为未实现。剩余人工验收：中文输入法组合态、全键盘路径、焦点不被弹层遮挡、减少动态效果的实际观感。
+- 保存状态：顶栏与状态栏在保存中、外部冲突、编码无法保存和保存失败时使用明确文案；另存为等待期间的新快照保持 dirty，不会被旧回执标成已保存。真实中文 IME 与九主题缩放仍需人工过一遍。
 - 主题文本/边框/悬停/禁用/焦点对比度已从人工冒烟升级为机械门禁（`npm run a11y`，见上「无障碍与主题可读性门禁」）；仍需人工过一遍的是：中文输入法组合态、全键盘导航路径、焦点不被弹层遮挡、减少动态效果的实际观感。清单与操作路径见 `docs/ACCESSIBILITY-SMOKE.md` 文末。
-- 已登记的对比度存量债务需独立处理：`--border-m` 在九套主题均为 1.16–1.55:1（承担输入框/分割线描边，WCAG 1.4.11 要求 3:1），`typewriter` 的 accent 低至 2.24（同时是焦点环描边色）。
+- 对比度存量：`--border-m` 已收窄为装饰分割线并继续按棘轮登记，不作为输入框描边；`typewriter` accent 与 `--border-input` 已在 T12 拉到门禁内。不要再把这两项当成未修复缺陷。
 - 收藏（侧栏快捷导航数据层 + 文件右键收藏入口）已落地，按工作区作用域持久化；搜索触发框复用命令注册表。低频能力（图片、发布、导出、历史、另存为、设置、统计、图谱、全文搜索）已逐项登记为命令：作用域由 `CommandContext` 在**执行前**判定（`app` 恒可用、`workspace` 需知识库、`document` 需活动文件——外部 Markdown 也算完整文档上下文），菜单按下 `disabled`/`aria-disabled` 在点击前灰显、命令面板只列当前可用项、快捷键与右键菜单经 `unavailableHint` + `onCommandUnavailable`（接 toast）提示而非静默；三条入口共用 `useCommandRegistry` 暴露的同一份可用性判断，登记契约由 `low-frequency-capabilities.test.ts` 固化。详见 `docs/command-panels.md` 的「低频能力登记表」。
 - Renderer 分包已落地：主包从 3,325.69 kB 降到 **1,205.37 kB（-63.8%）**。`electron.vite.config.ts` 按 vendor 域拆出 `vendor-milkdown`（1,846.73 kB）与 `vendor-react`（214.56 kB），mermaid/katex/cytoscape 保持既有按需分块（手动分组会把按需加载重新拉回首屏，故刻意不碰）；`lib/docx`（613 行 OOXML 生成）与 `lib/svg-rasterize` 改为导出执行时动态 import（`docx` chunk 19.4 kB）；设置/帮助/图片/PDF 选项/发布/版本历史/工作区全文搜索七个对话框在 `AppDialogs.tsx` 改为「打开时才挂载 + Suspense」懒加载（各 5.4–33.2 kB chunk），命令面板（Ctrl+P）与关闭确认是高频路径保持静态。全量测试 142 文件 1123 项通过，build 通过。
 
