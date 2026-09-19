@@ -12,6 +12,16 @@ import { escapeHtmlText } from '../app/constants'
  * 抽成纯函数的原因：模板字符串体量大（含 KaTeX CSS 与勾选框 SVG data URL），
  * 混在 hook 里会淹没导出流程本身；且模板需要能被单元测试直接断言。
  */
+/**
+ * 自定义导出 CSS 只能作为样式文本插入 <style>。去掉能闭合标签或引入脚本的片段。
+ */
+export function sanitizeExportCss(css: string): string {
+  return css
+    .replace(/<\s*\/\s*style/gi, '')
+    .replace(/<\s*\/\s*script/gi, '')
+    .replace(/<\s*script/gi, '')
+}
+
 export function renderExportDocHtml(params: {
   body: string
   title: string
@@ -19,6 +29,7 @@ export function renderExportDocHtml(params: {
   customCss?: string | null
 }): string {
   const { body, title, customCss } = params
+  const safeCustomCss = customCss ? sanitizeExportCss(customCss) : ''
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -49,7 +60,7 @@ li[data-item-type=task][data-checked=true]::before{border-color:#7c6f5b;backgrou
 .doc-toc-list a{color:inherit;text-decoration:none}
 .toc-l2{padding-left:1.2em}.toc-l3{padding-left:2.4em;font-size:.94em}
 </style>
-${customCss ? `<style>\n${customCss}\n</style>` : ''}
+${safeCustomCss ? `<style>\n${safeCustomCss}\n</style>` : ''}
 </head>
 <body>${body}</body>
 </html>`

@@ -30,6 +30,17 @@ describe('renderExportDocHtml', () => {
     expect(html).toContain('&lt;script&gt;')
   })
 
+  it('自定义 CSS 不能靠 </style> 逃出 style 标签', () => {
+    const html = renderExportDocHtml({
+      body: '<p>x</p>',
+      title: 't',
+      customCss: 'body{color:red}</style><script>alert(1)</script><style>p{color:blue}',
+    })
+    expect(html).not.toContain('</style><script>alert(1)</script>')
+    expect(html).not.toMatch(/<script\b/i)
+    expect(html).toContain('body{color:red}')
+  })
+
   it('保留任务列表勾选框、脚注、目录分页样式（浏览器打印/PDF 依赖）', () => {
     const html = renderExportDocHtml({ body: '<p>x</p>', title: 't' })
     expect(html).toContain('li[data-item-type=task][data-checked=true]')
