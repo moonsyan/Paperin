@@ -211,10 +211,29 @@ export function CommandPalette({
     if (!open) return
     const handler = (e: KeyboardEvent) => {
       if (isImeComposing(e)) return
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        onClose()
+        return
+      }
+      if (e.key !== 'Tab') return
+      const dialog = listRef.current?.parentElement
+      if (!dialog) return
+      const nodes = Array.from(dialog.querySelectorAll<HTMLElement>('input, button'))
+      const first = nodes[0]
+      const last = nodes[nodes.length - 1]
+      if (!first || !last) return
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
     }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    window.addEventListener('keydown', handler, true)
+    return () => window.removeEventListener('keydown', handler, true)
   }, [open, onClose])
 
   if (!open) return null
@@ -253,7 +272,13 @@ export function CommandPalette({
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog palette-dialog" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="dialog palette-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="快速打开"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="palette-input-row">
           <input
             ref={inputRef}
@@ -265,9 +290,14 @@ export function CommandPalette({
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleInputKeyDown}
             aria-label="快速打开：输入文件名，或 > 前缀执行命令"
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="command-palette-list"
+            aria-autocomplete="list"
+            aria-activedescendant={activeListLength > 0 ? `palette-option-${activeIndex}` : undefined}
           />
         </div>
-        <div className="palette-results" ref={listRef}>
+        <div className="palette-results" id="command-palette-list" role="listbox" ref={listRef}>
           {commandMode ? (
             <>
               {filteredCommands.length === 0 && <div className="ws-empty">无匹配命令</div>}
@@ -277,6 +307,9 @@ export function CommandPalette({
                   key={cmd.id}
                   data-index={idx}
                   className={`palette-item${idx === activeIndex ? ' active' : ''}`}
+                  role="option"
+                  id={`palette-option-${idx}`}
+                  aria-selected={idx === activeIndex}
                   title={cmd.id}
                   onMouseEnter={() => setActiveIndex(idx)}
                   onClick={() => {
@@ -305,6 +338,9 @@ export function CommandPalette({
                           key={entry.key}
                           data-index={idx}
                           className={`palette-item${idx === activeIndex ? ' active' : ''}`}
+                  role="option"
+                  id={`palette-option-${idx}`}
+                  aria-selected={idx === activeIndex}
                           title={entry.path ?? entry.name}
                           onMouseEnter={() => setActiveIndex(idx)}
                           onClick={() => openEntry(entry, false)}

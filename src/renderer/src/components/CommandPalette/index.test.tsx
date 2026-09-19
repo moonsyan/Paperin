@@ -38,10 +38,31 @@ describe('CommandPalette registry integration', () => {
       />,
     )
 
-    const input = screen.getByRole('textbox', { name: /快速打开/ })
+    const input = screen.getByRole('combobox', { name: /快速打开/ })
     fireEvent.change(input, { target: { value: '> 刷新' } })
-    expect(screen.getByRole('button', { name: /刷新工作区/ })).toBeTruthy()
+    expect(screen.getByRole('option', { name: /刷新工作区/ })).toBeTruthy()
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(onRunCommand).toHaveBeenCalledWith('workspace.refresh')
+  })
+
+  it('打开后是模态对话框，Escape 不会继续冒泡', () => {
+    const onClose = vi.fn()
+    render(
+      <CommandPalette
+        open
+        workspace={null}
+        recentFiles={[]}
+        onClose={onClose}
+        onSelectWorkspace={vi.fn()}
+        onSelectDemo={vi.fn()}
+        onRunCommand={vi.fn()}
+      />,
+    )
+    const dialog = screen.getByRole('dialog', { name: '快速打开' })
+    expect(dialog.getAttribute('aria-modal')).toBe('true')
+    const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    window.dispatchEvent(event)
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(event.defaultPrevented).toBe(true)
   })
 })
