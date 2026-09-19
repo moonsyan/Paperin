@@ -108,9 +108,11 @@ npm run demo:soft     # 仅启动柔和工作台原型
 文档已经收敛为当前仍有用途的维护资料、设计规范和验证记录：
 
 - [`docs/PRODUCT-STRATEGY-ROADMAP.md`](./docs/PRODUCT-STRATEGY-ROADMAP.md)：战略定位、竞品事实校正、目标用户、增长与商业验证规则。
-- [`docs/README.md`](./docs/README.md)：文档入口、职责说明和按优先级整理的后续任务总表。
+- [`docs/README.md`](./docs/README.md)：文档入口。完成度不在这里重复抄表。
+- [`docs/coexistence.md`](./docs/coexistence.md)：和现有 Markdown 工具、以及导出副本怎么一起用。
+- [`docs/export-formats.md`](./docs/export-formats.md)：各导出格式实际检查什么。
 - [`docs/development/strategy-validation.md`](./docs/development/strategy-validation.md)：正确性、性能、复用效率、留存与增长的验收指标及采样口径。
-- [`docs/REFACTOR-STATUS.md`](./docs/REFACTOR-STATUS.md)：当前 `master` 的唯一实时完成度和验证证据。
+- [`docs/REFACTOR-STATUS.md`](./docs/REFACTOR-STATUS.md)：当前唯一的完成度记录。历史批次日志已删除。
 - [`docs/NEXT-UI-SPEC.md`](./docs/NEXT-UI-SPEC.md)：顶栏、侧栏、路径条、上下文面板、主题和窄窗口规范。
 - [`docs/NEXT-DEVELOPMENT-PLAN.md`](./docs/NEXT-DEVELOPMENT-PLAN.md)：战略落地的 S00–S17 任务、优先级、依赖、验收、回退及旧任务映射。
 - [`docs/compatibility-matrix.md`](./docs/compatibility-matrix.md)：旧能力、当前实现、测试依据和平台验证边界。
@@ -123,7 +125,7 @@ npm run demo:soft     # 仅启动柔和工作台原型
 - [`docs/ACCESSIBILITY-SMOKE.md`](./docs/ACCESSIBILITY-SMOKE.md)：主题可读性、焦点和人工冒烟范围。
 - [`docs/development/`](./docs/development/)：性能基线、主题基线和回归脚本数据。
 
-`docs/IMPLEMENTATION-PLAN.md` 是仓库开发门禁要求的执行手册；战略取舍以 `PRODUCT-STRATEGY-ROADMAP` 为准，新的工程工作以 `NEXT-DEVELOPMENT-PLAN` 和 `REFACTOR-STATUS` 为准，历史一次性评估不再作为当前规范。
+`docs/IMPLEMENTATION-PLAN.md` 只说明现在怎么开工。战略取舍以 `PRODUCT-STRATEGY-ROADMAP` 为准，任务以 `NEXT-DEVELOPMENT-PLAN` 为准，做到哪一步以 `REFACTOR-STATUS` 为准。
 
 ## 当前边界与后续方向
 

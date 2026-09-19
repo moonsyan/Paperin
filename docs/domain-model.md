@@ -12,6 +12,9 @@ A successful ordinary save acknowledges only its submitted snapshot. If the acti
 
 The acknowledgement also belongs to the submitted file path. If that tab is renamed or moved while its save is in flight, the old-path result cannot advance the new-path `savedContent`, mtime, or saved state.
 
+Workspace navigation is not document body. `WorkspaceSettingsState.editor.lastSearchQuery` and `recentCitations` store the last workspace search and up to eight workspace-relative source paths. Missing fields parse to empty values. Clearing them does not delete Markdown. Per-file selection and scroll live in `WorkspaceDocumentsState`, restored by `useWorkspaceDocumentView` for files inside the workspace only.
+
+
 Closing has the same version rule for every document size. `useDocumentCloseSaving` captures the file path, active session sequence and editor instance before it starts, then verifies them again after each asynchronous operation. A close can proceed only when the latest `content` still equals the confirmed saved baseline and the active editor has no pending input. Window close repeats this check after queue flushing and workspace-view persistence, so a late edit or newly opened tab cannot inherit an earlier close approval.
 
 Shared `DocumentRef` identifies workspace and external files. IDs remain stable across path migration; source and workspace identity are preserved. Supported encodings are UTF-8, UTF-8 BOM, UTF-16LE, UTF-16BE, and GBK.

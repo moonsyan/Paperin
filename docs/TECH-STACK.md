@@ -1,6 +1,6 @@
 # Paperin 技术栈评估
 
-更新时间：2026-09-16（Asia/Shanghai）。当前实际版本以 `package.json` 为准：Electron 43、React 18.3、Vite 5.4、electron-vite 2.3、TypeScript 5.7、Vitest 2.1；下方升级建议是候选路线，不是当前已完成迁移。
+更新时间：2026-09-19（Asia/Shanghai）。当前实际版本以 `package.json` 为准：Electron 43、React 18.3、Vite 5.4、electron-vite 2.3、TypeScript 5.7、Vitest 2.1。下方升级建议仍是候选，不是已经完成的迁移。
 
 ## 结论
 

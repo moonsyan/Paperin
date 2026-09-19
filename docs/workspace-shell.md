@@ -12,7 +12,7 @@
 
 来源判定在 App 中完成：没有路径的演示/新文档属于当前工作区体验；有路径时，只有位于当前知识库根目录下的文件才标记为 `workspace`。组件不自行访问文件系统，也不复制编辑器正文。
 
-组件的可访问契约包括：工作区使用 `region`/“工作区”名称，当前文件使用 `status`、`aria-live="polite"` 和包含标题、来源、保存状态的 `aria-label`。当前文件顶栏附 `data-storage-kind=disk|demo|unnamed`，保存语义与状态栏共用 `lib/document-save-status.ts`：仅有磁盘路径的当前版本可称“已保存”，无盘示例/未命名分别提示来源与尚未保存到磁盘。路径和标题使用省略显示，完整值保留在 `title` 属性中，窄窗口继续使用同一套布局。
+组件的可访问契约包括：工作区使用 `region`/“工作区”名称，当前文件使用 `status`、`aria-live="polite"` 和包含标题、来源、保存状态的 `aria-label`。当前文件顶栏附 `data-storage-kind=disk|demo|unnamed`，保存语义与状态栏共用 `lib/document-save-status.ts`。有磁盘路径且当前版本已落盘时显示“已保存”；示例和未命名不会显示成已落盘。保存进行中、外部冲突、编码无法保存和保存失败会盖过这两句。路径和标题使用省略显示，完整值保留在 `title` 属性中。
 
 ## 窄窗口与键盘
 
