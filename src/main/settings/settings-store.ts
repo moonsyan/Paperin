@@ -1,6 +1,12 @@
 import { app } from 'electron'
 import { readFile, writeFile, mkdir, open, readdir, rename, stat, copyFile, unlink } from 'fs/promises'
 import { dirname, join } from 'path'
+import {
+  parseSettingsLockPid,
+  SETTINGS_LOCK_STALE_MS,
+  isSettingsLockHolderAlive,
+  shouldStealSettingsLock,
+} from './settings-lock-policy'
 
 /**
  * 轻量设置持久化：JSON 文件存储于用户数据目录
@@ -48,13 +54,10 @@ const SESSION_MAX_FILES = 200
 /** drafts 保留条数上限（按最近保存时间） */
 const DRAFTS_MAX = 50
 /** 跨进程写锁等待上限，避免崩溃后残留锁永久阻塞设置保存。
- *  B-L1：重试窗口（上限×间隔）必须覆盖陈旧判定阈值——
- *  此前重试 4s 即放弃，而陈旧锁 60s 后才被清理，崩溃残留锁会让
- *  之后整整一分钟内的所有设置写入失败。现在陈旧 4s、重试 5s，
- *  残留锁约 4s 内自愈，正常写入（持锁远小于 4s）不受影响。 */
-const SETTINGS_LOCK_MAX_RETRIES = 100
+ *  陈旧锁只有在持有进程已死（或 token 无法解析）时才清理；活着的写入即使
+ *  超过 4 秒也不能被抢走。重试窗口覆盖大草稿写入，避免误报 LOCK_TIMEOUT。 */
+const SETTINGS_LOCK_MAX_RETRIES = 200
 const SETTINGS_LOCK_RETRY_DELAY_MS = 50
-const SETTINGS_LOCK_STALE_MS = 4_000
 
 function settingsPath(): string {
   return join(app.getPath('userData'), 'settings.json')
@@ -96,9 +99,17 @@ async function acquireSettingsLock(): Promise<() => Promise<void>> {
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err
       const lockStat = await stat(lockPath).catch(() => null)
-      if (lockStat && Date.now() - lockStat.mtimeMs > SETTINGS_LOCK_STALE_MS) {
-        await unlink(lockPath).catch(() => {})
-        continue
+      if (lockStat) {
+        const holderToken = await readFile(lockPath, 'utf-8').catch(() => '')
+        if (shouldStealSettingsLock(
+          Date.now() - lockStat.mtimeMs,
+          SETTINGS_LOCK_STALE_MS,
+          parseSettingsLockPid(holderToken),
+          isSettingsLockHolderAlive,
+        )) {
+          await unlink(lockPath).catch(() => {})
+          continue
+        }
       }
       await wait(SETTINGS_LOCK_RETRY_DELAY_MS)
     }
