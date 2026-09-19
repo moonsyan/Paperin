@@ -5,7 +5,7 @@
 | 能力 | 旧实现 | 现有测试/依据 | 第一批状态 | 后续验证 |
 |---|---|---|---|---|
 | 打开文件/目录/系统关联 | `src/main/window/system-file-open.ts`, `file-handlers.ts`, `workspace-handlers.ts` | 参数/分流单测、Windows Electron smoke、`system-file-open-and-close.md` | 开发态已固化 | Windows 安装包关联、macOS Finder 与 Linux MIME 验证 |
-| 保存、另存为、重命名、移动、回收站删除 | Main IPC + save queue | file-io、save-lock、close-save；已有桌面文件保留对象并有 journal/backup 恢复协议；超时/会话切换不写旧快照 | 保留；P0 工程闭环 | Q01 故障注入、Q02 时序、进程终止与三平台文件身份验证 |
+| 保存、另存为、重命名、移动、回收站删除 | Main IPC + save queue | file-io、save-lock、close-save；已有桌面文件保留对象并有 journal/backup 恢复协议；超时/会话切换不写旧快照；等锁期间写入授权消失则拒绝，不当成放行 | 保留；P0 工程闭环 | Q01 故障注入、Q02 时序、进程终止与三平台文件身份验证 |
 | 外部修改冲突 | expected mtime 保存协议 | document save tests | 保留 | 外部编辑器冒烟 |
 | UTF-8/GBK/编码损失 | `file-io.ts` + iconv-lite | file-io tests | 保留 | 中文路径与不可映射字符 |
 | 多标签、dirty、关闭确认 | DocumentRecord store + TabBar | record store、TabBar、document-session、close-save；活动会话序号保护异步保存 | 已迁移；P0 首批回归 | 多窗口、IME、卸载和关闭时序冒烟 |
@@ -20,7 +20,7 @@
 | 打开知识库检查 | `workspace-compatibility.ts`、开始页 | 对应单元测试 | 已有：未扫完、缺附件、断链、残缺脚注只提示 | 来源夹具 hash 与五分钟任务未测 |
 | 写作模板 | 命令 `newTemplate:article`、`newTemplate:decision` | 命令注册表测试 | 已有：两份普通 Markdown，不覆盖已打开文件 | 用户无需讲解完成起步未测 |
 | HTML/PDF/DOCX/EPUB/LaTeX/发布 | `hooks/exports/`、导出 IPC | `export-preflight`、`review-export` 测试 | 已有：Markdown、HTML、PDF、Word、Pandoc 导出前检查；说明见 `export-formats.md` | 各平台打开导出文件的人工检查 |
-| GFM、任务列表、表格、代码、公式、Mermaid、脚注、frontmatter | Milkdown plugins | editor plugin tests | 保留 | Mermaid 由预览插件渲染，Prism 按纯文本处理其源码；覆盖中文与异常输入 |
+| GFM、任务列表、表格、代码、公式、Mermaid、脚注、frontmatter | Milkdown plugins | editor plugin tests、`markdownPaste`、`structured-code`、`mermaid-source` | 保留 | 粘贴 Markdown 原文按标记排版；网页 HTML 用 DOMParser 转换，不执行脚本。JSON/YAML 可格式化、压成一行并按缩进折叠，折叠不改文件，复制导出去掉按钮。Mermaid 渲染前清理缩进、零宽字符和 init；主题 CSS 里的 `.error-icon` 不算失败。覆盖中文与异常输入 |
 | Renderer CSP | `src/renderer/index.html` | Electron smoke | 保留 | `data:` 仅在 `font-src`/`img-src` 按已知内嵌资源放行；脚本与连接仍只允许显式来源 |
 | 图片、附件、图片协议 | `image-file-handlers.ts`、attachment IPC + `mdimg://` | attachment/protocol tests、图片 IPC 真实路径与注册边界测试 | 保留 | 外部文件附件 |
 | 标签、Wiki 链接、反向链接、图谱 | shared indexes + panels | tag/link/graph tests | 已有；反链可插入引用 | 大库往返与图谱规模仍按现有上限 |

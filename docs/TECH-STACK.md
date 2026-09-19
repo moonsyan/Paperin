@@ -14,7 +14,7 @@
 | UI | React 19（若依赖兼容）或 React 18.3 | 现有组件资产多，迁移成本低；不以升级 React 为重构前置条件 |
 | 语言 | TypeScript 5.x，strict | 已有类型基础，适合 IPC DTO、文档模型和编辑器扩展 |
 | 构建 | electron-vite + Vite | 与当前项目一致，开发反馈快，三进程配置清晰 |
-| 编辑器 | Milkdown 7 + ProseMirror | 已经覆盖 Markdown、GFM、数学、代码和 Mermaid；保留 Markdown 往返能力 |
+| 编辑器 | Milkdown 7 + ProseMirror | 已经覆盖 Markdown、GFM、数学、代码和 Mermaid。代码块整理使用 yaml 2.9；图表使用 Mermaid 11。保留 Markdown 往返能力 |
 | Markdown | mdast / micromark 现有链路 | 解析、序列化和扩展生态成熟，适合做格式兼容边界 |
 | 状态 | React 局部状态 + 功能级 hooks；必要时 Zustand | 先避免全局 store，只有跨区域会话状态稳定后再集中 |
 | 样式 | 原生 CSS、CSS Variables、组件级样式 | 当前项目已有主题体系，避免引入重量级 UI 套件改变产品气质 |

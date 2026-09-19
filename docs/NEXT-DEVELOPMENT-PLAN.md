@@ -67,7 +67,7 @@
 | S14 | P0 发布门禁 | 全平台安装/升级/回退与正式候选 | 未开始 | S04；正式验收依赖 S05–S11 | 3–4 | E/Q |
 | S15 | P2 | 可重复获客渠道 | 未开始 | G2 | 2–3 | P |
 | S16 | P2 | 专业交付商业验证 | 未开始 | G2 | 1–2 | P |
-| S17 | P1 前置约束 | 热点拆分与维护账本 | 进行中：2026-09-19 仍超限的有 docx 599、useWorkspaceFiles 505、useAppSettings 496、useEditorOverlays 486、useMilkdownInstance 485；file-handlers 450、AppComposition 449。未触及的不在本轮拆 | S00；随触及任务执行 | 1–2 | E |
+| S17 | P1 前置约束 | 热点拆分与维护账本 | 进行中：2026-09-19 仍超限的有 docx 599、useWorkspaceFiles 505、useAppSettings 496、useEditorOverlays 486、mermaidCodeBlock 482、useMilkdownInstance 462、file-handlers 451。AppComposition 449。未触及的不在本轮拆 | S00；随触及任务执行 | 1–2 | E |
 
 合计 **39–62 工程日**；25% 故障缓冲并向上取整后约 **49–78 日**。每周 4 个有效工程日约 13–20 周，再为招募/候选协调预留约 2 周，规划窗口 **15–22 周**。逐任务拆分成本已包含在对应功能，S17 仅计统一维护收尾。运营访谈/写案例/支持建议另留每周 1 天；没有额外人员时同步下调开发吞吐。正式收费和新增付费模块开发不计入本轮工程日。
 

@@ -11,7 +11,7 @@
 1. 先读本文件、相关维护文档和现有测试，确认这件事还在 S00–S17 的范围内。
 2. 先写会失败的测试，再写最小实现。测试要覆盖用户能观察到的行为或跨进程契约。
 3. 保持进程边界：Renderer 不导入 Electron 或 Node；IPC 通道只来自 `src/shared/ipc/channels.ts`；设置只由主进程读写。
-4. 保存必须带 `expectedMtime`。`CONFLICT` 不能静默覆盖，`ENCODING_LOSS` 不能丢字符，删除优先进回收站。
+4. 保存必须带 `expectedMtime`。`CONFLICT` 不能静默覆盖，`ENCODING_LOSS` 不能丢字符。等锁期间写入授权失效必须拒绝，不能当成放行。删除优先进回收站。
 5. 改完同步 README 或 `docs/` 里受影响的说明，再跑相关测试和 `npm run typecheck`。涉及文件、界面或打包时，还要按 AGENTS.md 做对应冒烟。
 6. 单个生产文件超过 450 行就不要继续往里加功能。组件超过 250 行并继续加界面时，先按职责拆开。
 

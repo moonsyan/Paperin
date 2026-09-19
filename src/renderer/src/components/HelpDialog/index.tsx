@@ -128,7 +128,7 @@ const SYNTAX_GROUPS: { title: string; items: { name: string; code: string }[] }[
     items: [
       { name: '行内公式', code: '$E = mc^2$' },
       { name: '块级公式', code: '$$（回车后输入 LaTeX）' },
-      { name: '流程图', code: '```mermaid（回车后输入图表代码）' },
+      { name: '流程图', code: '```mermaid。渲染前整理缩进；主题样式里的 error-icon 不会把图判失败' },
       { name: '脚注', code: '引用[^1]，行首 [^1]: 内容' },
     ],
   },
