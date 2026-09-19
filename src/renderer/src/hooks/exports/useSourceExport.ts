@@ -1,9 +1,8 @@
 import { useCallback } from 'react'
 import type { MutableRefObject } from 'react'
 import type { EditorHandle } from '../../components/Editor'
-import { toStoredImages } from '../../lib/image-path'
-import { collectExportTargets, inspectExportMarkdown, resolveExportTarget } from '../../lib/export-preflight'
 import type { Dispatch, SetStateAction } from 'react'
+import { readExportSource, reviewExportMarkdown } from './review-export'
 
 /**
  * Markdown / Pandoc 源文件导出。
@@ -30,27 +29,15 @@ export function useSourceExport({
   dirOfFile: (fileId: string) => string | undefined
   setToast: Dispatch<SetStateAction<string>>
 }) {
-  const reviewBeforeExport = useCallback(async (content: string): Promise<{ ok: true; reminder: string | null } | { ok: false }> => {
-    const missing: string[] = []
+  const reviewBeforeExport = useCallback(async (content: string) => {
     const dir = dirOfFile(activeFileId)
-    if (window.desktopAPI && dir) {
-      for (const target of collectExportTargets(content)) {
-        const absolute = resolveExportTarget(dir, target)
-        if (!absolute) continue
-        const stat = await window.desktopAPI.document.stat(absolute)
-        if (!stat.ok) missing.push(target)
-      }
-    }
-    const report = inspectExportMarkdown(content, missing)
-    if (report.block) {
-      setToast(report.block)
-      return { ok: false }
-    }
-    if (report.confirm.length > 0) {
-      const proceed = window.confirm(`${report.confirm.join('\n')}\n\n仍然导出？取消不会改动原文件。`)
-      if (!proceed) return { ok: false }
-    }
-    return { ok: true, reminder: report.reminder }
+    return reviewExportMarkdown({
+      content,
+      directory: dir,
+      stat: window.desktopAPI ? (path) => window.desktopAPI!.document.stat(path) : null,
+      notify: setToast,
+      confirm: (message) => window.confirm(message),
+    })
   }, [activeFileId, dirOfFile, setToast])
 
   /** 导出 Markdown：把当前文档另存为新的 .md 文件 */
@@ -58,11 +45,11 @@ export function useSourceExport({
     if (!window.desktopAPI) return
     try {
       const title = docTitle.replace(/\.md$/, '')
-      const editorMd = editorRef.current?.isReady() ? editorRef.current.getMarkdown() : null
-      const content =
-        editorMd != null
-          ? toStoredImages(editorMd, dirOfFile(activeFileId))
-          : (contents[activeFileId] ?? '')
+      const content = readExportSource({
+        editorMarkdown: editorRef.current?.isReady() ? editorRef.current.getMarkdown() : null,
+        fallback: contents[activeFileId] ?? '',
+        directory: dirOfFile(activeFileId),
+      })
       const review = await reviewBeforeExport(content)
       if (!review.ok) return
       // 默认名加"-导出"后缀，避免与同名源文件混淆直接覆盖
@@ -82,11 +69,11 @@ export function useSourceExport({
     if (!window.desktopAPI) return
     try {
       const title = docTitle.replace(/\.md$/, '')
-      const editorMd = editorRef.current?.isReady() ? editorRef.current.getMarkdown() : null
-      const content =
-        editorMd != null
-          ? toStoredImages(editorMd, dirOfFile(activeFileId))
-          : (contents[activeFileId] ?? '')
+      const content = readExportSource({
+        editorMarkdown: editorRef.current?.isReady() ? editorRef.current.getMarkdown() : null,
+        fallback: contents[activeFileId] ?? '',
+        directory: dirOfFile(activeFileId),
+      })
       const review = await reviewBeforeExport(content)
       if (!review.ok) return
       const res = await window.desktopAPI.document.exportPandoc(content, title)

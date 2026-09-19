@@ -62,6 +62,8 @@ export function useExports({
   const { handleExportHtml, handleDoExportPdf } = useHtmlPdfExport({
     editorRef,
     activeFileIdRef,
+    contents,
+    dirOfFile,
     setToast,
     docTitle,
     exportSessionRef,
@@ -81,6 +83,8 @@ export function useExports({
   const { handleExportDocx } = useDocxExport({
     editorRef,
     activeFileIdRef,
+    contents,
+    dirOfFile,
     setToast,
     docTitle,
     exportSessionRef,

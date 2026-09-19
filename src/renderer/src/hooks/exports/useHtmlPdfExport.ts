@@ -6,6 +6,7 @@ import {
   awaitRichContentForExport,
   runExclusiveExport,
 } from './useExportSession'
+import { appendExportReminder, readExportSource, reviewExportMarkdown } from './review-export'
 import type { createExportSession } from '../../lib/export-session'
 import type { Dispatch, SetStateAction } from 'react'
 
@@ -22,6 +23,8 @@ type ExportSession = ReturnType<typeof createExportSession>
 export function useHtmlPdfExport({
   editorRef,
   activeFileIdRef,
+  contents,
+  dirOfFile,
   setToast,
   docTitle,
   exportSessionRef,
@@ -30,14 +33,35 @@ export function useHtmlPdfExport({
 }: {
   editorRef: MutableRefObject<EditorHandle | null>
   activeFileIdRef: MutableRefObject<string>
+  contents: Record<string, string>
+  dirOfFile: (fileId: string) => string | undefined
   setToast: Dispatch<SetStateAction<string>>
   docTitle: string
   exportSessionRef: MutableRefObject<ExportSession | null>
   buildDocHtml: (withToc?: boolean) => string
   inlineImagesInHtml: (html: string) => Promise<{ html: string; failed: number }>
 }) {
+  const reviewCurrentMarkdown = useCallback(async () => {
+    const fileId = activeFileIdRef.current
+    const directory = dirOfFile(fileId)
+    const content = readExportSource({
+      editorMarkdown: editorRef.current?.isReady() ? editorRef.current.getMarkdown() : null,
+      fallback: contents[fileId] ?? '',
+      directory,
+    })
+    return reviewExportMarkdown({
+      content,
+      directory,
+      stat: window.desktopAPI ? (path) => window.desktopAPI!.document.stat(path) : null,
+      notify: setToast,
+      confirm: (message) => window.confirm(message),
+    })
+  }, [activeFileIdRef, contents, dirOfFile, editorRef, setToast])
+
   const handleExportHtml = useCallback(async () => {
     if (!window.desktopAPI) return
+    const review = await reviewCurrentMarkdown()
+    if (!review.ok) return
     const session = exportSessionRef.current
     if (!session) return
     await runExclusiveExport(session, editorRef, setToast, 'HTML 导出失败，请稍后重试', async () => {
@@ -57,15 +81,20 @@ export function useHtmlPdfExport({
         defaultPath: `${title}.html`,
       })
       if (res.ok)
-        setToast(failed > 0 ? `HTML 已导出（${failed} 张图片未能内联，其它设备可能无法显示）` : 'HTML 已导出')
+        setToast(appendExportReminder(
+          failed > 0 ? `HTML 已导出（${failed} 张图片未能内联，其它设备可能无法显示）` : 'HTML 已导出',
+          review.reminder,
+        ))
       else if (res.error?.code !== 'CANCELLED') setToast('HTML 导出失败，请检查文件权限或磁盘空间')
     })
-  }, [activeFileIdRef, buildDocHtml, docTitle, editorRef, exportSessionRef, inlineImagesInHtml, setToast])
+  }, [activeFileIdRef, buildDocHtml, docTitle, editorRef, exportSessionRef, inlineImagesInHtml, reviewCurrentMarkdown, setToast])
 
   /** 确认选项后执行 PDF 导出（选项弹窗由调用方关闭） */
   const handleDoExportPdf = useCallback(
     async (options: PdfOptions) => {
       if (!window.desktopAPI) return
+      const review = await reviewCurrentMarkdown()
+      if (!review.ok) return
       const session = exportSessionRef.current
       if (!session) return
       await runExclusiveExport(session, editorRef, setToast, 'PDF 导出失败，请稍后重试', async () => {
@@ -84,11 +113,14 @@ export function useHtmlPdfExport({
           options,
         )
         if (res.ok)
-          setToast(failed > 0 ? `PDF 导出成功（${failed} 张图片未能内联，其它设备可能无法显示）` : 'PDF 导出成功')
+          setToast(appendExportReminder(
+            failed > 0 ? `PDF 导出成功（${failed} 张图片未能内联，其它设备可能无法显示）` : 'PDF 导出成功',
+            review.reminder,
+          ))
         else if (res.error?.code !== 'CANCELLED') setToast('PDF 导出失败，请检查文件权限或磁盘空间')
       })
     },
-    [activeFileIdRef, buildDocHtml, docTitle, editorRef, exportSessionRef, inlineImagesInHtml, setToast],
+    [activeFileIdRef, buildDocHtml, docTitle, editorRef, exportSessionRef, inlineImagesInHtml, reviewCurrentMarkdown, setToast],
   )
 
   return { handleExportHtml, handleDoExportPdf }

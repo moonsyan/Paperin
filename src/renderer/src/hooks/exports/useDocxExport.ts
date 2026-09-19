@@ -6,6 +6,7 @@ import {
   awaitRichContentForExport,
   runExclusiveExport,
 } from './useExportSession'
+import { appendExportReminder, readExportSource, reviewExportMarkdown } from './review-export'
 
 type ExportSession = ReturnType<typeof createExportSession>
 
@@ -22,6 +23,8 @@ type ExportSession = ReturnType<typeof createExportSession>
 export function useDocxExport({
   editorRef,
   activeFileIdRef,
+  contents,
+  dirOfFile,
   setToast,
   docTitle,
   exportSessionRef,
@@ -30,6 +33,8 @@ export function useDocxExport({
 }: {
   editorRef: MutableRefObject<EditorHandle | null>
   activeFileIdRef: MutableRefObject<string>
+  contents: Record<string, string>
+  dirOfFile: (fileId: string) => string | undefined
   setToast: Dispatch<SetStateAction<string>>
   docTitle: string
   exportSessionRef: MutableRefObject<ExportSession | null>
@@ -38,6 +43,20 @@ export function useDocxExport({
 }) {
   const handleExportDocx = useCallback(async () => {
     if (!window.desktopAPI) return
+    const fileId = activeFileIdRef.current
+    const directory = dirOfFile(fileId)
+    const review = await reviewExportMarkdown({
+      content: readExportSource({
+        editorMarkdown: editorRef.current?.isReady() ? editorRef.current.getMarkdown() : null,
+        fallback: contents[fileId] ?? '',
+        directory,
+      }),
+      directory,
+      stat: (path) => window.desktopAPI!.document.stat(path),
+      notify: setToast,
+      confirm: (message) => window.confirm(message),
+    })
+    if (!review.ok) return
     const session = exportSessionRef.current
     if (!session) return
     await runExclusiveExport(session, editorRef, setToast, 'Word 导出失败，请稍后重试', async () => {
@@ -64,12 +83,12 @@ export function useDocxExport({
         const notes: string[] = []
         if (failed > 0) notes.push(`${failed} 张图片未能内联`)
         if (stats.skippedSvg > 0) notes.push(`${stats.skippedSvg} 个图表转为占位文本`)
-        setToast(notes.length > 0 ? `Word 已导出（${notes.join('，')}）` : 'Word 已导出')
+        setToast(appendExportReminder(notes.length > 0 ? `Word 已导出（${notes.join('，')}）` : 'Word 已导出', review.reminder))
       } else if (res.error?.code !== 'CANCELLED') {
         setToast(res.error?.message ? `Word 导出失败：${res.error.message}` : 'Word 导出失败，请稍后重试')
       }
     })
-  }, [activeFileIdRef, buildDocHtml, docTitle, editorRef, exportSessionRef, inlineImagesInHtml, setToast])
+  }, [activeFileIdRef, buildDocHtml, contents, dirOfFile, docTitle, editorRef, exportSessionRef, inlineImagesInHtml, setToast])
 
   return { handleExportDocx }
 }
