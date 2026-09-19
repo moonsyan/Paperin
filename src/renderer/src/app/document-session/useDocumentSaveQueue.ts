@@ -19,6 +19,7 @@ export interface DocumentSaveQueueApi {
     expectedMtime: number | undefined,
     fileId: string,
     interactive?: boolean,
+    options?: { forceOverwrite?: boolean },
   ) => Promise<SaveResult>
   recordHistory: (path: string | undefined) => void
   resolveSelfConflict: (path: string, content: string) => Promise<number | null>
@@ -61,6 +62,7 @@ export function useDocumentSaveQueue({
       expectedMtime: number | undefined,
       fileId: string,
       interactive = false,
+      options?: { forceOverwrite?: boolean },
     ) => {
       if (!window.desktopAPI) {
         return { ok: false, error: { code: 'NO_API' } }
@@ -70,6 +72,7 @@ export function useDocumentSaveQueue({
         content,
         expectedMtime,
         encodingMapRef.current[fileId],
+        options?.forceOverwrite,
       )
       if (!res.ok && res.error?.code === 'ENCODING_LOSS') {
         if (!interactive) return res
@@ -77,7 +80,13 @@ export function useDocumentSaveQueue({
           '内容包含 GBK 无法表示的字符（如 emoji）。\n转为 UTF-8 保存会改变文件编码，是否继续？',
         )
         if (!convert) return res
-        res = await window.desktopAPI.document.save(path, content, expectedMtime)
+        res = await window.desktopAPI.document.save(
+          path,
+          content,
+          expectedMtime,
+          undefined,
+          options?.forceOverwrite,
+        )
         if (res.ok) {
           setEncodingMap((prev) => ({ ...prev, [fileId]: 'UTF-8' }))
           setToast('文件含 GBK 无法表示的字符，已转为 UTF-8 保存')

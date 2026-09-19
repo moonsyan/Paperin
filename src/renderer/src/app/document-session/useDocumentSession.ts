@@ -277,6 +277,7 @@ export function useDocumentSession({
     activeFileId,
     docTitle: documentState.docTitle,
     fileMtime: documentState.fileMtime,
+    fileMtimeRef: documentState.fileMtimeRef,
     encodingMap: documentState.encodingMap,
     activeFile: documentState.activeFile,
     activeContent,

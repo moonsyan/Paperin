@@ -178,8 +178,7 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
     }
     try {
       const filePath = result.filePaths[0]
-      // L8：用户经原生对话框选择即授权（文件在对话框之外不可读）
-      trustDirectory(dirname(filePath))
+      // 选 CSS 只读取这一份内容用于主题/导出预览，不能把所在目录变成信任根。
       const fileStat = await stat(filePath)
       if (!fileStat.isFile()) {
         return { ok: false, error: { code: 'IO_ERROR', message: '选择的不是普通文件' } }
@@ -243,10 +242,12 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
         typeof args.expectedMtime === 'number' && Number.isFinite(args.expectedMtime)
           ? args.expectedMtime
           : null
+      const forceOverwrite = args.forceOverwrite === true
       const conflict =
-        (expectedMtime !== null && pre.mtimeMs > expectedMtime + 500) ||
-        (known !== undefined &&
-          (pre.size !== known.size || pre.mtimeMs > known.mtimeMs + 500))
+        !forceOverwrite &&
+        ((expectedMtime !== null && pre.mtimeMs > expectedMtime + 500) ||
+          (known !== undefined &&
+            (pre.size !== known.size || pre.mtimeMs > known.mtimeMs + 500)))
       if (conflict) {
         return {
           ok: false,
@@ -315,6 +316,9 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
         args.encoding !== undefined &&
         !SAVE_ENCODINGS.has(args.encoding as DocumentSaveEncoding)
       ) {
+        return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
+      }
+      if (args.forceOverwrite !== undefined && typeof args.forceOverwrite !== 'boolean') {
         return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
       }
       try {

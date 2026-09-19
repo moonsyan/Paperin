@@ -6,6 +6,8 @@ export interface DocumentSaveArgs {
   content: string
   expectedMtime?: number
   encoding?: DocumentSaveEncoding
+  /** 用户已确认覆盖外部修改时跳过 mtime/size 冲突检测，随后仍会更新基线 */
+  forceOverwrite?: boolean
 }
 
 export type DocumentSaveResult =

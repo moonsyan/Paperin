@@ -62,6 +62,7 @@ export function useDocumentSaving({
     contents,
     contentsRef,
     fileMtime,
+    fileMtimeRef,
     initialOrSavedRef: INITIAL_OR_SAVED,
     openFiles,
     openFilesRef,
@@ -78,6 +79,7 @@ export function useDocumentSaving({
     saveWithEncodingFallback,
     recordHistory,
     resolveSelfConflict,
+    cancelAutoSave,
   } = saveQueueApi
   const mounted = useRef(true)
   useEffect(() => {
@@ -304,14 +306,18 @@ export function useDocumentSaving({
     // 有磁盘路径：直接保存（带外部冲突检测）
     if (file.path && window.desktopAPI) {
       const epoch = beginSave(activeFileId)
+      const expectedMtime = fileMtimeRef.current[activeFileId] ?? fileMtime[activeFileId]
       const doSave = (withCheck: boolean) =>
-        saveWithEncodingFallback(
-          file.path!,
-          content,
-          withCheck ? fileMtime[activeFileId] : undefined,
-          activeFileId,
-          true,
-        )
+        withCheck
+          ? saveWithEncodingFallback(file.path!, content, expectedMtime, activeFileId, true)
+          : saveWithEncodingFallback(
+              file.path!,
+              content,
+              undefined,
+              activeFileId,
+              true,
+              { forceOverwrite: true },
+            )
       let result = await doSave(true)
       if (!result.ok && result.error?.code === 'CONFLICT') {
         // L1：磁盘内容与本次写入一致时是自冲突（上次保存后 mtime 未回填等），
@@ -355,7 +361,11 @@ export function useDocumentSaving({
         )
         setSavedMap((prev) => ({ ...prev, [activeFileId]: receipt.saved }))
         setFileMtime((prev) => ({ ...prev, [activeFileId]: result.data!.modifiedTime }))
-        if (receipt.saved) void clearDraft(activeFileId)
+        fileMtimeRef.current = { ...fileMtimeRef.current, [activeFileId]: result.data!.modifiedTime }
+        if (receipt.saved) {
+          void clearDraft(activeFileId)
+          cancelAutoSave(activeFileId, content)
+        }
         recordHistory(file.path)
         finishSave(activeFileId, epoch, 'idle')
       } else if (result.error?.code === 'ENCODING_LOSS') {
@@ -374,7 +384,7 @@ export function useDocumentSaving({
     }
     // 无路径：另存为
     await handleSaveAs()
-  }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, activeSessionRef, beginSave, contents, contentsRef, dirOfFile, editorRef, fileMtime, finishSave, openFiles, openFilesRef, resolveSelfConflict, recordHistory, saveWithEncodingFallback, handleSaveAs, clearDraft, setContents, setFileMtime, setSavedMap, setToast, snapshotSettleTimeoutMs])
+  }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, activeSessionRef, beginSave, cancelAutoSave, contents, contentsRef, dirOfFile, editorRef, fileMtime, fileMtimeRef, finishSave, openFiles, openFilesRef, resolveSelfConflict, recordHistory, saveWithEncodingFallback, handleSaveAs, clearDraft, setContents, setFileMtime, setSavedMap, setToast, snapshotSettleTimeoutMs])
 
   const saveBeforeClose = useDocumentCloseSaving({
     state, editorRef, saveQueueApi, liveContentOf, recordRecent, setToast, snapshotSettleTimeoutMs,

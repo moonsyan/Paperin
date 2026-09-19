@@ -72,6 +72,7 @@ const createHarness = (overrides: HarnessOverrides = {}) => {
       contents,
       contentsRef,
       fileMtime: {},
+      fileMtimeRef: { current: {} },
       initialOrSavedRef,
       openFiles: openFilesRef.current,
       openFilesRef,
@@ -89,6 +90,7 @@ const createHarness = (overrides: HarnessOverrides = {}) => {
       saveWithEncodingFallback,
       recordHistory: vi.fn(),
       resolveSelfConflict: vi.fn().mockResolvedValue(null),
+      cancelAutoSave: vi.fn(),
       saveQueueRef: { current: null },
     } as unknown as UseDocumentSavingOptions['saveQueueApi'],
     dirOfFile: () => 'D:/notes',
@@ -415,5 +417,38 @@ describe('useDocumentSaving 大文档快照契约（T05）', () => {
     await waitFor(() => expect(savedWith).toHaveLength(1))
     expect(getMarkdown).toHaveBeenCalled()
     expect(savedWith[0][1]).toContain('small from editor')
+  })
+
+  it('确认覆盖时传 forceOverwrite，并使用 fileMtimeRef 的最新值', async () => {
+    stubDesktopAPI()
+    const confirm = vi.fn(() => true)
+    vi.stubGlobal('confirm', confirm)
+    const { options } = createHarness()
+    options.state.contents = { 'file-1': 'small' }
+    options.state.contentsRef.current = { 'file-1': 'small' }
+    options.state.fileMtime = { 'file-1': 100 }
+    options.state.fileMtimeRef = { current: { 'file-1': 250 } }
+    options.state.openFiles = [{ id: 'file-1', name: 'small.md', path: 'D:/notes/small.md' }]
+    options.state.openFilesRef.current = [{ id: 'file-1', name: 'small.md', path: 'D:/notes/small.md' }]
+    ;(options.editorRef as unknown as { current: Record<string, unknown> }).current.getMarkdown = () => 'small'
+    const save = vi.fn()
+      .mockResolvedValueOnce({ ok: false, error: { code: 'CONFLICT' } })
+      .mockResolvedValueOnce({ ok: true, data: { modifiedTime: 999 } })
+    options.saveQueueApi.saveWithEncodingFallback = save
+    options.saveQueueApi.cancelAutoSave = vi.fn()
+    const { result } = renderHook(() => useDocumentSaving(options))
+    await result.current.handleSave()
+
+    expect(save).toHaveBeenNthCalledWith(1, 'D:/notes/small.md', 'small', 250, 'file-1', true)
+    expect(save).toHaveBeenNthCalledWith(
+      2,
+      'D:/notes/small.md',
+      'small',
+      undefined,
+      'file-1',
+      true,
+      { forceOverwrite: true },
+    )
+    expect(options.saveQueueApi.cancelAutoSave).toHaveBeenCalled()
   })
 })

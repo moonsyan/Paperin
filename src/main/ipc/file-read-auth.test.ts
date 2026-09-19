@@ -159,4 +159,21 @@ describe('FILE_SAVE 与 FILE_READ 授权联动', () => {
     expect(saveResult.ok).toBe(true)
     await expect(readFile(dropped, 'utf-8')).resolves.toBe('# 新\n')
   })
+
+  it('用户确认覆盖时必须能越过 in-memory 基线冲突', async () => {
+    const target = join(tempDir2, '覆盖.md')
+    await writeFile(target, '# 打开时\n', 'utf-8')
+    const read = await getHandler(CHANNELS.FILE_READ_DROPPED)({}, target)
+    expect(read.ok).toBe(true)
+    const expectedMtime = read.data?.modifiedTime as number
+    await writeFile(target, '# 外部已经改过\n', 'utf-8')
+    const save = getHandler(CHANNELS.FILE_SAVE)
+    await expect(
+      save({}, { path: target, content: '# 我的版本\n', expectedMtime }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'CONFLICT' } })
+    await expect(
+      save({}, { path: target, content: '# 我的版本\n', forceOverwrite: true }),
+    ).resolves.toMatchObject({ ok: true })
+    await expect(readFile(target, 'utf-8')).resolves.toBe('# 我的版本\n')
+  })
 })
