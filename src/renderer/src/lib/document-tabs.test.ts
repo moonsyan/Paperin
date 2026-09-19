@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   findDiscardablePreview,
+  shouldPreserveActivePreview,
   getNeighborTabId,
   getTabNavigationTargetId,
   getClosableTabIds,
@@ -30,6 +31,13 @@ describe('文档标签状态', () => {
 
     expect(findDiscardablePreview(state.openFiles, 'next')?.id).toBe('preview')
     expect(findDiscardablePreview(state.openFiles, 'preview')).toBeUndefined()
+  })
+
+  it('活动预览有未落账输入或缓存未对齐时必须保留', () => {
+    expect(shouldPreserveActivePreview({ pending: true, markdown: '# 原文', cached: '# 原文' })).toBe(true)
+    expect(shouldPreserveActivePreview({ pending: false, markdown: null, cached: '# 原文' })).toBe(true)
+    expect(shouldPreserveActivePreview({ pending: false, markdown: '# 新输入', cached: '# 原文' })).toBe(true)
+    expect(shouldPreserveActivePreview({ pending: false, markdown: '# 原文', cached: '# 原文' })).toBe(false)
   })
 
   it('编辑预览标签后标记未保存并自动固定', () => {

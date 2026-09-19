@@ -5,6 +5,7 @@ import {
   findDiscardablePreview,
   getClosableTabIds,
   reorderTabsWithinGroup,
+  shouldPreserveActivePreview,
   togglePinnedTab,
 } from '../../lib/document-tabs'
 import type { DocumentSaveQueue } from '../../lib/document-save-queue'
@@ -80,15 +81,19 @@ export function useDocumentTabClosing({
   const discardPreviewTab = useCallback((nextFileId: string) => {
     const previous = findDiscardablePreview(openFilesRef.current, nextFileId)
     if (!previous) return
-    if (previous.id === activeFileIdRef.current && editorRef.current?.isReady()) {
-      const markdown = editorRef.current.getMarkdown()
-      if (markdown !== null) {
-        const stored = toStoredImages(markdown, dirOfFile(previous.id))
-        if (stored !== (contentsRef.current[previous.id] ?? '')) {
+    if (previous.id === activeFileIdRef.current) {
+      const markdown = editorRef.current?.isReady() ? editorRef.current.getMarkdown() : null
+      const stored = markdown !== null ? toStoredImages(markdown, dirOfFile(previous.id)) : null
+      if (shouldPreserveActivePreview({
+        pending: editorRef.current?.hasPendingChanges() === true,
+        markdown: stored,
+        cached: contentsRef.current[previous.id] ?? '',
+      })) {
+        if (stored !== null && stored !== (contentsRef.current[previous.id] ?? '')) {
           flushEditorContent()
-          pinPreviewTab(previous.id)
-          return
         }
+        pinPreviewTab(previous.id)
+        return
       }
     }
     openFilesRef.current = openFilesRef.current.filter((file) => file.id !== previous.id)

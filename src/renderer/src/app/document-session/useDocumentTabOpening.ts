@@ -47,7 +47,6 @@ export function useDocumentTabOpening({
     activeFileIdRef,
     contentsRef,
     initialOrSavedRef: initialOrSaved,
-    openFiles,
     openFilesRef,
     setActiveFileId,
     setContents,
@@ -84,18 +83,24 @@ export function useDocumentTabOpening({
     void (async () => {
       const demoFile = DEMO_FILES[id]
       if (!demoFile) return
-      const existed = openFiles.find((file) => file.id === id)
+      const existed = openFilesRef.current.find((file) => file.id === id)
       if (existed) {
         if (pinned && existed.preview) pinPreviewTab(id)
         await switchFile(id)
         return
       }
-      if (!pinned) discardPreviewTab(id)
       if (!await leaveCurrentDocument()) return
+      const existedAfterLeave = openFilesRef.current.find((file) => file.id === id)
+      if (existedAfterLeave) {
+        if (pinned && existedAfterLeave.preview) pinPreviewTab(id)
+        await switchFile(id)
+        return
+      }
+      if (!pinned) discardPreviewTab(id)
       const file = { id, name: demoFile.name, preview: !pinned }
       activateNewFile(file, demoFile.content)
     })()
-  }, [activateNewFile, discardPreviewTab, leaveCurrentDocument, openFiles, pinPreviewTab, switchFile])
+  }, [activateNewFile, discardPreviewTab, leaveCurrentDocument, openFilesRef, pinPreviewTab, switchFile])
 
   const handleOpen = useCallback(async () => {
     if (!window.desktopAPI) return
@@ -111,19 +116,25 @@ export function useDocumentTabOpening({
     }
     const { path, name, content } = result.data
     if (result.data.encoding) setEncodingMap((previous) => ({ ...previous, [`file-${path}`]: result.data!.encoding! }))
-    const existed = openFiles.find((file) => sameFilePath(file.path, path))
+    const existed = openFilesRef.current.find((file) => sameFilePath(file.path, path))
     if (existed) {
       if (existed.preview) pinPreviewTab(existed.id)
       await switchFile(existed.id)
       return
     }
     if (!await leaveCurrentDocument()) return
+    const existedAfterLeave = openFilesRef.current.find((file) => sameFilePath(file.path, path))
+    if (existedAfterLeave) {
+      if (existedAfterLeave.preview) pinPreviewTab(existedAfterLeave.id)
+      await switchFile(existedAfterLeave.id)
+      return
+    }
     titleRef.current?.blur()
     const file = { id: `file-${path}`, name, path }
     activateNewFile(file, content)
     setFileMtime((previous) => ({ ...previous, [file.id]: result.data!.modifiedTime }))
     recordRecent(path, name)
-  }, [activateNewFile, latestWorkspaceSelectionRef, leaveCurrentDocument, openFiles, pinPreviewTab, recordRecent, setEncodingMap, setFileMtime, setToast, switchFile, titleRef])
+  }, [activateNewFile, latestWorkspaceSelectionRef, leaveCurrentDocument, openFilesRef, pinPreviewTab, recordRecent, setEncodingMap, setFileMtime, setToast, switchFile, titleRef])
 
   const handleSelectWorkspaceFile = useCallback(async (path: string, pinned = true): Promise<boolean> => {
     latestWorkspaceSelectionRef.current = path

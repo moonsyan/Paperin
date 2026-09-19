@@ -43,6 +43,17 @@ export const shouldHoldPendingLargeDocumentFlush = (
   hasPendingChanges: boolean,
 ): boolean => shouldPreferCachedDocumentSnapshot(cachedContent) && hasPendingChanges
 
+/** 内容回到已保存基线时也要消耗 pending dirty，否则 leave/close 会空等超时。 */
+export const planSettledEditorChange = (isSaved: boolean): {
+  consumeDirty: true
+  cancelAutoSave: boolean
+  pinAndSchedule: boolean
+} => ({
+  consumeDirty: true,
+  cancelAutoSave: isSaved,
+  pinAndSchedule: !isSaved,
+})
+
 export const useEditorDocumentSync = ({
   state,
   editorRef,
@@ -147,13 +158,13 @@ export const useEditorDocumentSync = ({
     setSavedMap((previous) =>
       previous[fileId] === isSaved ? previous : { ...previous, [fileId]: isSaved },
     )
-    if (isSaved) {
-      cancelAutoSave(fileId, stored)
-      return
+    const effects = planSettledEditorChange(isSaved)
+    if (effects.cancelAutoSave) cancelAutoSave(fileId, stored)
+    if (effects.pinAndSchedule) {
+      pinPreviewTab(fileId)
+      scheduleAutoSave(fileId, stored)
     }
-    pinPreviewTab(fileId)
-    scheduleAutoSave(fileId, stored)
-    editorRef.current?.consumeDirtyChange()
+    if (effects.consumeDirty) editorRef.current?.consumeDirtyChange()
   }, [activeFileIdRef, cancelAutoSave, contentsRef, dirOfFile, editorRef, initialOrSavedRef, openFilesRef, pinPreviewTab, scheduleAutoSave, setContents, setSavedMap])
 
   const replaceEditorContent = useCallback(

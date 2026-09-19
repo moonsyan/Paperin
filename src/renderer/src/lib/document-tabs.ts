@@ -31,6 +31,17 @@ export const findDiscardablePreview = (
   nextFileId: string,
 ): OpenFile | undefined => openFiles.find((file) => file.preview && file.id !== nextFileId)
 
+/** 活动预览仍有未落账输入或缓存未对齐时必须固定，不能直接拆掉标签。 */
+export const shouldPreserveActivePreview = (input: {
+  pending: boolean
+  markdown: string | null
+  cached: string
+}): boolean => {
+  if (input.pending) return true
+  if (input.markdown === null) return true
+  return input.markdown !== input.cached
+}
+
 export const getNeighborTabId = (openFiles: OpenFile[], fileId: string): string | null => {
   const index = openFiles.findIndex((file) => file.id === fileId)
   if (index === -1) return null

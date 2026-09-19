@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  planSettledEditorChange,
   shouldDeferLargeDocumentReplace,
   shouldHoldPendingLargeDocumentFlush,
 } from './useEditorDocumentSync'
@@ -18,5 +19,14 @@ describe('编辑器文档同步', () => {
     expect(shouldHoldPendingLargeDocumentFlush('x'.repeat(1_000_001), true)).toBe(true)
     expect(shouldHoldPendingLargeDocumentFlush('x'.repeat(1_000_001), false)).toBe(false)
     expect(shouldHoldPendingLargeDocumentFlush('# 普通文档', true)).toBe(false)
+  })
+
+  it('回到已保存内容时仍消耗 pending dirty', () => {
+    expect(planSettledEditorChange(true)).toEqual({
+      consumeDirty: true,
+      cancelAutoSave: true,
+      pinAndSchedule: false,
+    })
+    expect(planSettledEditorChange(false).consumeDirty).toBe(true)
   })
 })
