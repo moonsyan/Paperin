@@ -229,6 +229,19 @@ export const recoverInterruptedFileWriteWithIo = async (
     await cleanupRecoveryMaterials(io, paths)
     return
   }
+  // `prepared` 表示覆盖可能已经完成、只是还没来得及写成 committed。
+  // 冷启动读取时：目标哈希已是新内容则保留，不能回滚 backup。
+  // 同一次保存失败回滚（allowActiveOwner）时仍恢复上一确认版本。
+  const current = await optionalRead(io, target)
+  if (
+    !options.allowActiveOwner
+    && current
+    && journal.contentSha256
+    && hash(current) === journal.contentSha256
+  ) {
+    await cleanupRecoveryMaterials(io, paths)
+    return
+  }
   await restoreBackup(io, target, paths, journal)
   await cleanupRecoveryMaterials(io, paths)
 }
