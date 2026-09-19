@@ -2,7 +2,7 @@ import { net } from 'electron'
 import { readFile, realpath } from 'fs/promises'
 import { extname, isAbsolute, relative, resolve } from 'path'
 import { pathToFileURL } from 'url'
-import { getTrustedRoots, isPathTrusted } from './trusted-paths'
+import { isPathTrusted, isResolvedPathWithinTrustedRoots } from './trusted-paths'
 
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'])
 
@@ -11,7 +11,7 @@ const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bm
  * "图片读取"权限，不再升级为完整信任（写/删/搜）。
  * 工作区打开与原生对话框选择仍走完整信任根（trusted-paths.ts）。
  */
-const imageReadDirs = new Map<string, true>()
+const imageReadDirs = new Map<string, { pinnedReal: string | null }>()
 
 /**
  * 图片读取白名单数量上限：超出时淘汰最早加入的。
@@ -30,7 +30,7 @@ export function allowImageDirectory(directory: string): void {
     const oldest = imageReadDirs.keys().next().value
     if (oldest !== undefined) imageReadDirs.delete(oldest)
   }
-  imageReadDirs.set(dir, true)
+  imageReadDirs.set(dir, { pinnedReal: null })
 }
 
 export function getImageReadDirs(): string[] {
@@ -68,12 +68,19 @@ function isPathWithinRoot(filePath: string, rootPath: string): boolean {
 export const isImagePathAllowedAfterResolvingLinks = async (filePath: string): Promise<boolean> => {
   const resolvedPath = resolve(filePath)
   if (!isPathTrusted(resolvedPath) && !isImageDirAllowed(resolvedPath)) return false
+  if (isPathTrusted(resolvedPath) && await isResolvedPathWithinTrustedRoots(resolvedPath)) return true
   const realFilePath = await realpath(resolvedPath).catch(() => null)
   if (!realFilePath) return false
-  const roots = await Promise.all(
-    [...getTrustedRoots(), ...getImageReadDirs()].map((root) => realpath(root).catch(() => null)),
+  const matches = await Promise.all(
+    Array.from(imageReadDirs.entries()).map(async ([root, entry]) => {
+      const liveRoot = await realpath(root).catch(() => null)
+      if (!liveRoot) return false
+      if (entry.pinnedReal === null) entry.pinnedReal = liveRoot
+      else if (liveRoot !== entry.pinnedReal) return false
+      return isPathWithinRoot(realFilePath, entry.pinnedReal)
+    }),
   )
-  return roots.some((root) => root !== null && isPathWithinRoot(realFilePath, root))
+  return matches.some(Boolean)
 }
 
 function notFound(): Response {

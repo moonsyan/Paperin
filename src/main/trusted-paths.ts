@@ -8,7 +8,7 @@ import { dirname, isAbsolute, relative, resolve } from 'path'
  * - 渲染进程无法直接调用本模块，授权只发生在主进程校验后的流程中
  */
 
-const trustedRoots = new Map<string, true>()
+const trustedRoots = new Map<string, { pinnedReal: string | null }>()
 
 /** 可淘汰信任根数量上限：超出时淘汰最早加入的（Map 保持插入顺序）。
  *  信任相关运行时/持久化上限的单一来源之一，session-trust 从此处引用派生。 */
@@ -79,7 +79,7 @@ export function trustDirectory(
     evictOldest()
     if (trustedRoots.size >= MAX_TRUSTED_ROOTS) return
   }
-  trustedRoots.set(dir, true)
+  trustedRoots.set(dir, { pinnedReal: null })
   if (essential) {
     essentialRoots.add(dir)
     if (!evictable) protectedRoots.add(dir)
@@ -94,9 +94,10 @@ export function trustDirectory(
  */
 export function touchTrustedRoot(path: string): void {
   const dir = resolve(path)
-  if (!trustedRoots.has(dir)) return
+  const entry = trustedRoots.get(dir)
+  if (!entry) return
   trustedRoots.delete(dir)
-  trustedRoots.set(dir, true)
+  trustedRoots.set(dir, entry)
 }
 
 /** 路径是否位于任一信任根内（含根自身与所有子路径） */
@@ -127,10 +128,17 @@ export const isPathTrustedAfterResolvingLinks = async (filePath: string): Promis
 export const isResolvedPathWithinTrustedRoots = async (filePath: string): Promise<boolean> => {
   const realFilePath = await realpath(filePath).catch(() => null)
   if (!realFilePath) return false
-  const realRoots = await Promise.all(
-    getTrustedRoots().map((root) => realpath(root).catch(() => null)),
+  const matches = await Promise.all(
+    Array.from(trustedRoots.entries()).map(async ([root, entry]) => {
+      const liveRoot = await realpath(root).catch(() => null)
+      if (!liveRoot) return false
+      // 首次解析钉住真实根；之后 junction 换靶不得扩大授权范围。
+      if (entry.pinnedReal === null) entry.pinnedReal = liveRoot
+      else if (liveRoot !== entry.pinnedReal) return false
+      return isPathInsideRoot(entry.pinnedReal, realFilePath)
+    }),
   )
-  return realRoots.some((root) => root !== null && isPathInsideRoot(root, realFilePath))
+  return matches.some(Boolean)
 }
 
 export function getTrustedRoots(): string[] {

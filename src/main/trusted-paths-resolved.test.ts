@@ -72,6 +72,33 @@ describe('解析后的信任根边界', () => {
 
     await expect(isPathTrustedAfterResolvingLinks(link)).resolves.toBe(false)
   })
+
+  it('信任根被换成指向根外的 junction 后不再授权新目标', async () => {
+    const { isResolvedPathWithinTrustedRoots, trustDirectory } = await import('./trusted-paths')
+    const parent = await createTemporaryDirectory('paperin-rebind-parent-')
+    const original = await createTemporaryDirectory('paperin-rebind-original-')
+    const outside = await createTemporaryDirectory('paperin-rebind-outside-')
+    const junction = join(parent, 'workspace')
+    const originalDoc = join(original, 'inside.md')
+    const outsideDoc = join(outside, 'secret.md')
+    await writeFile(originalDoc, '原工作区')
+    await writeFile(outsideDoc, '根外')
+    try {
+      await symlink(original, junction, 'junction')
+    } catch {
+      return
+    }
+    trustDirectory(junction)
+    await expect(isResolvedPathWithinTrustedRoots(join(junction, 'inside.md'))).resolves.toBe(true)
+
+    await rm(junction, { recursive: true, force: true })
+    try {
+      await symlink(outside, junction, 'junction')
+    } catch {
+      return
+    }
+    await expect(isResolvedPathWithinTrustedRoots(join(junction, 'secret.md'))).resolves.toBe(false)
+  })
 })
 
 describe('对话框导出目标身份', () => {

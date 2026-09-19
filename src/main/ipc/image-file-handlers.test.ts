@@ -4,6 +4,7 @@ import { join } from 'path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ipcMain, shell } from 'electron'
 import { CHANNELS } from '../../shared/ipc/channels'
+import { allowImageDirectory } from '../image-protocol'
 import { isPathTrusted, trustDirectory } from '../trusted-paths'
 import { registerImageFileHandlers } from './image-file-handlers'
 
@@ -86,6 +87,26 @@ describe('图片文件 IPC 的真实路径授权', () => {
       error: { code: 'INVALID_ARGUMENT' },
     })
     await expect(getHandler(CHANNELS.FILE_DELETE_IMAGE)({}, join(attachments, '秘密.png'))).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_PATH' },
+    })
+    expect(trashItemMock).not.toHaveBeenCalled()
+  })
+
+  it('仅有图片读取白名单时拒绝保存和删除图片', async () => {
+    const dropped = await createTemporaryDirectory('paperin-image-drop-')
+    const document = join(dropped, '外部.md')
+    await writeFile(document, '# 拖入\n')
+    allowImageDirectory(dropped)
+
+    const save = await getHandler(CHANNELS.FILE_SAVE_IMAGE)({}, {
+      dataUrl: 'data:image/png;base64,iVBORw0KGgo=',
+      docPath: document,
+    })
+    expect(save).toMatchObject({ ok: false, error: { code: 'INVALID_PATH' } })
+
+    const image = join(dropped, 'attachments', 'shot.png')
+    await expect(getHandler(CHANNELS.FILE_DELETE_IMAGE)({}, image)).resolves.toMatchObject({
       ok: false,
       error: { code: 'INVALID_PATH' },
     })

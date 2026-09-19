@@ -98,14 +98,21 @@ export const registerImageFileHandlers = ({ isTrustedPath }: ImageFileHandlerDep
           workspaceDirectory: args.workspaceAttachmentDirectory,
           globalDirectory: args.globalAttachmentDirectory,
         })
-        const directory = args.docPath || args.workspacePath
+        const appImages = join(app.getPath('userData'), 'images')
+        let directory = args.docPath || args.workspacePath
           ? resolution.directory
-          : join(app.getPath('userData'), 'images')
-        if (!isTrustedPath(directory) && !isImageDirAllowed(directory)) {
+          : appImages
+        let relativeToDocument = Boolean(args.docPath)
+        // 图片读取白名单不能升级为写权限；拖入文件的邻接 attachments 回落到应用图片目录。
+        if (!isTrustedPath(directory)) {
+          directory = appImages
+          relativeToDocument = false
+        }
+        if (!isTrustedPath(directory)) {
           return { ok: false, error: { code: 'INVALID_PATH' } }
         }
         await mkdir(directory, { recursive: true })
-        if (!(await isImagePathAllowedAfterResolvingLinks(directory))) {
+        if (!(await isPathTrustedAfterResolvingLinks(directory))) {
           return { ok: false, error: { code: 'INVALID_PATH' } }
         }
         let name = ''
@@ -116,7 +123,7 @@ export const registerImageFileHandlers = ({ isTrustedPath }: ImageFileHandlerDep
           filePath = join(directory, name)
           try {
             // mkdir 后目录仍可能被替换为链接；每次实际写入前复核真实目录。
-            if (!(await isImagePathAllowedAfterResolvingLinks(directory))) {
+            if (!(await isPathTrustedAfterResolvingLinks(directory))) {
               return { ok: false, error: { code: 'INVALID_PATH' } }
             }
             await writeFile(filePath, buffer, { flag: 'wx' })
@@ -131,7 +138,7 @@ export const registerImageFileHandlers = ({ isTrustedPath }: ImageFileHandlerDep
         }
         allowImageDirectory(directory)
         schedulePersistTrust()
-        const relativePath = args.docPath
+        const relativePath = relativeToDocument && args.docPath
           ? `${resolution.relativeToDocument}/${name}`.replace(/^\.\//, '')
           : undefined
         return {
@@ -207,7 +214,7 @@ export const registerImageFileHandlers = ({ isTrustedPath }: ImageFileHandlerDep
     if (!/\.(png|jpe?g|gif|webp|bmp)$/i.test(basename(filePath))) {
       return { ok: false, error: { code: 'NOT_IMAGE' } }
     }
-    if (!(await isImagePathAllowedAfterResolvingLinks(filePath))) {
+    if (!(await isPathTrustedAfterResolvingLinks(filePath))) {
       return { ok: false, error: { code: 'INVALID_PATH' } }
     }
     try {
@@ -215,7 +222,7 @@ export const registerImageFileHandlers = ({ isTrustedPath }: ImageFileHandlerDep
       if (!fileStat.isFile()) {
         return { ok: false, error: { code: 'NOT_FILE' } }
       }
-      if (!(await isImagePathAllowedAfterResolvingLinks(filePath))) {
+      if (!(await isPathTrustedAfterResolvingLinks(filePath))) {
         return { ok: false, error: { code: 'INVALID_PATH' } }
       }
       await shell.trashItem(filePath)
