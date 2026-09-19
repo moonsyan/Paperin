@@ -5,7 +5,8 @@ import { mkdir, rename, rm, stat, unlink, writeFile } from 'fs/promises'
 import { extname, join } from 'path'
 import { CHANNELS } from '../../shared/ipc/channels'
 import { MAX_DOCUMENT_FILE_SIZE } from './file-io'
-import { createSaveAsWriteTargetAuthorizer, isPathTrusted, trustDirectory, writeIfDialogTargetStillAuthorized } from '../trusted-paths'
+import { createSaveAsWriteTargetAuthorizer, writeIfDialogTargetStillAuthorized } from '../trusted-paths'
+import { allowExportDirectory, isExportDirectoryAuthorized } from './export-dirs'
 
 const execFileAsync = promisify(execFile)
 
@@ -293,9 +294,10 @@ export const registerExportHandlers = (): void => {
         if (result.canceled || result.filePaths.length === 0) {
           return { ok: false, error: { code: 'CANCELLED' } }
         }
-        // 人工经原生对话框选择的目录授予导出信任：FILE_EXPORT_BUNDLE 写盘前
-        // 校验该信任，防止被入侵的渲染进程绕过选择步骤向任意目录写文件
-        trustDirectory(result.filePaths[0])
+        // 只授权这次导出目录，不把它升级为工作区写权限
+        if (!await allowExportDirectory(result.filePaths[0])) {
+          return { ok: false, error: { code: 'INVALID_PATH' } }
+        }
         return { ok: true, data: { path: result.filePaths[0] } }
       } catch (error) {
         return { ok: false, error: { code: 'IO_ERROR', message: String(error) } }
@@ -358,9 +360,8 @@ export const registerExportHandlers = (): void => {
         return { ok: false, error: { code: 'TOO_LARGE', message: '资源总大小超过 100MB' } }
       }
 
-      // 目标目录必须已存在（由目录选择步骤保证；此处防御性校验），
-      // 且必须属于已授权的导出信任根——这是资源包写盘通道的授权边界
-      if (!isPathTrusted(outputDir)) {
+      // 目标目录必须已存在，且必须是刚刚经导出对话框选定的目录
+      if (!await isExportDirectoryAuthorized(outputDir)) {
         return { ok: false, error: { code: 'INVALID_PATH', message: '目标目录未经过导出授权，请重新选择导出位置' } }
       }
       try {
