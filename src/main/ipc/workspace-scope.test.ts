@@ -128,4 +128,39 @@ describe('withinCallerWorkspace（工作区 IPC 的窗口绑定授权）', () =>
     await expect(withinCallerWorkspace(deps, eventOf(2), secondRoot)).resolves.toBe(true)
     await rm(secondRoot, { recursive: true, force: true })
   })
+
+  it('工作区根被换成指向根外的 junction 后拒绝操作', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'mk-scope-rebind-'))
+    const original = await mkdtemp(join(tmpdir(), 'mk-scope-rebind-in-'))
+    const rebound = await mkdtemp(join(tmpdir(), 'mk-scope-rebind-out-'))
+    const junction = join(parent, 'workspace')
+    const inside = join(original, '笔记.md')
+    const secret = join(rebound, '秘密.md')
+    await writeFile(inside, '# 原\n')
+    await writeFile(secret, '# 根外\n')
+    try {
+      await symlink(original, junction, 'junction')
+    } catch {
+      await rm(parent, { recursive: true, force: true })
+      await rm(original, { recursive: true, force: true })
+      await rm(rebound, { recursive: true, force: true })
+      return
+    }
+    trustDirectory(junction)
+    const deps = { workspaceRootFor: () => junction, isTrustedPath: (p: unknown) => isPathTrusted(p as string) }
+    await expect(withinCallerWorkspace(deps, eventOf(1), join(junction, '笔记.md'))).resolves.toBe(true)
+    await rm(junction, { recursive: true, force: true })
+    try {
+      await symlink(rebound, junction, 'junction')
+    } catch {
+      await rm(parent, { recursive: true, force: true })
+      await rm(original, { recursive: true, force: true })
+      await rm(rebound, { recursive: true, force: true })
+      return
+    }
+    await expect(withinCallerWorkspace(deps, eventOf(1), join(junction, '秘密.md'))).resolves.toBe(false)
+    await rm(parent, { recursive: true, force: true })
+    await rm(original, { recursive: true, force: true })
+    await rm(rebound, { recursive: true, force: true })
+  })
 })

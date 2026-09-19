@@ -1,6 +1,7 @@
 import type { IpcMainInvokeEvent } from 'electron'
 import { realpath } from 'fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'path'
+import { getPinnedTrustRoot, isPathTrustedAfterResolvingLinks } from '../trusted-paths'
 
 /**
  * 工作区 IPC 的窗口级授权（多窗口绑定）。
@@ -35,10 +36,10 @@ export const withinCallerWorkspace = async (
 ): Promise<boolean> => {
   const root = deps.workspaceRootFor(event.sender.id)
   if (!root || !deps.isTrustedPath(root)) return false
-  const [realRoot, realCandidate] = await Promise.all([
-    realpath(root).catch(() => null),
-    realpath(candidate).catch(() => null),
-  ])
-  if (!realRoot) return false
-  return isInsideRoot(realRoot, realCandidate ?? candidate)
+  // 信任根钉住首次真实路径。junction 换靶后 isPathTrusted 仍为真，这里必须拒绝。
+  if (!(await isPathTrustedAfterResolvingLinks(root))) return false
+  const pinnedRoot = getPinnedTrustRoot(root)
+  if (!pinnedRoot) return false
+  const realCandidate = await realpath(candidate).catch(() => null)
+  return isInsideRoot(pinnedRoot, realCandidate ?? candidate)
 }

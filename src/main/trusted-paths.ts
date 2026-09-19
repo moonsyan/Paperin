@@ -145,6 +145,12 @@ export function getTrustedRoots(): string[] {
   return Array.from(trustedRoots.keys())
 }
 
+/** 首次解析后钉住的真实根。尚未解析或目录未登记时返回 null。 */
+export function getPinnedTrustRoot(directory: string): string | null {
+  if (!directory) return null
+  return trustedRoots.get(resolve(directory))?.pinnedReal ?? null
+}
+
 /** 保底信任根（工作区、应用自有目录）：供持久化快照区分可恢复的工作区 */
 export function getEssentialRoots(): string[] {
   return Array.from(essentialRoots)
