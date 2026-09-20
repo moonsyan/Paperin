@@ -2,6 +2,21 @@
 
 更新时间：2026-09-20（Asia/Shanghai）
 
+## R12 文档结项（feat/strategy-execution）
+
+**任务号：** R12（用户研究，非功能）  
+**交付：** [user-research/_index.md](development/user-research/_index.md)、[seed-study-2026-09.md](development/user-research/seed-study-2026-09.md)；R13–R16 占位说明 **条件未满足，未执行**。  
+**数据边界：** 参与者 A/B 任务表与背景字段均为 **未采集**；最大三个阻塞 **未采集**；不报留存率。  
+**工程对照：** seed 研究文档 §5 链接 R01–R11 残留 **UNVERIFIED** 边界，**不**代表用户已遇到。  
+**计划 §15：** 访谈/观察行未勾选；代码影响对照与文档提交已做。  
+**下一项：** 真实两周观察填表后，再评估 R13 条件（仍依赖 R10 安装证据）。
+
+## R17 增量（feat/strategy-execution，本轮文档）
+
+- README 与 [compatibility-matrix](compatibility-matrix.md) 仍将引用插入、写作模板记为**已有实现**；平台安装、用户任务与商业验证 **未** 写成已完成。
+- **许可缺口：** 根目录无 `LICENSE`；`package.json` 的 MIT 不足以覆盖全部分发权利；见 [docs/README.md](README.md)「许可与分发材料」。Chromium 相关声明不删除。
+- **超限账本：** 见下文「仍超过行数门禁」表（2026-09-20 实数）。
+
 ## R10 结项（feat/strategy-execution）
 
 **任务号：** R10  
@@ -173,18 +188,17 @@
 - M01 的多结构 5 MiB、另一台 16 GB / SSD 设备、8 小时内存趋势。
 - 用户任务成功率、试用回访、研究记录、获客和收费。
 
-## 仍超过行数门禁、且这次没有拆的文件
+## 仍超过行数门禁的生产 `.ts/.tsx`
 
-2026-09-19 实数。触及时再拆，不把账本当成已经拆完。
+2026-09-20 实数（`Measure-Object -Line`）。触及时再拆，不把账本当成已经拆完。测试文件超限不列入本表。
 
-| 文件 | 行数 |
-| --- | --- |
-| `src/renderer/src/lib/docx.ts` | 599 |
-| `src/renderer/src/app/workspace/useWorkspaceFiles.ts` | 356（R00 已拆 move/pre-save） |
-| `src/renderer/src/app/useAppSettings.ts` | 496 |
-| `src/renderer/src/components/Editor/overlays/useEditorOverlays.ts` | 486 |
-| `src/renderer/src/components/Editor/plugins/mermaidCodeBlock.ts` | 482 |
-| `src/renderer/src/components/Editor/instance/useMilkdownInstance.ts` | 462 |
-| `src/main/ipc/file-handlers.ts` | 451 |
+| 文件 | 行数 | 备注 |
+| --- | --- | --- |
+| `src/renderer/src/lib/docx.ts` | 545 | 导出 Word 路径 |
+| `src/renderer/src/app/useAppSettings.ts` | 489 | 设置与主题 |
+| `src/renderer/src/components/Editor/overlays/useEditorOverlays.ts` | 460 | 编辑器浮层 |
+| `src/renderer/src/components/Editor/instance/useMilkdownInstance.ts` | 456 | Milkdown 实例 |
 
-`AppComposition.tsx` 停在 449 行。上表里的文件已经超过 450 行，触及时先拆再加功能。
+**R00–R10 已拆分或降至 450 以下（触及时勿引用旧行数）：** `useWorkspaceFiles.ts`（355，`workspace-file-pre-save.ts` / `workspace-move-file.ts`）；`file-handlers.ts`（346，`document-save-handler.ts` 等）；`AppComposition.tsx`（424）；`mermaidCodeBlock.ts`（449，贴线未增功能）。
+
+`AppComposition.tsx` 与 `mermaidCodeBlock.ts` 当前 ≤450，新增功能前仍须评估拆分。

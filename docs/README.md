@@ -30,6 +30,11 @@
 - [file-write-recovery](file-write-recovery.md)：已有文件的恢复写入。
 - [graph-view-architecture](graph-view-architecture.md)：图谱模块边界。
 - [development/](development/)：性能基线、主题对比度基线和验收协议。原始 JSON 是当时的测量，不要拿去覆盖后来的 Electron 记录。
+- [development/user-research/](development/user-research/_index.md)：用户研究协议与脱敏记录入口（不含个人资料）。
+
+## 许可与分发材料（R17）
+
+仓库根目录 **尚无** 经权利依据补齐的 `LICENSE` 文件；`package.json` 的 `MIT` 字段 alone 不能作为全部权利与第三方分发结论。Chromium/Electron 等必需声明须保留；发布安装包前需单独核对 `resources/` 与各依赖许可证。**不**在缺少依据时新建声称版权的 LICENSE。
 
 ## 不能从现有文档推出的结论
 

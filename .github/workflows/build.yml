@@ -2,7 +2,7 @@ name: build
 
 # 三平台质量门禁流水线（scripts/verify-ci-config.mjs 校验 build + release 结构）。
 # 本文件只跑 CI 门禁，不产安装包；出安装包并发布 Release 见 release.yml。
-# 平台安装验收（安装/升级/文件关联）不在本流水线内，见 docs/NEXT-DEVELOPMENT-PLAN.md T20。
+# 平台安装验收（安装/升级/文件关联）不在本流水线内，见 docs/development/release-validation.md（R10）。
 
 on:
   push:

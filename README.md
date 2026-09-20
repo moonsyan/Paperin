@@ -137,4 +137,4 @@ npm run perf:regression
 
 ## 许可证
 
-当前仓库许可证和第三方依赖声明以仓库文件为准。发布安装包前请同时检查 `package.json`、`resources/` 和各依赖的许可证要求。
+仓库根目录尚无经权利依据补齐的 `LICENSE` 文件；`package.json` 中的 `MIT` 字段不能单独作为全部版权与第三方分发结论。发布安装包前须核对根许可、`resources/`、Electron/Chromium 必需声明及各依赖许可证要求。维护说明见 [docs/README.md](docs/README.md)。
