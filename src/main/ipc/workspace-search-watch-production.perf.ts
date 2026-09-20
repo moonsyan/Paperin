@@ -121,16 +121,16 @@ describe('production workspace search and watcher performance gate', () => {
     let emit: ((paths: string[]) => void) | undefined
     const watcher = createWorkspaceFileWatcher({
       debounceMs: 5,
-      watch: (_watchRoot, onChange) => {
-        emit = onChange
+      watch: (_watchRoot, onRawChange) => {
+        emit = onRawChange
         return () => undefined
       },
     })
     const samples: number[] = []
     const batches: number[] = []
     let settle: (() => void) | undefined
-    watcher.start(root, (paths) => {
-      batches.push(paths.length)
+    watcher.start(root, (change) => {
+      if (change.kind === 'files') batches.push(change.paths.length)
       void service.refresh(root).then(() => settle?.())
     })
 

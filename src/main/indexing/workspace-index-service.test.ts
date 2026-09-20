@@ -201,6 +201,49 @@ describe('workspace-index-service：预算与进度', () => {
     )
   })
 
+  it('listMarkdownFiles 进程级失败仍整次 INDEX_FAILED', async () => {
+    const deps = createDeps({
+      'D:/notes/a.md': { content: MD('A'), mtimeMs: 10, size: 10 },
+    })
+    deps.listMarkdownFiles = async () => {
+      throw new Error('磁盘不可用')
+    }
+    const service = createWorkspaceIndexService(deps)
+    await expect(service.refresh('D:/notes')).rejects.toMatchObject({ code: 'INDEX_FAILED' })
+  })
+
+  it('单篇读取失败计入 read-error 与诊断，其余文档可搜索', async () => {
+    const deps = createDeps({
+      'D:/notes/good.md': { content: '# 好\n唯一词Alpha', mtimeMs: 10, size: 20 },
+      'D:/notes/bad.md': { content: MD('坏'), mtimeMs: 20, size: 10 },
+      'D:/notes/missing.md': { content: MD('删'), mtimeMs: 30, size: 10 },
+    })
+    const baseRead = deps.readFileText
+    deps.readFileText = async (path) => {
+      if (path.endsWith('bad.md')) {
+        const error = new Error('UTF-8 解码失败')
+        error.name = 'EncodingError'
+        throw error
+      }
+      if (path.endsWith('missing.md')) throw new Error('ENOENT')
+      return baseRead(path)
+    }
+    const service = createWorkspaceIndexService(deps)
+    const first = await service.refresh('D:/notes')
+    expect(first.complete).toBe(false)
+    expect(first.truncated).toBe(true)
+    expect(first.index.coverage.skipped['read-error']).toBe(2)
+    expect(Object.keys(first.index.documents)).toEqual(['D:/notes/good.md'])
+    expect(first.index.diagnostics.filter((d) => d.code === 'READ_ERROR')).toHaveLength(2)
+
+    deps.readFileText = baseRead
+    deps.files['D:/notes/bad.md'] = { content: '# 修复\n唯一词Alpha', mtimeMs: 40, size: 24 }
+    delete deps.files['D:/notes/missing.md']
+    const second = await service.refresh('D:/notes')
+    expect(second.index.documents['D:/notes/bad.md']).toBeDefined()
+    expect(second.index.coverage.skipped['read-error']).toBe(0)
+  })
+
   it('单篇身份变化时跳过该文件，其余文档仍进入索引', async () => {
     const deps = createDeps({
       'D:/notes/a.md': { content: MD('A'), mtimeMs: 10, size: 10 },

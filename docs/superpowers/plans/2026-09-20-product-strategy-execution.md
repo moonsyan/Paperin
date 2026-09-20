@@ -200,11 +200,11 @@ export type WorkspaceChange =
   | { kind: 'rescan'; reason: 'directory' | 'unknown' }
 ```
 
-- [ ] 将附录根路径/目录路径 0 回调探针变成使用假计时器的失败测试，期待一次合并后的 rescan。
-- [ ] 模拟 Windows 与 POSIX 路径、目录移动、无文件名事件、隐藏目录过滤、20,000 条变化合并、关闭/切库取消旧 timer。
-- [ ] 让每篇读取失败转为本地诊断和 `read-error` 计数；正常文件继续索引/搜索。进程级错误仍失败，不能把所有异常吞成成功。
-- [ ] 用一篇合法 Markdown、一篇残缺字节、一篇被删除文件验证可用结果、完整性为 false、可再次扫描恢复。
-- [ ] 执行 `workspace-file-watcher.test.ts`、`workspace-index-service.test.ts`、新增搜索覆盖测试及 `npm run perf:workspace-search-watch`；全局门禁后同步文档提交。
+- [x] 将附录根路径/目录路径 0 回调探针变成使用假计时器的失败测试，期待一次合并后的 rescan。
+- [x] 模拟 Windows 与 POSIX 路径、目录移动、无文件名事件、隐藏目录过滤、20,000 条变化合并、关闭/切库取消旧 timer。
+- [x] 让每篇读取失败转为本地诊断和 `read-error` 计数；正常文件继续索引/搜索。进程级错误仍失败，不能把所有异常吞成成功。
+- [x] 用一篇合法 Markdown、一篇残缺字节、一篇被删除文件验证可用结果、完整性为 false、可再次扫描恢复。
+- [x] 执行 `workspace-file-watcher.test.ts`、`workspace-index-service.test.ts`、新增搜索覆盖测试及 `npm run perf:workspace-search-watch`；全局门禁后同步文档提交。
 
 ## 10. R07：草稿、历史与多窗口恢复可解释
 

@@ -28,7 +28,12 @@ import {
   markWorkspaceCoverageIncomplete,
   WORKSPACE_SCAN_MAX_FILE_BYTES,
 } from '../../shared/workspace-coverage'
-import type { IndexedDocument, WorkspaceIndex, WorkspaceIndexEvent as SharedWorkspaceIndexEvent } from '../../shared/workspace-index'
+import type {
+  DiagnosticRecord,
+  IndexedDocument,
+  WorkspaceIndex,
+  WorkspaceIndexEvent as SharedWorkspaceIndexEvent,
+} from '../../shared/workspace-index'
 
 export interface WorkspaceIndexResult {
   index: WorkspaceIndex
@@ -87,6 +92,17 @@ export const DEFAULT_WORKSPACE_INDEX_MAX_FILES = 5000
 
 const isAbortErrorLike = (error: unknown): boolean =>
   error instanceof Error && error.name === 'AbortError'
+
+const readErrorDiagnostic = (path: string, error: unknown): DiagnosticRecord => {
+  const message = error instanceof Error ? error.message : '读取失败'
+  return {
+    id: `READ_ERROR:${path}:0:`,
+    code: 'READ_ERROR',
+    severity: 'error',
+    path,
+    message,
+  }
+}
 
 export const createWorkspaceIndexService = (
   deps: WorkspaceIndexServiceDeps,
@@ -159,6 +175,7 @@ export const createWorkspaceIndexService = (
         coverage.skipped['file-budget'] += files.length - MAX_FILES
       }
       const documents: Record<string, IndexedDocument> = {}
+      const diagnostics: DiagnosticRecord[] = []
       // 未变化文件直接迁移旧解析结果（保留对象引用，供增量断言与省 IO）
       let scanned = 0
       for (const meta of withinBudget) {
@@ -180,15 +197,11 @@ export const createWorkspaceIndexService = (
           try {
             content = await deps.readFileText(meta.path)
           } catch (error) {
-            // 读取期间路径被换成链接时跳过这一篇，不能让单文件失败拖垮整库索引。
-            if (error instanceof Error && error.name === 'FileIdentityChangedError') {
-              truncated = true
-              markWorkspaceCoverageIncomplete(coverage)
-              coverage.skipped['read-error'] += 1
-              continue
-            }
+            // 单篇读取/解码失败：计入覆盖与本地诊断，不阻断其余文档索引。
+            truncated = true
             markWorkspaceCoverageIncomplete(coverage)
             coverage.skipped['read-error'] += 1
+            diagnostics.push(readErrorDiagnostic(meta.path, error))
             continue
           }
           check()
@@ -237,6 +250,7 @@ export const createWorkspaceIndexService = (
         ),
         tags: collectTagRecords(documents),
         assets: collectAssetReferences(documents),
+        diagnostics,
       }
 
       state.documents = documents

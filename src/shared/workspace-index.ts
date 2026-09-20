@@ -58,6 +58,7 @@ export type DiagnosticCode =
   | 'FOOTNOTE_ERROR'
   | 'UNRESOLVED_WIKI'
   | 'ORPHAN_DOCUMENT'
+  | 'READ_ERROR'
 
 export interface DiagnosticRecord {
   id: string

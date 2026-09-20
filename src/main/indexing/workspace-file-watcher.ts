@@ -1,18 +1,27 @@
 /**
- * 工作区文件监听（Track C / Task 9）。
+ * 工作区文件监听（Track C / Task 9，R06 目录失效）。
  *
- * 仅监听当前工作区根目录：过滤隐藏目录、node_modules 与非 Markdown 文件，
- * 变更去抖合并后回调（触发索引 refresh）。文件是否存在不在此判定——
- * 删除事件同样转发，缺失由索引服务扫描确认。工作区关闭/切换时取消。
+ * 仅监听当前工作区根目录：过滤 hidden 目录、node_modules 与非 Markdown 文件。
+ * 变更去抖合并后回调；根路径/目录级/无名事件触发 rescan，不能用伪造 .md 路径冒充。
+ * 工作区关闭/切换时取消 timer 与底层 watch。
  */
 
 import { watch as fsWatch } from 'fs'
+import { join } from 'path'
+
+export type WorkspaceChange =
+  | { kind: 'files'; paths: string[] }
+  | { kind: 'rescan'; reason: 'directory' | 'unknown' }
 
 export interface WorkspaceFileWatcherDeps {
-  /** 底层 watch 封装：返回取消监听的函数（单测注入假实现） */
-  watch(root: string, onChange: (paths: string[]) => void): () => void
+  /** 底层 watch：相对或绝对路径批次；空字符串表示平台未提供文件名 */
+  watch(root: string, onRawChange: (paths: string[]) => void): () => void
   debounceMs?: number
+  /** 单批次待合并 Markdown 路径上限，超出则降级为 rescan（防监听风暴） */
+  maxPendingFilePaths?: number
 }
+
+const DEFAULT_MAX_PENDING_FILE_PATHS = 20_000
 
 const isMarkdownPath = (path: string): boolean => /\.(md|markdown)$/i.test(path)
 
@@ -24,8 +33,31 @@ const isFilteredPath = (path: string): boolean => {
   return false
 }
 
+const normalizeComparable = (path: string): string =>
+  path.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
+
+type PathKind = 'ignore' | 'markdown' | 'rescan-directory' | 'rescan-unknown'
+
+const looksLikeFilePath = (path: string): boolean => {
+  const name = path.split(/[\\/]/).pop() ?? path
+  return /\.[^./\\]+$/.test(name)
+}
+
+const classifyRawPath = (root: string, raw: string): PathKind => {
+  if (!raw.trim()) return 'rescan-unknown'
+  const normRoot = normalizeComparable(root)
+  const normPath = normalizeComparable(raw)
+  if (normPath === normRoot) return 'rescan-directory'
+  if (isFilteredPath(raw)) return 'ignore'
+  if (isMarkdownPath(raw)) return 'markdown'
+  // 非 Markdown 但带扩展名：资源/杂项文件，不触发目录级 rescan
+  if (looksLikeFilePath(raw)) return 'ignore'
+  if (normPath.startsWith(`${normRoot}/`)) return 'rescan-directory'
+  return 'rescan-unknown'
+}
+
 export interface WorkspaceFileWatcher {
-  start(root: string, onChange: (paths: string[]) => void): void
+  start(root: string, onChange: (change: WorkspaceChange) => void): void
   stop(): void
 }
 
@@ -33,25 +65,50 @@ export const createWorkspaceFileWatcher = (
   deps: WorkspaceFileWatcherDeps,
 ): WorkspaceFileWatcher => {
   const debounceMs = deps.debounceMs ?? 250
+  const maxPendingFilePaths = deps.maxPendingFilePaths ?? DEFAULT_MAX_PENDING_FILE_PATHS
   let stopCurrent: (() => void) | null = null
   let timer: ReturnType<typeof setTimeout> | null = null
-  let pending = new Set<string>()
+  let pendingFiles = new Set<string>()
+  let pendingRescan: 'directory' | 'unknown' | null = null
+  let watchRoot = ''
+
+  const onChangeRef: { current: ((change: WorkspaceChange) => void) | null } = { current: null }
 
   const flush = (): void => {
     timer = null
-    const paths = Array.from(pending)
-    pending = new Set<string>()
+    if (pendingRescan) {
+      const reason = pendingRescan
+      pendingRescan = null
+      pendingFiles = new Set<string>()
+      onChangeRef.current?.({ kind: 'rescan', reason })
+      return
+    }
+    const paths = Array.from(pendingFiles)
+    pendingFiles = new Set<string>()
     if (paths.length === 0) return
-    onChangeRef.current?.(paths)
+    onChangeRef.current?.({ kind: 'files', paths })
   }
 
-  // 经 ref 转发最新回调：start 切换工作区后旧 timer 不会打到旧回调
-  const onChangeRef: { current: ((paths: string[]) => void) | null } = { current: null }
+  const scheduleRescan = (reason: 'directory' | 'unknown'): void => {
+    pendingRescan = pendingRescan === 'unknown' || reason === 'unknown' ? 'unknown' : reason
+    pendingFiles.clear()
+  }
 
-  const handleChange = (paths: string[]): void => {
-    const markdown = paths.filter((p) => isMarkdownPath(p) && !isFilteredPath(p))
-    if (markdown.length === 0) return
-    markdown.forEach((path) => pending.add(path))
+  const handleRawChange = (paths: string[]): void => {
+    for (const raw of paths) {
+      const kind = classifyRawPath(watchRoot, raw)
+      if (kind === 'ignore') continue
+      if (kind === 'markdown') {
+        if (pendingRescan) continue
+        pendingFiles.add(raw)
+        if (pendingFiles.size > maxPendingFilePaths) {
+          scheduleRescan('unknown')
+        }
+        continue
+      }
+      scheduleRescan(kind === 'rescan-unknown' ? 'unknown' : 'directory')
+    }
+    if (!pendingRescan && pendingFiles.size === 0) return
     if (timer) clearTimeout(timer)
     timer = setTimeout(flush, debounceMs)
   }
@@ -59,35 +116,39 @@ export const createWorkspaceFileWatcher = (
   return {
     start(root, onChange) {
       this.stop()
+      watchRoot = root
       onChangeRef.current = onChange
-      stopCurrent = deps.watch(root, handleChange)
+      stopCurrent = deps.watch(root, handleRawChange)
     },
 
     stop() {
       stopCurrent?.()
       stopCurrent = null
+      watchRoot = ''
       onChangeRef.current = null
       if (timer) {
         clearTimeout(timer)
         timer = null
       }
-      pending = new Set<string>()
+      pendingFiles = new Set<string>()
+      pendingRescan = null
     },
   }
 }
 
-/** 默认 fs.watch 封装：recursive 监听根目录，事件名不影响（增删改都触发刷新） */
+/** 默认 fs.watch 封装：recursive 监听根目录，无名事件触发 rescan unknown */
 export const createFsWatchAdapter = (): WorkspaceFileWatcherDeps['watch'] => {
-  return (root, onChange) => {
+  return (root, onRawChange) => {
     let watcher: ReturnType<typeof fsWatch> | null = null
     try {
       watcher = fsWatch(root, { recursive: true }, (_event, fileName) => {
-        // fileName 为相对路径或 null（平台差异）；null 时交由服务全量比对
-        const path = typeof fileName === 'string' && fileName ? `${root}\\${fileName}` : root
-        onChange([path])
+        if (fileName == null || fileName === '') {
+          onRawChange([''])
+          return
+        }
+        onRawChange([join(root, fileName)])
       })
     } catch {
-      // 目录消失等场景：返回空操作，索引 refresh 由外部周期或用户操作兜底
       return () => undefined
     }
     return () => {

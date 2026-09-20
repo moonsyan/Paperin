@@ -2,6 +2,17 @@
 
 更新时间：2026-09-20（Asia/Shanghai）
 
+## R06 结项（feat/strategy-execution）
+
+**任务号：** R06  
+**失败测试（修复前）：** A06——根/目录/无名 watch 事件被 Markdown 过滤器丢弃（探针 0 回调）；单篇读取失败可拖垮整库；watcher 无法区分增量路径与目录级 rescan。  
+**修复后结果：** `workspace-file-watcher.test.ts` 12/12；`workspace-index-service.test.ts` 11/11；`workspace-search-coverage.test.ts` 9/9（沿用 R05）；`workspace-coverage.test.ts` 2/2；全量 **203** 文件 **1496** 项通过。  
+**全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0（1496 passed）；`npm run build` 0；`npm run perf:workspace-search-watch` **1/2**（20k watcher 合并通过；5000 篇搜索 IPC 仍 `INVALID_TARGET`，与 R05 同 harness 缺口，非 watcher 回归）；`npm run smoke` **未重跑**（React **#301** + 系统关联标签，非 R06 回归）。  
+**文档：** 计划 §9 复选框；`DiagnosticCode.READ_ERROR`；watcher `WorkspaceChange` 契约。  
+**人工边界：** 真实 OS 目录 watch 分布仍依赖平台；冒烟仍被 React #301 阻塞端到端。  
+**实际工时：** ~1h（自动化记录）  
+**下一项：** R07（本任务未启动）
+
 ## R05 结项（feat/strategy-execution）
 
 **任务号：** R05  
@@ -11,8 +22,6 @@
 **文档：** `docs/compatibility-matrix.md` 扫描预算表；计划 §8 复选框。  
 **人工边界：** 冒烟仍被 React #301 阻塞端到端；5000 篇搜索尾部命中已在 `workspace-search-coverage.test.ts` 固化（约 2.2s）。跳过计数仅本地诊断，不进遥测。  
 **实际工时：** ~1.5h（自动化记录）  
-**下一项：** R06（本任务未启动）
-
 ## R04 结项（feat/strategy-execution）
 
 **任务号：** R04  

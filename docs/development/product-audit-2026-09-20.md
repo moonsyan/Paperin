@@ -244,7 +244,7 @@ setTimeout(() => {
 '@ | node
 ```
 
-关键结果：无 BOM 抛错，带 BOM 返回 `中文笔�`，UTF16 返回 `A`，旧保存基线返回 `conflict:false`；集合输出分别出现元数据正文、空脚注标签、丢图片、列表扁平化；watcher 回调数为 0。
+关键结果：无 BOM 抛错，带 BOM 返回 `中文笔�`，UTF16 返回 `A`，旧保存基线返回 `conflict:false`；集合输出分别出现元数据正文、空脚注标签、丢图片、列表扁平化；watcher 回调数为 0（**R06 已转为** `workspace-file-watcher.test.ts` 根/目录 rescan 断言）。
 
 ## 5. 后续修复记录规则
 
