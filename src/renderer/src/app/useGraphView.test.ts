@@ -30,7 +30,6 @@ describe('useGraphView', () => {
   it('用户主动打开时先刷新链接再打开并激活标签', () => {
     const options = createOptions(workspaceAt('/ws'))
     const { result } = renderHook(() => useGraphView(options))
-    // 自动打开不刷新链接，先清空以便断言主动打开的行为
     options.refreshLinks.mockClear()
 
     act(() => result.current.closeGraphView())
@@ -41,12 +40,12 @@ describe('useGraphView', () => {
     expect(result.current.graphTabActive).toBe(true)
   })
 
-  it('打开工作区即自动展示图谱，同一路径不重复触发', () => {
+  it('R11：开库只出现图谱标签，保持文档/开始页上下文', () => {
     const options = createOptions(workspaceAt('/ws'))
     const { result, rerender } = renderHook(() => useGraphView(options))
 
     expect(result.current.graphTabOpen).toBe(true)
-    expect(result.current.graphTabActive).toBe(true)
+    expect(result.current.graphTabActive).toBe(false)
 
     act(() => result.current.setGraphTabActive(false))
     rerender()
@@ -55,7 +54,7 @@ describe('useGraphView', () => {
     expect(result.current.graphTabOpen).toBe(true)
   })
 
-  it('切换到另一个工作区重新自动展示图谱', () => {
+  it('切换到另一个工作区重新挂上图谱标签且不激活', () => {
     const options = createOptions(workspaceAt('/ws-a'))
     const { result, rerender } = renderHook(({ workspace }) => useGraphView({ ...options, workspace }), {
       initialProps: { workspace: workspaceAt('/ws-a') as WorkspaceInfo | null },
@@ -67,13 +66,14 @@ describe('useGraphView', () => {
     rerender({ workspace: workspaceAt('/ws-b') })
 
     expect(result.current.graphTabOpen).toBe(true)
-    expect(result.current.graphTabActive).toBe(true)
+    expect(result.current.graphTabActive).toBe(false)
   })
 
   it('切回文档标签时保留图谱标签，只取消激活', () => {
     const options = createOptions(workspaceAt('/ws'))
     const { result } = renderHook(() => useGraphView(options))
 
+    act(() => result.current.openGraphView())
     act(() => result.current.setGraphTabActive(false))
 
     expect(result.current.graphTabActive).toBe(false)
@@ -90,7 +90,7 @@ describe('useGraphView', () => {
     expect(result.current.graphTabActive).toBe(false)
   })
 
-  it('闸门 ref 为 false 时 auto-open 只出现标签不激活，消费一次后复位', () => {
+  it('闸门 ref 仍会在开库后复位，但不改变 R11 默认不激活', () => {
     const gate = { current: false }
     const options = createOptions(workspaceAt('/ws'))
     const { result, rerender } = renderHook(
@@ -98,24 +98,22 @@ describe('useGraphView', () => {
       { initialProps: { workspace: workspaceAt('/ws') as WorkspaceInfo | null } },
     )
 
-    // 会话恢复场景：图谱标签出现，但不盖住恢复的文档
     expect(result.current.graphTabOpen).toBe(true)
     expect(result.current.graphTabActive).toBe(false)
-    // 消费一次即复位，下一次打开其他工作区恢复默认激活行为
     expect(gate.current).toBe(true)
 
     act(() => result.current.closeGraphView())
     rerender({ workspace: workspaceAt('/ws-b') })
 
     expect(result.current.graphTabOpen).toBe(true)
-    expect(result.current.graphTabActive).toBe(true)
+    expect(result.current.graphTabActive).toBe(false)
   })
 
-  it('未传闸门 ref 时保持打开工作区即激活的既有行为', () => {
+  it('未传闸门 ref 时开库同样不自动激活（R11 默认）', () => {
     const options = createOptions(workspaceAt('/ws'))
     const { result } = renderHook(() => useGraphView(options))
 
     expect(result.current.graphTabOpen).toBe(true)
-    expect(result.current.graphTabActive).toBe(true)
+    expect(result.current.graphTabActive).toBe(false)
   })
 })

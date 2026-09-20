@@ -25,6 +25,7 @@ export const createSearchCommands = (handlers: ActionHandlersRef): AppCommand[] 
   {
     id: 'wsSearch',
     title: '工作区全文搜索',
+    keywords: ['搜索', '资料', '来源', '引用', '查找'],
     focusEditor: 'never',
     // 工作区级：没有知识库时菜单/命令面板直接灰显，而不是点了之后才提示
     scope: 'workspace',

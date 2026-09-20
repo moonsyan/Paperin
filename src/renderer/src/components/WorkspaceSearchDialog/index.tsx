@@ -134,6 +134,9 @@ export function WorkspaceSearchDialog({
             </button>
           </div>
           <p className="ws-scope">{SEARCH_SCOPE_LABEL}</p>
+          {onInsertCitation && (
+            <p className="ws-citation-hint">命中右侧可「插入引用」；侧栏「关系」里的反链也有同样操作，可用撤销收回。</p>
+          )}
           {!search.searched && onOpenRecent && onClearNavigation && (
             <RecentCitations
               paths={recentCitations}

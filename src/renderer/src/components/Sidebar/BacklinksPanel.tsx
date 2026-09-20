@@ -105,7 +105,7 @@ export const BacklinksPanel = ({
     <div className="backlinks-root">
       {!activeFilePath ? (
         <div className="backlinks-empty">
-          打开工作区内的文件后，这里会显示引用它的笔记（反向链接）与它发出的链接。
+          打开工作区内的文件后，这里会显示引用它的笔记（反向链接）与它发出的链接。每条链接右侧可「插入引用」。
         </div>
       ) : (
         <>

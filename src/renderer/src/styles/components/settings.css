@@ -314,6 +314,12 @@ button.search-regex:focus-visible {
   font-size: .72rem;
   line-height: 1.45;
 }
+.ws-citation-hint {
+  margin: 0 0 10px;
+  color: var(--text-3);
+  font-size: .72rem;
+  line-height: 1.45;
+}
 .ws-recent { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
 .ws-recent-head { display: flex; align-items: center; justify-content: space-between; font-size: .72rem; color: var(--text-3); }
 .ws-recent-clear, .ws-recent-item {

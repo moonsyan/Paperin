@@ -320,9 +320,21 @@ html[data-platform='darwin'] .topbar {
   margin-bottom: 6px;
 }
 .start-sub {
-  font-size: .85rem;
+  font-size: .92rem;
+  color: var(--text-2);
+  margin-bottom: 8px;
+  max-width: 26rem;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.45;
+}
+.start-tagline {
+  font-size: .78rem;
   color: var(--text-3);
-  margin-bottom: 26px;
+  margin-bottom: 22px;
+  max-width: 28rem;
+  margin-left: auto;
+  margin-right: auto;
 }
 .start-actions {
   display: flex;
@@ -381,6 +393,19 @@ html[data-platform='darwin'] .topbar {
   font-size: .74rem;
   line-height: 1.5;
   color: var(--text-3);
+}
+.start-discover {
+  margin: 16px auto 0;
+  max-width: 28rem;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+  font-size: .74rem;
+  line-height: 1.55;
+  color: var(--text-3);
+}
+.start-discover li + li {
+  margin-top: 6px;
 }
 
 .sidebar-toggle {

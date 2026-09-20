@@ -1,7 +1,7 @@
 {
   "name": "paperin",
   "version": "0.6.0",
-  "description": "A minimal, elegant Markdown editor for desktop",
+  "description": "本地 Markdown 知识工作台：打开资料 → 用来源写一段技术说明",
   "author": "ming",
   "license": "MIT",
   "main": "./out/main/index.js",

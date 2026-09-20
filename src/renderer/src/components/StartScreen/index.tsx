@@ -1,3 +1,5 @@
+import { CORE_TASK_DISCOVER, CORE_TASK_HEADLINE, CORE_TASK_TAGLINE } from '../../../../shared/product/core-task'
+
 interface StartScreenProps {
   /** 新建空白文档 */
   onNew: () => void
@@ -26,7 +28,8 @@ export function StartScreen({ onNew, onOpen, onOpenFolder, hasWorkspace = false,
       <div className="start-inner">
         <img className="start-logo" src="./icon.png" alt="" />
         <h1 className="start-title">Paperin</h1>
-        <p className="start-sub">一个安静的 Markdown 写作空间</p>
+        <p className="start-sub">{CORE_TASK_HEADLINE}</p>
+        <p className="start-tagline">{CORE_TASK_TAGLINE}</p>
         <div className="start-actions">
           {hasWorkspace ? (
             <>
@@ -81,10 +84,15 @@ export function StartScreen({ onNew, onOpen, onOpenFolder, hasWorkspace = false,
             {notices.map((notice) => <li key={notice}>{notice}</li>)}
           </ul>
         )}
+        <ul className="start-discover" aria-label="核心任务可发现动作">
+          <li>{CORE_TASK_DISCOVER.materials}</li>
+          <li>{CORE_TASK_DISCOVER.template}</li>
+          <li>{CORE_TASK_DISCOVER.citation}</li>
+        </ul>
         {hasWorkspace ? (
           <p className="start-hint">要继续上次写作，可打开侧栏的「最近编辑」列表</p>
         ) : (
-          <p className="start-hint">或点击左侧文件夹中的样例文件开始编辑</p>
+          <p className="start-hint">或点击左侧「示例任务 / 资料来源」中的合成样例（不会写入你的知识库）</p>
         )}
       </div>
     </div>

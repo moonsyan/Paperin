@@ -17,6 +17,7 @@ export const createPanelCommands = (handlers: ActionHandlersRef): AppCommand[] =
   {
     id: 'linksPanel',
     title: '关系面板',
+    keywords: ['反链', '反向链接', '引用', '来源', '链接'],
     scope: 'workspace',
     enabled: () => true,
     execute: () => handlers.current.openContextPanel('links'),

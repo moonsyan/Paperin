@@ -1,3 +1,5 @@
+import { R11_TASK_DEMO_FILES, R11_TASK_TREE_FOLDERS } from './demo-task-files'
+
 /**
  * 演示用文件树数据源
  * 正式版将由 Main 进程读取真实目录生成，结构保持一致。
@@ -56,108 +58,6 @@ order: 1
 `,
   },
 
-  welcome: {
-    id: 'welcome',
-    name: '欢迎使用.md',
-    content: `# 欢迎使用 Paperin
-
-一款对标 Typora 的**柔和简洁**的 Markdown 桌面编辑器。
-
-## 设计理念
-
-> 少即是多。最好的写作工具不会分散你的注意力——它让你专注于文字本身。
-
-没有工具栏，没有分栏预览。你只需要安静地写字，Markdown 标记在落笔的瞬间自然呈现。
-
-## 核心特性
-
-### 所见即所得
-
-输入 Markdown 语法即刻渲染，不需要切换模式，不需要侧边预览：
-
-- 输入 \`# \` 立刻变成一级标题
-- 输入 \`**文字**\` 立刻变成**粗体**
-- 输入 \`- \` 立刻变成列表项
-
-### 柔和配色
-
-精心调配的多套主题色系，长时间书写也不会感到视觉疲劳：
-
-- **暖白** — 经典暖色调（default）
-- **墨夜** — 深邃暗色（dark）
-- **海雾** — 冷调蓝灰（ocean）
-- **玫砂** — 温暖粉棕（rose）
-- **星夜** — 类 GitHub Dark 高对比（github）
-- **原子** — 经典 One Dark 编码配色（atom）
-- **纸墨** — 暖纸墨打字机质感（typewriter）
-
-点击右上角的太阳图标即可切换；可写作区与暗色主题均做过对比度调校。
-
-### 功能隐藏
-
-所有功能收纳在顶部菜单栏，界面只留下文字本身。
-
-## 任务清单
-
-- [x] 所见即所得编辑
-- [x] 多主题适配
-- [x] 文件树与大纲
-- [ ] 插件系统
-- [ ] 云端同步
-
-## 表格
-
-| 特性 | 状态 | 说明 |
-| ---- | ---- | ---- |
-| 所见即所得 | 已完成 | Typora 式编辑 |
-| 多主题 | 已完成 | CSS 变量驱动 |
-| 文件管理 | 已完成 | 打开 / 保存 / 另存为 |
-
-## 扩展语法
-
-### 数学公式（KaTeX）
-
-行内公式：质能方程 $E = mc^2$，勾股定理 $a^2 + b^2 = c^2$。
-
-块级公式用双美元符号包裹：
-
-$$
-\\int_0^\\infty e^{-x}\\,dx = 1
-$$
-
-### 流程图（Mermaid）
-
-用 mermaid 代码块书写：
-
-\`\`\`mermaid
-graph TD
-  A[书写 Markdown] --> B[即时渲染]
-  B --> C{满意?}
-  C -->|是| D[导出分享]
-  C -->|否| A
-\`\`\`
-
-### 脚注
-
-Paperin 支持脚注语法[^1]，适合学术写作。
-
-[^1]: 行内输入 [^标签] 插入引用；行首输入 [^标签]: 内容 定义脚注。
-
-### 代码块
-
-输入 \`\`\`python 或 ~~~python 加空格即可创建带语言的代码块；
-鼠标悬停代码块可修改语言、复制内容；直接在块内编辑代码。
-
-\`\`\`python
-def greet(name):
-    print(f"Hello, {name}!")
-\`\`\`
-
----
-
-*开始书写你的想法。*
-`,
-  },
   quickstart: {
     id: 'quickstart',
     name: '快速开始.md',
@@ -639,11 +539,13 @@ settings.set(key: string, value: unknown): Promise<void>
 - [ ] 国际化
 `,
   },
+  ...R11_TASK_DEMO_FILES,
 }
 
 /** 文件树结构（顺序即显示顺序） */
 export const DEMO_TREE: DemoFolder[] = [
-  { label: '项目文档', fileIds: ['welcome', 'quickstart', 'design', 'publish'] },
+  ...R11_TASK_TREE_FOLDERS,
+  { label: '更多示例', fileIds: ['quickstart', 'design', 'publish', 'architecture', 'api', 'meeting', 'todo'] },
 ]
 
 /** 默认打开的文件 */

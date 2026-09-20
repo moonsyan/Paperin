@@ -100,7 +100,7 @@ export function AppComposition(): JSX.Element {
   const modalOpenRef = useRef(false)
   const fullscreenOpenRef = useRef(false)
   modalOpenRef.current = settingsOpen || helpView !== null || imagesOpen || pdfOptsOpen || publishOpen || wsSearchOpen || paletteOpen || versionHistoryOpen || confirmRequest !== null
-  // 会话恢复打开工作区时图谱标签不自动盖住文档；手动打开文件夹仍自动展示图谱
+  // R11：开库时图谱不自动激活；会话恢复仍经 restoringWorkspaceRef 写入同一 ref（兼容保留）
   const graphAutoActivateRef = useRef(true)
   const draftSessionIdRef = useRef<string | undefined>(undefined)
 
@@ -183,7 +183,7 @@ export function AppComposition(): JSX.Element {
   /**
    * 打开文件的统一入口（覆盖图谱激活态）。
    *
-   * 打开工作区时图谱会自动激活并盖在编辑器区上（useGraphView 的 auto-open），
+   * 打开工作区时图谱标签会出现但不激活（useGraphView R11），
    * 而「取消激活」此前只挂在 TabBar 的 onSwitch 上——目录树点击、反链、搜索
    * 结果、诊断跳转、Wiki 链接、系统文件打开等路径都不经过 TabBar，图谱继续
    * 盖在编辑器上，看起来像「点了文件右侧没反应」。

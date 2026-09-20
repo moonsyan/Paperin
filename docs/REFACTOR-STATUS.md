@@ -2,6 +2,18 @@
 
 更新时间：2026-09-20（Asia/Shanghai）
 
+## R11 结项（feat/strategy-execution）
+
+**任务号：** R11  
+**产品变更：** 开始页 / 合成示例树 / README / package 描述统一为「打开资料 → 用来源写一段技术说明」；首屏列出资料、模板与「插入引用」可发现动作；开库时图谱标签出现但**不自动激活**（避免打断首次任务，见 `useGraphView.ts`）。  
+**失败测试（修复前）：** `useGraphView` 开库即 `graphTabActive=true`；开始页与 README/package 任务表述不一致；示例树缺少旧笔记 / 技术草稿 / 来源资料合成夹具。  
+**修复后结果：** `useGraphView.test.ts` 8/8；`StartScreen/index.test.tsx` 4/4；`r11-core-task-entry.test.ts` 9/9；`r11-fixture-contract.test.ts` 1/1；`demo-files.test.ts` 1/1；全量 **211** 文件 **1546** 项通过（以当次 `npm run test` 为准）。  
+**全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0；`npm run build` 0；`npm run smoke` **0**；  
+**文档：** 计划 §14 研发子项；`command-panels.md` 引用入口；README / package description。  
+**用户研究边界：** 两位用户无口头提示演示 = **未执行**（不宣称通过）。  
+**实际工时：** ~（自动化记录）  
+**下一项：** R10（本任务未启动）
+
 ## R09 结项（feat/strategy-execution）
 
 **任务号：** R09  

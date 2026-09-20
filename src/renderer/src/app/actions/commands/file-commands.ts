@@ -2,6 +2,11 @@ import type { AppCommand } from '../../commands/app-command'
 import type { DocumentTemplate } from '../../../lib/document-collection'
 import type { ActionHandlersRef } from './types'
 
+const TEMPLATE_KEYWORDS: Partial<Record<DocumentTemplate, readonly string[]>> = {
+  article: ['模板', '技术说明', '技术文章', '项目文档'],
+  decision: ['模板', '决策', 'ADR'],
+}
+
 const TEMPLATES: DocumentTemplate[] = ['readme', 'api', 'design', 'changelog', 'article', 'decision']
 
 const TEMPLATE_TITLES: Record<DocumentTemplate, string> = {
@@ -137,6 +142,7 @@ export const createFileCommands = (handlers: ActionHandlersRef): AppCommand[] =>
     (template): AppCommand => ({
       id: `newTemplate:${template}`,
       title: TEMPLATE_TITLES[template],
+      keywords: TEMPLATE_KEYWORDS[template],
       enabled: () => true,
       execute: () => handlers.current.handleNewFromTemplate?.(template),
     }),
