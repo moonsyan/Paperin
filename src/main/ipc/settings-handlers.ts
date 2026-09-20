@@ -57,7 +57,10 @@ export const registerSettingsHandlers = (): void => {
 
   ipcMain.handle(
     CHANNELS.SETTINGS_UPSERT_DRAFT,
-    async (_event, args: { id: string; content: string; baselineSha256?: string }) => {
+    async (
+      _event,
+      args: { id: string; content: string; baselineSha256?: string; draftSessionId?: string },
+    ) => {
       if (!args || typeof args.id !== 'string' || !args.id || args.id.length > 512 || typeof args.content !== 'string') {
         return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
       }
@@ -67,8 +70,14 @@ export const registerSettingsHandlers = (): void => {
       ) {
         return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
       }
+      if (
+        args.draftSessionId !== undefined
+        && (typeof args.draftSessionId !== 'string' || !args.draftSessionId || args.draftSessionId.length > 128)
+      ) {
+        return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
+      }
       try {
-        await upsertDraft(args.id, args.content, args.baselineSha256)
+        await upsertDraft(args.id, args.content, args.baselineSha256, args.draftSessionId)
         return { ok: true }
       } catch (error) {
         if (error instanceof SettingsStoreError) {
@@ -79,13 +88,23 @@ export const registerSettingsHandlers = (): void => {
     },
   )
 
-  ipcMain.handle(CHANNELS.SETTINGS_DELETE_DRAFT, async (_event, id: string) => {
-    if (typeof id !== 'string' || !id || id.length > 512) {
-      return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
-    }
-    try {
-      await deleteDraft(id)
-      return { ok: true }
+  ipcMain.handle(
+    CHANNELS.SETTINGS_DELETE_DRAFT,
+    async (_event, args: string | { id: string; draftSessionId?: string }) => {
+      const id = typeof args === 'string' ? args : args?.id
+      const draftSessionId = typeof args === 'object' && args ? args.draftSessionId : undefined
+      if (typeof id !== 'string' || !id || id.length > 512) {
+        return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
+      }
+      if (
+        draftSessionId !== undefined
+        && (typeof draftSessionId !== 'string' || !draftSessionId || draftSessionId.length > 128)
+      ) {
+        return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
+      }
+      try {
+        await deleteDraft(id, draftSessionId)
+        return { ok: true }
     } catch (error) {
       return { ok: false, error: { code: 'IO_ERROR', message: String(error) } }
     }

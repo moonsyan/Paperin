@@ -7,6 +7,8 @@ export interface PendingDraft {
   content: string
 }
 
+export type DraftPersistOutcome = 'success' | 'failure'
+
 interface UseDraftPersistenceOptions {
   activeFileId: string
   content: string
@@ -15,6 +17,8 @@ interface UseDraftPersistenceOptions {
   getLiveContent?: (id: string) => string
   /** 起草时的已保存正文。恢复时用它的哈希判断磁盘有没有被外部改过。 */
   getBaseline?: (id: string) => string | undefined
+  /** 本窗口草稿会话 id（多窗口互不覆盖 settings.drafts 同一路径条目） */
+  draftSessionId?: string
   /**
    * 禁用草稿持久化（fresh 窗口）：草稿经 settings-store 共享，fresh 窗口
    * 写入/删除草稿会覆盖或误删主窗口同一文件的未保存内容（两个窗口对同一
@@ -22,6 +26,8 @@ interface UseDraftPersistenceOptions {
    * 生命周期内有效
    */
   enabled?: boolean
+  /** 草稿落盘结果（不含自动恢复 toast；失败时由调用方提示一次并可重试） */
+  onDraftPersist?: (outcome: DraftPersistOutcome, error?: unknown) => void
 }
 
 /**
@@ -33,7 +39,9 @@ export function useDraftPersistence({
   ready,
   getLiveContent,
   getBaseline,
+  draftSessionId,
   enabled = true,
+  onDraftPersist,
 }: UseDraftPersistenceOptions): {
   clearDraft: (id: string) => Promise<void>
   draftPendingRef: MutableRefObject<PendingDraft | null>
@@ -47,12 +55,24 @@ export function useDraftPersistence({
   const clearedDraftsRef = useRef<Set<string>>(new Set())
   const getBaselineRef = useRef(getBaseline)
   getBaselineRef.current = getBaseline
+  const draftSessionIdRef = useRef(draftSessionId)
+  draftSessionIdRef.current = draftSessionId
+  const onDraftPersistRef = useRef(onDraftPersist)
+  onDraftPersistRef.current = onDraftPersist
+
+  const reportFailure = useCallback((error: unknown) => {
+    onDraftPersistRef.current?.('failure', error)
+  }, [])
+
+  const reportSuccess = useCallback(() => {
+    onDraftPersistRef.current?.('success')
+  }, [])
 
   const clearDraft = useCallback(async (id: string) => {
     if (!enabled) return
     clearedDraftsRef.current.add(id)
     try {
-      await deleteDraft(id)
+      await deleteDraft(id, draftSessionIdRef.current)
     } catch {
       // 草稿清理失败不影响主保存流程。
     }
@@ -62,8 +82,14 @@ export function useDraftPersistence({
     if (!enabled) return
     const baseline = getBaselineRef.current?.(id)
     const baselineSha256 = baseline === undefined ? undefined : await sha256Text(baseline)
-    await persistDraft(id, draftContent, baselineSha256)
-  }, [enabled])
+    try {
+      await persistDraft(id, draftContent, baselineSha256, draftSessionIdRef.current)
+      reportSuccess()
+    } catch (error) {
+      reportFailure(error)
+      throw error
+    }
+  }, [enabled, reportFailure, reportSuccess])
 
   const flushPendingDraft = useCallback(() => {
     if (!enabled) return

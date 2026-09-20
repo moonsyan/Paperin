@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import type { Dispatch, SetStateAction } from 'react'
+import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type { RecentFile } from '../components/MenuBar'
 import type { WritingStats } from '../components/HelpDialog'
 import type { ShortcutMap } from '../data/shortcuts'
 import { DEFAULT_SHORTCUTS, mergeShortcuts } from '../data/shortcuts'
 import type { DraftMap } from '../lib/drafts'
+import { filterDraftsForSession } from '../lib/drafts'
+import { resolveDraftSessionId } from '../lib/draft-session'
 import { rollStatsDate, EMPTY_STATS } from '../lib/stats'
 import { usePersistedSetting } from '../hooks/usePersistedSetting'
 import type { ContextDockPanel, ContextDockState } from '../components/ContextDock/context-dock-state'
@@ -76,6 +78,8 @@ export interface UseAppSettingsOptions {
   setWritingStats: Dispatch<SetStateAction<WritingStats>>
   restoreFromSessionData: (session: SessionData | null, drafts: DraftMap) => Promise<void>
   setToast: (message: string) => void
+  /** 由 useDocumentSession 消费：启动后写入本窗口草稿会话 id */
+  draftSessionIdRef?: MutableRefObject<string | undefined>
   // 持久化所需的当前值（用于 usePersistedSetting）
   theme: string
   autosave: boolean
@@ -133,6 +137,7 @@ export function useAppSettings({
   setWritingStats,
   restoreFromSessionData,
   setToast,
+  draftSessionIdRef,
   theme,
   autosave,
   spellcheck,
@@ -318,6 +323,14 @@ export function useAppSettings({
         if (cfo?.ok && typeof cfo.data === 'boolean') setCollapseFoldersOnOpen(cfo.data)
 
         const session = FRESH_MODE ? null : ((s?.ok ? s.data : null) as SessionData | null)
+        const draftSessionId = FRESH_MODE ? undefined : resolveDraftSessionId(session)
+        if (draftSessionIdRef && !FRESH_MODE) {
+          draftSessionIdRef.current = draftSessionId
+        }
+        const sessionForRestore: SessionData | null =
+          session && draftSessionId
+            ? { ...session, draftSessionId }
+            : session
         if (sck?.ok && sck.data != null) {
           const scope = session?.workspacePath ?? DEMO_TREE_SCOPE
           const migrated: Record<string, string[]> = {}
@@ -334,7 +347,11 @@ export function useAppSettings({
           }
           setSidebarCollapsedKeys(Object.keys(migrated).length > 0 ? migrated : null)
         }
-        const drafts = FRESH_MODE ? {} : (((dr?.ok ? dr.data : null) ?? {}) as DraftMap)
+        const allDrafts = FRESH_MODE ? {} : (((dr?.ok ? dr.data : null) ?? {}) as DraftMap)
+        const drafts =
+          FRESH_MODE || !draftSessionId
+            ? {}
+            : (filterDraftsForSession(allDrafts, draftSessionId) as DraftMap)
 
         if (wg?.ok && (wg.data === null || typeof wg.data === 'number')) setWordGoal(wg.data)
         if (wgo?.ok && wgo.data && typeof wgo.data === 'object' && !Array.isArray(wgo.data)) {
@@ -345,7 +362,7 @@ export function useAppSettings({
           setWordGoalOverrides(overrides)
         }
 
-        await restoreFromSessionData(session, drafts)
+        await restoreFromSessionData(sessionForRestore, drafts)
       })
       .catch((error: unknown) => {
         console.error('[启动初始化] 加载设置或草稿失败：', error)
@@ -354,7 +371,7 @@ export function useAppSettings({
       .finally(() => {
         setSettingsReady(true)
       })
-  }, [restoreFromSessionData, setAutosave, setContentFont, setContentWidth, setContextDockState, setFontSize, setLineHeight, setMultiWindow, setRecentFiles, setSearchPref, setSidebarActiveTab, setSidebarCollapsedKeys, setSidebarWidth, setSpellcheck, setTheme, setToast, setWritingStats, setZoom])
+  }, [draftSessionIdRef, restoreFromSessionData, setAutosave, setContentFont, setContentWidth, setContextDockState, setFontSize, setLineHeight, setMultiWindow, setRecentFiles, setSearchPref, setSidebarActiveTab, setSidebarCollapsedKeys, setSidebarWidth, setSpellcheck, setTheme, setToast, setWritingStats, setZoom])
 
   // --- 持久化：设置变更防抖写回主进程 ---
   usePersistedSetting('theme', theme, settingsReady)

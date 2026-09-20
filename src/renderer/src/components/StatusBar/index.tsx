@@ -4,12 +4,17 @@ import { sharedPanelRegistry } from '../../app/panels/shared-panel-registry'
 import type { PanelContext, PanelRegistry } from '../../app/panels/panel-registry'
 import { isImeComposing } from '../../lib/keyboard'
 import { documentSaveStatusLabel } from '../../lib/document-save-status'
-import type { DocumentSaveActivity, DocumentStorageKind } from '../../lib/document-save-status'
+import type {
+  DocumentSaveActivity,
+  DocumentStorageKind,
+  DraftBackupActivity,
+} from '../../lib/document-save-status'
 
 interface StatusBarProps {
   saved: boolean
   storageKind?: DocumentStorageKind
   saveActivity?: DocumentSaveActivity
+  draftBackupActivity?: DraftBackupActivity
   wordCount: number
   lineCount: number
   readTime: number
@@ -115,6 +120,7 @@ export function StatusBar({
   saved,
   storageKind = 'disk',
   saveActivity = 'idle',
+  draftBackupActivity = 'idle',
   wordCount,
   lineCount,
   readTime,
@@ -215,7 +221,7 @@ export function StatusBar({
     <div className="statusbar">
       <div className="st-item">
         <span className={`st-dot ${saveActivity === 'saving' ? 'saving' : !saved || saveActivity !== 'idle' ? 'unsaved' : storageKind === 'disk' ? '' : 'unpersisted'}`} />
-        {documentSaveStatusLabel(storageKind, !saved, saveActivity)}
+        {documentSaveStatusLabel(storageKind, !saved, saveActivity, draftBackupActivity)}
       </div>
       {currentHeading ? (
         <div className="st-item st-heading" title={currentHeading}>

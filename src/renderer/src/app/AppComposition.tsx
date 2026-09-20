@@ -102,6 +102,7 @@ export function AppComposition(): JSX.Element {
   modalOpenRef.current = settingsOpen || helpView !== null || imagesOpen || pdfOptsOpen || publishOpen || wsSearchOpen || paletteOpen || versionHistoryOpen || confirmRequest !== null
   // 会话恢复打开工作区时图谱标签不自动盖住文档；手动打开文件夹仍自动展示图谱
   const graphAutoActivateRef = useRef(true)
+  const draftSessionIdRef = useRef<string | undefined>(undefined)
 
   const { sidebarWidth, setSidebarWidth, startSidebarResize, zoom, setZoom } = useAppLayout({
     modalOpenRef, fullscreenOpenRef, focusMode, setFocusMode, searchMode,
@@ -118,6 +119,7 @@ export function AppComposition(): JSX.Element {
     handleSaveAs, handleSelectDemoFile, handleSelectWorkspaceFile,
     handleTogglePinnedTab, INITIAL_OR_SAVED, liveContentOf, openFiles,
     openFilesRef, replaceEditorContent, restoreFromSessionData, saved, savedMap, saveActivity,
+    draftBackupActivity,
     setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime,
     setOpenFiles, setSavedMap, switchFile, saveWithEncodingFallback,
   } = useDocumentSession({
@@ -127,6 +129,7 @@ export function AppComposition(): JSX.Element {
     setWorkspaceCollapsedKeys, setSidebarWidth, setSidebarActiveTab,
     setContextDockState, setSearchCount, setSearchCurrent, setSearchMode,
     restoringWorkspaceRef: graphAutoActivateRef,
+    draftSessionIdRef,
   })
 
   // === 设置 ===
@@ -138,7 +141,7 @@ export function AppComposition(): JSX.Element {
     setContentWidth, setLineHeight, setContentFont, setZoom, setSidebarWidth,
     setSidebarActiveTab, setContextDockState, setSidebarCollapsedKeys,
     setSearchPref, setRecentFiles, setWritingStats: (value) => setWritingStatsRef.current(value),
-    restoreFromSessionData, setToast,
+    restoreFromSessionData, setToast, draftSessionIdRef,
     theme, autosave, spellcheck, multiWindow, fontSize, contentWidth,
     lineHeight, contentFont, zoom, sidebarWidth,
   })
@@ -276,7 +279,15 @@ export function AppComposition(): JSX.Element {
   })
 
   useSystemFileOpen(openWorkspaceFile, settingsReady)
-  useDocumentSessionPersistence({ activeFileId, demoFileIds: DEMO_FILE_IDS, freshMode: FRESH_MODE, openFiles, ready: settingsReady, workspace })
+  useDocumentSessionPersistence({
+    activeFileId,
+    demoFileIds: DEMO_FILE_IDS,
+    freshMode: FRESH_MODE,
+    openFiles,
+    ready: settingsReady,
+    workspace,
+    draftSessionId: draftSessionIdRef.current,
+  })
   useWorkspaceLayoutPersistence({ workspace, workspaceStateReady, collapsedKeys: workspaceCollapsedKeys, openFiles, activeFileId, sidebarWidth, sidebarActiveView: sidebarActiveTab, contextDock: contextDockState, setToast })
 
   const { tagFilter, handleToggleTagFilter } = useTagFilter(workspace?.path, tagIndex)
@@ -378,6 +389,7 @@ export function AppComposition(): JSX.Element {
 
       <StatusBar
         saved={saved} storageKind={storageKind} saveActivity={saveActivity}
+        draftBackupActivity={draftBackupActivity}
         wordCount={wordCount} lineCount={lineCount} readTime={readTime}
         cursorLine={cursorPos.line} cursorCol={cursorPos.col} currentHeading={cursorPos.heading}
         modifiedTime={fileMtime[activeFileId]} selectedChars={cursorPos.selected}

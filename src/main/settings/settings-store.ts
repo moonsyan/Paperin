@@ -2,6 +2,11 @@ import { app } from 'electron'
 import { readFile, writeFile, mkdir, open, readdir, rename, stat, copyFile, unlink } from 'fs/promises'
 import { dirname, join } from 'path'
 import {
+  canUpsertDraft,
+  normalizeStoredDraft,
+  type StoredDraft,
+} from '../../shared/draft-storage'
+import {
   parseSettingsLockPid,
   SETTINGS_LOCK_STALE_MS,
   isSettingsLockHolderAlive,
@@ -33,7 +38,8 @@ export class SettingsStoreError extends Error {
       | 'INVALID_VALUE'
       | 'VALUE_TOO_LARGE'
       | 'FILE_TOO_LARGE'
-      | 'LOCK_TIMEOUT',
+      | 'LOCK_TIMEOUT'
+      | 'DRAFT_SESSION_CONFLICT',
   ) {
     super(code)
   }
@@ -235,14 +241,29 @@ export function setSetting(key: string, value: unknown): Promise<void> {
  * 原子写入一篇草稿。草稿字典只在主进程队列中读取和更新，
  * 防止多个渲染进程持有旧副本并相互覆盖。
  */
-export function upsertDraft(id: string, content: string, baselineSha256?: string): Promise<void> {
+export function upsertDraft(
+  id: string,
+  content: string,
+  baselineSha256?: string,
+  draftSessionId?: string,
+): Promise<void> {
   const task = writeQueue.then(async () => {
     await applySettingUpdate('drafts', (current) => {
       const drafts: Record<string, unknown> =
         current && typeof current === 'object' ? { ...current } : {}
-      drafts[id] = baselineSha256
-        ? { content, savedAt: Date.now(), baselineSha256 }
-        : { content, savedAt: Date.now() }
+      const existing = normalizeStoredDraft(drafts[id])
+      const decision = canUpsertDraft(existing ?? undefined, draftSessionId)
+      if (!decision.allow) {
+        throw new SettingsStoreError('DRAFT_SESSION_CONFLICT')
+      }
+      const next: StoredDraft = {
+        content,
+        savedAt: Date.now(),
+      }
+      if (baselineSha256) next.baselineSha256 = baselineSha256
+      if (draftSessionId) next.draftSessionId = draftSessionId
+      else if (existing?.draftSessionId) next.draftSessionId = existing.draftSessionId
+      drafts[id] = next
       return drafts
     })
   })
@@ -251,10 +272,18 @@ export function upsertDraft(id: string, content: string, baselineSha256?: string
 }
 
 /** 以原子方式删除单篇草稿，保留其他标签或窗口刚写入的草稿。 */
-export function deleteDraft(id: string): Promise<void> {
+export function deleteDraft(id: string, draftSessionId?: string): Promise<void> {
   const task = writeQueue.then(async () => {
     await applySettingUpdate('drafts', (current) => {
       if (!current || typeof current !== 'object' || !(id in current)) return current
+      const existing = normalizeStoredDraft((current as Record<string, unknown>)[id])
+      if (
+        draftSessionId
+        && existing?.draftSessionId
+        && existing.draftSessionId !== draftSessionId
+      ) {
+        return current
+      }
       const drafts: Record<string, unknown> = { ...current }
       delete drafts[id]
       return drafts

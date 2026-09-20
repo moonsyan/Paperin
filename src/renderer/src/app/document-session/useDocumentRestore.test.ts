@@ -152,3 +152,62 @@ describe('useDocumentRestore 取消语义', () => {
     expect(payload['file-x']).toBe('B')
   })
 })
+
+describe('useDocumentRestore 草稿边界', () => {
+  it('重启后磁盘已被外部修改时：不应用草稿、不标记 dirty', async () => {
+    const h = createHarness()
+    h.editorRef.current = { isReady: () => true } as EditorHandle
+    const read = vi.fn(async () => ({
+      ok: true,
+      data: {
+        name: 'note.md',
+        content: '外部新版本',
+        modifiedTime: 500,
+        contentSha256: 'a'.repeat(64),
+        encoding: 'UTF-8',
+      },
+    }))
+    const stat = vi.fn(async () => ({ ok: true, data: { modifiedTime: 500 } }))
+    Object.defineProperty(window, 'desktopAPI', {
+      value: { document: { read, stat } },
+      configurable: true,
+    })
+
+    const { result } = renderHook(() =>
+      useDocumentRestore({
+        state: h.state,
+        editorRef: h.editorRef,
+        setToast: h.setToast,
+        handleOpenFolder: h.handleOpenFolder,
+        handleSelectWorkspaceFile: h.handleSelectWorkspaceFile,
+        replaceEditorContent: h.replaceEditorContent,
+      }),
+    )
+
+    const baseline = '打开时正文'
+    const { sha256Text } = await import('../../lib/drafts')
+    const baselineSha256 = await sha256Text(baseline)
+    const session = { files: [{ id: 'file-1', name: 'note.md', path: '/tmp/note.md' }] }
+    const drafts = {
+      'file-1': {
+        content: '崩溃前未保存',
+        savedAt: 100,
+        baselineSha256,
+      },
+    }
+
+    await act(async () => {
+      await result.current.restoreFromSessionData(session, drafts)
+    })
+
+    expect(h.setSavedMap).toHaveBeenCalled()
+    const savedCalls = h.setSavedMap.mock.calls
+    const savedUpdater = savedCalls[savedCalls.length - 1]?.[0]
+    const savedNext =
+      typeof savedUpdater === 'function'
+        ? (savedUpdater as (prev: Record<string, boolean>) => Record<string, boolean>)({})
+        : savedUpdater
+    expect(savedNext['file-1']).toBe(true)
+    expect(h.setToast).not.toHaveBeenCalledWith(expect.stringContaining('已恢复'))
+  })
+})

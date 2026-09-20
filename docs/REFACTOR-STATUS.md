@@ -2,6 +2,17 @@
 
 更新时间：2026-09-20（Asia/Shanghai）
 
+## R07 结项（feat/strategy-execution）
+
+**任务号：** R07  
+**失败测试（修复前）：** A07——fresh 窗口共享 drafts 竞态；草稿写失败被静默吞掉；状态栏不区分落盘与草稿备份；多窗口同路径可互相覆盖；重启后外部改盘缺少可验证边界。  
+**修复后结果：** `draft-storage.test.ts` 6/6；`settings-store.draft.test.ts` 2/2；`useDraftPersistence.test.ts` 4/4；`useDocumentRestore.test.ts` 3/3；`version-store.test.ts` 8/8；`document-save-status.test.ts` 3/3；全量 **206** 文件 **1512** 项通过。  
+**全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0（1512 passed）；`npm run build` 0；`npm run smoke` **未重跑**（React **#301** + 系统关联标签，真实双窗口双重启仍阻塞，非 R07 回归）。  
+**文档：** 计划 §10 复选框；`docs/file-write-recovery.md` 草稿/历史边界。  
+**人工边界：** 真实双 Electron 窗口连续重启端到端仍受 React #301 冒烟阻塞；Main `draftSessionId` + `DRAFT_SESSION_CONFLICT` 与状态栏「草稿已备份」已固化。  
+**实际工时：** ~1.5h（自动化记录）  
+**下一项：** R08（本任务未启动）
+
 ## R06 结项（feat/strategy-execution）
 
 **任务号：** R06  

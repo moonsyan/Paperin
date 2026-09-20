@@ -5,6 +5,8 @@ export interface SessionData {
   activeFileId?: string
   files?: { id: string; name: string; path?: string }[]
   workspacePath?: string
+  /** 本窗口草稿会话标识；与 settings.drafts 条目绑定，防止多窗口覆盖。 */
+  draftSessionId?: string
 }
 
 interface UseDocumentSessionPersistenceOptions {
@@ -14,6 +16,7 @@ interface UseDocumentSessionPersistenceOptions {
   openFiles: OpenFile[]
   ready: boolean
   workspace: WorkspaceInfo | null
+  draftSessionId?: string
 }
 
 /** 恢复后仅持久化真实文件标签，避免演示文件和新窗口覆盖主会话。 */
@@ -24,6 +27,7 @@ export function useDocumentSessionPersistence({
   openFiles,
   ready,
   workspace,
+  draftSessionId,
 }: UseDocumentSessionPersistenceOptions): void {
   useEffect(() => {
     if (freshMode || !ready) return
@@ -36,7 +40,8 @@ export function useDocumentSessionPersistence({
       activeFileId: openFiles.some((file) => file.id === activeFileId) ? activeFileId : undefined,
       workspacePath: workspace?.path,
       files,
+      draftSessionId,
     }
     window.desktopAPI?.settings.set('session', data).catch(() => {})
-  }, [activeFileId, demoFileIds, freshMode, openFiles, ready, workspace])
+  }, [activeFileId, demoFileIds, draftSessionId, freshMode, openFiles, ready, workspace])
 }

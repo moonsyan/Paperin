@@ -17,4 +17,10 @@ describe('documentSaveStatusLabel', () => {
     expect(documentSaveStatusLabel('disk', true, 'encoding')).toBe('当前编码无法保存这些字符')
     expect(documentSaveStatusLabel('unnamed', true, 'failed')).toBe('保存失败，编辑内容仍保留')
   })
+
+  it('区分磁盘已保存与草稿备份完成', () => {
+    expect(documentSaveStatusLabel('disk', false, 'idle', 'backed-up')).toBe('已保存')
+    expect(documentSaveStatusLabel('disk', true, 'idle', 'backed-up')).toBe('未保存 · 草稿已备份')
+    expect(documentSaveStatusLabel('disk', true, 'idle', 'failed')).toBe('未保存 · 草稿备份失败')
+  })
 })

@@ -6,6 +6,8 @@ import { trustDirectory } from '../trusted-paths'
 import {
   MAX_SNAPSHOTS_PER_FILE,
   MAX_SNAPSHOTS_TOTAL_BYTES,
+  MAX_SOURCE_FILE_SIZE,
+  VERSION_HISTORY_POLICY,
   listSnapshots,
   parseSnapshotTime,
   planPrune,
@@ -68,7 +70,26 @@ afterEach(async () => {
   await Promise.all(created.splice(0).map((dir) => rm(dir, { recursive: true, force: true })))
 })
 
+describe('VERSION_HISTORY_POLICY', () => {
+  it('文档化 2 MiB / 20 份 / 5 MiB 上限（非完整备份）', () => {
+    expect(VERSION_HISTORY_POLICY.maxSourceFileSize).toBe(MAX_SOURCE_FILE_SIZE)
+    expect(VERSION_HISTORY_POLICY.maxSnapshotsPerFile).toBe(20)
+    expect(VERSION_HISTORY_POLICY.maxTotalBytesPerFile).toBe(5 * 1024 * 1024)
+  })
+})
+
 describe('recordSnapshot', () => {
+  it('超过 2 MiB 的源文件不记入历史', async () => {
+    const workspace = await mkdtemp(join(tmpdir(), 'paperin-history-big-'))
+    const snapshots = await mkdtemp(join(tmpdir(), 'paperin-history-snap-big-'))
+    created.push(workspace, snapshots)
+    trustDirectory(workspace)
+    const big = join(workspace, 'big.md')
+    await writeFile(big, Buffer.alloc(MAX_SOURCE_FILE_SIZE + 1, 97), 'utf-8')
+    expect(await recordSnapshot(snapshots, big)).toBe(false)
+    expect(await listSnapshots(snapshots, big)).toEqual([])
+  })
+
   it('符号链接不记入历史，普通文件会记下正文', async () => {
     const workspace = await mkdtemp(join(tmpdir(), 'paperin-history-src-'))
     const snapshots = await mkdtemp(join(tmpdir(), 'paperin-history-snap-'))

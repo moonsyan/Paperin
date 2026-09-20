@@ -13,6 +13,18 @@ export const MAX_SNAPSHOTS_TOTAL_BYTES = 5 * 1024 * 1024
 /** 超过该大小的源文件不做快照（与索引扫描同量级守卫） */
 export const MAX_SOURCE_FILE_SIZE = 2 * 1024 * 1024
 
+/**
+ * 本地版本历史容量（非独立备份）：
+ * - 源文件 > MAX_SOURCE_FILE_SIZE 时不记录；
+ * - 每文件最多 MAX_SNAPSHOTS_PER_FILE 份，合计不超过 MAX_SNAPSHOTS_TOTAL_BYTES；
+ * - 删除/移动正文时 forgetSnapshots/moveSnapshots 清理应用内历史。
+ */
+export const VERSION_HISTORY_POLICY = {
+  maxSnapshotsPerFile: MAX_SNAPSHOTS_PER_FILE,
+  maxTotalBytesPerFile: MAX_SNAPSHOTS_TOTAL_BYTES,
+  maxSourceFileSize: MAX_SOURCE_FILE_SIZE,
+} as const
+
 const SNAPSHOT_NAME_RE = /^(\d{13,})\.md$/
 
 export interface SnapshotMeta {

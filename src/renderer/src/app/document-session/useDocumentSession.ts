@@ -1,4 +1,5 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { DraftBackupActivity } from '../../lib/document-save-status'
 import { createLatestRequestGuard } from '../../../../shared/latest-request'
 import { toStoredImages } from '../../lib/image-path'
 import { pinPreviewOpenFile } from '../../lib/document-tabs'
@@ -50,6 +51,7 @@ export function useDocumentSession({
   setSearchCurrent,
   setSearchMode,
   restoringWorkspaceRef,
+  draftSessionIdRef,
 }: DocumentSessionOptions) {
   const documentState = useDocumentState()
   const {
@@ -94,17 +96,49 @@ export function useDocumentSession({
     [activeFileIdRef, contentsRef, dirOfFile, editorRef],
   )
 
+  const [draftBackupActivity, setDraftBackupActivity] = useState<DraftBackupActivity>('idle')
+  const draftFailureNotifiedRef = useRef(false)
+
+  const handleDraftPersist = useCallback(
+    (outcome: 'success' | 'failure', error?: unknown) => {
+      if (outcome === 'success') {
+        draftFailureNotifiedRef.current = false
+        setDraftBackupActivity('backed-up')
+        return
+      }
+      setDraftBackupActivity('failed')
+      if (draftFailureNotifiedRef.current) return
+      draftFailureNotifiedRef.current = true
+      const code = error instanceof Error ? error.message : ''
+      if (code === 'DRAFT_SESSION_CONFLICT') {
+        setToast(
+          '该文件的草稿备份已由其他窗口占用；本窗口编辑仍保留，请在此窗口保存到磁盘',
+        )
+      } else {
+        setToast('草稿未能备份到磁盘，编辑内容仍保留在本窗口；请检查磁盘空间或稍后重试')
+      }
+    },
+    [setToast],
+  )
+
   const { clearDraft, draftPendingRef, saveDraft } = useDraftPersistence({
     activeFileId,
     content: activeContent,
-    ready: settingsReady,
+    ready: settingsReady && Boolean(draftSessionIdRef?.current),
     // E4：切换标签冲刷草稿时读编辑器实时内容，避免 200ms 防抖窗口内内容滞后
     getLiveContent: liveContentOf,
     getBaseline: (id) => initialOrSavedRef.current[id],
+    draftSessionId: draftSessionIdRef?.current,
     // fresh 窗口禁用草稿：草稿经 settings-store 与主窗口共享，
     // fresh 窗口写/删会覆盖或误删主窗口同一文件的未保存内容
     enabled: !FRESH_MODE,
+    onDraftPersist: handleDraftPersist,
   })
+
+  // 新输入或切换文档后，上一轮的「草稿已备份」不再代表当前版本
+  useEffect(() => {
+    setDraftBackupActivity('idle')
+  }, [activeContent, activeFileId])
 
   /* ==================== 自动保存队列 ==================== */
 
@@ -287,6 +321,7 @@ export function useDocumentSession({
     activeContent,
     saved: documentState.saved,
     saveActivity,
+    draftBackupActivity,
     // 会话状态 setter（供工作区文件操作等相邻域就地迁移记录）
     setOpenFiles: documentState.setOpenFiles,
     setContents: documentState.setContents,

@@ -34,6 +34,19 @@ Windows、macOS 和 Linux 的桌面环境会把已有文件对象与图标位置
 
 该机制覆盖应用可注入的写入、复制中断和进程重启场景，不承诺任意硬件掉电或文件系统故障下零数据丢失。保存锁、`expectedMtime`/`expectedContentHash` 与内容哈希冲突检查、编码保护和关闭保护仍独立生效。编码读取失败（含 `UNSUPPORTED_ENCODING`）不会改写磁盘上的原文件；损坏字节不会被宽松解码成带替换符的正文后再进入编辑器。冲突哈希只读普通文件句柄；保存成功后记下的哈希是刚刚写出的字节，不再回读路径。跨进程锁等待期间，若该路径的写入授权已经不在（信任根被淘汰），保存会拒绝，不会把“没有授权函数”当成放行。写入确认的编辑器版本与关闭竞态由各标签自己的 `DocumentFileVersion` 回执处理：晚到回执只确认实际写出的版本。
 
+## 草稿与会话恢复
+
+未保存正文除编辑器内存外，会防抖写入 `settings.json` 的 `drafts` 键作为**崩溃恢复副本**（与 Ctrl+S **落盘保存**不同；状态栏分别显示「草稿已备份」与「已保存」）。
+
+- **fresh 窗口**（`#fresh`）不读写共享 `drafts`，也不恢复主窗口会话，避免多窗口互相覆盖。
+- 主窗口每条草稿绑定 `draftSessionId`；其他窗口对同一路径写入会收到 `DRAFT_SESSION_CONFLICT`，编辑与 dirty 仍保留在本窗口，仅提示一次并可重试，**不会**因此自动做破坏性恢复。
+- 起草时记录 `baselineSha256`（R02 磁盘版本绑定）；重启后若磁盘正文哈希已与基线不一致，**放弃**该草稿，保留外部新版本。
+- 升级前缺少 `draftSessionId` 的遗留草稿条目会保留，直至本会话首次成功备份时认领。
+
+## 本地版本历史（非独立备份）
+
+`src/main/history/version-store.ts` 在每次**保存成功**后尝试读盘快照：源文件 **> 2 MiB** 跳过；每文件最多 **20** 份、合计 **5 MiB**，超出淘汰最旧。删除或移动正文时清理对应快照目录。这不构成完整离线备份；扩容策略需单独设计与测试。
+
 ## 验证
 
-`src/main/ipc/file-write-recovery.test.ts` 专门覆盖复制中断、备份复制失败和目标同步失败后的恢复，以及遗留 `prepared`/`committed` journal 的读取恢复与外部修改保留；`src/main/ipc/file-io.test.ts` 与 `text-decoding.test.ts` 覆盖严格编码解码、读失败不 mutate 原文件，以及目录 I/O 测试。完整故障矩阵、跨平台文件身份和进程终止验证按 [战略验收协议](development/strategy-validation.md) 的 Q01 执行。
+`src/main/ipc/file-write-recovery.test.ts` 专门覆盖复制中断、备份复制失败和目标同步失败后的恢复，以及遗留 `prepared`/`committed` journal 的读取恢复与外部修改保留；`src/main/ipc/file-io.test.ts` 与 `text-decoding.test.ts` 覆盖严格编码解码、读失败不 mutate 原文件，以及目录 I/O 测试。草稿/会话边界见 `src/shared/draft-storage.test.ts`、`src/main/settings/settings-store.draft.test.ts`、`src/renderer/src/hooks/useDraftPersistence.test.ts` 与 `useDocumentRestore.test.ts`。真实双窗口连续重启端到端仍受 React **#301** 冒烟阻塞（见 `docs/REFACTOR-STATUS.md`）。完整故障矩阵、跨平台文件身份和进程终止验证按 [战略验收协议](development/strategy-validation.md) 的 Q01 执行。

@@ -1,6 +1,11 @@
+import type { StoredDraft } from '../../../shared/draft-storage'
+import { filterDraftsForSession } from '../../../shared/draft-storage'
+
 /** 草稿数据（崩溃/退出后恢复未保存内容）。baselineSha256 是起草时磁盘正文的哈希。 */
-export type DraftRecord = { content: string; savedAt: number; baselineSha256?: string }
+export type DraftRecord = StoredDraft
 export type DraftMap = Record<string, DraftRecord>
+
+export { filterDraftsForSession }
 
 const BASELINE_SHA256 = /^[a-f0-9]{64}$/
 
@@ -54,15 +59,25 @@ export async function loadDrafts(): Promise<DraftMap> {
 }
 
 /** 原子保存单篇草稿，避免旧的完整草稿副本覆盖其他文档。 */
-export async function saveDraft(id: string, content: string, baselineSha256?: string): Promise<void> {
+export async function saveDraft(
+  id: string,
+  content: string,
+  baselineSha256?: string,
+  draftSessionId?: string,
+): Promise<void> {
   if (!window.desktopAPI) return
-  const res = await window.desktopAPI.settings.upsertDraft(id, content, baselineSha256)
+  const res = await window.desktopAPI.settings.upsertDraft(
+    id,
+    content,
+    baselineSha256,
+    draftSessionId,
+  )
   if (!res.ok) throw new Error(res.error?.code ?? 'DRAFT_SAVE_FAILED')
 }
 
 /** 原子删除单篇草稿，保留其他标签或窗口的草稿。 */
-export async function deleteDraft(id: string): Promise<void> {
+export async function deleteDraft(id: string, draftSessionId?: string): Promise<void> {
   if (!window.desktopAPI) return
-  const res = await window.desktopAPI.settings.deleteDraft(id)
+  const res = await window.desktopAPI.settings.deleteDraft(id, draftSessionId)
   if (!res.ok) throw new Error(res.error?.code ?? 'DRAFT_DELETE_FAILED')
 }
