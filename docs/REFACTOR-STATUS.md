@@ -2,6 +2,18 @@
 
 更新时间：2026-09-20（Asia/Shanghai）
 
+## R01 结项（feat/strategy-execution）
+
+**任务号：** R01  
+**提交：** （见本任务 git commit）  
+**失败测试（修复前）：** `decodeTextBuffer` 对带 BOM 残缺 UTF-8、UTF-16 奇数字节、孤立代理项未抛错（6 项失败）；宽松 `toString` 产生 `\uFFFD` 正文。  
+**修复后结果：** `npx vitest run src/main/ipc/file-io.test.ts src/main/ipc/text-decoding.test.ts` 30/30；全量 **195** 文件 **1422** 项通过。  
+**全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0（1422 passed）；`npm run build` 0；`npm run smoke` **exit 1**（与 R00 相同：React #301 + `SMOKE_FAIL 系统关联文件未进入外部标签`，非编码变更引入）。  
+**文档：** `compatibility-matrix.md`、`file-write-recovery.md`、计划 §4 复选框。  
+**人工边界：** 打开/索引经 `readTextAutoEncoding` → `UNSUPPORTED_ENCODING`；历史快照 `decodeTextBuffer` 失败仍跳过该次快照（不写入损坏正文）。  
+**实际工时：** ~1.5h（自动化记录）  
+**下一项：** R02  
+
 ## R00 结项（feat/strategy-execution）
 
 **任务号：** R00  

@@ -6,6 +6,12 @@ import iconv from 'iconv-lite'
 import { isPathAuthorizedForReadOrSave } from '../trusted-paths'
 import type { DocumentSaveEncoding } from './document-save-types'
 import { recoverInterruptedFileWrite } from './file-write-recovery'
+import {
+  decodeUtf16BeStrict,
+  decodeUtf16LeStrict,
+  decodeUtf8Strict,
+  hasLoneSurrogates,
+} from './text-decoding'
 export {
   FileWriteRecoveryError,
   FileWriteRecoveryPendingError,
@@ -200,19 +206,52 @@ const tryUtf16ByZeroBytes = (buf: Buffer): { content: string; encoding: string }
       else oddSurrogates++
     }
   }
+  const finishUtf16 = (
+    encoding: 'UTF-16LE' | 'UTF-16BE',
+    decode: (payload: Buffer) => string,
+  ): { content: string; encoding: string } | null => {
+    try {
+      return { content: decode(buf), encoding }
+    } catch {
+      return null
+    }
+  }
   if (oddSurrogates > evenSurrogates * 2 && oddSurrogates >= 2) {
-    return { content: buf.toString('utf16le'), encoding: 'UTF-16LE' }
+    return finishUtf16('UTF-16LE', decodeUtf16LeStrict)
   }
   if (evenSurrogates > oddSurrogates * 2 && evenSurrogates >= 2) {
-    return { content: iconv.decode(buf, 'utf-16be'), encoding: 'UTF-16BE' }
+    return finishUtf16('UTF-16BE', decodeUtf16BeStrict)
   }
   if (oddZeros > evenZeros * 3 && oddZeros >= 2) {
-    return { content: buf.toString('utf16le'), encoding: 'UTF-16LE' }
+    return finishUtf16('UTF-16LE', decodeUtf16LeStrict)
   }
   if (evenZeros > oddZeros * 3 && evenZeros >= 2) {
-    return { content: iconv.decode(buf, 'utf-16be'), encoding: 'UTF-16BE' }
+    return finishUtf16('UTF-16BE', decodeUtf16BeStrict)
   }
   return null
+}
+
+const unsupportedEncoding = (): never => {
+  throw new UnsupportedEncodingError('无法识别文件编码，请先转为 UTF-8')
+}
+
+const decodeUtf16PayloadOrThrow = (
+  payload: Buffer,
+  decode: (bytes: Buffer) => string,
+): string => {
+  try {
+    return decode(payload)
+  } catch {
+    return unsupportedEncoding()
+  }
+}
+
+const decodeUtf8PayloadOrThrow = (payload: Buffer): string => {
+  try {
+    return decodeUtf8Strict(payload)
+  } catch {
+    return unsupportedEncoding()
+  }
 }
 
 /** 文件以合法 UTF-8 开头但在末尾截断多字节序列时，不能再猜成 GBK。 */
@@ -259,34 +298,46 @@ export const decodeTextBuffer = (
     throw new UnsupportedEncodingError('UTF-32BE 编码暂不支持，请先转为 UTF-8')
   }
   if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) {
-    return { content: buf.subarray(2).toString('utf16le'), encoding: 'UTF-16LE', contentSha256 }
+    const content = decodeUtf16PayloadOrThrow(buf.subarray(2), decodeUtf16LeStrict)
+    return { content, encoding: 'UTF-16LE', contentSha256 }
   }
   if (buf.length >= 2 && buf[0] === 0xfe && buf[1] === 0xff) {
-    return { content: iconv.decode(buf.subarray(2), 'utf-16be'), encoding: 'UTF-16BE', contentSha256 }
+    const content = decodeUtf16PayloadOrThrow(buf.subarray(2), decodeUtf16BeStrict)
+    return { content, encoding: 'UTF-16BE', contentSha256 }
   }
   if (buf.length >= 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf) {
-    return { content: buf.subarray(3).toString('utf-8'), encoding: 'UTF-8-BOM', contentSha256 }
+    const content = decodeUtf8PayloadOrThrow(buf.subarray(3))
+    return { content, encoding: 'UTF-8-BOM', contentSha256 }
   }
   const utf16 = detectUtf16NoBom(buf)
   if (utf16 === 'UTF-16LE') {
-    return { content: buf.toString('utf16le'), encoding: 'UTF-16LE', contentSha256 }
+    const content = decodeUtf16PayloadOrThrow(buf, decodeUtf16LeStrict)
+    return { content, encoding: 'UTF-16LE', contentSha256 }
   }
   if (utf16 === 'UTF-16BE') {
-    return { content: iconv.decode(buf, 'utf-16be'), encoding: 'UTF-16BE', contentSha256 }
+    const content = decodeUtf16PayloadOrThrow(buf, decodeUtf16BeStrict)
+    return { content, encoding: 'UTF-16BE', contentSha256 }
   }
   try {
-    const content = new TextDecoder('utf-8', { fatal: true }).decode(buf)
+    const content = decodeUtf8Strict(buf)
     if (content.includes('\u0000')) {
       const zero = tryUtf16ByZeroBytes(buf)
-      if (zero) return { ...zero, contentSha256 }
+      if (zero) {
+        if (hasLoneSurrogates(zero.content)) return unsupportedEncoding()
+        return { ...zero, contentSha256 }
+      }
+      if (buf.length % 2 !== 0) return unsupportedEncoding()
     }
     return { content, encoding: 'UTF-8', contentSha256 }
   } catch {
     const zero = tryUtf16ByZeroBytes(buf)
-    if (zero) return { ...zero, contentSha256 }
+    if (zero) {
+      if (hasLoneSurrogates(zero.content)) return unsupportedEncoding()
+      return { ...zero, contentSha256 }
+    }
     const gbk = tryDecodeGbk(buf)
     if (gbk !== null) return { content: gbk, encoding: 'GBK', contentSha256 }
-    throw new UnsupportedEncodingError('无法识别文件编码，请先转为 UTF-8')
+    return unsupportedEncoding()
   }
 }
 

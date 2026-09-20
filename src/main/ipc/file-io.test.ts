@@ -4,6 +4,7 @@ import { join } from 'path'
 import { afterEach, describe, expect, it } from 'vitest'
 import iconv from 'iconv-lite'
 import {
+  decodeTextBuffer,
   encodedDocumentByteLength,
   forgetKnownFileState,
   carryKnownFileState,
@@ -89,6 +90,83 @@ describe('文本编码读取', () => {
     }
     const { FileIdentityChangedError } = await import('./file-io')
     await expect(readTextAutoEncoding(link)).rejects.toBeInstanceOf(FileIdentityChangedError)
+  })
+})
+
+describe('decodeTextBuffer 严格解码', () => {
+  it('带 BOM 的残缺 UTF-8 拒绝转换', () => {
+    const broken = Buffer.from('中文笔记', 'utf8').subarray(0, -1)
+    const bytes = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), broken])
+    expect(() => decodeTextBuffer(bytes)).toThrow(UnsupportedEncodingError)
+  })
+
+  it('UTF-16LE BOM 奇数字节拒绝解码', () => {
+    const body = Buffer.from([0x61, 0x00, 0x62]) // 奇数长度 payload
+    const bytes = Buffer.concat([Buffer.from([0xff, 0xfe]), body])
+    expect(() => decodeTextBuffer(bytes)).toThrow(UnsupportedEncodingError)
+  })
+
+  it('UTF-16BE BOM 奇数字节拒绝解码', () => {
+    const body = Buffer.from([0x00, 0x61, 0x00])
+    const bytes = Buffer.concat([Buffer.from([0xfe, 0xff]), body])
+    expect(() => decodeTextBuffer(bytes)).toThrow(UnsupportedEncodingError)
+  })
+
+  it('无 BOM 的 UTF-16 奇数字节拒绝解码', () => {
+    const oddLe = Buffer.from([0x61, 0x00, 0x62])
+    expect(() => decodeTextBuffer(oddLe)).toThrow(UnsupportedEncodingError)
+  })
+
+  it('孤立 UTF-16 代理项拒绝解码', () => {
+    const loneHigh = Buffer.from([0xff, 0xfe, 0x00, 0xd8, 0x00, 0x00])
+    expect(() => decodeTextBuffer(loneHigh)).toThrow(UnsupportedEncodingError)
+  })
+
+  it('合法 UTF-8 补充平面字符仍可解码', () => {
+    const text = '𠮷野家🙂'
+    const bytes = Buffer.from(text, 'utf8')
+    expect(decodeTextBuffer(bytes)).toMatchObject({ content: text, encoding: 'UTF-8' })
+  })
+
+  it('合法 UTF-16LE 补充平面字符仍可解码', () => {
+    const text = '𠮷🙂'
+    const body = Buffer.from(text, 'utf16le')
+    const bytes = Buffer.concat([Buffer.from([0xff, 0xfe]), body])
+    expect(decodeTextBuffer(bytes)).toMatchObject({ content: text, encoding: 'UTF-16LE' })
+  })
+
+  it('合法 GBK 往返对照仍可通过 decodeTextBuffer', () => {
+    const text = '中文笔记'
+    const bytes = iconv.encode(text, 'gbk')
+    expect(decodeTextBuffer(bytes)).toMatchObject({ content: text, encoding: 'GBK' })
+  })
+
+  it('读失败时不改写原文件字节', async () => {
+    const directory = await createTemporaryDirectory()
+    const filePath = join(directory, 'truncated.md')
+    const bytes = Buffer.from('中文笔记', 'utf-8').subarray(0, -1)
+    await writeFile(filePath, bytes)
+    const hashBefore = sha256Hex(bytes)
+
+    await expect(readTextAutoEncoding(filePath)).rejects.toBeInstanceOf(UnsupportedEncodingError)
+
+    const after = await readFile(filePath)
+    expect(sha256Hex(after)).toBe(hashBefore)
+    expect(Buffer.from(after).equals(bytes)).toBe(true)
+  })
+
+  it('带 BOM 的残缺 UTF-8 读失败时不改写原文件', async () => {
+    const directory = await createTemporaryDirectory()
+    const filePath = join(directory, 'bom-truncated.md')
+    const broken = Buffer.from('中文笔记', 'utf8').subarray(0, -1)
+    const bytes = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), broken])
+    await writeFile(filePath, bytes)
+    const hashBefore = sha256Hex(bytes)
+
+    await expect(readTextAutoEncoding(filePath)).rejects.toBeInstanceOf(UnsupportedEncodingError)
+
+    const after = await readFile(filePath)
+    expect(sha256Hex(after)).toBe(hashBefore)
   })
 })
 

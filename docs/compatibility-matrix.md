@@ -7,7 +7,7 @@
 | 打开文件/目录/系统关联 | `src/main/window/system-file-open.ts`, `file-handlers.ts`, `workspace-handlers.ts` | 参数/分流单测、Windows Electron smoke、`system-file-open-and-close.md` | 开发态已固化 | Windows 安装包关联、macOS Finder 与 Linux MIME 验证 |
 | 保存、另存为、重命名、移动、回收站删除 | Main IPC + save queue | file-io、save-lock、close-save；已有桌面文件保留对象并有 journal/backup 恢复协议；超时/会话切换不写旧快照；等锁期间写入授权消失则拒绝，不当成放行；冲突哈希不跟随链接，记下的基线是刚写出的字节 | 保留；P0 工程闭环 | Q01 故障注入、Q02 时序、进程终止与三平台文件身份验证 |
 | 外部修改冲突 | expected mtime 与内容哈希 | document save tests；等长且保留 mtime 的替换会 `CONFLICT`；路径换成链接时拒绝保存 | 保留 | 外部编辑器冒烟 |
-| UTF-8/GBK/编码损失 | `file-io.ts` + iconv-lite | file-io tests；残缺 UTF-8 拒绝猜测 GBK | 保留 | 中文路径与不可映射字符 |
+| UTF-8/GBK/编码损失 | `file-io.ts`、`text-decoding.ts` + iconv-lite | file-io / text-decoding tests；残缺 UTF-8（含 UTF-8-BOM）、奇数 UTF-16、孤立代理项拒绝宽松替换；合法 GBK/UTF-16/补充平面仍通过；读失败不改原文件字节 | 保留 | 中文路径与不可映射字符 |
 | 多标签、dirty、关闭确认 | DocumentRecord store + TabBar | record store、TabBar、document-session、close-save；活动会话序号保护异步保存；关窗超时作废许可但等在途写入结束 | 已迁移；P0 首批回归 | 多窗口、IME、卸载和关闭时序冒烟 |
 | 编辑器适配层 | Milkdown `EditorHandle` | adapter、快捷键与应用动作测试 | 已迁移 | 输入法与焦点人工验证 |
 | 草稿恢复与会话持久化 | settings store + draft hooks | draft/session tests；settings 写锁不从仍存活的进程抢夺 | 保留 | 重启恢复 |
