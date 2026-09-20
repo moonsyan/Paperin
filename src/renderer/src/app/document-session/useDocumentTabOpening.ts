@@ -53,6 +53,7 @@ export function useDocumentTabOpening({
     setDocTitle,
     setEncodingMap,
     setFileMtime,
+    setContentHashMap,
     setOpenFiles,
     setSavedMap,
   } = state
@@ -133,8 +134,11 @@ export function useDocumentTabOpening({
     const file = { id: `file-${path}`, name, path }
     activateNewFile(file, content)
     setFileMtime((previous) => ({ ...previous, [file.id]: result.data!.modifiedTime }))
+    if (result.data!.contentSha256) {
+      setContentHashMap((previous) => ({ ...previous, [file.id]: result.data!.contentSha256 }))
+    }
     recordRecent(path, name)
-  }, [activateNewFile, latestWorkspaceSelectionRef, leaveCurrentDocument, openFilesRef, pinPreviewTab, recordRecent, setEncodingMap, setFileMtime, setToast, switchFile, titleRef])
+  }, [activateNewFile, latestWorkspaceSelectionRef, leaveCurrentDocument, openFilesRef, pinPreviewTab, recordRecent, setContentHashMap, setEncodingMap, setFileMtime, setToast, switchFile, titleRef])
 
   const handleSelectWorkspaceFile = useCallback(async (path: string, pinned = true): Promise<boolean> => {
     latestWorkspaceSelectionRef.current = path
@@ -236,6 +240,9 @@ const openWorkspaceFile = async ({
   state.setSavedMap((previous) => ({ ...previous, [id]: true }))
   state.initialOrSavedRef.current[id] = content
   state.setFileMtime((previous) => ({ ...previous, [id]: result.data!.modifiedTime }))
+  if (result.data!.contentSha256) {
+    state.setContentHashMap((previous) => ({ ...previous, [id]: result.data!.contentSha256 }))
+  }
   recordRecent(path, name)
   if (!isLatest) return false
   state.activeFileIdRef.current = id

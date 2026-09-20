@@ -49,6 +49,7 @@ describe('DocumentRecord store', () => {
       contents: { 'file-a': '编辑版本' },
       savedMap: { 'file-a': false },
       fileMtime: { 'file-a': 20 },
+      contentHashMap: {},
       encodingMap: { 'file-a': 'UTF-8' },
     })
   })

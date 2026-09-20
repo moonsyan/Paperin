@@ -21,6 +21,7 @@ export interface CreateDocumentRecordInput {
   content: string
   path?: string
   modifiedTime?: number
+  contentSha256?: string
   encoding?: DocumentEncoding
   pinned?: boolean
   preview?: boolean
@@ -34,6 +35,8 @@ export interface DocumentRecord {
   content: string
   savedContent: string
   modifiedTime?: number
+  /** 本记录读取/最后确认的内容哈希；保存必须携带 */
+  contentSha256?: string
   encoding?: DocumentEncoding
   dirty: boolean
   pinned: boolean
@@ -48,6 +51,7 @@ export const createDocumentRecord = (input: CreateDocumentRecordInput): Document
   savedContent: input.content,
   path: input.path,
   modifiedTime: input.modifiedTime,
+  contentSha256: input.contentSha256,
   encoding: input.encoding,
   dirty: false,
   pinned: input.pinned === true,
@@ -62,16 +66,18 @@ export const updateDocumentContent = (record: DocumentRecord, content: string): 
   dirty: content !== record.savedContent,
 })
 
-/** 保存成功回调：以落盘事实更新基线、mtime、编码并清除 dirty */
+/** 保存成功回调：以落盘事实更新基线、mtime、内容哈希并清除 dirty */
 export const markDocumentSaved = (
   record: DocumentRecord,
   content: string,
   modifiedTime: number,
+  contentSha256?: string,
 ): DocumentRecord => ({
   ...record,
   content,
   savedContent: content,
   modifiedTime,
+  contentSha256: contentSha256 ?? record.contentSha256,
   dirty: false,
 })
 

@@ -74,6 +74,7 @@ export function useDocumentTabClosing({
     setDocTitle,
     setEncodingMap,
     setFileMtime,
+    setContentHashMap,
     setOpenFiles,
     setSavedMap,
   } = state
@@ -101,9 +102,10 @@ export function useDocumentTabClosing({
     setContents((previousContents) => removeDocumentValue(previousContents, previous.id))
     setSavedMap((previousSaved) => removeDocumentValue(previousSaved, previous.id))
     setFileMtime((previousMtime) => removeDocumentValue(previousMtime, previous.id))
+    setContentHashMap((previousHash) => removeDocumentValue(previousHash, previous.id))
     setEncodingMap((previousEncoding) => removeDocumentValue(previousEncoding, previous.id))
     delete initialOrSaved.current[previous.id]
-  }, [activeFileIdRef, contentsRef, dirOfFile, editorRef, flushEditorContent, initialOrSaved, openFilesRef, pinPreviewTab, setContents, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap])
+  }, [activeFileIdRef, contentsRef, dirOfFile, editorRef, flushEditorContent, initialOrSaved, openFilesRef, pinPreviewTab, setContents, setContentHashMap, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap])
 
   const removeClosedTabs = useCallback((ids: string[]) => {
     if (ids.length === 0) return
@@ -117,6 +119,7 @@ export function useDocumentTabClosing({
     })
     setSavedMap((previous) => removeDocumentValues(previous, ids))
     setFileMtime((previous) => removeDocumentValues(previous, ids))
+    setContentHashMap((previous) => removeDocumentValues(previous, ids))
     setEncodingMap((previous) => removeDocumentValues(previous, ids))
     for (const id of ids) {
       saveQueueRef.current?.cancel(id)
@@ -135,7 +138,7 @@ export function useDocumentTabClosing({
     }
     setDocTitle(nextActive.name)
     replaceEditorContent(nextActive.id, contentsRef.current[nextActive.id] ?? '')
-  }, [activeFileIdRef, clearDraft, contentsRef, draftPendingRef, initialOrSaved, openFilesRef, replaceEditorContent, saveQueueRef, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap])
+  }, [activeFileIdRef, clearDraft, contentsRef, draftPendingRef, initialOrSaved, openFilesRef, replaceEditorContent, saveQueueRef, setActiveFileId, setContents, setContentHashMap, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap])
 
   const closeSaveEpochRef = useRef(0)
 

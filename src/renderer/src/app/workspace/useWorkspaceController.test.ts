@@ -74,7 +74,7 @@ function createFixture(overrides: Overrides = {}): Fixture {
     openFolder: vi.fn(async () => {}),
     liveContentOf: vi.fn((id: string) => contentsRef.current[id] ?? ''),
     saveWithEncodingFallback: vi.fn(
-      async () => ({ ok: true as const, data: { modifiedTime: 111 } }),
+      async () => ({ ok: true as const, data: { modifiedTime: 111, size: 1, contentSha256: 'd'.repeat(64) } }),
     ),
     flushEditorContent: vi.fn(),
     leaveCurrentDocument: vi.fn(async () => true),

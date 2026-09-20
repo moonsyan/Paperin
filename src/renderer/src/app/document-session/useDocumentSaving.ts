@@ -61,6 +61,7 @@ export function useDocumentSaving({
     activeSessionRef,
     contents,
     contentsRef,
+    contentHashRef,
     fileMtime,
     fileMtimeRef,
     initialOrSavedRef: INITIAL_OR_SAVED,
@@ -69,6 +70,7 @@ export function useDocumentSaving({
     savedMap,
     setActiveFileId,
     setContents,
+    setContentHashMap,
     setDocTitle,
     setEncodingMap,
     setFileMtime,
@@ -230,6 +232,22 @@ export function useDocumentSaving({
       if (newId !== oldId) delete next[oldId]
       return next
     })
+    if (result.data.contentSha256) {
+      setContentHashMap((prev) => {
+        const next = { ...prev, [newId]: result.data!.contentSha256! }
+        if (newId !== oldId) delete next[oldId]
+        return next
+      })
+      contentHashRef.current = {
+        ...contentHashRef.current,
+        [newId]: result.data.contentSha256,
+      }
+      if (newId !== oldId) {
+        const { [oldId]: _removed, ...rest } = contentHashRef.current
+        contentHashRef.current = rest
+        void _removed
+      }
+    }
     // 另存为统一写 UTF-8，重置编码记录，避免后续保存误用旧编码
     setEncodingMap((prev) => {
       const next = { ...prev, [newId]: 'UTF-8' }
@@ -255,7 +273,7 @@ export function useDocumentSaving({
       return
     }
     if (targetAlreadyOpen) setToast('已覆盖并切换到已打开的同名文件')
-  }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, activeSessionRef, beginSave, clearDraft, contents, contentsRef, dirOfFile, draftPendingRef, editorRef, finishSave, mounted, openFilesRef, recordHistory, recordRecent, replaceEditorContent, saveDraft, savedMap, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, setToast, snapshotSettleTimeoutMs])
+  }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, activeSessionRef, beginSave, clearDraft, contents, contentsRef, contentHashRef, dirOfFile, draftPendingRef, editorRef, finishSave, mounted, openFilesRef, recordHistory, recordRecent, replaceEditorContent, saveDraft, savedMap, setActiveFileId, setContents, setContentHashMap, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, setToast, snapshotSettleTimeoutMs])
 
   const handleSave = useCallback(async () => {
     const file = openFiles.find((f) => f.id === activeFileId)
@@ -322,9 +340,16 @@ export function useDocumentSaving({
       if (!result.ok && result.error?.code === 'CONFLICT') {
         // L1：磁盘内容与本次写入一致时是自冲突（上次保存后 mtime 未回填等），
         // 静默视为保存成功；确实被外部修改才弹确认
-        const selfMtime = await resolveSelfConflict(file.path, content)
-        if (selfMtime !== null) {
-          result = { ok: true, data: { modifiedTime: selfMtime } }
+        const selfVersion = await resolveSelfConflict(file.path, content)
+        if (selfVersion !== null) {
+          result = {
+            ok: true,
+            data: {
+              modifiedTime: selfVersion.modifiedTime,
+              size: selfVersion.size,
+              contentSha256: selfVersion.contentSha256,
+            },
+          }
         } else {
           const overwrite = window.confirm(
             '该文件已被其他程序修改，仍然要覆盖保存吗？\n\n选择"取消"可保留当前编辑内容，稍后另存为。',
@@ -360,8 +385,16 @@ export function useDocumentSaving({
           sessionStillCurrent && (editorRef.current?.hasPendingChanges() ?? false),
         )
         setSavedMap((prev) => ({ ...prev, [activeFileId]: receipt.saved }))
+        // 晚到回执只确认实际写出的版本；编辑期间新内容保持 dirty（receipt.saved）。
         setFileMtime((prev) => ({ ...prev, [activeFileId]: result.data!.modifiedTime }))
         fileMtimeRef.current = { ...fileMtimeRef.current, [activeFileId]: result.data!.modifiedTime }
+        if (result.data.contentSha256) {
+          setContentHashMap((prev) => ({ ...prev, [activeFileId]: result.data!.contentSha256 }))
+          contentHashRef.current = {
+            ...contentHashRef.current,
+            [activeFileId]: result.data.contentSha256,
+          }
+        }
         if (receipt.saved) {
           void clearDraft(activeFileId)
           cancelAutoSave(activeFileId, content)
@@ -384,7 +417,7 @@ export function useDocumentSaving({
     }
     // 无路径：另存为
     await handleSaveAs()
-  }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, activeSessionRef, beginSave, cancelAutoSave, contents, contentsRef, dirOfFile, editorRef, fileMtime, fileMtimeRef, finishSave, openFiles, openFilesRef, resolveSelfConflict, recordHistory, saveWithEncodingFallback, handleSaveAs, clearDraft, setContents, setFileMtime, setSavedMap, setToast, snapshotSettleTimeoutMs])
+  }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, activeSessionRef, beginSave, cancelAutoSave, contents, contentsRef, contentHashRef, dirOfFile, editorRef, fileMtime, fileMtimeRef, finishSave, openFiles, openFilesRef, resolveSelfConflict, recordHistory, saveWithEncodingFallback, handleSaveAs, clearDraft, setContents, setContentHashMap, setFileMtime, setSavedMap, setToast, snapshotSettleTimeoutMs])
 
   const saveBeforeClose = useDocumentCloseSaving({
     state, editorRef, saveQueueApi, liveContentOf, recordRecent, setToast, snapshotSettleTimeoutMs,

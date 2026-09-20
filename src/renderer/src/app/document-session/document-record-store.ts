@@ -10,6 +10,7 @@ export interface DocumentRecordMaps {
   contents: StringMap
   savedMap: BooleanMap
   fileMtime: NumberMap
+  contentHashMap: StringMap
   encodingMap: StringMap
 }
 
@@ -56,11 +57,13 @@ export const createDocumentRecordStore = (
   encodingMap: StringMap,
   openFiles: OpenFile[],
   savedBaselines: StringMap,
+  contentHashMap: StringMap = {},
 ): Record<string, DocumentRecord> => {
   const ids = new Set([
     ...Object.keys(contents),
     ...Object.keys(savedMap),
     ...Object.keys(fileMtime),
+    ...Object.keys(contentHashMap),
     ...Object.keys(encodingMap),
     ...openFiles.map((file) => file.id),
   ])
@@ -77,6 +80,7 @@ export const createDocumentRecordStore = (
       content,
       savedContent,
       modifiedTime: fileMtime[id],
+      contentSha256: contentHashMap[id],
       encoding: isDocumentEncoding(encoding) ? encoding : undefined,
       dirty: savedMap[id] === false,
       pinned: file?.pinned === true,
@@ -165,6 +169,26 @@ export const applyEncodingMap = (
   return next
 }
 
+export const applyContentHashMap = (
+  documents: Record<string, DocumentRecord>,
+  contentHashMap: StringMap,
+  openFiles: OpenFile[],
+  savedBaselines: StringMap,
+): Record<string, DocumentRecord> => {
+  const next: Record<string, DocumentRecord> = {}
+  for (const [id, record] of Object.entries(documents)) {
+    next[id] = { ...record, contentSha256: contentHashMap[id] }
+  }
+  for (const [id, contentSha256] of Object.entries(contentHashMap)) {
+    if (next[id]) continue
+    next[id] = {
+      ...ensureRecord(documents, id, openFiles, savedBaselines),
+      contentSha256,
+    }
+  }
+  return next
+}
+
 export const projectDocumentMaps = (
   documents: Record<string, DocumentRecord>,
 ): DocumentRecordMaps => {
@@ -172,12 +196,14 @@ export const projectDocumentMaps = (
     contents: {},
     savedMap: {},
     fileMtime: {},
+    contentHashMap: {},
     encodingMap: {},
   }
   for (const [id, record] of Object.entries(documents)) {
     maps.contents[id] = record.content
     maps.savedMap[id] = !record.dirty
     if (record.modifiedTime !== undefined) maps.fileMtime[id] = record.modifiedTime
+    if (record.contentSha256 !== undefined) maps.contentHashMap[id] = record.contentSha256
     if (record.encoding !== undefined) maps.encodingMap[id] = record.encoding
   }
   return maps

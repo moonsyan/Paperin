@@ -48,7 +48,14 @@ export interface DesktopAPI {
     /** 导出内联：把受信任 mdimg:// URL 读为 base64 data URL（导出内联用） */
     readImageInline(src: string): Promise<{ ok: boolean; data?: { dataUrl: string }; error?: { code: string; message?: string } }>
     stat(path: string): Promise<{ ok: boolean; data?: { modifiedTime: number }; error?: { code: string; message?: string } }>
-    save(path: string, content: string, expectedMtime?: number, encoding?: string, forceOverwrite?: boolean): Promise<SaveResult>
+    save(
+      path: string,
+      content: string,
+      expectedMtime?: number,
+      encoding?: string,
+      forceOverwrite?: boolean,
+      expectedContentHash?: string,
+    ): Promise<SaveResult>
     saveAs(
       content: string,
       options?: {
@@ -175,6 +182,8 @@ export interface FileResult {
     name: string
     content: string
     modifiedTime: number
+    size: number
+    contentSha256: string
     encoding?: string
   }
   error?: { code: string; message?: string }
@@ -203,14 +212,20 @@ export interface FolderResult {
 /** 文件保存结果（error.code 为 CONFLICT 表示文件已被外部修改） */
 export interface SaveResult {
   ok: boolean
-  data?: { modifiedTime: number }
+  data?: { modifiedTime: number; size: number; contentSha256: string }
   error?: { code: string; message?: string }
 }
 
 /** 另存为结果 */
 export interface SaveAsResult {
   ok: boolean
-  data?: { path: string; name: string; modifiedTime?: number }
+  data?: {
+    path: string
+    name: string
+    modifiedTime?: number
+    size?: number
+    contentSha256?: string
+  }
   error?: { code: string; message?: string }
 }
 

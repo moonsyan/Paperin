@@ -171,25 +171,33 @@ export const runElectronSmoke = async (
     const docPath = created.path as string
     const docPathArg = JSON.stringify(docPath)
 
-    // 3. 保存内容 → 主进程校验磁盘
+    // 3. 读取版本后保存 → 主进程校验磁盘（绑定读取时的 content hash）
     const saveContent = '# 冒烟\n\n中文内容一\n'
+    const baseline = await evalStep(
+      win,
+      '读取待保存文档',
+      `window.desktopAPI.document.read(${docPathArg}).then(r => ({ok: r.ok, code: r.error?.code, mtime: r.data?.modifiedTime, hash: r.data?.contentSha256}))`,
+    )
+    if (!baseline.ok || typeof baseline.mtime !== 'number' || typeof baseline.hash !== 'string') {
+      return await finish(1, `SMOKE_FAIL 读取待保存文档失败 ${JSON.stringify(baseline)}`)
+    }
     const saved = await evalStep(
       win,
       '保存文档',
-      `window.desktopAPI.document.save(${docPathArg}, ${JSON.stringify(saveContent)}).then(r => ({ok: r.ok, code: r.error?.code}))`,
+      `window.desktopAPI.document.save(${docPathArg}, ${JSON.stringify(saveContent)}, ${baseline.mtime}, undefined, false, ${JSON.stringify(baseline.hash)}).then(r => ({ok: r.ok, code: r.error?.code, hash: r.data?.contentSha256}))`,
     )
     if (!saved.ok) return await finish(1, `SMOKE_FAIL 保存失败 ${JSON.stringify(saved)}`)
     const onDisk = await readFile(docPath, 'utf-8')
     if (onDisk !== saveContent) return await finish(1, `SMOKE_FAIL 磁盘内容不一致：${JSON.stringify(onDisk)}`)
     results.push('保存文档 ok（磁盘内容一致）')
 
-    // 4. 外部修改后用过期 mtime 保存 → 必须返回 CONFLICT，不得静默覆盖
+    // 4. 外部修改后用旧版本 hash 保存 → 必须返回 CONFLICT，不得静默覆盖
     const externalContent = `${saveContent}外部修改\n`
     await writeFile(docPath, externalContent, 'utf-8')
     const conflict = await evalStep(
       win,
       '外部修改冲突',
-      `window.desktopAPI.document.save(${docPathArg}, '旧内容', 1).then(r => ({ok: r.ok, code: r.error?.code}))`,
+      `window.desktopAPI.document.save(${docPathArg}, '旧内容', ${baseline.mtime}, undefined, false, ${JSON.stringify(baseline.hash)}).then(r => ({ok: r.ok, code: r.error?.code}))`,
     )
     if (conflict.ok || conflict.code !== 'CONFLICT') {
       return await finish(1, `SMOKE_FAIL 外部修改未被拦截 ${JSON.stringify(conflict)}`)
@@ -198,7 +206,7 @@ export const runElectronSmoke = async (
     if (afterConflict !== externalContent) {
       return await finish(1, 'SMOKE_FAIL 冲突后磁盘内容被覆盖')
     }
-    results.push('外部修改冲突 ok（旧 mtime 保存被拒绝，磁盘内容未覆盖）')
+    results.push('外部修改冲突 ok（旧版本 hash 保存被拒绝，磁盘内容未覆盖）')
 
     // 5. 重新读取 → 拿到外部内容
     const reread = await evalStep(

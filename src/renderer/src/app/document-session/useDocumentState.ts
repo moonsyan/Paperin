@@ -4,6 +4,7 @@ import type { OpenFile } from '../../components/Sidebar'
 import { DEMO_FILES, DEFAULT_FILE_ID } from '../../data/demo-files'
 import { INITIAL_CONTENTS, INITIAL_FILES, INITIAL_SAVED } from '../constants'
 import {
+  applyContentHashMap,
   applyContentMap,
   applyEncodingMap,
   applyModifiedTimeMap,
@@ -31,6 +32,7 @@ export interface DocumentState extends ActiveDocumentState {
   activeFileId: string
   docTitle: string
   fileMtime: Record<string, number>
+  contentHashMap: Record<string, string>
   encodingMap: Record<string, string>
   setOpenFiles: Dispatch<SetStateAction<OpenFile[]>>
   setContents: Dispatch<SetStateAction<Record<string, string>>>
@@ -38,6 +40,7 @@ export interface DocumentState extends ActiveDocumentState {
   setActiveFileId: Dispatch<SetStateAction<string>>
   setDocTitle: Dispatch<SetStateAction<string>>
   setFileMtime: Dispatch<SetStateAction<Record<string, number>>>
+  setContentHashMap: Dispatch<SetStateAction<Record<string, string>>>
   setEncodingMap: Dispatch<SetStateAction<Record<string, string>>>
   openFilesRef: MutableRefObject<OpenFile[]>
   contentsRef: MutableRefObject<Record<string, string>>
@@ -45,6 +48,7 @@ export interface DocumentState extends ActiveDocumentState {
   /** 每次切换活动编辑会话递增，异步保存据此拒绝 A→B→A 的旧快照。 */
   activeSessionRef: MutableRefObject<number>
   fileMtimeRef: MutableRefObject<Record<string, number>>
+  contentHashRef: MutableRefObject<Record<string, string>>
   encodingMapRef: MutableRefObject<Record<string, string>>
   initialOrSavedRef: MutableRefObject<Record<string, string>>
 }
@@ -74,6 +78,7 @@ export const buildDocumentRecords = (
   fileMtime: Record<string, number>,
   encodingMap: Record<string, string>,
   savedBaseline?: Record<string, string>,
+  contentHashMap: Record<string, string> = {},
 ): Record<string, DocumentRecord> => {
   const baselines = savedBaseline ?? {}
   return selectOpenDocumentRecords(
@@ -84,6 +89,7 @@ export const buildDocumentRecords = (
       encodingMap,
       openFiles,
       baselines,
+      contentHashMap,
     ),
     openFiles,
     baselines,
@@ -119,7 +125,7 @@ export const useDocumentState = (): DocumentState => {
   }, [])
   const [docTitle, setDocTitle] = useState(DEMO_FILES[DEFAULT_FILE_ID].name)
 
-  const { contents, savedMap, fileMtime, encodingMap } = useMemo(
+  const { contents, savedMap, fileMtime, contentHashMap, encodingMap } = useMemo(
     () => projectDocumentMaps(documentStore),
     [documentStore],
   )
@@ -130,6 +136,8 @@ export const useDocumentState = (): DocumentState => {
   contentsRef.current = contents
   const fileMtimeRef = useRef(fileMtime)
   fileMtimeRef.current = fileMtime
+  const contentHashRef = useRef(contentHashMap)
+  contentHashRef.current = contentHashMap
   const encodingMapRef = useRef(encodingMap)
   encodingMapRef.current = encodingMap
 
@@ -151,6 +159,12 @@ export const useDocumentState = (): DocumentState => {
       return applyModifiedTimeMap(previous, next, openFilesRef.current, initialOrSavedRef.current)
     })
   }, [])
+  const setContentHashMap: Dispatch<SetStateAction<Record<string, string>>> = useCallback((action) => {
+    setDocumentStore((previous) => {
+      const next = resolveStateAction(action, projectDocumentMaps(previous).contentHashMap)
+      return applyContentHashMap(previous, next, openFilesRef.current, initialOrSavedRef.current)
+    })
+  }, [])
   const setEncodingMap: Dispatch<SetStateAction<Record<string, string>>> = useCallback((action) => {
     setDocumentStore((previous) => {
       const next = resolveStateAction(action, projectDocumentMaps(previous).encodingMap)
@@ -166,7 +180,7 @@ export const useDocumentState = (): DocumentState => {
 
   return {
     ...activeDocument,
-    /** contents/savedMap/mtime/encoding 均由同一 store 投影，不再独立持有。 */
+    /** contents/savedMap/mtime/hash/encoding 均由同一 store 投影，不再独立持有。 */
     documents,
     activeDocument: documents[activeFileId],
     openFiles,
@@ -175,6 +189,7 @@ export const useDocumentState = (): DocumentState => {
     activeFileId,
     docTitle,
     fileMtime,
+    contentHashMap,
     encodingMap,
     setOpenFiles,
     setContents,
@@ -182,12 +197,14 @@ export const useDocumentState = (): DocumentState => {
     setActiveFileId,
     setDocTitle,
     setFileMtime,
+    setContentHashMap,
     setEncodingMap,
     openFilesRef,
     contentsRef,
     activeFileIdRef,
     activeSessionRef,
     fileMtimeRef,
+    contentHashRef,
     encodingMapRef,
     initialOrSavedRef,
   }

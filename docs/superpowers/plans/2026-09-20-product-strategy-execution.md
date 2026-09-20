@@ -112,12 +112,12 @@ export interface DocumentFileVersion {
 
 读取和成功保存返回此版本；每份文档记录保留自己读取/最后确认的版本。保存仍传 `expectedMtime`，同时传 `expectedContentHash`（64 位十六进制校验）；主进程在锁内校验当前普通文件字节。hash 只用于本地协议，不进入日志/遥测。旧会话没有 hash 时先重新读取并核对，不静默用最新全局 hash 代替。
 
-- [ ] 先保留审查探针作为失败测试：`expected=1000`、磁盘/全局基线 1200，旧请求不能仅因差值小于 500ms 被接受；针对拟新增 `expectedContentHash` 写比较测试，必须以请求旧 hash 与磁盘新 hash 比较。
-- [ ] 在 Main 集成测试创建隔离文件、模拟两个读取者 A/B；A 写入后 B 以旧版本保存，mtime 差值分别为 0、1、200、499、500、501ms，包含等长内容。
-- [ ] 成功断言不是只看错误码：磁盘必须仍为 A 的内容，B 保留 dirty；明确确认强制覆盖后才允许 B 写入。
-- [ ] 同步读取 DTO、Preload、记录模型、保存队列及回执；晚到回执只能确认实际写出的版本。编辑期间输入的新内容保持 dirty。
-- [ ] 运行相关 `file-io`、`save-lock`、`useDocumentSaving`、`save-receipt`、`useDocumentTabClosing` 测试，新增保存 handler 测试纳入全量；在 Electron 用两个真实窗口复验。
-- [ ] 覆盖锁等待期间授权撤销、切标签、快照超时和 forceOverwrite 取消；跑全局门禁和 smoke，更新 `domain-model.md`、`document-tab-lifecycle.md`、`system-file-open-and-close.md` 后提交。
+- [x] 先保留审查探针作为失败测试：`expected=1000`、磁盘/全局基线 1200，旧请求不能仅因差值小于 500ms 被接受；针对拟新增 `expectedContentHash` 写比较测试，必须以请求旧 hash 与磁盘新 hash 比较。
+- [x] 在 Main 集成测试创建隔离文件、模拟两个读取者 A/B；A 写入后 B 以旧版本保存，mtime 差值分别为 0、1、200、499、500、501ms，包含等长内容。
+- [x] 成功断言不是只看错误码：磁盘必须仍为 A 的内容，B 保留 dirty；明确确认强制覆盖后才允许 B 写入。
+- [x] 同步读取 DTO、Preload、记录模型、保存队列及回执；晚到回执只能确认实际写出的版本。编辑期间输入的新内容保持 dirty。
+- [x] 运行相关 `file-io`、`save-lock`、`useDocumentSaving`、`save-receipt`、`useDocumentTabClosing` 测试，新增保存 handler 测试纳入全量；在 Electron 用两个真实窗口复验。
+- [x] 覆盖锁等待期间授权撤销、切标签、快照超时和 forceOverwrite 取消；跑全局门禁和 smoke，更新 `domain-model.md`、`document-tab-lifecycle.md`、`system-file-open-and-close.md` 后提交。
 
 **验收：** 不用时间容差代替内容版本；进程级缓存可优化读取，但不能覆盖请求自身基线。完整多窗口触发若被其他机制阻挡，也要保存其证据，并保留纯函数契约回归。
 

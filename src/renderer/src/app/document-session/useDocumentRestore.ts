@@ -49,6 +49,7 @@ export function useDocumentRestore({
     setDocTitle,
     setEncodingMap,
     setFileMtime,
+    setContentHashMap,
     setOpenFiles,
     setSavedMap,
   } = state
@@ -83,6 +84,7 @@ export function useDocumentRestore({
     const restoredFiles: OpenFile[] = []
     const restoredContents: Record<string, string> = {}
     const restoredMtimes: Record<string, number> = {}
+    const restoredHashes: Record<string, string> = {}
     const restoredEncodings: Record<string, string> = {}
     const seenIds = new Set<string>()
     // 防御：会话文件列表去重 + 上限（历史上曾因重复累积膨胀到几十万条导致启动 OOM）
@@ -98,6 +100,7 @@ export function useDocumentRestore({
           restoredFiles.push({ id: entry.id, name: res.data.name, path: entry.path })
           restoredContents[entry.id] = res.data.content
           restoredMtimes[entry.id] = res.data.modifiedTime
+          if (res.data.contentSha256) restoredHashes[entry.id] = res.data.contentSha256
           if (res.data.encoding) restoredEncodings[entry.id] = res.data.encoding
         }
       } else if (entry.name) {
@@ -173,6 +176,9 @@ export function useDocumentRestore({
     })
     if (Object.keys(restoredMtimes).length) {
       setFileMtime((prev) => ({ ...prev, ...restoredMtimes }))
+    }
+    if (Object.keys(restoredHashes).length) {
+      setContentHashMap((prev) => ({ ...prev, ...restoredHashes }))
     }
     if (dirtyIds.length) {
       setToast(`已恢复 ${dirtyIds.length} 篇未保存草稿`)
@@ -252,6 +258,7 @@ export function useDocumentRestore({
     setDocTitle,
     setEncodingMap,
     setFileMtime,
+    setContentHashMap,
     setOpenFiles,
     setSavedMap,
     setToast,

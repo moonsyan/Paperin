@@ -5,6 +5,7 @@ import { join } from 'path'
 import iconv from 'iconv-lite'
 import { isPathAuthorizedForReadOrSave } from '../trusted-paths'
 import type { DocumentSaveEncoding } from './document-save-types'
+import { inspectDocumentVersionConflict } from './document-version-check'
 import { recoverInterruptedFileWrite } from './file-write-recovery'
 import {
   decodeUtf16BeStrict,
@@ -37,30 +38,17 @@ export const sha256Hex = (bytes: Uint8Array | string): string =>
   createHash('sha256').update(bytes).digest('hex')
 
 /**
- * mtime/尺寸对 cp -p、FAT 同时间片和等长替换不够用。已知内容哈希且尚未判定冲突时，
- * 调用方应再哈希当前磁盘字节。
+ * 保存冲突委托给请求版本校验：以 expectedContentHash 为准，
+ * 不再用 500ms mtime 容差或进程全局 known hash 冒充本编辑器基线。
  */
 export const inspectSaveConflict = (input: {
   current: { mtimeMs: number; size: number }
   expectedMtime: number | null
+  expectedContentHash?: string | null
   known?: KnownFileState
   currentSha256?: string
-}): { conflict: boolean; needsContentHash: boolean } => {
-  const { current, expectedMtime, known, currentSha256 } = input
-  if (expectedMtime !== null && current.mtimeMs > expectedMtime + 500) {
-    return { conflict: true, needsContentHash: false }
-  }
-  if (known && (current.size !== known.size || current.mtimeMs > known.mtimeMs + 500)) {
-    return { conflict: true, needsContentHash: false }
-  }
-  if (known?.contentSha256 && !currentSha256) {
-    return { conflict: false, needsContentHash: true }
-  }
-  if (known?.contentSha256 && currentSha256 && currentSha256 !== known.contentSha256) {
-    return { conflict: true, needsContentHash: false }
-  }
-  return { conflict: false, needsContentHash: false }
-}
+}): { conflict: boolean; needsContentHash: boolean } =>
+  inspectDocumentVersionConflict(input)
 
 export interface FolderTreeNode {
   name: string

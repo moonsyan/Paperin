@@ -2,6 +2,18 @@
 
 更新时间：2026-09-20（Asia/Shanghai）
 
+## R02 结项（feat/strategy-execution）
+
+**任务号：** R02  
+**提交：** （本提交）  
+**失败测试（修复前）：** A02 探针 `expectedMtime=1000` / 磁盘·全局 `1200` 在 ≤500ms 容差下被放行；请求旧 hash 未与磁盘新 hash 比较；进程全局 known 可冒充本编辑器基线。  
+**修复后结果：** `document-version-check` 6/6；`document-save-handler` 双读取者集成（mtime 差值 0/1/200/499/500/501ms 等长）均 CONFLICT；`forceOverwrite` 仅显式确认后写入；全量 **197** 文件 **1440** 项通过。  
+**全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0（1440 passed）；`npm run build` 0；`npm run smoke` **exit 1**（与 R00/R01 相同：React #301 + `SMOKE_FAIL 系统关联文件未进入外部标签`，非 R02 回归；版本绑定保存路径已写入 smoke 脚本）。  
+**文档：** `domain-model.md`、`document-tab-lifecycle.md`、`system-file-open-and-close.md`、`file-write-recovery.md`、计划 §5 复选框。  
+**人工边界：** 双真实 Electron 窗口端到端被 React #301 冒烟首步阻塞；Main 隔离双读取者契约 + smoke 脚本版本绑定保存步骤已固化。hash 不进日志/遥测。  
+**实际工时：** ~2.5h（自动化记录）  
+**下一项：** R03  
+
 ## R01 结项（feat/strategy-execution）
 
 **任务号：** R01  

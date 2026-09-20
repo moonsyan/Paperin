@@ -155,8 +155,14 @@ describe('FILE_SAVE 与 FILE_READ 授权联动', () => {
       save({}, { path: dropped, content: '# 新\n' }),
     ).resolves.toMatchObject({ ok: false, error: { code: 'INVALID_PATH' } })
     // 拖入读取 → 授权写回
-    await getHandler(CHANNELS.FILE_READ_DROPPED)({}, dropped)
-    const saveResult = await save({}, { path: dropped, content: '# 新\n' })
+    const droppedRead = await getHandler(CHANNELS.FILE_READ_DROPPED)({}, dropped)
+    expect(droppedRead.ok).toBe(true)
+    const saveResult = await save({}, {
+      path: dropped,
+      content: '# 新\n',
+      expectedMtime: droppedRead.data?.modifiedTime,
+      expectedContentHash: droppedRead.data?.contentSha256,
+    })
     expect(saveResult.ok).toBe(true)
     await expect(readFile(dropped, 'utf-8')).resolves.toBe('# 新\n')
   })
@@ -187,12 +193,13 @@ describe('FILE_SAVE 与 FILE_READ 授权联动', () => {
     const read = await getHandler(CHANNELS.FILE_READ_DROPPED)({}, target)
     expect(read.ok).toBe(true)
     const expectedMtime = read.data?.modifiedTime as number
+    const expectedContentHash = read.data?.contentSha256 as string
     const before = await stat(target)
     await writeFile(target, external, 'utf-8')
     await utimes(target, before.atime, before.mtime)
     const save = getHandler(CHANNELS.FILE_SAVE)
     await expect(
-      save({}, { path: target, content: '# 我的版本\n', expectedMtime }),
+      save({}, { path: target, content: '# 我的版本\n', expectedMtime, expectedContentHash }),
     ).resolves.toMatchObject({ ok: false, error: { code: 'CONFLICT' } })
     await expect(readFile(target, 'utf-8')).resolves.toBe(external)
   })
@@ -219,7 +226,12 @@ describe('FILE_SAVE 与 FILE_READ 授权联动', () => {
     await utimes(secret, before.atime, before.mtime)
     const save = getHandler(CHANNELS.FILE_SAVE)
     await expect(
-      save({}, { path: target, content: '我的新正文', expectedMtime: before.mtimeMs }),
+      save({}, {
+        path: target,
+        content: '我的新正文',
+        expectedMtime: before.mtimeMs,
+        expectedContentHash: read.data?.contentSha256,
+      }),
     ).resolves.toMatchObject({ ok: false, error: { code: 'NOT_AUTHORIZED' } })
     await expect(readFile(secret, 'utf-8')).resolves.toBe(hidden)
   })

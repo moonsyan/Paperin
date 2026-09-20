@@ -22,7 +22,11 @@ export interface DocumentSaveQueueApi {
     options?: { forceOverwrite?: boolean },
   ) => Promise<SaveResult>
   recordHistory: (path: string | undefined) => void
-  resolveSelfConflict: (path: string, content: string) => Promise<number | null>
+  resolveSelfConflict: (path: string, content: string) => Promise<{
+    modifiedTime: number
+    size: number
+    contentSha256: string
+  } | null>
   scheduleAutoSave: (fileId: string, content: string) => void
   cancelAutoSave: (fileId: string, content: string) => void
   saveQueueRef: MutableRefObject<DocumentSaveQueue<AutoSaveSnapshot> | null>
@@ -39,21 +43,56 @@ export function useDocumentSaveQueue({
 }: UseDocumentSaveQueueOptions): DocumentSaveQueueApi {
   const {
     contentsRef,
+    contentHashRef,
     encodingMapRef,
     fileMtimeRef,
     initialOrSavedRef: INITIAL_OR_SAVED,
     openFilesRef,
+    setContentHashMap,
     setEncodingMap,
     setFileMtime,
     setSavedMap,
   } = state
 
   /**
+   * 旧会话没有 content hash 时先重新读取并核对 saved 基线；
+   * 磁盘与本会话基线一致才采纳该次读取的版本，不用全局最新 hash 冒充。
+   */
+  const resolveExpectedContentHash = useCallback(
+    async (path: string, fileId: string): Promise<string | undefined> => {
+      const existing = contentHashRef.current[fileId]
+      if (existing) return existing
+      if (!window.desktopAPI) return undefined
+      try {
+        const reread = await window.desktopAPI.document.read(path)
+        if (!reread.ok || !reread.data?.contentSha256) return undefined
+        const baseline = INITIAL_OR_SAVED.current[fileId]
+        if (baseline !== undefined && reread.data.content !== baseline) {
+          return undefined
+        }
+        contentHashRef.current = {
+          ...contentHashRef.current,
+          [fileId]: reread.data.contentSha256,
+        }
+        setContentHashMap((prev) => ({ ...prev, [fileId]: reread.data!.contentSha256 }))
+        if (typeof reread.data.modifiedTime === 'number') {
+          fileMtimeRef.current = { ...fileMtimeRef.current, [fileId]: reread.data.modifiedTime }
+          setFileMtime((prev) => ({ ...prev, [fileId]: reread.data!.modifiedTime }))
+        }
+        return reread.data.contentSha256
+      } catch {
+        return undefined
+      }
+    },
+    [INITIAL_OR_SAVED, contentHashRef, fileMtimeRef, setContentHashMap, setFileMtime],
+  )
+
+  /**
    * 带 GBK 降级的保存：主进程发现内容含 GBK 无法表示的字符（如 emoji）时
    * 返回 ENCODING_LOSS，此时降级为 UTF-8 保存（内容永不丢失，仅文件编码变化）。
    * interactive=true 手动保存先询问（window.confirm），确认后降级并更新编码映射；
    * 非 interactive（自动保存等后台路径）不降级，原样返回错误由调用方决定
-   * 停止重试并提示用户手动处理（Ctrl+S 走交互降级）。
+   * 停止重试并提示用户手动保存（Ctrl+S 走交互降级）。
    */
   const saveWithEncodingFallback = useCallback(
     async (
@@ -67,12 +106,16 @@ export function useDocumentSaveQueue({
       if (!window.desktopAPI) {
         return { ok: false, error: { code: 'NO_API' } }
       }
+      const expectedContentHash = options?.forceOverwrite
+        ? undefined
+        : await resolveExpectedContentHash(path, fileId)
       let res = await window.desktopAPI.document.save(
         path,
         content,
         expectedMtime,
         encodingMapRef.current[fileId],
         options?.forceOverwrite,
+        expectedContentHash,
       )
       if (!res.ok && res.error?.code === 'ENCODING_LOSS') {
         if (!interactive) return res
@@ -86,6 +129,7 @@ export function useDocumentSaveQueue({
           expectedMtime,
           undefined,
           options?.forceOverwrite,
+          expectedContentHash,
         )
         if (res.ok) {
           setEncodingMap((prev) => ({ ...prev, [fileId]: 'UTF-8' }))
@@ -94,7 +138,7 @@ export function useDocumentSaveQueue({
       }
       return res
     },
-    [encodingMapRef, setEncodingMap, setToast],
+    [encodingMapRef, resolveExpectedContentHash, setEncodingMap, setToast],
   )
 
   /**
@@ -113,12 +157,25 @@ export function useDocumentSaveQueue({
    * 不打扰用户。仅当磁盘内容确实不同才返回 null（真·外部修改）。
    */
   const resolveSelfConflict = useCallback(
-    async (path: string, content: string): Promise<number | null> => {
+    async (path: string, content: string): Promise<{
+      modifiedTime: number
+      size: number
+      contentSha256: string
+    } | null> => {
       if (!window.desktopAPI) return null
       try {
         const reread = await window.desktopAPI.document.read(path)
-        if (reread.ok && reread.data && reread.data.content === content) {
-          return reread.data.modifiedTime
+        if (
+          reread.ok
+          && reread.data
+          && reread.data.content === content
+          && typeof reread.data.contentSha256 === 'string'
+        ) {
+          return {
+            modifiedTime: reread.data.modifiedTime,
+            size: reread.data.size,
+            contentSha256: reread.data.contentSha256,
+          }
         }
       } catch {
         // 读取失败无法确认，按外部修改处理
@@ -143,11 +200,18 @@ export function useDocumentSaveQueue({
         fileMtimeRef.current[id],
         id,
       )
-      let modifiedTime = result.data?.modifiedTime ?? null
+      let version: { modifiedTime: number; size: number; contentSha256: string } | null =
+        result.ok && result.data
+          ? {
+              modifiedTime: result.data.modifiedTime,
+              size: result.data.size,
+              contentSha256: result.data.contentSha256,
+            }
+          : null
       if (!result.ok && result.error?.code === 'CONFLICT') {
-        modifiedTime = await resolveSelfConflict(snapshot.path, snapshot.content)
+        version = await resolveSelfConflict(snapshot.path, snapshot.content)
       }
-      if (modifiedTime === null) {
+      if (version === null) {
         const code = result.error?.code
         if (code === 'CONFLICT') setToast(`自动保存已跳过：${snapshot.name} 已被外部修改`)
         else if (code === 'ENCODING_LOSS') {
@@ -165,8 +229,10 @@ export function useDocumentSaveQueue({
       INITIAL_OR_SAVED.current[id] = snapshot.content
       // 队列会在当前 await 返回后立即处理下一快照，不能等 React 下一次渲染
       // 才刷新 ref；否则连续保存会拿旧 mtime 自己制造 CONFLICT。
-      fileMtimeRef.current = { ...fileMtimeRef.current, [id]: modifiedTime }
-      setFileMtime((prev) => ({ ...prev, [id]: modifiedTime }))
+      fileMtimeRef.current = { ...fileMtimeRef.current, [id]: version.modifiedTime }
+      contentHashRef.current = { ...contentHashRef.current, [id]: version.contentSha256 }
+      setFileMtime((prev) => ({ ...prev, [id]: version!.modifiedTime }))
+      setContentHashMap((prev) => ({ ...prev, [id]: version!.contentSha256 }))
       const isCurrentContent = contentsRef.current[id] === snapshot.content
       setSavedMap((prev) => ({ ...prev, [id]: isCurrentContent }))
       if (isCurrentContent) void clearDraft(id)

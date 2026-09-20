@@ -71,6 +71,7 @@ export function useWorkspaceFolderOpen({
     setDocTitle,
     setEncodingMap,
     setFileMtime,
+    setContentHashMap,
     setOpenFiles,
     setSavedMap,
   } = state
@@ -125,6 +126,7 @@ export function useWorkspaceFolderOpen({
           const restoredFiles: OpenFile[] = []
           const restoredContents: Record<string, string> = {}
           const restoredMtimes: Record<string, number> = {}
+          const restoredHashes: Record<string, string> = {}
           const restoredEncodings: Record<string, string> = {}
           let skippedFiles = 0
           const orderedTabs = [
@@ -161,6 +163,7 @@ export function useWorkspaceFolderOpen({
             })
             restoredContents[id] = fileResult.data.content
             restoredMtimes[id] = fileResult.data.modifiedTime
+            if (fileResult.data.contentSha256) restoredHashes[id] = fileResult.data.contentSha256
             if (fileResult.data.encoding) restoredEncodings[id] = fileResult.data.encoding
           }
 
@@ -223,6 +226,9 @@ export function useWorkspaceFolderOpen({
             ),
           }))
           setFileMtime((prev) => ({ ...prev, ...restoredMtimes }))
+          if (Object.keys(restoredHashes).length) {
+            setContentHashMap((prev) => ({ ...prev, ...restoredHashes }))
+          }
           setEncodingMap((prev) => ({ ...prev, ...restoredEncodings }))
 
           const activePath = bundle.layout.activeTab
@@ -290,6 +296,7 @@ export function useWorkspaceFolderOpen({
       setDocTitle,
       setEncodingMap,
       setFileMtime,
+      setContentHashMap,
       setOpenFiles,
       setSavedMap,
       setSidebarActiveTab,

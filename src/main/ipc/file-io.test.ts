@@ -227,26 +227,41 @@ describe('文件状态记录', () => {
 })
 
 describe('保存冲突检查', () => {
-  it('mtime 与尺寸都未变但内容哈希不同时判定冲突', () => {
-    const known = { mtimeMs: 100, size: 12, contentSha256: sha256Hex('上次确认') }
+  it('请求 hash 未算磁盘字节时要求读内容，哈希不同则冲突', () => {
+    const expectedContentHash = sha256Hex('上次确认')
     const current = { mtimeMs: 100, size: 12 }
-    expect(inspectSaveConflict({ current, expectedMtime: 100, known }).needsContentHash).toBe(true)
     expect(inspectSaveConflict({
       current,
       expectedMtime: 100,
-      known,
+      expectedContentHash,
+    }).needsContentHash).toBe(true)
+    expect(inspectSaveConflict({
+      current,
+      expectedMtime: 100,
+      expectedContentHash,
       currentSha256: sha256Hex('外部等长替换'),
     })).toEqual({ conflict: true, needsContentHash: false })
   })
 
-  it('内容哈希与上次一致时不冲突', () => {
+  it('请求内容哈希与磁盘一致时不冲突', () => {
     const digest = sha256Hex('上次确认')
     expect(inspectSaveConflict({
       current: { mtimeMs: 100, size: 12 },
       expectedMtime: 100,
-      known: { mtimeMs: 100, size: 12, contentSha256: digest },
+      expectedContentHash: digest,
       currentSha256: digest,
     })).toEqual({ conflict: false, needsContentHash: false })
+  })
+
+  /** A02 审查探针：旧窗口 expected=1000，磁盘/全局基线 1200，不得因 ≤500ms 容差放行 */
+  it('旧 expectedMtime 不能仅因差值小于 500ms 被接受', () => {
+    const known = { mtimeMs: 1200, size: 3, contentSha256: sha256Hex('new') }
+    expect(inspectSaveConflict({
+      current: known,
+      expectedMtime: 1000,
+      known,
+      currentSha256: known.contentSha256,
+    })).toEqual({ conflict: true, needsContentHash: false })
   })
 })
 

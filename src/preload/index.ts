@@ -99,9 +99,23 @@ const desktopAPI = {
     /** 仅读取文件 mtime（草稿恢复前校验基线新鲜度用） */
     stat: (path: string) => ipcRenderer.invoke(CHANNELS.FILE_STAT, path),
 
-    /** 保存到指定路径（expectedMtime 用于外部冲突检测；forceOverwrite 表示用户已确认覆盖） */
-    save: (path: string, content: string, expectedMtime?: number, encoding?: string, forceOverwrite?: boolean) =>
-      ipcRenderer.invoke(CHANNELS.FILE_SAVE, { path, content, expectedMtime, encoding, forceOverwrite }),
+    /** 保存到指定路径（expectedMtime + expectedContentHash 绑定本编辑器读取版本；forceOverwrite 表示用户已确认覆盖） */
+    save: (
+      path: string,
+      content: string,
+      expectedMtime?: number,
+      encoding?: string,
+      forceOverwrite?: boolean,
+      expectedContentHash?: string,
+    ) =>
+      ipcRenderer.invoke(CHANNELS.FILE_SAVE, {
+        path,
+        content,
+        expectedMtime,
+        encoding,
+        forceOverwrite,
+        expectedContentHash,
+      }),
 
     /** 另存为，弹出保存对话框（可选自定义文件过滤器，用于导出 HTML 等） */
     saveAs: (

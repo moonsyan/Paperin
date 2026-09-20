@@ -53,7 +53,7 @@ const createHarness = (overrides: HarnessOverrides = {}) => {
   const savedWith: Array<[string, string]> = []
   const saveWithEncodingFallback = vi.fn().mockImplementation(async (path: string, content: string) => {
     savedWith.push([path, content])
-    return { ok: true, data: { modifiedTime: 1234 } }
+    return { ok: true, data: { modifiedTime: 1234, size: content.length, contentSha256: 'a'.repeat(64) } }
   })
   const setToast = vi.fn()
   const setSavedMap = vi.fn((update: (prev: Record<string, boolean>) => Record<string, boolean>) => {
@@ -71,6 +71,7 @@ const createHarness = (overrides: HarnessOverrides = {}) => {
       activeSessionRef,
       contents,
       contentsRef,
+      contentHashRef: { current: {} },
       fileMtime: {},
       fileMtimeRef: { current: {} },
       initialOrSavedRef,
@@ -79,6 +80,7 @@ const createHarness = (overrides: HarnessOverrides = {}) => {
       savedMap: { 'file-1': false },
       setActiveFileId: vi.fn(),
       setContents,
+      setContentHashMap: vi.fn(),
       setDocTitle: vi.fn(),
       setEncodingMap: vi.fn(),
       setFileMtime,
@@ -328,7 +330,7 @@ describe('useDocumentSaving 大文档快照契约（T05）', () => {
     const saving = result.current.handleSave()
     await waitFor(() => expect(resolveSave).toBeDefined())
     pending = true
-    resolveSave!({ ok: true, data: { modifiedTime: 1234 } })
+    resolveSave!({ ok: true, data: { modifiedTime: 1234, size: 4, contentSha256: 'b'.repeat(64) } })
 
     await saving
 
@@ -348,7 +350,7 @@ describe('useDocumentSaving 大文档快照契约（T05）', () => {
     const saving = result.current.handleSave()
     await waitFor(() => expect(resolveSave).toBeDefined())
     options.state.openFilesRef.current = [{ id: 'file-1', name: 'moved.md', path: 'D:/archive/moved.md' }]
-    resolveSave!({ ok: true, data: { modifiedTime: 1234 } })
+    resolveSave!({ ok: true, data: { modifiedTime: 1234, size: 4, contentSha256: 'b'.repeat(64) } })
 
     await saving
 
@@ -433,7 +435,7 @@ describe('useDocumentSaving 大文档快照契约（T05）', () => {
     ;(options.editorRef as unknown as { current: Record<string, unknown> }).current.getMarkdown = () => 'small'
     const save = vi.fn()
       .mockResolvedValueOnce({ ok: false, error: { code: 'CONFLICT' } })
-      .mockResolvedValueOnce({ ok: true, data: { modifiedTime: 999 } })
+      .mockResolvedValueOnce({ ok: true, data: { modifiedTime: 999, size: 3, contentSha256: 'c'.repeat(64) } })
     options.saveQueueApi.saveWithEncodingFallback = save
     options.saveQueueApi.cancelAutoSave = vi.fn()
     const { result } = renderHook(() => useDocumentSaving(options))
@@ -450,5 +452,29 @@ describe('useDocumentSaving 大文档快照契约（T05）', () => {
       { forceOverwrite: true },
     )
     expect(options.saveQueueApi.cancelAutoSave).toHaveBeenCalled()
+  })
+
+  it('forceOverwrite 取消时保持 dirty 且不二次保存', async () => {
+    stubDesktopAPI()
+    const confirm = vi.fn(() => false)
+    vi.stubGlobal('confirm', confirm)
+    const { options, setSavedMap } = createHarness()
+    options.state.contents = { 'file-1': 'small' }
+    options.state.contentsRef.current = { 'file-1': 'small' }
+    options.state.fileMtime = { 'file-1': 100 }
+    options.state.fileMtimeRef = { current: { 'file-1': 100 } }
+    options.state.openFiles = [{ id: 'file-1', name: 'small.md', path: 'D:/notes/small.md' }]
+    options.state.openFilesRef.current = [{ id: 'file-1', name: 'small.md', path: 'D:/notes/small.md' }]
+    ;(options.editorRef as unknown as { current: Record<string, unknown> }).current.getMarkdown = () => 'small'
+    const save = vi.fn().mockResolvedValue({ ok: false, error: { code: 'CONFLICT' } })
+    options.saveQueueApi.saveWithEncodingFallback = save
+    options.saveQueueApi.cancelAutoSave = vi.fn()
+    const { result } = renderHook(() => useDocumentSaving(options))
+    await result.current.handleSave()
+
+    expect(confirm).toHaveBeenCalled()
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(options.saveQueueApi.cancelAutoSave).not.toHaveBeenCalled()
+    expect(setSavedMap).not.toHaveBeenCalled()
   })
 })

@@ -1,15 +1,15 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { lstat, stat } from 'fs/promises'
 import { basename, dirname } from 'path'
-import iconv from 'iconv-lite'
 import { CHANNELS } from '../../shared/ipc/channels'
+import { isValidContentHash } from '../../shared/document-version'
 import { allowImageDirectory, readImageAsDataUrl } from '../image-protocol'
 import { schedulePersistTrust } from '../session-trust'
 import { createSaveAsWriteTargetAuthorizer, getWriteTargetAuthorizer, isPathAuthorizedForReadOrSave, trustFileForSave } from '../trusted-paths'
 import type { DocumentSaveArgs, DocumentSaveEncoding, DocumentSaveResult } from './document-save-types'
+import { enqueueDocumentSave } from './document-save-handler'
 import {
   encodedDocumentByteLength,
-  getKnownFileState,
   MAX_DOCUMENT_FILE_SIZE,
   MAX_EXPORT_FILE_SIZE,
   FileWriteRecoveryPendingError,
@@ -18,19 +18,14 @@ import {
   readRegularFileBuffer,
   recoverInterruptedFileWrite,
   rememberFileState,
-  inspectSaveConflict,
   sha256Hex,
   UnsupportedEncodingError,
   writeFileAtomically,
 } from './file-io'
 import { registerImageFileHandlers } from './image-file-handlers'
-import { acquireCrossProcessSaveLock, SaveLockIoError } from './save-lock'
 
 const MAX_CSS_FILE_SIZE = 1024 * 1024
 const SAVE_ENCODINGS: ReadonlySet<DocumentSaveEncoding> = new Set(['UTF-8', 'UTF-8-BOM', 'UTF-16LE', 'UTF-16BE', 'GBK'] as const)
-
-/** 同路径并发保存互斥（T-OCTOU）：按 path 串行化 FILE_SAVE 的完整写盘流程 */
-const saveLocks = new Map<string, Promise<unknown>>()
 
 export interface FileHandlerDependencies {
   isTrustedPath(candidate: unknown): boolean
@@ -42,7 +37,18 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
     filePath: string,
     isTargetAuthorized?: (target: string) => Promise<boolean>,
   ): Promise<
-    | { ok: true; data: { path: string; name: string; content: string; modifiedTime: number; encoding: string } }
+    | {
+        ok: true
+        data: {
+          path: string
+          name: string
+          content: string
+          modifiedTime: number
+          size: number
+          contentSha256: string
+          encoding: string
+        }
+      }
     | { ok: false; error: { code: string; message?: string } }
   > => {
     try {
@@ -75,6 +81,8 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
           name: filePath.split(/[/\\]/).pop() || 'untitled.md',
           content,
           modifiedTime: afterRead.mtimeMs,
+          size: afterRead.size,
+          contentSha256,
           encoding,
         },
       }
@@ -205,119 +213,10 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
     }
   })
 
-  /** FILE_SAVE 的完整写盘流程（stat 校验 → 编码写回 → 更新基线）。
-   *  经 saveLocks 按 path 串行执行，防止同路径双窗口并发保存互相覆盖（T-OCTOU）；
-   *  外层再加跨进程文件锁，覆盖多窗口模式（多个主进程并存）下的并发保存。 */
-  const performFileSave = async (args: DocumentSaveArgs): Promise<DocumentSaveResult> => {
-    let releaseLock: (() => Promise<void>) | null = null
-    try {
-      releaseLock = await acquireCrossProcessSaveLock(args.path)
-    } catch (err) {
-      // SaveLockIoError = 锁文件目录不可写（真 IO 错误），不能伪装成并发冲突；
-      // SAVE_LOCK_TIMEOUT 与其余情况 = 30s 内未能拿到跨进程锁
-      if (err instanceof SaveLockIoError) {
-        return {
-          ok: false,
-          error: { code: 'SAVE_ERROR', message: '无法写入文件：目录不可写或磁盘只读' },
-        }
-      }
-      return {
-        ok: false,
-        error: { code: 'SAVE_LOCKED', message: '另一个窗口正在保存该文件，请稍后重试' },
-      }
-    }
-    try {
-      const pre = await stat(args.path).catch(() => null)
-      if (!pre) {
-        return { ok: false, error: { code: 'NOT_FOUND' } }
-      }
-      // 等锁期间信任根可能已被淘汰。授权函数缺失时必须拒绝，不能当成已放行。
-      const writeOptions = { isTargetAuthorized: getWriteTargetAuthorizer(args.path) ?? (async () => false) }
-      // 冲突检测（H6）：mtime、尺寸，以及等长且未推新 mtime 时的内容哈希。
-      // mtime 容差 500ms 只吸收本应用连续保存抖动；尺寸捕获 FAT/cp -p；
-      // 哈希捕获保留 mtime 且等长的外部替换。
-      const known = getKnownFileState(args.path)
-      const expectedMtime =
-        typeof args.expectedMtime === 'number' && Number.isFinite(args.expectedMtime)
-          ? args.expectedMtime
-          : null
-      const forceOverwrite = args.forceOverwrite === true
-      let currentSha256: string | undefined
-      let conflictCheck = inspectSaveConflict({ current: pre, expectedMtime, known })
-      if (!forceOverwrite && conflictCheck.needsContentHash) {
-        try {
-          currentSha256 = sha256Hex(await readRegularFileBuffer(args.path))
-        } catch (error) {
-          if (error instanceof FileIdentityChangedError) {
-            return { ok: false, error: { code: 'NOT_AUTHORIZED', message: error.message } }
-          }
-          throw error
-        }
-        conflictCheck = inspectSaveConflict({ current: pre, expectedMtime, known, currentSha256 })
-      }
-      const conflict = !forceOverwrite && conflictCheck.conflict
-      if (conflict) {
-        return {
-          ok: false,
-          error: { code: 'CONFLICT', message: '文件已被外部修改' },
-        }
-      }
-      // 编码写回：UTF-16 保持原编码（BOM 保留）；GBK 写回原编码并做往返校验，
-      // 无法映射的字符拒绝写入；带 BOM 的 UTF-8 写回 BOM（Y-L1，读取时记
-      // 'UTF-8-BOM' 保存时不丢失）；其余统一 UTF-8
-      let payload: string | Uint8Array = args.content
-      if (args.encoding === 'UTF-8-BOM') {
-        payload = `\uFEFF${args.content}`
-        await writeFileAtomically(args.path, payload, pre.mode, writeOptions)
-      } else if (args.encoding === 'UTF-16LE' || args.encoding === 'UTF-16BE') {
-        const bom =
-          args.encoding === 'UTF-16LE'
-            ? Buffer.from([0xff, 0xfe])
-            : Buffer.from([0xfe, 0xff])
-        const body =
-          args.encoding === 'UTF-16LE'
-            ? Buffer.from(args.content, 'utf16le')
-            : iconv.encode(args.content, 'utf-16be')
-        payload = Buffer.concat([bom, body])
-        await writeFileAtomically(args.path, payload, pre.mode, writeOptions)
-      } else if (args.encoding === 'GBK') {
-        const encoded = iconv.encode(args.content, 'gbk')
-        // 往返校验：GBK 无法映射的字符（emoji 等）会被 iconv 替换为 '?'，
-        // 静默写入即不可逆数据丢失，拒绝并由渲染端决定降级方案
-        if (iconv.decode(encoded, 'gbk') !== args.content) {
-          return {
-            ok: false,
-            error: {
-              code: 'ENCODING_LOSS',
-              message: '内容包含 GBK 无法表示的字符',
-            },
-          }
-        }
-        payload = encoded
-        await writeFileAtomically(args.path, payload, pre.mode, writeOptions)
-      } else {
-        await writeFileAtomically(args.path, payload, pre.mode, writeOptions)
-      }
-      const fileStat = await stat(args.path)
-      rememberFileState(args.path, {
-        mtimeMs: fileStat.mtimeMs,
-        size: fileStat.size,
-        contentSha256: sha256Hex(payload),
-      })
-      return { ok: true, data: { modifiedTime: fileStat.mtimeMs } }
-    } catch (err) {
-      return { ok: false, error: { code: 'IO_ERROR', message: String(err) } }
-    } finally {
-      await releaseLock?.()
-    }
-  }
-
-  // 保存文件（带外部冲突检测：磁盘 mtime 比预期新则拒绝，避免静默覆盖）
+  // 保存文件（带版本冲突检测：请求自身的 expectedMtime + expectedContentHash）
   ipcMain.handle(
     CHANNELS.FILE_SAVE,
     async (_event, args: DocumentSaveArgs): Promise<DocumentSaveResult> => {
-      // L8：入参校验——args 缺失或形状非法时返回结构化错误，避免后续
-      // args.path / args.content 解引用抛未分类异常（此前 FILE_SAVE 无此守卫）
       if (
         !args ||
         typeof args !== 'object' ||
@@ -326,8 +225,6 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       ) {
         return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
       }
-      // 编码白名单：未知 encoding 一律拒绝而非静默按无 BOM UTF-8 写出，
-      // 否则原 GBK / UTF-8-BOM 文件会在保存时被悄悄改编码
       if (
         args.encoding !== undefined &&
         !SAVE_ENCODINGS.has(args.encoding as DocumentSaveEncoding)
@@ -337,32 +234,24 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       if (args.forceOverwrite !== undefined && typeof args.forceOverwrite !== 'boolean') {
         return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
       }
+      if (
+        args.expectedContentHash !== undefined
+        && args.expectedContentHash !== null
+        && !isValidContentHash(args.expectedContentHash)
+      ) {
+        return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
+      }
       try {
-        // L8：保存目标必须属于已授权根（打开的文档/对话框另存的位置），
-        // 或为本应用读取过的 .md 精确文件（拖入/会话恢复，见 trusted-paths.ts）
         if (!(await isPathAuthorizedForReadOrSave(args.path))) {
           return { ok: false, error: { code: 'INVALID_PATH' } }
         }
-        // L6：写入前校验体积，与打开上限保持一致——
-        // 渲染端异常（内存溢出回写、循环拼接）不能写出超限文件
         if (encodedDocumentByteLength(args.content ?? '', args.encoding) > MAX_DOCUMENT_FILE_SIZE) {
           return {
             ok: false,
             error: { code: 'TOO_LARGE', message: 'Markdown 文件超过 20MB，无法保存' },
           }
         }
-        // 同路径并发保存互斥：双窗口（同进程）保存同一文件时，双方的冲突检测
-        // stat 都落在对方写入之前，最后写入者会静默覆盖对方内容（T-OCTOU）。
-        // 按 path 串行化完整写盘流程；互斥条目随任务结束清理，不累积。
-        const previous = saveLocks.get(args.path) ?? Promise.resolve()
-        const task = previous.then(() => performFileSave(args))
-        const tracked = task.catch(() => undefined)
-        saveLocks.set(args.path, tracked)
-        try {
-          return await task
-        } finally {
-          if (saveLocks.get(args.path) === tracked) saveLocks.delete(args.path)
-        }
+        return await enqueueDocumentSave(args)
       } catch (err) {
         return { ok: false, error: { code: 'IO_ERROR', message: String(err) } }
       }
@@ -383,13 +272,10 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       const window = BrowserWindow.fromWebContents(event.sender)
       if (!window) return { ok: false, error: { code: 'WINDOW_NOT_FOUND' } }
 
-      // 载荷与参数前置校验（args 为 null 时返回错误结构而非抛错，与全项目约定一致）
       const content = args?.content
       if (typeof content !== 'string') {
         return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
       }
-      // filters/defaultPath 直接透传给原生对话框，形状非法时必须拒绝，
-      // 否则 dialog 抛出的未分类异常会绕过 {ok:false,error} 结构直达渲染端
       if (
         args?.filters !== undefined &&
         (!Array.isArray(args.filters) ||
@@ -409,8 +295,6 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       }
       const filters = args?.filters ?? [{ name: 'Markdown', extensions: ['md'] }]
       const defaultPath = args?.defaultPath ?? 'untitled.md'
-      // 另存上限：.md 类与文档打开上限一致；导出（HTML 等，内联图片可远超原文）
-      // 放宽到导出上限，仅阻止失控写出
       const cap = /\.(md|markdown)$/i.test(defaultPath)
         ? MAX_DOCUMENT_FILE_SIZE
         : MAX_EXPORT_FILE_SIZE
@@ -445,15 +329,18 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
         allowImageDirectory(dirname(result.filePath))
         await trustFileForSave(result.filePath)
         schedulePersistTrust()
-        // 返回真实落盘 mtime（渲染端用于下次保存的冲突检测，比 Date.now() 更准）
         let modifiedTime = 0
+        let size = 0
+        let contentSha256 = sha256Hex(content)
         try {
           const fileStat = await stat(result.filePath)
           modifiedTime = fileStat.mtimeMs
+          size = fileStat.size
+          contentSha256 = sha256Hex(content)
           rememberFileState(result.filePath, {
             mtimeMs: fileStat.mtimeMs,
             size: fileStat.size,
-            contentSha256: sha256Hex(content),
+            contentSha256,
           })
         } catch {
           /* stat 失败不阻断，渲染端会降级用当前时间 */
@@ -464,6 +351,8 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
             path: result.filePath,
             name: result.filePath.split(/[/\\]/).pop() || 'untitled.md',
             modifiedTime,
+            size,
+            contentSha256,
           },
         }
       } catch (err) {

@@ -50,12 +50,13 @@ export const markDocumentSavedInSession = (
   id: string,
   content: string,
   modifiedTime: number,
+  contentSha256?: string,
 ): DocumentSessionState => {
   const record = state.documents[id]
   if (!record) return state
   return {
     ...state,
-    documents: { ...state.documents, [id]: markDocumentSaved(record, content, modifiedTime) },
+    documents: { ...state.documents, [id]: markDocumentSaved(record, content, modifiedTime, contentSha256) },
   }
 }
 
