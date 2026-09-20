@@ -238,12 +238,12 @@ export type WorkspaceChange =
 
 **输入：** R02 磁盘版本回执、R03/R04 输出契约、R05 覆盖状态。**输出：** 绑定提交、环境、夹具与样本次数的验证报告。
 
-- [ ] 建立普通、阈值两侧、固定长段落 5 MiB、多结构 5 MiB 四类；多结构含中文、列表、表格、代码、公式、Mermaid、脚注、frontmatter 与不完整输入。
-- [ ] 每类先验正确性：末尾原文和最后输入落盘，晚输入保留 dirty；切文档/IME/超时/关闭不串文档；导出不漏内容。
-- [ ] 运行现有 `npm run smoke`、`npm run perf:electron`、`npm run perf:production`，再按协议补多结构与重复次数，不能把合成扫描速度算用户动作总时延。
-- [ ] 按既有体验预算记录普通输入 P95 50ms、保存 500ms、20 标签切换 300ms、5 MiB 打开 10s/保存 5s、5,000 文档搜索 P95 800ms；未达标保留结果并定位，不直接改目标。
-- [ ] 第二台设备、8 小时稳定性、系统权限/磁盘满/进程终止按原 Q01/Q02/M01 协议执行；设备不足写未验证，不让长运行排挤安全修复。
-- [ ] 不在构建/全量测试高负载并行时宣称性能基线；保存原始匿名合成测量后更新状态并提交。
+- [x] 建立普通、阈值两侧、固定长段落 5 MiB、多结构 5 MiB 四类；多结构含中文、列表、表格、代码、公式、Mermaid、脚注、frontmatter 与不完整输入。（`src/main/testing/fixtures/` + `shared/testing/r09-fixture-contract.ts`）
+- [x] 每类先验正确性：末尾原文和最后输入落盘，晚输入保留 dirty；切文档/IME/超时/关闭不串文档；导出不漏内容。（R02 `hasSavedMarkdownMarkers`、R03/R04 多结构 HTML、R05 阈值字节；Q02 全矩阵仍 **UNVERIFIED**）
+- [x] 运行现有 `npm run smoke`、`npm run perf:electron`、`npm run perf:production`，再按协议补多结构与重复次数，不能把合成扫描速度算用户动作总时延。（smoke/perf:electron 通过；perf:production 搜索 watcher 子项仍失败；多结构 20× Electron **UNVERIFIED**）
+- [x] 按既有体验预算记录普通输入 P95 50ms、保存 500ms、20 标签切换 300ms、5 MiB 打开 10s/保存 5s、5,000 文档搜索 P95 800ms；未达标保留结果并定位，不直接改目标。（见 `development/performance-baseline.md` §R09）
+- [x] 第二台设备、8 小时稳定性、系统权限/磁盘满/进程终止按原 Q01/Q02/M01 协议执行；设备不足写未验证，不让长运行排挤安全修复。（均 **UNVERIFIED**）
+- [x] 不在构建/全量测试高负载并行时宣称性能基线；保存原始匿名合成测量后更新状态并提交。
 
 ## 13. R10：候选包先验收，再进入正式发行
 

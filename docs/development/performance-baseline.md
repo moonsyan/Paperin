@@ -6,6 +6,8 @@
 
 ## 结论
 
+2026-09-20（R09）：修复 Electron 冒烟 React **#301** 后重跑门禁。`npm run smoke` exit **0**；`npm run perf:electron` exit **0**，当次 `ELECTRON_PERF_METRICS`：`largeOpenMs` 1275.45、`largeSaveMs` 157.76、`largeExportMs` 85.33、20 标签切换 P95 **79.3** ms（40 次样本）。体验预算对照见下文 **§R09 体验预算（M01）**；未测项与未达标项保留目标值并标 **UNVERIFIED** 或阻塞原因，不修改阈值。
+
 2026-09-10 在 Windows 开发机上完成了四项可复现基线：直接调用生产 `WorkspaceIndexService` 和真实文件系统适配器的 5000 文件索引门禁、真实主进程搜索 IPC 和 watcher 风暴门禁，以及 5000 文件、单个 5 MiB 文件的两项合成扫描。仓库随附实测基线和独立阈值。另提供真实 Electron 性能 smoke：它启动构建产物，让 5 MiB Markdown 经 Main → Preload → 文档会话 → Milkdown 打开、编辑、快捷键保存，并将编辑器真实 DOM 写入受信任的临时资源包；随后打开 20 个真实文件标签并循环切换。
 
 生产门禁验证主进程实际装配的目录枚举、编码读取、`WorkspaceIndexService` 解析与增量复用，不复制索引算法。合成脚本仍只验证 `scripts/perf-baseline.mjs` 的文件树遍历、结构解析与行级搜索口径；两者都不等同于 Electron 窗口首屏、Milkdown 渲染或真实用户知识库的端到端性能。
@@ -133,7 +135,26 @@ npm run perf:electron
 | 2 | 1231.72 ms | 226.47 ms | 52.33 ms | 29.6 ms | 全部通过 |
 | 3 | 1212.50 ms | 185.64 ms | 54.29 ms | 29.4 ms | 全部通过 |
 
-环境沿用上方 Windows 11 / Core Ultra 7 265K / 31.4 GiB 参考机，Node v24.19.0、Electron 43.4.1、生产构建；固定 256 个约 20 KiB 段落的 5 MiB 合成夹具，缩放/GPU 和磁盘型号未单独记录。三批均验原文尾部与末次编辑同时存在，且导出内容和切换正文准确。它证明既有 Electron 防卡死硬线在这一夹具上通过；M01 的五类节点、另一台 16GB/SSD 设备、每类 20 次以及 8 小时稳定性仍待完成。
+## R09 体验预算（M01，2026-09-20）
+
+环境：Windows 11 26200、Core Ultra 7 265K、31.4 GiB、Node v24.19.0、Electron 43、生产构建；夹具见 `src/main/testing/fixtures/` 与 `scripts/performance-fixtures.mjs`（smoke 用）。下列为**真实 Electron 用户动作**或**生产 IPC 门禁**；合成 `perf:baseline` 扫描时延不得代入本表。
+
+| 指标 | 体验目标 | 2026-09-20 实测 | 判定 |
+| --- | ---: | --- | --- |
+| 普通输入 P95 | ≤50 ms | 未采集 | **UNVERIFIED** |
+| 普通保存 P95 | ≤500 ms | 5 MiB 单次 157.76 ms（perf:electron） | 单次优于目标；M01 50× 协议未跑 |
+| 20 标签暖切换 P95 | ≤300 ms | 79.3 ms（40 次） | 达标 |
+| 5 MiB 打开 | ≤10 s | 1275.45 ms | 达标 |
+| 5 MiB 保存 | ≤5 s | 157.76 ms | 达标 |
+| 5000 文档搜索 P95 | ≤800 ms | `perf:production` watcher 子项失败（`INVALID_TARGET`）；历史搜索 P95 452.72 ms 见上节 | 门禁阻塞，不推断通过 |
+| 多结构 5 MiB ×20（Electron） | M01 协议 | 未跑 | **UNVERIFIED** |
+| 第二台 16GB 设备 / 8 h 稳定性 | M01/Q01 | 未跑 | **UNVERIFIED** |
+
+原始 JSON（当次 perf:electron）：
+
+```json
+{"largeOpenMs":1275.45,"largeSaveMs":157.76,"largeExportMs":85.33,"tabSwitch":{"count":40,"p50Ms":44.3,"p95Ms":79.3,"maxMs":1129.4},"mainRssMb":488.93}
+```
 
 ## 尚未覆盖
 

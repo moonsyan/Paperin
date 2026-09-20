@@ -3,6 +3,8 @@ import { readFile } from 'fs/promises'
 import { join } from 'path'
 import type { BrowserWindow } from 'electron'
 import { CHANNELS } from '../../shared/ipc/channels'
+import { allowExportDirectory } from '../ipc/export-dirs'
+import { FIXTURE_FILENAMES } from './fixtures/markdown-builders'
 
 export const ELECTRON_PERFORMANCE_THRESHOLDS = {
   largeDocumentOpenMs: 120_000,
@@ -11,7 +13,7 @@ export const ELECTRON_PERFORMANCE_THRESHOLDS = {
   tabSwitchP95Ms: 10_000,
 } as const
 
-const LARGE_DOCUMENT_NAME = '5MiB-性能文档.md'
+const LARGE_DOCUMENT_NAME = FIXTURE_FILENAMES.largeParagraph5Mib
 const LARGE_DOCUMENT_TAIL_MARKER = 'PERF_LARGE_DOCUMENT_TAIL'
 const LARGE_DOCUMENT_EDIT_MARKER = 'PERF_LARGE_DOCUMENT_EDITED'
 const TAB_COUNT = 20
@@ -120,6 +122,9 @@ export const runElectronPerformanceSmoke = async (
   const largeDocument = await readFile(largePath, 'utf8').catch(() => null)
   if (!largeDocument || Buffer.byteLength(largeDocument, 'utf8') < 5 * 1024 * 1024) {
     throw new Error('性能夹具缺少 5 MiB Markdown 文档')
+  }
+  if (!(await allowExportDirectory(workspacePath))) {
+    throw new Error('性能工作区未能登记导出授权')
   }
 
   const results: string[] = []

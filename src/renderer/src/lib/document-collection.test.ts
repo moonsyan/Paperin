@@ -10,6 +10,11 @@ import {
   renderMarkdownToHtml,
 } from './document-collection'
 import type { CollectionEntry } from './document-collection'
+import {
+  R09_FIXTURE_MARKERS,
+  R09_MULTI_STRUCTURE_EXPORT_ANCHORS,
+  buildR09MultiStructureSkeleton,
+} from '../../../shared/testing/r09-fixture-contract'
 
 describe('extractCollectionOrder / extractCollectionTitle', () => {
   it('从 Frontmatter 提取 order 与 title，缺失时回退', () => {
@@ -235,5 +240,16 @@ describe('createDocumentFromTemplate', () => {
     expect(readme).not.toContain('undefined')
     expect(readme).toContain('未命名项目')
     expect(createDocumentFromTemplate('api', {})).not.toContain('{{')
+  })
+})
+
+describe('R09 多结构夹具导出', () => {
+  it('集合 HTML 保留正文锚点且不泄露 frontmatter 元数据行', () => {
+    const html = renderMarkdownToHtml(buildR09MultiStructureSkeleton())
+    expect(html).not.toContain('title: R09 多结构夹具')
+    for (const anchor of R09_MULTI_STRUCTURE_EXPORT_ANCHORS) {
+      expect(html).toContain(anchor)
+    }
+    expect(buildR09MultiStructureSkeleton()).toContain(R09_FIXTURE_MARKERS.originalTail)
   })
 })

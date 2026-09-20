@@ -11,7 +11,9 @@ export function useSessionPersistReady(): {
 } {
   const [persistReady, setPersistReady] = useState(false)
   const syncFromSettings = useCallback((settingsReady: boolean) => {
-    if (settingsReady) setPersistReady(true)
+    if (settingsReady) {
+      setPersistReady((previous) => (previous ? previous : true))
+    }
   }, [])
   return { persistReady, syncFromSettings }
 }

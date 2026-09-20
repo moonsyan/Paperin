@@ -146,7 +146,9 @@ export function AppComposition(): JSX.Element {
     lineHeight, contentFont, zoom, sidebarWidth,
   })
   const { settingsReady } = settings
-  syncFromSettings(settingsReady)
+  useEffect(() => {
+    syncFromSettings(settingsReady)
+  }, [settingsReady, syncFromSettings])
 
   // === 窄窗口抽屉协调（T11）：持久化偏好与瞬时 overlay 分离 ===
   const drawers = useWorkspaceDrawers({

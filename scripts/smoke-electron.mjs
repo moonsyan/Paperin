@@ -16,6 +16,10 @@ import { access, mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises'
 import { join, dirname, normalize } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
+import {
+  createLargeParagraph5MibMarkdown,
+  FIXTURE_FILENAMES,
+} from './performance-fixtures.mjs'
 
 const scriptDir = dirname(fileURLToPath(import.meta.url))
 const projectRoot = join(scriptDir, '..')
@@ -27,21 +31,8 @@ const electronBinary =
     : join(projectRoot, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
 const mainEntry = join(projectRoot, 'out', 'main', 'index.js')
 const performanceScenario = process.argv.includes('--performance')
-const LARGE_DOCUMENT_BYTES = 5 * 1024 * 1024
 
-const createLargeMarkdown = () => {
-  const header = '# 5 MiB 性能文档\n\nPERF_LARGE_DOCUMENT_ORIGINAL\n\n'
-  const tail = '\nPERF_LARGE_DOCUMENT_TAIL\n'
-  // 固定为 256 个约 20 KiB 的真实段落：既让尺寸达到 5 MiB，又避免用
-  // 数万短段落把本该测“文档大小”的门禁变成“极端节点数量”基准。
-  const paragraphCount = 256
-  const prefix = '真实 Milkdown 性能验证段落：中文 Markdown 内容用于验证大文档的打开、编辑、保存和导出路径。\n'
-  const fillerSize = Math.ceil((LARGE_DOCUMENT_BYTES - Buffer.byteLength(header) - Buffer.byteLength(tail)) / paragraphCount) - Buffer.byteLength(prefix) - 2
-  const filler = 'abcdefghijklmnopqrstuvwxyz0123456789'
-    .repeat(Math.ceil(fillerSize / 36))
-    .slice(0, fillerSize)
-  return `${header}${`${prefix}${filler}\n\n`.repeat(paragraphCount)}${tail}`
-}
+const createLargeMarkdown = () => createLargeParagraph5MibMarkdown()
 
 const main = async () => {
   try {
@@ -71,7 +62,7 @@ const main = async () => {
   const associatedFile = join(smokeRoot, '系统关联临时文档.md')
   await writeFile(associatedFile, '# 系统关联\n\n外部临时内容。\n', 'utf-8')
   if (performanceScenario) {
-    await writeFile(join(workspace, '5MiB-性能文档.md'), createLargeMarkdown(), 'utf-8')
+    await writeFile(join(workspace, FIXTURE_FILENAMES.largeParagraph5Mib), createLargeMarkdown(), 'utf-8')
     await Promise.all(
       Array.from({ length: 19 }, async (_, index) => {
         const number = String(index + 1).padStart(2, '0')

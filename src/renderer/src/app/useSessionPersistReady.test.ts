@@ -23,4 +23,21 @@ describe('useSessionPersistReady', () => {
     })
     expect(result.current.persistReady).toBe(true)
   })
+
+  it('渲染阶段不得调用 syncFromSettings（由 AppComposition useEffect 回填）', () => {
+    const { result, rerender } = renderHook(
+      ({ ready }: { ready: boolean }) => {
+        const latch = useSessionPersistReady()
+        return { latch, ready }
+      },
+      { initialProps: { ready: false } },
+    )
+    expect(result.current.latch.persistReady).toBe(false)
+    rerender({ ready: true })
+    expect(result.current.latch.persistReady).toBe(false)
+    act(() => {
+      result.current.latch.syncFromSettings(true)
+    })
+    expect(result.current.latch.persistReady).toBe(true)
+  })
 })

@@ -2,6 +2,17 @@
 
 更新时间：2026-09-20（Asia/Shanghai）
 
+## R09 结项（feat/strategy-execution）
+
+**任务号：** R09  
+**失败测试（修复前）：** Electron 冒烟 React **#301**（`AppComposition` 渲染期调用 `syncFromSettings` → 无限重渲染）；`SMOKE_FAIL 系统关联文件未进入外部标签`（#301 的连带症状）；`perf:electron` 资源包导出 `INVALID_PATH`（性能工作区未 `allowExportDirectory`）。  
+**修复后结果：** `useSessionPersistReady.test.tsx` 2/2；`fixtures.test.ts` 4/4；`document-collection.test.ts` R09 导出 1/1；全量 **209** 文件 **1536+** 项通过（以当次 `npm run test` 为准）。  
+**全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0；`npm run build` 0；`npm run smoke` **0**（#301 已修复）；`npm run perf:electron` **0**（`ELECTRON_PERF_METRICS` 见 `performance-baseline.md`）；`npm run perf:production` **1/2**（索引门禁通过；`workspace-search-watch-production.perf.ts` 仍 `INVALID_TARGET`，与 R05 同 harness 缺口，非夹具回归）。  
+**文档：** 计划 §12 复选框；`development/performance-baseline.md` R09 体验预算对照；`compatibility-matrix.md` 夹具行。  
+**人工边界：** M01 多结构 5 MiB ×20 次 Electron、普通输入 P95、第二台 16GB 设备、8 小时稳定性、磁盘满/进程 kill — **UNVERIFIED**（未改体验目标）。  
+**实际工时：** ~2h（自动化记录）  
+**下一项：** R11（本任务未启动）
+
 ## R08 结项（feat/strategy-execution）
 
 **任务号：** R08  
