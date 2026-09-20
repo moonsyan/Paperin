@@ -362,7 +362,11 @@ export const walkMarkdownTree = async (
   const maxFiles = limits.maxFiles
   const reachedFileLimit = (): boolean =>
     maxFiles !== undefined && (budget.files ?? 0) >= maxFiles
-  if (depth > MAX_TREE_DEPTH || budget.truncated || reachedFileLimit()) return []
+  if (depth > MAX_TREE_DEPTH) {
+    budget.truncated = true
+    return []
+  }
+  if (budget.truncated || reachedFileLimit()) return []
   let entries: Dirent[]
   try {
     entries = await readdir(dir, { withFileTypes: true })

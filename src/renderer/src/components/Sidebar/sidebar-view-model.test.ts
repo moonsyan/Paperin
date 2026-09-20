@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { IndexedDocument, WorkspaceIndex } from '../../../../shared/workspace-index'
+import { createInitialWorkspaceCoverage } from '../../../../shared/workspace-coverage'
 import { buildSidebarViewModel } from './sidebar-view-model'
 
 const documentOf = (path: string, relativePath: string, tags: string[] = []): IndexedDocument => ({
@@ -17,7 +18,7 @@ const documentOf = (path: string, relativePath: string, tags: string[] = []): In
 
 const indexOf = (documents: Record<string, IndexedDocument>, generation = 1): WorkspaceIndex => ({
   workspacePath: 'D:/ws', generatedAt: '2026-01-01T00:00:00.000Z', generation,
-  complete: true, truncated: false, documents, links: [], tags: [], assets: [], diagnostics: [],
+  complete: true, truncated: false, coverage: createInitialWorkspaceCoverage(), documents, links: [], tags: [], assets: [], diagnostics: [],
 })
 
 describe('buildSidebarViewModel', () => {

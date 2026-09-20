@@ -9,21 +9,14 @@ import { withinCallerWorkspace } from './workspace-scope'
 import {
   carryKnownFileState,
   forgetKnownFileState,
-  FileIdentityChangedError,
-  readTextAutoEncoding,
   walkMarkdownTree,
 } from './file-io'
-import type { FolderTreeNode } from './file-io'
 import { forgetLinkIndexCache } from './workspace-link-index'
 import { forgetTagIndexCache } from './workspace-tag-index'
-import { cacheSearchLines, getCachedSearchLines, runSharedRegexSearch } from './search-regex'
 import { safeWorkspaceFileName } from './workspace-file-name'
 import { forgetSnapshots, moveSnapshots } from '../history/version-store'
 import { historyRoot } from './history-handlers'
-import { DEFAULT_WORKSPACE_INDEX_MAX_FILES } from '../indexing/workspace-index-service'
-
-/** 搜索和生产索引共享 5000 文档覆盖预算；命中数仍另有限制，避免结果传输失控。 */
-const WORKSPACE_SEARCH_MAX_FILES = DEFAULT_WORKSPACE_INDEX_MAX_FILES
+import { registerWorkspaceSearchHandler } from './workspace-search-handler'
 
 export interface WorkspaceHandlerDependencies {
   hasWorkspaceRoot(webContentsId: number): boolean
@@ -48,6 +41,8 @@ export const registerWorkspaceHandlers = ({
   /** 便捷封装：目标路径必须属于调用窗口当前工作区（详见 workspace-scope.ts） */
   const withinWindow = (event: IpcMainInvokeEvent, candidate: string): Promise<boolean> =>
     withinCallerWorkspace(scope, event, candidate)
+
+  registerWorkspaceSearchHandler(withinWindow)
 
   ipcMain.handle(CHANNELS.FILE_OPEN_FOLDER, async (event, args?: { path?: string }) => {
     const window = BrowserWindow.fromWebContents(event.sender)
@@ -238,143 +233,4 @@ export const registerWorkspaceHandlers = ({
     }
   })
 
-  ipcMain.handle(
-    CHANNELS.FILE_SEARCH_WORKSPACE,
-    async (
-      event,
-      args: {
-        dir: string
-        query: string
-        caseSensitive?: boolean
-        regex?: boolean
-      },
-    ) => {
-      try {
-        if (
-          !args ||
-          typeof args.dir !== 'string' ||
-          !args.dir ||
-          typeof args.query !== 'string' ||
-          !(await withinWindow(event, args.dir))
-        ) {
-          return { ok: false, error: { code: 'INVALID_TARGET' } }
-        }
-        const dirStat = await stat(args.dir).catch(() => null)
-        if (!dirStat) return { ok: false, error: { code: 'NOT_FOUND' } }
-        if (!dirStat.isDirectory()) return { ok: false, error: { code: 'NOT_DIRECTORY' } }
-        const query = args.query.trim()
-        if (!query) return { ok: true, data: { matches: [], truncated: false } }
-        if (query.length > 256) {
-          return {
-            ok: false,
-            error: { code: 'QUERY_TOO_LONG', message: '搜索关键词不能超过 256 个字符' },
-          }
-        }
-        if (args.regex) {
-          try {
-            new RegExp(query, args.caseSensitive ? '' : 'i')
-          } catch {
-            return {
-              ok: false,
-              error: { code: 'INVALID_REGEX', message: '正则表达式不合法' },
-            }
-          }
-        }
-        // 搜索不复用 Renderer 的 2000 节点文件树预算：它需要与生产索引一致地
-        // 覆盖 5000 篇文档；深度过滤仍由 walkMarkdownTree 保留。
-        const treeBudget = { nodes: 0, truncated: false }
-        const tree = await walkMarkdownTree(args.dir, 0, treeBudget, {
-          maxFiles: WORKSPACE_SEARCH_MAX_FILES + 1,
-        })
-        const paths: string[] = []
-        const flatten = (nodes: FolderTreeNode[]) => {
-          for (const node of nodes) {
-            if (node.children) {
-              flatten(node.children)
-              continue
-            }
-            paths.push(node.path)
-          }
-        }
-        flatten(tree)
-        const needle = args.caseSensitive ? query : query.toLowerCase()
-        const matches: { path: string; line: number; preview: string }[] = []
-        // 扫描覆盖截断（树预算/5000 文件上限）与匹配数达上限是两件事：
-        // 后者用作循环提前退出标志，不能与前者共用变量——否则工作区超限时
-        // 初值即为 true，第一个文件扫完就会退出，搜索覆盖塌缩到 1 个文件
-        const scanTruncated = treeBudget.truncated || paths.length > WORKSPACE_SEARCH_MAX_FILES
-        let matchCapped = false
-        try {
-          for (const path of paths.slice(0, WORKSPACE_SEARCH_MAX_FILES)) {
-            const fileStat = await stat(path).catch(() => null)
-            if (!fileStat || fileStat.size > 2 * 1024 * 1024) continue
-            if (args.regex) {
-              let content: string
-              try {
-                ;({ content } = await readTextAutoEncoding(path))
-              } catch (error) {
-                if (error instanceof FileIdentityChangedError) continue
-                throw error
-              }
-              const regexMatches = await runSharedRegexSearch(
-                content,
-                query,
-                Boolean(args.caseSensitive),
-                200 - matches.length,
-              )
-              for (const match of regexMatches) matches.push({ path, ...match })
-              if (matches.length >= 200) {
-                matchCapped = true
-                break
-              }
-              continue
-            }
-            let lines: string[]
-            const cached = getCachedSearchLines(path)
-            const mtimeSettled = Date.now() - fileStat.mtimeMs > 2500
-            if (cached && mtimeSettled && cached.mtimeMs === fileStat.mtimeMs && cached.size === fileStat.size) {
-              lines = cached.lines
-            } else {
-              let content: string
-              try {
-                ;({ content } = await readTextAutoEncoding(path))
-              } catch (error) {
-                if (error instanceof FileIdentityChangedError) continue
-                throw error
-              }
-              lines = content.split(/\r?\n/)
-              if (mtimeSettled) {
-                cacheSearchLines(path, {
-                  mtimeMs: fileStat.mtimeMs,
-                  size: fileStat.size,
-                  lines,
-                })
-              }
-            }
-            for (let index = 0; index < lines.length; index++) {
-              const candidate = args.caseSensitive ? lines[index] : lines[index].toLowerCase()
-              if (!candidate.includes(needle)) continue
-              matches.push({ path, line: index + 1, preview: lines[index].trim().slice(0, 120) })
-              if (matches.length >= 200) {
-                matchCapped = true
-                break
-              }
-            }
-            if (matchCapped) break
-          }
-          return { ok: true, data: { matches, truncated: scanTruncated || matchCapped, scanTruncated, matchCapped } }
-        } catch (error) {
-          if (error instanceof Error && error.message === 'REGEX_TIMEOUT') {
-            return {
-              ok: false,
-              error: { code: 'REGEX_TIMEOUT', message: '正则表达式匹配超时，请简化表达式' },
-            }
-          }
-          throw error
-        }
-      } catch (error) {
-        return { ok: false, error: { code: 'IO_ERROR', message: String(error) } }
-      }
-    },
-  )
 }

@@ -23,6 +23,11 @@ import {
   collectTagRecords,
   createEmptyWorkspaceIndex,
 } from '../../shared/workspace-index'
+import {
+  createInitialWorkspaceCoverage,
+  markWorkspaceCoverageIncomplete,
+  WORKSPACE_SCAN_MAX_FILE_BYTES,
+} from '../../shared/workspace-coverage'
 import type { IndexedDocument, WorkspaceIndex, WorkspaceIndexEvent as SharedWorkspaceIndexEvent } from '../../shared/workspace-index'
 
 export interface WorkspaceIndexResult {
@@ -88,7 +93,7 @@ export const createWorkspaceIndexService = (
   options?: { maxFiles?: number; maxFileSize?: number },
 ): WorkspaceIndexService => {
   const MAX_FILES = options?.maxFiles ?? DEFAULT_WORKSPACE_INDEX_MAX_FILES
-  const MAX_FILE_SIZE = options?.maxFileSize ?? 2 * 1024 * 1024
+  const MAX_FILE_SIZE = options?.maxFileSize ?? WORKSPACE_SCAN_MAX_FILE_BYTES
   const PROGRESS_INTERVAL = 50
 
   const states = new Map<string, WorkspaceIndexState>()
@@ -148,12 +153,19 @@ export const createWorkspaceIndexService = (
       check()
       const withinBudget = files.slice(0, MAX_FILES)
       let truncated = files.length > MAX_FILES
+      const coverage = createInitialWorkspaceCoverage()
+      if (truncated) {
+        markWorkspaceCoverageIncomplete(coverage)
+        coverage.skipped['file-budget'] += files.length - MAX_FILES
+      }
       const documents: Record<string, IndexedDocument> = {}
       // 未变化文件直接迁移旧解析结果（保留对象引用，供增量断言与省 IO）
       let scanned = 0
       for (const meta of withinBudget) {
         if (meta.size > MAX_FILE_SIZE) {
           truncated = true
+          markWorkspaceCoverageIncomplete(coverage)
+          coverage.skipped['file-size'] += 1
           continue
         }
         const previous = state.documents[meta.path]
@@ -171,9 +183,13 @@ export const createWorkspaceIndexService = (
             // 读取期间路径被换成链接时跳过这一篇，不能让单文件失败拖垮整库索引。
             if (error instanceof Error && error.name === 'FileIdentityChangedError') {
               truncated = true
+              markWorkspaceCoverageIncomplete(coverage)
+              coverage.skipped['read-error'] += 1
               continue
             }
-            throw error
+            markWorkspaceCoverageIncomplete(coverage)
+            coverage.skipped['read-error'] += 1
+            continue
           }
           check()
           const parsed = parseDocumentIndex({
@@ -194,6 +210,7 @@ export const createWorkspaceIndexService = (
           }
           documents[meta.path] = parsed
         }
+        coverage.scannedFiles += 1
         scanned++
         if (scanned % PROGRESS_INTERVAL === 0 || scanned === withinBudget.length) {
           emit(root, { type: 'progress', generation, scanned, total: withinBudget.length })
@@ -207,6 +224,7 @@ export const createWorkspaceIndexService = (
         generation,
         complete: !truncated,
         truncated,
+        coverage: { ...coverage, complete: !truncated },
         documents,
         links: Object.values(documents).flatMap((doc) =>
           doc.outgoingLinks.map((link) => ({
@@ -248,14 +266,23 @@ export const createWorkspaceIndexService = (
 
   return {
     async load(root) {
-      const state = states.get(root)
-      if (state?.index) return state.index
-      const cached = await deps.cacheStore?.load(root)
-      if (cached && state) {
-        state.index = cached
-        state.generation = cached.generation
+      const normalize = (index: WorkspaceIndex): WorkspaceIndex => {
+        if (index.coverage) return index
+        const coverage = createInitialWorkspaceCoverage()
+        coverage.complete = index.complete
+        coverage.scannedFiles = Object.keys(index.documents).length
+        if (!index.complete) markWorkspaceCoverageIncomplete(coverage)
+        return { ...index, coverage }
       }
-      return cached ?? state?.index ?? null
+      const state = states.get(root)
+      if (state?.index) return normalize(state.index)
+      const cached = await deps.cacheStore?.load(root)
+      const normalized = cached ? normalize(cached) : null
+      if (normalized && state) {
+        state.index = normalized
+        state.generation = normalized.generation
+      }
+      return normalized ?? (state?.index ? normalize(state.index) : null)
     },
 
     refresh(root, requestOptions) {

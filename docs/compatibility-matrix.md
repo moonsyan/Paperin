@@ -14,7 +14,7 @@
 | 工作区文件树、最近文件、收藏 | workspace hooks/components | workspace tests、收藏行为测试 | 文件树、最近编辑、星标收藏/取消、右键入口和按工作区恢复已实现 | 跨库路径迁移、5000 文件 UI 性能 |
 | 工作区壳层、当前文件来源与 dirty 上下文 | `WorkspaceShell` + `CurrentFileBanner` | 组件 Testing Library 契约测试 | 已迁移 | 多窗口、窄窗口与外部文件冒烟 |
 | 保存状态文案 | 顶栏、路径条、状态栏共用 `document-save-status.ts` | 保存回执与状态组件测试 | 已有：已保存/未保存、示例、未命名、保存中、冲突、编码、失败 | 九主题与缩放人工看 |
-| 工作区全文搜索 | `WorkspaceSearchDialog`、`workspace-handlers` 搜索 | `search-rank` 测试 | 已有：文件名和标题优先、相对目录、200 条上限与未扫完分开说明 | 60 题 Hit@5 与 5000 文件用户时延未测 |
+| 工作区全文搜索 | `WorkspaceSearchDialog`、`workspace-search-handler` | `workspace-search-coverage.test.ts`、`useWorkspaceSearch.test.ts`、`search-rank` | 已有：共享 `WorkspaceCoverage`；200 条命中上限与扫描跳过分开；未扫完时不把空列表当确定无结果；关闭/新查询通过 `queryId`+`cancel` 中止 Main 扫描 | 60 题 Hit@5 与用户侧时延未测 |
 | 插入来源引用 | 搜索结果与反链；`source-citation.ts` | `source-citation`、`insert-citation` 测试 | 已有：片段快照、相对链接、标题锚点、切文档拒绝、回到打开搜索时的位置 | 用户任务耗时未测 |
 | 重启后的搜索词与阅读位置 | 工作区设置 `lastSearchQuery` / `recentCitations`；文档视图状态 | `workspace-state` 测试 | 已有：缺字段默认为空，可清除且不删正文；选区与滚动随文档视图保存 | 真实重启、改名后回访未测 |
 | 打开知识库检查 | `workspace-compatibility.ts`、开始页 | 对应单元测试 | 已有：未扫完、缺附件、断链、残缺脚注只提示 | 来源夹具 hash 与五分钟任务未测 |
@@ -24,6 +24,17 @@
 | Renderer CSP | `src/renderer/index.html` | Electron smoke | 保留 | `data:` 仅在 `font-src`/`img-src` 按已知内嵌资源放行；脚本与连接仍只允许显式来源 |
 | 图片、附件、图片协议 | `image-file-handlers.ts`、attachment IPC + `mdimg://` | attachment/protocol tests；协议和导出内联都按普通文件句柄读取，图片目录钉住结果会跨重启保留；自定义 CSS 导入不跟随符号链接 | 保留 | 外部文件附件 |
 | 标签、Wiki 链接、反向链接、图谱 | shared indexes + panels | tag/link/graph tests | 已有；反链可插入引用 | 大库往返与图谱规模仍按现有上限 |
+
+### 工作区扫描预算（R05，三处口径一致）
+
+| 场景 | 文件树 UI | 全文搜索 | 后台索引 |
+|---|---|---|---|
+| Markdown 文件数 | 最多展示 **2000 节点**（含目录节点） | 最多扫描 **5000** 篇 `.md` | 最多索引 **5000** 篇 |
+| 目录深度 | **5** 层（超出标记 `truncated`） | 同左 | 无深度上限（仅文件数） |
+| 单文件大小 | 打开/编辑不受此限 | 超过 **2 MiB** 跳过并计 `file-size` | 超过 **2 MiB** 跳过并计 `file-size` |
+| 命中/结果 | — | 最多 **200** 条匹配（`matchCapped`） | — |
+
+总文件数未知时不展示百分比；跳过计数仅本地诊断，不进遥测。
 | 九套主题、字体、Typewriter、快捷键 | renderer settings/styles | theme/menu/shortcut tests | 保留；雾白/夜松已加入；快捷键提示已由映射同源渲染（`formatShortcutHint`） | 小窗口、实际文字使用对比度 |
 | 质量检查与写作统计 | renderer panels/libs | diagnostics/stats tests | 保留 | 大工作区性能 |
 | 安全边界 | preload narrow bridge、trusted paths | trusted-paths、IPC guard tests | 保留 | 打包启动验证 |

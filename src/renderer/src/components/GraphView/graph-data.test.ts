@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { IndexedDocument, WorkspaceIndex } from '../../../../shared/workspace-index'
+import { createInitialWorkspaceCoverage } from '../../../../shared/workspace-coverage'
 import { buildGraphData, GRAPH_NODE_LIMIT } from './graph-data'
 
 const documentOf = (path: string, relativePath: string, tags: string[] = []): IndexedDocument => ({
@@ -21,6 +22,7 @@ const indexOf = (documents: Record<string, IndexedDocument>, links: WorkspaceInd
   generation: 1,
   complete: true,
   truncated: false,
+  coverage: createInitialWorkspaceCoverage(),
   documents,
   links,
   tags: [],

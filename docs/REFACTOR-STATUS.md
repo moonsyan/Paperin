@@ -2,6 +2,17 @@
 
 更新时间：2026-09-20（Asia/Shanghai）
 
+## R05 结项（feat/strategy-execution）
+
+**任务号：** R05  
+**失败测试（修复前）：** A05——超大/超深/超预算漏扫仍可能呈现「完整无结果」；搜索与索引覆盖口径分散；旧查询响应可覆盖 UI。  
+**修复后结果：** `workspace-search-coverage.test.ts` 9/9；`useWorkspaceSearch.test.ts` 3/3；`workspace-index-service.test.ts` 9/9；`workspace-coverage.test.ts` 2/2；全量 **203** 文件 **1488** 项通过。  
+**全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0（1488 passed）；`npm run build` 0；`npm run smoke` **未重跑**（与 R00–R04 相同：React **#301** + `SMOKE_FAIL 系统关联文件未进入外部标签`，非 R05 回归）。  
+**文档：** `docs/compatibility-matrix.md` 扫描预算表；计划 §8 复选框。  
+**人工边界：** 冒烟仍被 React #301 阻塞端到端；5000 篇搜索尾部命中已在 `workspace-search-coverage.test.ts` 固化（约 2.2s）。跳过计数仅本地诊断，不进遥测。  
+**实际工时：** ~1.5h（自动化记录）  
+**下一项：** R06（本任务未启动）
+
 ## R04 结项（feat/strategy-execution）
 
 **任务号：** R04  
@@ -12,7 +23,7 @@
 **文档：** `docs/export-formats.md` 发布范围/完整性/缺图；计划 §7 复选框。  
 **人工边界：** 冒烟仍被 React #301 阻塞端到端；标题/目录排序回归仍由 `document-collection.test.ts` 覆盖。  
 **实际工时：** ~1h（自动化记录）  
-**下一项：** R05（本任务未启动）
+**下一项：** R05  
 
 ## R03 结项（feat/strategy-execution）
 

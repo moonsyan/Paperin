@@ -109,10 +109,12 @@ export interface DesktopAPI {
       query: string,
       caseSensitive?: boolean,
       regex?: boolean,
+      options?: { queryId?: number; cancel?: boolean },
     ): Promise<{
       ok: boolean
       data?: {
         matches: { path: string; line: number; preview: string }[]
+        coverage: import('../shared/workspace-coverage').WorkspaceCoverage
         truncated: boolean
         /** 扫描预算或文件数上限导致没扫完。缺省时由 truncated 与结果数推断。 */
         scanTruncated?: boolean

@@ -1,3 +1,5 @@
+import { workspaceCoverageLegacyFlags, type WorkspaceCoverage } from '../../../shared/workspace-coverage'
+
 export interface RankableSearchMatch {
   path: string
   line: number
@@ -44,13 +46,23 @@ export function formatSearchResultPath(path: string): string {
 export const SEARCH_SCOPE_LABEL = '范围：当前知识库的 Markdown。文件名和标题靠前，正文命中靠后。'
 
 export function searchCoverageNotes(input: {
-  truncated: boolean
+  truncated?: boolean
   scanTruncated?: boolean
   matchCapped?: boolean
   matchCount: number
+  coverage?: WorkspaceCoverage
 }): string[] {
-  const matchCapped = input.matchCapped === true || (input.matchCapped === undefined && input.truncated && input.matchCount >= 200)
-  const scanTruncated = input.scanTruncated === true || (input.scanTruncated === undefined && input.truncated && !matchCapped)
+  const legacy = input.coverage
+    ? workspaceCoverageLegacyFlags(input.coverage)
+    : {
+        truncated: input.truncated === true,
+        scanTruncated: input.scanTruncated,
+        matchCapped: input.matchCapped,
+      }
+  const matchCapped = legacy.matchCapped === true
+    || (legacy.matchCapped === undefined && legacy.truncated && input.matchCount >= 200)
+  const scanTruncated = legacy.scanTruncated === true
+    || (legacy.scanTruncated === undefined && legacy.truncated && !matchCapped)
   const notes: string[] = []
   if (matchCapped) notes.push('匹配达到 200 条上限，更后面的命中这次没有显示。')
   if (scanTruncated) notes.push('这次没有扫完整个知识库。列表里没有，不等于库里没有。')

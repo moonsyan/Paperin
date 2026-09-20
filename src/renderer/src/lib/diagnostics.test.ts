@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { IndexedDocument, WorkspaceIndex } from '../../../shared/workspace-index'
+import { createInitialWorkspaceCoverage } from '../../../shared/workspace-coverage'
 import { collectDiagnostics, parseStructuredQuery, searchStructuredIndex } from './diagnostics'
 
 const document = (overrides: Partial<IndexedDocument> = {}): IndexedDocument => ({
@@ -22,6 +23,7 @@ const index = (documents: Record<string, IndexedDocument>): WorkspaceIndex => ({
   generation: 3,
   complete: true,
   truncated: false,
+  coverage: createInitialWorkspaceCoverage(),
   documents,
   links: Object.values(documents).flatMap((item) => item.outgoingLinks),
   tags: [],

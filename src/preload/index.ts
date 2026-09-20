@@ -208,12 +208,15 @@ const desktopAPI = {
       query: string,
       caseSensitive?: boolean,
       regex?: boolean,
+      options?: { queryId?: number; cancel?: boolean },
     ) =>
       ipcRenderer.invoke(CHANNELS.FILE_SEARCH_WORKSPACE, {
         dir,
         query,
         caseSensitive,
         regex,
+        queryId: options?.queryId,
+        cancel: options?.cancel,
       }),
 
     /** 全工作区链接索引（wiki/相对 md 链接提取，反链与图谱数据源） */

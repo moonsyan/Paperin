@@ -9,6 +9,7 @@
 
 import type { WorkspaceLinkKind, WorkspaceLinkRef } from './link-index'
 import type { WorkspaceTagIndexEntry } from './tag-index'
+import { createInitialWorkspaceCoverage, type WorkspaceCoverage } from './workspace-coverage'
 
 export interface HeadingRecord {
   level: number
@@ -105,6 +106,8 @@ export interface WorkspaceIndex {
   complete: boolean
   /** 是否因预算限制只覆盖部分文件 */
   truncated: boolean
+  /** 与 complete/truncated 同步的覆盖明细；跳过原因仅本地诊断，不进遥测 */
+  coverage: WorkspaceCoverage
   /** 绝对路径 → 索引文档 */
   documents: Record<string, IndexedDocument>
   links: LinkRecord[]
@@ -125,6 +128,7 @@ export const createEmptyWorkspaceIndex = (workspacePath: string): WorkspaceIndex
   generation: 0,
   complete: false,
   truncated: false,
+  coverage: { ...createInitialWorkspaceCoverage(), complete: false },
   documents: {},
   links: [],
   tags: [],

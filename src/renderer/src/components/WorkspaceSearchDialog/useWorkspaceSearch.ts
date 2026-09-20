@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { WorkspaceIndex } from '../../../../shared/workspace-index'
+import type { WorkspaceCoverage } from '../../../../shared/workspace-coverage'
+import { workspaceCoverageLegacyFlags } from '../../../../shared/workspace-coverage'
 import { searchStructuredIndex } from '../../lib/diagnostics'
 import { rankSearchMatches } from '../../lib/search-rank'
 
@@ -16,6 +18,7 @@ export interface SearchCoverage {
   truncated: boolean
   scanTruncated?: boolean
   matchCapped?: boolean
+  coverage?: WorkspaceCoverage
 }
 
 export function useWorkspaceSearch({
@@ -44,12 +47,19 @@ export function useWorkspaceSearch({
 
   useEffect(() => {
     searchSeqRef.current += 1
+    const cancelSeq = searchSeqRef.current
     if (!open) {
       setLoading(false)
       setMatches([])
       setCoverage({ truncated: false })
       setError('')
       setSearched(false)
+      if (window.desktopAPI?.workspace) {
+        void window.desktopAPI.workspace.search(workspacePath, '', false, false, {
+          cancel: true,
+          queryId: cancelSeq,
+        })
+      }
       return
     }
     setMatches([])
@@ -98,23 +108,27 @@ export function useWorkspaceSearch({
           structuredMatches.map(({ path, line, preview, generation }) => ({ path, line, preview, generation })),
           q,
         ))
+        const indexCoverage = workspaceIndex.coverage
         setCoverage({
-          truncated: !workspaceIndex.complete || workspaceIndex.truncated,
-          scanTruncated: !workspaceIndex.complete || workspaceIndex.truncated,
-          matchCapped: false,
+          coverage: indexCoverage,
+          ...workspaceCoverageLegacyFlags(indexCoverage),
         })
         return
       }
-      const res = await window.desktopAPI.workspace.search(workspacePath, q, caseSensitive, useRegex)
+      const res = await window.desktopAPI.workspace.search(workspacePath, q, caseSensitive, useRegex, {
+        queryId: seq,
+      })
       if (seq !== searchSeqRef.current) return
       if (res.ok && res.data) {
         setMatches(useRegex ? res.data.matches : rankSearchMatches(res.data.matches, q))
         setCoverage({
+          coverage: res.data.coverage,
           truncated: res.data.truncated,
           scanTruncated: res.data.scanTruncated,
           matchCapped: res.data.matchCapped,
         })
       } else {
+        if (res.error?.code === 'CANCELLED') return
         setMatches([])
         setCoverage({ truncated: false })
         if (res.error?.code === 'INVALID_REGEX') setError('正则表达式不合法，请检查后重试')

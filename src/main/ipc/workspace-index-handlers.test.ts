@@ -8,6 +8,7 @@ import type {
   WorkspaceIndexResult,
 } from '../indexing/workspace-index-service'
 import type { WorkspaceIndex } from '../../shared/workspace-index'
+import { createInitialWorkspaceCoverage } from '../../shared/workspace-coverage'
 
 vi.mock('electron', () => ({
   ipcMain: { handle: vi.fn() },
@@ -27,6 +28,7 @@ const createIndex = (): WorkspaceIndex => ({
   generation: 1,
   complete: true,
   truncated: false,
+  coverage: createInitialWorkspaceCoverage(),
   documents: {},
   links: [],
   tags: [],
