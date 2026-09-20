@@ -1,10 +1,10 @@
 # Paperin 下一版界面与交互规范
 
-日期：2026-09-19
+更新时间：2026-09-20（界面规范内容未重估）
 
 状态：生产界面规范与后续验收基线；已实现部分以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准，不改变现有快捷键和用户设置。
 
-依据：[产品战略路线图](PRODUCT-STRATEGY-ROADMAP.md)、生产组件与 quiet-workspace 已有设计；具体完成度以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准。
+依据：[2026-09-20 战略审查报告](PRODUCT-STRATEGY-REVIEW-2026-09-20.md)、生产组件与 quiet-workspace 已有设计；具体完成度以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准。
 
 ## 1. 设计目标
 

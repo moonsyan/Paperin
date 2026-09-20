@@ -46,8 +46,6 @@ Paperin 是项目统一产品名称，工作区状态写入 `.paperin`，应用�
 - 工作区搜索和反链都可以把来源片段插入当前文章。片段是插入当时的快照，标题行会带普通 Markdown 锚点，不会改来源文件。从搜索插入后回到打开搜索时的位置，可用撤销收回。换成另一篇后再插入会被拒绝。
 - 再次打开同一知识库时，会填回上次的搜索词，搜索框里也能看到最近引用的库内路径。这些导航记录可以清除，不会删正文。阅读位置随文档视图保存。打开后若索引没扫完、附件缺失或链接对不上，只给出说明，不改原文件。和现有 Markdown 工具一起用，见 [共存说明](docs/coexistence.md)。
 
-可交互原型位于 [`design/soft-workbench`](./design/soft-workbench/README.md)，它只用于体验布局和信息层级，不会读写真实知识库。运行 `npm run demo:soft` 可预览原型。
-
 ## 技术架构
 
 ```text
@@ -73,7 +71,6 @@ Shared (DTO、状态、常量；无副作用)
 | `src/renderer/src/lib/` | 解析、转换、搜索和纯规则 |
 | `src/shared/` | 进程间共享 DTO、状态和通道常量 |
 | `docs/` | 当前设计规范、维护契约、计划、兼容矩阵和验证记录 |
-| `design/soft-workbench/` | 独立 UI 原型 |
 
 ## 开发
 
@@ -94,7 +91,6 @@ npm run build         # electron-vite 生产构建
 npm run smoke         # 隔离临时目录的真实 Electron 主链路
 npm run a11y          # 主题对比度与焦点轮廓门禁
 npm run perf:regression
-npm run demo:soft     # 仅启动柔和工作台原型
 ```
 
 提交功能前应至少运行 `npm run typecheck`、`npm run test` 和 `npm run build`；涉及 UI、文件或 IPC 时追加 `npm run lint`、`npm run a11y` 和 `npm run smoke`。性能脚本使用合成临时数据，不会扫描或上传用户知识库。
@@ -115,14 +111,12 @@ npm run demo:soft     # 仅启动柔和工作台原型
 
 文档已经收敛为当前仍有用途的维护资料、设计规范和验证记录：
 
-- [`docs/PRODUCT-STRATEGY-ROADMAP.md`](./docs/PRODUCT-STRATEGY-ROADMAP.md)：战略定位、竞品事实校正、目标用户、增长与商业验证规则。
 - [`docs/README.md`](./docs/README.md)：文档入口。完成度不在这里重复抄表。
 - [`docs/coexistence.md`](./docs/coexistence.md)：和现有 Markdown 工具、以及导出副本怎么一起用。
 - [`docs/export-formats.md`](./docs/export-formats.md)：各导出格式实际检查什么。
 - [`docs/development/strategy-validation.md`](./docs/development/strategy-validation.md)：正确性、性能、复用效率、留存与增长的验收指标及采样口径。
 - [`docs/REFACTOR-STATUS.md`](./docs/REFACTOR-STATUS.md)：当前唯一的完成度记录。历史批次日志已删除。
 - [`docs/NEXT-UI-SPEC.md`](./docs/NEXT-UI-SPEC.md)：顶栏、侧栏、路径条、上下文面板、主题和窄窗口规范。
-- [`docs/NEXT-DEVELOPMENT-PLAN.md`](./docs/NEXT-DEVELOPMENT-PLAN.md)：战略落地的 S00–S17 任务、优先级、依赖、验收、回退及旧任务映射。
 - [`docs/compatibility-matrix.md`](./docs/compatibility-matrix.md)：旧能力、当前实现、测试依据和平台验证边界。
 - [`docs/command-panels.md`](./docs/command-panels.md)：命令注册表、快捷键、面板插槽和低频能力入口。
 - [`docs/workspace-shell.md`](./docs/workspace-shell.md)：工作区壳层、路径来源、dirty 和窄窗口交互契约。
@@ -133,7 +127,7 @@ npm run demo:soft     # 仅启动柔和工作台原型
 - [`docs/ACCESSIBILITY-SMOKE.md`](./docs/ACCESSIBILITY-SMOKE.md)：主题可读性、焦点和人工冒烟范围。
 - [`docs/development/`](./docs/development/)：性能基线、主题基线和回归脚本数据。
 
-`docs/IMPLEMENTATION-PLAN.md` 说明开发约束。本轮战略取舍与任务顺序以 2026-09-20 报告和 R00–R17 实施任务为准；原战略和 S00–S17 计划保留追溯。持续完成度仍由 `REFACTOR-STATUS` 维护，审查报告记录其基线时点的证据。
+`docs/IMPLEMENTATION-PLAN.md` 说明开发约束。本轮战略取舍与任务顺序以 2026-09-20 报告和 R00–R17 实施任务为准；旧计划仅保留在 Git 历史中供追溯。持续完成度仍由 `REFACTOR-STATUS` 维护，审查报告记录其基线时点的证据。
 
 ## 当前边界与后续方向
 

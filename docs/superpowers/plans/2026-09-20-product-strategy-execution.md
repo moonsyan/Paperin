@@ -8,7 +8,7 @@
 
 **技术栈：** Electron 43、React 18、TypeScript strict、Milkdown 7/ProseMirror、mdast/micromark、Vitest/Testing Library、electron-vite、electron-builder。实施时以锁文件为准，不在本计划顺带升级依赖。
 
-**依据：** [战略报告](../../PRODUCT-STRATEGY-REVIEW-2026-09-20.md)、[代码审查附录](../../development/product-audit-2026-09-20.md)、[原 S00–S17 任务](../../NEXT-DEVELOPMENT-PLAN.md)、[验收协议](../../development/strategy-validation.md)。代码基线 `b6ad9a5`，2026-09-20。
+**依据：** [战略报告](../../PRODUCT-STRATEGY-REVIEW-2026-09-20.md)、[代码审查附录](../../development/product-audit-2026-09-20.md)、[验收协议](../../development/strategy-validation.md)。已替代的 S00–S17 计划只在 Git 历史中保留追溯。代码基线 `b6ad9a5`，2026-09-20。
 
 ## 1. 全局约束与执行方法
 
@@ -335,10 +335,11 @@ export type WorkspaceChange =
 
 ## 20. R17：文档、许可材料与维护账本
 
-**对应 A09 / 原 S00/S17。文件：** `README.md`、`docs/README.md`、`REFACTOR-STATUS.md`、`NEXT-DEVELOPMENT-PLAN.md`、`PRODUCT-STRATEGY-ROADMAP.md`、`package.json`；有权利依据后补根 `LICENSE` 与第三方材料；不存在的 `design/soft-workbench` 入口应清理或恢复实际资源。
+**对应 A09。文件：** `README.md`、`docs/README.md`、`REFACTOR-STATUS.md`、`PRODUCT-STRATEGY-REVIEW-2026-09-20.md`、本计划、`package.json`；有权利依据后补根 `LICENSE` 与第三方材料；`package.json` 中不存在资源对应的 `demo:soft*` 脚本应清理或恢复实际资源。
 
+- [x] 删除已被本轮审查替代的 `PRODUCT-STRATEGY-ROADMAP.md` 和 `NEXT-DEVELOPMENT-PLAN.md`，更新 README、索引、验收协议与计划链接；旧内容在 Git 历史中追溯。
 - [ ] 以当前代码核对声明，保留历史作为历史；不继续把引用流程、模板当未实现，也不把平台/用户验收写成已完成。
-- [ ] 明确本轮战略/实施入口；完成状态只更新 `REFACTOR-STATUS`，本轮审查证据保留原快照。
+- [x] 明确本轮战略/实施入口；完成状态只更新 `REFACTOR-STATUS`，本轮审查证据保留原快照。
 - [ ] 核对项目许可声明与第三方分发材料，不能仅依据 MIT 字段做全部权利结论；不删除 Chromium 必需声明。
 - [ ] 为超限逻辑文件维护“本次触及职责/拟拆边界/直接测试/实际行数”账本；示例数据单列，不为了数字机械拆分。
 - [ ] 检查本地 Markdown 链接、计划依赖和工时，不制造多个互相矛盾的任务顺序。文档修改用 `docs:` 独立提交。

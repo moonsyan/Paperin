@@ -2,7 +2,7 @@
 
 > 2026-09-19：下文保留当时的夹具和阈值。后来的 Electron 记录以 [REFACTOR-STATUS](../REFACTOR-STATUS.md) 为准，不要把 2026-09-10 的合成扫描和 2026-09-15/18 的真实保存耗时拼成同一次结果。
 
-> 2026-09-14 历史复核说明：本文保留既有夹具、历史样本与阈值。当时 5 MiB 门禁还没有通过记录；2026-09-15 起的通过记录写在 [REFACTOR-STATUS](../REFACTOR-STATUS.md)，不要回写成“仍未通过”。文中“超过 1 MiB 优先快照”的实现实际为 `content.length > 1_000_000`（字符串长度），不是字节数。顺序见 [实施计划](../NEXT-DEVELOPMENT-PLAN.md)。
+> 2026-09-14 历史复核说明：本文保留既有夹具、历史样本与阈值。当时 5 MiB 门禁还没有通过记录；2026-09-15 起的通过记录写在 [REFACTOR-STATUS](../REFACTOR-STATUS.md)，不要回写成“仍未通过”。文中“超过 1 MiB 优先快照”的实现实际为 `content.length > 1_000_000`（字符串长度），不是字节数。当前执行顺序见 [R00–R17 实施任务](../superpowers/plans/2026-09-20-product-strategy-execution.md)。
 
 ## 结论
 

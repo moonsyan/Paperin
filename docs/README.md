@@ -2,7 +2,7 @@
 
 更新时间：2026-09-20（Asia/Shanghai）
 
-`docs/` 保留当前说明与有日期的审查证据。持续完成度看 [REFACTOR-STATUS](REFACTOR-STATUS.md)；本轮审查结果固定在证据附录中。下一轮优先顺序以 [R00–R17 实施任务](superpowers/plans/2026-09-20-product-strategy-execution.md) 为准，原 S00–S17 计划保留验收与追溯，不重复实施已经落地的能力。
+`docs/` 保留当前说明与有日期的审查证据。持续完成度看 [REFACTOR-STATUS](REFACTOR-STATUS.md)；本轮审查结果固定在证据附录中。下一轮优先顺序以 [R00–R17 实施任务](superpowers/plans/2026-09-20-product-strategy-execution.md) 为准；已替代的旧战略和任务计划可从 Git 历史追溯，不重复实施已经落地的能力。
 
 ## 先读哪一份
 
@@ -11,7 +11,7 @@
 | 本轮产品取舍与竞品比较 | [2026-09-20 战略审查报告](PRODUCT-STRATEGY-REVIEW-2026-09-20.md) |
 | 下一项工作与完整实施任务 | [R00–R17 优先级实施计划](superpowers/plans/2026-09-20-product-strategy-execution.md) |
 | 本轮代码与验证证据 | [product-audit-2026-09-20](development/product-audit-2026-09-20.md) |
-| 原战略与任务追溯 | [PRODUCT-STRATEGY-ROADMAP](PRODUCT-STRATEGY-ROADMAP.md)、[NEXT-DEVELOPMENT-PLAN](NEXT-DEVELOPMENT-PLAN.md) |
+| 历史审查与任务依据 | [代码与验证证据](development/product-audit-2026-09-20.md)、Git 提交历史 |
 | 现在做到哪 | [REFACTOR-STATUS](REFACTOR-STATUS.md) |
 | 怎么改代码 | [IMPLEMENTATION-PLAN](IMPLEMENTATION-PLAN.md) 与仓库根目录 `AGENTS.md` |
 | 指标口径 | [strategy-validation](development/strategy-validation.md) |
@@ -33,4 +33,4 @@
 
 ## 不能从现有文档推出的结论
 
-不能写成“三平台已发布”“所有设备上 5 MiB 都达标”“用户留存成立”或“商业模式已验证”。这些仍要等 S03、S04、S13、S14、S16 的环境和记录。
+不能写成“三平台已发布”“所有设备上 5 MiB 都达标”“用户留存成立”或“商业模式已验证”。这些仍要等 R09、R10、R13、R14、R15 的环境和记录。

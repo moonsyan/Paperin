@@ -166,7 +166,7 @@ Electron 缺失导致加载失败的三个套件是 `src/main/ipc/export-docx.te
 
 **证据为仓库盘点与代码/文档对照。**
 
-README `:49`、`:76` 和 package 的 `demo:soft*` 指向本基线不存在的 `design/soft-workbench`；应清理或恢复真实入口。package description 仍强调极简编辑器，开始页是写作空间，产品文档强调知识工作台；需要统一核心任务表达，但不必为此重做整个 UI。
+审查基线时 README `:49`、`:76` 和 package 的 `demo:soft*` 指向本基线不存在的 `design/soft-workbench`。2026-09-20 的文档收敛已清理 README 入口；`package.json` 脚本仍待 R17 决定删除或恢复真实资源。package description 仍强调极简编辑器，开始页是写作空间，产品文档强调知识工作台；需要统一核心任务表达，但不必为此重做整个 UI。
 
 Git 跟踪文件中未找到根 LICENSE；只有 `package.json` 的 MIT 元数据不能代替完整分发材料审查。现有 `afterPack.js` 明确保留 Chromium 许可文件，不应错误声称它删了许可证。
 
