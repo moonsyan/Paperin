@@ -71,7 +71,14 @@ export function usePublishFlow({
               return
             }
             setToast('集合导出：正在读取文档…')
-            const entries = orderCollection(await resolveCollectionEntries(scope))
+            let entries: CollectionEntry[]
+            try {
+              entries = orderCollection(await resolveCollectionEntries(scope))
+            } catch (error) {
+              const message = error instanceof Error ? error.message : '集合导出失败'
+              setToast(message.includes('索引不完整') ? message : `集合导出失败：${message}`)
+              return
+            }
             if (entries.length === 0) {
               setToast('集合范围内没有可发布的文档')
               return
@@ -94,7 +101,11 @@ export function usePublishFlow({
           let assets: ExportAsset[] = []
           if (options.inlineImages) {
             // 内联模式：单文件自包含，不写 assets/
-            const { html: inlined } = await inlineImagesInHtml(html)
+            const { html: inlined, failed } = await inlineImagesInHtml(html)
+            if (failed > 0) {
+              setToast(`${failed} 张本地图片无法读取，已取消导出`)
+              return
+            }
             finalHtml = inlined
           } else {
             const bundle = await collectExportBundle(html, async (src) => {
@@ -140,7 +151,11 @@ export function usePublishFlow({
         }
         const html = await buildPublishedHtml(options)
         // 粘贴环境通常会剥离外链样式：富文本始终内联图片
-        const { html: inlined } = await inlineImagesInHtml(html)
+        const { html: inlined, failed } = await inlineImagesInHtml(html)
+        if (failed > 0) {
+          setToast(`${failed} 张本地图片无法读取，已取消复制`)
+          return
+        }
         const editorMd = editorRef.current?.isReady() ? editorRef.current.getMarkdown() : null
         const plain = editorMd ?? ''
         try {

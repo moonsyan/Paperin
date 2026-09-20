@@ -1,3 +1,5 @@
+import type { WorkspaceIndex } from '../../../shared/workspace-index'
+
 /* ==================== HTML 资源包导出与发布模板 ====================
  *
  * 资源包 = index.html + assets/：本地图片（mdimg://）改写为 assets/ 相对
@@ -35,6 +37,15 @@ export type PublishScope =
   | { kind: 'document' }
   | { kind: 'directory' }
   | { kind: 'tag'; tag: string }
+
+/** 集合导出前置：不完整索引必须拒绝，避免静默漏篇 */
+export const getCollectionIndexBlockReason = (index: WorkspaceIndex | null): string | null => {
+  if (!index) return '请先打开工作区后再使用集合导出'
+  if (!index.complete || index.truncated) {
+    return '工作区索引不完整，无法按完整范围导出集合，请等待索引完成或缩小知识库后再试'
+  }
+  return null
+}
 
 /** 体积上限：单资源 20MB、总量 100MB、HTML 10MB（主进程同口径校验） */
 export const MAX_BUNDLE_ASSET_BYTES = 20 * 1024 * 1024

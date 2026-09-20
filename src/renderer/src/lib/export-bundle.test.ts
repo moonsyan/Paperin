@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { createEmptyWorkspaceIndex } from '../../../shared/workspace-index'
 import {
   MAX_BUNDLE_ASSET_BYTES,
   MAX_BUNDLE_HTML_BYTES,
@@ -8,6 +9,7 @@ import {
   cleanWikiLinksInHtml,
   collectExportBundle,
   dataUrlToExportAsset,
+  getCollectionIndexBlockReason,
   rewriteBundleHtml,
 } from './export-bundle'
 
@@ -168,5 +170,23 @@ describe('buildExportBundle', () => {
   it('写盘失败透传主进程错误码（临时目录原子写保证不残留半成品）', async () => {
     const deps = baseDeps({ ok: false, error: { code: 'IO_ERROR', message: '磁盘已满' } })
     await expect(buildExportBundle('<title>t</title>', [], 'D:/out', deps)).rejects.toMatchObject({ code: 'IO_ERROR' })
+  })
+})
+
+describe('getCollectionIndexBlockReason', () => {
+  it('空索引与 truncated 索引均阻断', () => {
+    expect(getCollectionIndexBlockReason(null)).toMatch(/工作区/)
+    const empty = createEmptyWorkspaceIndex('D:/v')
+    expect(getCollectionIndexBlockReason(empty)).toMatch(/索引不完整/)
+    const truncated = createEmptyWorkspaceIndex('D:/v')
+    truncated.complete = true
+    truncated.truncated = true
+    expect(getCollectionIndexBlockReason(truncated)).toMatch(/索引不完整/)
+  })
+
+  it('complete 且未截断时允许集合导出', () => {
+    const index = createEmptyWorkspaceIndex('D:/v')
+    index.complete = true
+    expect(getCollectionIndexBlockReason(index)).toBeNull()
   })
 })

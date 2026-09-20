@@ -1,5 +1,5 @@
 import type { WorkspaceIndex } from '../../../shared/workspace-index'
-import type { PublishScope } from '../lib/export-bundle'
+import { getCollectionIndexBlockReason, type PublishScope } from '../lib/export-bundle'
 import {
   extractCollectionOrder,
   extractCollectionTitle,
@@ -29,10 +29,12 @@ export async function resolveCollectionEntries(
   scope: Exclude<PublishScope, { kind: 'document' }>,
   { workspaceIndex, activePath, readDocument, openContents }: ResolveCollectionEntriesOptions,
 ): Promise<CollectionEntry[]> {
-  if (!workspaceIndex) throw new Error('请先打开工作区后再使用集合导出')
+  const blockReason = getCollectionIndexBlockReason(workspaceIndex)
+  if (blockReason) throw new Error(blockReason)
+  const index = workspaceIndex!
   const lastSep = Math.max(activePath.lastIndexOf('/'), activePath.lastIndexOf('\\'))
   const activeDir = lastSep > 0 ? activePath.slice(0, lastSep) : ''
-  const selected = Object.values(workspaceIndex.documents).filter((doc) => {
+  const selected = Object.values(index.documents).filter((doc) => {
     if (scope.kind === 'tag') return doc.tags.some((t) => t.toLowerCase() === scope.tag.toLowerCase())
     const docSep = Math.max(doc.path.lastIndexOf('/'), doc.path.lastIndexOf('\\'))
     return (docSep > 0 ? doc.path.slice(0, docSep) : '') === activeDir

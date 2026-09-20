@@ -58,12 +58,16 @@ export function PublishDialog({
 
   const options: PublishOptions = { template, includeToc, inlineImages, cleanWikiLinks }
   const trimmedTag = tagInput.trim()
+  const isCollectionScope = scopeKind === 'directory' || scopeKind === 'tag'
+  const tagScopeIncomplete = scopeKind === 'tag' && !trimmedTag
   const scope: PublishScope =
-    scopeKind === 'tag' && trimmedTag
+    scopeKind === 'tag'
       ? { kind: 'tag', tag: trimmedTag }
       : scopeKind === 'directory'
         ? { kind: 'directory' }
         : { kind: 'document' }
+  const exportDisabled = busy || tagScopeIncomplete
+  const copyRichTextDisabled = busy || isCollectionScope
 
   return (
     <div className="dialog-overlay" onClick={busy ? undefined : onClose}>
@@ -136,6 +140,9 @@ export function PublishDialog({
                     list="publish-tag-options"
                     value={tagInput}
                     placeholder="输入标签"
+                    aria-required="true"
+                    aria-invalid={tagScopeIncomplete}
+                    aria-describedby={tagScopeIncomplete ? 'publish-tag-required' : undefined}
                     onChange={(e) => setTagInput(e.target.value)}
                   />
                   <datalist id="publish-tag-options">
@@ -143,6 +150,11 @@ export function PublishDialog({
                       <option key={tag} value={tag} />
                     ))}
                   </datalist>
+                  {tagScopeIncomplete && (
+                    <p id="publish-tag-required" className="settings-hint publish-scope-block">
+                      请输入标签后再导出；不会改为仅导出当前文档。
+                    </p>
+                  )}
                 </div>
               )}
             </>
@@ -189,7 +201,8 @@ export function PublishDialog({
             <button
               type="button"
               className="publish-primary"
-              disabled={busy}
+              disabled={exportDisabled}
+              aria-describedby={tagScopeIncomplete ? 'publish-tag-required' : undefined}
               onClick={() => onExportBundle(options, scope)}
             >
               {busy ? '处理中…' : '导出 HTML 资源包…'}
@@ -197,16 +210,23 @@ export function PublishDialog({
             <button
               type="button"
               className="publish-secondary"
-              disabled={busy}
+              disabled={copyRichTextDisabled}
+              title={copyRichTextDisabled && !busy ? '仅「当前文档」模式可复制富文本' : undefined}
+              aria-describedby={copyRichTextDisabled && !busy ? 'publish-copy-scope-hint' : undefined}
               onClick={() => onCopyRichText(options)}
             >
-              复制富文本
+              复制当前文档富文本
             </button>
           </div>
+          {copyRichTextDisabled && !busy && (
+            <p id="publish-copy-scope-hint" className="settings-hint publish-scope-block">
+              集合模式仅支持导出 HTML 资源包，不能复制合并后的富文本。
+            </p>
+          )}
           <p className="publish-hint">
             {scopeKind === 'document'
               ? '资源包包含 index.html 与 assets/ 图片文件夹，可独立打开或托管；复制富文本后可直接粘贴到公众号、邮件等编辑器。'
-              : '集合模式按 Frontmatter order 合并多篇文档为单个 HTML（复杂公式/图表建议逐篇导出）；每篇标题来自 Frontmatter title 或首个标题。'}
+              : '集合模式按 Frontmatter order 合并多篇文档为单个 HTML 资源包（复杂公式/图表建议逐篇导出）；每篇标题来自 Frontmatter title 或首个标题。'}
           </p>
         </div>
       </div>

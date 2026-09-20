@@ -2,6 +2,18 @@
 
 更新时间：2026-09-20（Asia/Shanghai）
 
+## R04 结项（feat/strategy-execution）
+
+**任务号：** R04  
+**提交：** （见本分支最新 `fix:` 提交）  
+**失败测试（修复前）：** A04——内联 `failed>0` 仍 toast 成功；空标签静默回退 `kind:document`；集合模式仍可点富文本复制；不完整索引可集合导出。  
+**修复后结果：** `PublishDialog/index.test.tsx` 3/3；`usePublishFlow.test.ts` 4/4；`resolve-collection-entries.test.ts` 5/5；`export-bundle.test.ts` +2；全量 **200** 文件 **1474** 项通过。  
+**全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0（1474 passed）；`npm run build` 0；`npm run smoke` **exit 1**（与 R00–R03 相同：React #301 + `SMOKE_FAIL 系统关联文件未进入外部标签`，非 R04 回归）。  
+**文档：** `docs/export-formats.md` 发布范围/完整性/缺图；计划 §7 复选框。  
+**人工边界：** 冒烟仍被 React #301 阻塞端到端；标题/目录排序回归仍由 `document-collection.test.ts` 覆盖。  
+**实际工时：** ~1h（自动化记录）  
+**下一项：** R05（本任务未启动）
+
 ## R03 结项（feat/strategy-execution）
 
 **任务号：** R03  
