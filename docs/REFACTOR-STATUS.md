@@ -2,6 +2,17 @@
 
 更新时间：2026-09-20（Asia/Shanghai）
 
+## R08 结项（feat/strategy-execution）
+
+**任务号：** R08  
+**失败测试（修复前）：** A07——工作区搜索/发布弹窗缺少 dialog 语义、Tab 约束与一致焦点恢复；Escape 在 IME 组合态可能误关；发布 busy 时 Escape 策略未与导出取消对齐。  
+**修复后结果：** `useModalDialogKeyboard.test.tsx` 9/9；`WorkspaceSearchDialog/index.test.tsx` 4/4；`PublishDialog/index.test.tsx` 8/8（含 R04）；全量 **208** 文件 **1530** 项通过。  
+**全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0（1530 passed）；`npm run build` 0；`npm run a11y` 0；`npm run smoke` **未重跑**（React **#301** + 系统关联标签，非 R08 回归）。  
+**文档：** 计划 §11 复选框；`docs/ACCESSIBILITY-SMOKE.md` R08 节与主题豁免复核。  
+**人工边界：** 九主题×100/125/150%×窄窗口矩阵与真机中文 IME 仍待 Electron 手测；37 项主题基线豁免未机械删除。  
+**实际工时：** ~1h（自动化记录）  
+**下一项：** R09（本任务未启动）
+
 ## R07 结项（feat/strategy-execution）
 
 **任务号：** R07  
@@ -11,7 +22,7 @@
 **文档：** 计划 §10 复选框；`docs/file-write-recovery.md` 草稿/历史边界。  
 **人工边界：** 真实双 Electron 窗口连续重启端到端仍受 React #301 冒烟阻塞；Main `draftSessionId` + `DRAFT_SESSION_CONFLICT` 与状态栏「草稿已备份」已固化。  
 **实际工时：** ~1.5h（自动化记录）  
-**下一项：** R08（本任务未启动）
+**下一项：** R08（已完成，见上）
 
 ## R06 结项（feat/strategy-execution）
 

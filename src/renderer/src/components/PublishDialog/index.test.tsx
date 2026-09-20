@@ -1,9 +1,100 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { useState } from 'react'
+import { SKIP_LINK_TARGET_ID } from '../../app/SkipLink'
 import { PublishDialog } from './index'
 
 afterEach(() => cleanup())
+
+describe('PublishDialog 键盘与可访问性（R08）', () => {
+  it('按 role 与标题名称定位对话框，打开后焦点在关闭按钮', () => {
+    render(
+      <PublishDialog open onClose={vi.fn()} onExportBundle={vi.fn()} onCopyRichText={vi.fn()} />,
+    )
+    const dialog = screen.getByRole('dialog', { name: '发布' })
+    expect(dialog.getAttribute('aria-modal')).toBe('true')
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '关闭' }))
+  })
+
+  it('Tab 不能聚焦到背景动作', () => {
+    render(
+      <>
+        <button type="button">背景导出</button>
+        <PublishDialog open onClose={vi.fn()} onExportBundle={vi.fn()} onCopyRichText={vi.fn()} />
+      </>,
+    )
+    const lastAction = screen.getByRole('button', { name: /复制当前文档富文本/ })
+    lastAction.focus()
+    fireEvent.keyDown(window, { key: 'Tab', bubbles: true })
+    expect(document.activeElement).not.toBe(screen.getByRole('button', { name: '背景导出' }))
+  })
+
+  it('导出 busy 时 Escape 不关闭', () => {
+    const onClose = vi.fn()
+    render(
+      <PublishDialog
+        open
+        busy
+        onClose={onClose}
+        onExportBundle={vi.fn()}
+        onCopyRichText={vi.fn()}
+      />,
+    )
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('compositionstart → Escape → compositionend 不误关', () => {
+    const onClose = vi.fn()
+    render(
+      <PublishDialog
+        open
+        hasWorkspace
+        availableTags={['note']}
+        onClose={onClose}
+        onExportBundle={vi.fn()}
+        onCopyRichText={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('radio', { name: '按标签' }))
+    const tagInput = screen.getByPlaceholderText('输入标签')
+    fireEvent.compositionStart(tagInput)
+    fireEvent.keyDown(tagInput, { key: 'Escape', isComposing: true, keyCode: 229 })
+    fireEvent.compositionEnd(tagInput)
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('关闭后触发器已卸载时焦点落到正文宿主', () => {
+    const host = document.createElement('div')
+    host.id = SKIP_LINK_TARGET_ID
+    host.tabIndex = -1
+    document.body.append(host)
+
+    function Harness(): JSX.Element {
+      const [open, setOpen] = useState(true)
+      const [showTrigger, setShowTrigger] = useState(true)
+      const handleClose = (): void => {
+        setOpen(false)
+        setShowTrigger(false)
+      }
+      return (
+        <>
+          {showTrigger ? <button type="button">打开发布</button> : null}
+          <PublishDialog
+            open={open}
+            onClose={handleClose}
+            onExportBundle={vi.fn()}
+            onCopyRichText={vi.fn()}
+          />
+        </>
+      )
+    }
+    render(<Harness />)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(document.activeElement).toBe(host)
+  })
+})
 
 describe('PublishDialog（R04 范围与动作一致）', () => {
   it('按标签但未输入标签时禁用资源包导出，并给出可访问原因', () => {

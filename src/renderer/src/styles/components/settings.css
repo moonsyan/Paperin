@@ -242,6 +242,11 @@ button.dialog-btn.danger:hover { background: var(--danger-h); border-color: var(
   gap: 8px;
 }
 .ws-input { flex: 1; }
+.ws-search-row .search-input:focus-visible,
+.ws-search-row button.dialog-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 .ws-results {
   max-height: 380px;
   overflow-y: auto;

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { isImeComposing } from '../../lib/keyboard'
+import { useRef, useState } from 'react'
+import { useModalDialogKeyboard } from '../../hooks/useModalDialogKeyboard'
 import type { PublishOptions, PublishScope, PublishTemplate } from '../../lib/export-bundle'
 
 interface PublishDialogProps {
@@ -37,6 +37,8 @@ export function PublishDialog({
   hasWorkspace = false,
   availableTags = [],
 }: PublishDialogProps): JSX.Element | null {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
   const [template, setTemplate] = useState<PublishTemplate>('blog')
   const [includeToc, setIncludeToc] = useState(true)
   const [inlineImages, setInlineImages] = useState(true)
@@ -44,17 +46,16 @@ export function PublishDialog({
   const [scopeKind, setScopeKind] = useState<PublishScope['kind']>('document')
   const [tagInput, setTagInput] = useState(availableTags[0] ?? '')
 
-  useEffect(() => {
-    if (!open) return
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (isImeComposing(event)) return
-      if (event.key === 'Escape' && !busy) onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [open, onClose, busy])
+  useModalDialogKeyboard({
+    open,
+    onClose,
+    dialogRef,
+    initialFocusRef: closeButtonRef,
+    closeOnEscape: !busy,
+  })
 
   if (!open) return null
+  const dialogTitleId = 'publish-dialog-title'
 
   const options: PublishOptions = { template, includeToc, inlineImages, cleanWikiLinks }
   const trimmedTag = tagInput.trim()
@@ -71,10 +72,26 @@ export function PublishDialog({
 
   return (
     <div className="dialog-overlay" onClick={busy ? undefined : onClose}>
-      <div className="dialog publish-dialog" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        className="dialog publish-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={dialogTitleId}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="help-header">
-          <span className="help-title">发布</span>
-          <button type="button" className="dialog-close" onClick={onClose} aria-label="关闭" title="关闭">
+          <span id={dialogTitleId} className="help-title">
+            发布
+          </span>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            className="dialog-close"
+            onClick={onClose}
+            aria-label="关闭"
+            title="关闭"
+          >
             <svg viewBox="0 0 24 24">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />

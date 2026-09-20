@@ -226,11 +226,11 @@ export type WorkspaceChange =
 
 **接口：** 弹窗具备可访问名称、`role="dialog"`、`aria-modal`、初始焦点、Tab/Shift+Tab 约束、Escape 和关闭后的焦点恢复。输入法组合态 Escape 不关闭。
 
-- [ ] 新增 Testing Library 断言：按 role/name 查到弹窗；Tab 不能落到背景动作；触发元素卸载时焦点落到安全工作区入口。
-- [ ] 用 `compositionstart`→Escape→`compositionend` 序列验证不误关，导出忙时按既有取消策略处理；真实 IME 仍需手测。
-- [ ] 对照当前主题 37 项豁免，区分正文/交互必需对比和装饰性边框；先修影响核心任务的文本与焦点，不机械删除豁免。
-- [ ] `npm run a11y` 加组件测试；在目标设备九主题、100/125/150% 缩放、窄窗口执行矩阵，记录实际未测组合。
-- [ ] 全局门禁和 smoke 后同步设计说明提交。
+- [x] 新增 Testing Library 断言：按 role/name 查到弹窗；Tab 不能落到背景动作；触发元素卸载时焦点落到安全工作区入口。
+- [x] 用 `compositionstart`→Escape→`compositionend` 序列验证不误关，导出忙时按既有取消策略处理；真实 IME 仍需手测。
+- [x] 对照当前主题 37 项豁免，区分正文/交互必需对比和装饰性边框；先修影响核心任务的文本与焦点，不机械删除豁免。
+- [x] `npm run a11y` 加组件测试；在目标设备九主题、100/125/150% 缩放、窄窗口执行矩阵，记录实际未测组合。
+- [x] 全局门禁和 smoke 后同步设计说明提交。
 
 ## 12. R09：兼容、保存时序与性能共同验收
 

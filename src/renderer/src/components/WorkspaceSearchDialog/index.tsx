@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { isImeComposing } from '../../lib/keyboard'
+import { useModalDialogKeyboard } from '../../hooks/useModalDialogKeyboard'
 import type { WorkspaceIndex } from '../../../../shared/workspace-index'
 import { SEARCH_SCOPE_LABEL, searchCoverageNotes } from '../../lib/search-rank'
 import { SearchResultList } from './SearchResultList'
@@ -49,6 +50,7 @@ export function WorkspaceSearchDialog({
   onClearNavigation,
 }: WorkspaceSearchDialogProps): JSX.Element | null {
   const capturedFileId = useRef(activeFileId).current
+  const dialogRef = useRef<HTMLDivElement>(null)
   const search = useWorkspaceSearch({
     open,
     workspacePath,
@@ -57,24 +59,31 @@ export function WorkspaceSearchDialog({
     onQueryCommit,
   })
 
-  useEffect(() => {
-    if (!open) return
-    const handler = (event: KeyboardEvent) => {
-      if (isImeComposing(event)) return
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [open, onClose])
+  useModalDialogKeyboard({
+    open,
+    onClose,
+    dialogRef,
+    initialFocusRef: search.inputRef,
+  })
 
   if (!open) return null
+  const dialogTitleId = 'workspace-search-dialog-title'
   const coverageNotes = searchCoverageNotes({ ...search.coverage, matchCount: search.matches.length })
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog ws-dialog" onClick={(event) => event.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        className="dialog ws-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={dialogTitleId}
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="help-header">
-          <span className="help-title">在工作区中搜索 · {workspaceName}</span>
+          <span id={dialogTitleId} className="help-title">
+            在工作区中搜索 · {workspaceName}
+          </span>
           <button type="button" className="dialog-close" onClick={onClose} aria-label="关闭" title="关闭">
             <svg viewBox="0 0 24 24">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -107,6 +116,7 @@ export function WorkspaceSearchDialog({
             <input
               ref={search.inputRef}
               className="search-input ws-input"
+              aria-label="工作区搜索关键词"
               placeholder="输入关键词，回车搜索全部 .md 文件"
               value={search.query}
               spellCheck={false}
