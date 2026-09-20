@@ -5,7 +5,7 @@
 ## R00 结项（feat/strategy-execution）
 
 **任务号：** R00  
-**提交：** （见本分支 `git log -1`）  
+**提交：** `bead366`  
 **失败测试（修复前）：** HelpDialog 未使用 `fireEvent`（lint error）；`useWorkspaceFiles` hooks 依赖警告 3 条；Electron 缺失时 3 套件无法加载。  
 **修复后结果：** 针对性 vitest 26/26 通过；全量 **194** 文件 **1408** 项通过（exit 0）；lint 0 error 0 warning；typecheck/build exit 0。  
 **全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0（1408 passed）；`npm run build` 0；`npm run smoke` **exit 1**（Electron 二进制已存在，首步 `SMOKE_FAIL 系统关联文件未进入外部标签`，渲染层 React #301，待 R00 后单独归因，不阻塞 lint/单测基线）。  
