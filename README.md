@@ -107,6 +107,12 @@ npm run demo:soft     # 仅启动柔和工作台原型
 
 ## 文档导航
 
+本轮战略审查与后续执行入口：
+
+- [2026-09-20 战略发展报告](docs/PRODUCT-STRATEGY-REVIEW-2026-09-20.md)：代码现状、主流竞品、定位优势、12 周路线与商业/团队进入条件。
+- [R00–R17 优先级实施任务](docs/superpowers/plans/2026-09-20-product-strategy-execution.md)：修改边界、依赖、测试、验收和工时；从 R00 → R01 → R02 开始。
+- [代码与验证证据](docs/development/product-audit-2026-09-20.md)：本轮已复现问题、门禁结果及环境/平台限制。
+
 文档已经收敛为当前仍有用途的维护资料、设计规范和验证记录：
 
 - [`docs/PRODUCT-STRATEGY-ROADMAP.md`](./docs/PRODUCT-STRATEGY-ROADMAP.md)：战略定位、竞品事实校正、目标用户、增长与商业验证规则。
@@ -127,7 +133,7 @@ npm run demo:soft     # 仅启动柔和工作台原型
 - [`docs/ACCESSIBILITY-SMOKE.md`](./docs/ACCESSIBILITY-SMOKE.md)：主题可读性、焦点和人工冒烟范围。
 - [`docs/development/`](./docs/development/)：性能基线、主题基线和回归脚本数据。
 
-`docs/IMPLEMENTATION-PLAN.md` 只说明现在怎么开工。战略取舍以 `PRODUCT-STRATEGY-ROADMAP` 为准，任务以 `NEXT-DEVELOPMENT-PLAN` 为准，做到哪一步以 `REFACTOR-STATUS` 为准。
+`docs/IMPLEMENTATION-PLAN.md` 说明开发约束。本轮战略取舍与任务顺序以 2026-09-20 报告和 R00–R17 实施任务为准；原战略和 S00–S17 计划保留追溯。持续完成度仍由 `REFACTOR-STATUS` 维护，审查报告记录其基线时点的证据。
 
 ## 当前边界与后续方向
 

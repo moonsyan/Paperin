@@ -1,8 +1,16 @@
 # Paperin 当前完成度
 
-更新时间：2026-09-19（Asia/Shanghai）
+更新时间：2026-09-20（Asia/Shanghai）
 
-本文只记录当前仍然有效的事实。旧的 M0–M2 批次日志、互相矛盾的“已完成/仍失败”段落已从本文删除，需要时看 git 历史。任务顺序和验收口径分别在 [NEXT-DEVELOPMENT-PLAN](NEXT-DEVELOPMENT-PLAN.md) 与 [strategy-validation](development/strategy-validation.md)。自动测试通过不等于平台、用户或商业验收通过。
+## 2026-09-20 审查增量
+
+基线 `b6ad9a5` 本轮类型检查和生产构建通过；lint 有 1 个 error、3 个 warning；主题/焦点静态门禁通过但有 37 项主题基线豁免。全量测试为 190 文件通过、3 文件因 Electron 二进制缺失加载失败，执行到的 1,374 项通过；smoke 同样被运行时缺失阻塞。官方二进制下载超时，本轮没有新的桌面运行或性能通过记录。
+
+代码定向复现发现带 BOM 异常编码可被宽松转换、保存旧基线 500ms 容差契约缺口（双窗口端到端仍待验证）、集合输出内容失真与目录事件过滤问题；另有搜索覆盖、输出反馈和恢复边界问题。**本轮仅审查并交付文档，没有修复这些实现。** 细节和复现见 [审查证据](development/product-audit-2026-09-20.md)，后续顺序见 [R00–R17 实施任务](superpowers/plans/2026-09-20-product-strategy-execution.md)。
+
+下方保留 9 月 19 日的工程记录；它不代表新发现已经处理，也不替代本轮验证结果。
+
+以下为 9 月 19 日保留记录；更晚的证据以上方审查增量为准。旧 M0–M2 批次可查 Git 历史。下一轮顺序见 [R00–R17 实施任务](superpowers/plans/2026-09-20-product-strategy-execution.md)，验收口径见 [strategy-validation](development/strategy-validation.md)。自动测试通过不等于平台、用户或商业验收通过。
 
 ## 这次核对跑过什么
 

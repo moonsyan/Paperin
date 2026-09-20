@@ -1,6 +1,7 @@
 # Paperin 下一阶段发展与实施计划
 
-> 版本：2.3｜2026-09-19。任务状态以本表为准，实测证据以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准。
+> 2026-09-20 补充：基于代码复现与开发者实际资源的新一轮执行顺序，见 [R00–R17 实施任务](superpowers/plans/2026-09-20-product-strategy-execution.md)。本文件保留原 S00–S17 验收和历史映射；下方原工期与“首两周”不再作为当前优先顺序。
+> 版本：2.3｜2026-09-19。实测证据以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 与有日期的审查附录为准，不把原计划条目当作当前完成状态。
 >
 > 旧 T01–T21 只留在下方映射，不再单独维护一份勾选计划。历史批次日志已从完成度文档删除。
 > 按[战略定位](PRODUCT-STRATEGY-ROADMAP.md)推进；量化口径以[战略验收协议](development/strategy-validation.md)为准。是否达到完整验收以状态表和验收协议为准，不以代码存在代替。

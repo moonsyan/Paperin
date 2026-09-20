@@ -1,15 +1,17 @@
 # Paperin 文档索引
 
-更新时间：2026-09-19（Asia/Shanghai）
+更新时间：2026-09-20（Asia/Shanghai）
 
-`docs/` 只保留还在用的说明。完成度只看 [REFACTOR-STATUS](REFACTOR-STATUS.md)，任务顺序只看 [NEXT-DEVELOPMENT-PLAN](NEXT-DEVELOPMENT-PLAN.md)。不要在这里再抄一份状态表。
+`docs/` 保留当前说明与有日期的审查证据。持续完成度看 [REFACTOR-STATUS](REFACTOR-STATUS.md)；本轮审查结果固定在证据附录中。下一轮优先顺序以 [R00–R17 实施任务](superpowers/plans/2026-09-20-product-strategy-execution.md) 为准，原 S00–S17 计划保留验收与追溯，不重复实施已经落地的能力。
 
 ## 先读哪一份
 
 | 目的 | 文档 |
 | --- | --- |
-| 产品取舍 | [PRODUCT-STRATEGY-ROADMAP](PRODUCT-STRATEGY-ROADMAP.md) |
-| 下一项工作 | [NEXT-DEVELOPMENT-PLAN](NEXT-DEVELOPMENT-PLAN.md) |
+| 本轮产品取舍与竞品比较 | [2026-09-20 战略审查报告](PRODUCT-STRATEGY-REVIEW-2026-09-20.md) |
+| 下一项工作与完整实施任务 | [R00–R17 优先级实施计划](superpowers/plans/2026-09-20-product-strategy-execution.md) |
+| 本轮代码与验证证据 | [product-audit-2026-09-20](development/product-audit-2026-09-20.md) |
+| 原战略与任务追溯 | [PRODUCT-STRATEGY-ROADMAP](PRODUCT-STRATEGY-ROADMAP.md)、[NEXT-DEVELOPMENT-PLAN](NEXT-DEVELOPMENT-PLAN.md) |
 | 现在做到哪 | [REFACTOR-STATUS](REFACTOR-STATUS.md) |
 | 怎么改代码 | [IMPLEMENTATION-PLAN](IMPLEMENTATION-PLAN.md) 与仓库根目录 `AGENTS.md` |
 | 指标口径 | [strategy-validation](development/strategy-validation.md) |
