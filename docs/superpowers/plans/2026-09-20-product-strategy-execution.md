@@ -253,11 +253,11 @@ export type WorkspaceChange =
 
 候选必须包含 R11 的最终入口变更；验证后再有 UI、文件或协议修改时，重新验证对应候选，不能拿上一提交的安装证据为新版本背书。
 
-- [ ] 为 release workflow 补配置测试：缺 smoke/候选验收步骤或直接无条件正式发布应失败；不得仅验证 build workflow。
-- [ ] 运行 `npm run build:win` 等实际目标命令只产包；任何正式 tag/远端发布留给明确发布任务。
+- [x] 为 release workflow 补配置测试：缺 smoke/候选验收步骤或直接无条件正式发布应失败；不得仅验证 build workflow。（`scripts/ci-config-gates.mjs`、`verify-ci-config.test.mjs`）
+- [ ] 运行 `npm run build:win` 等实际目标命令只产包；任何正式 tag/远端发布留给明确发布任务。（本任务 **未执行** `build:win`；tag/远端发布未做）
 - [ ] 首个试用平台至少两个独立环境、每环境至少三次完整安装/启动/关联/保存/卸载流程，按原 S04 条件记录；不能在个人唯一真实配置上做破坏性升级实验。
-- [ ] 更新验证覆盖下载失败、完整性失败、重启、配置/草稿迁移、旧版本回退、用户文件保留；macOS 签名/公证和 Linux MIME/字体逐项说明。
-- [ ] 若先 Windows，单独同步产品支持范围；三平台正式承诺仍需三平台证据。维护 `release-validation.md` 后提交工作流/文档。
+- [x] 更新验证覆盖下载失败、完整性失败、重启、配置/草稿迁移、旧版本回退、用户文件保留；macOS 签名/公证和 Linux MIME/字体逐项说明。（见 `development/release-validation.md`，场景均标 **UNVERIFIED**）
+- [x] 若先 Windows，单独同步产品支持范围；三平台正式承诺仍需三平台证据。维护 `release-validation.md` 后提交工作流/文档。
 
 **估算：** 12–20 小时只包含首平台工程与组织验收，不包含三平台硬件获取、签名费用与所有等待；资源不足不进入该平台正式发布。
 

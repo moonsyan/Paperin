@@ -2,6 +2,16 @@
 
 更新时间：2026-09-20（Asia/Shanghai）
 
+## R10 结项（feat/strategy-execution）
+
+**任务号：** R10  
+**工程变更：** `release.yml` 拆为候选链（`gate` → `candidate-acceptance`/`npm run smoke` → 三平台打包 → `candidate-release` draft + `candidate-record.txt`）与 `publish-formal`（`confirm_publish=PUBLISH` + `candidate_sha` 与 draft commit 一致后才 `gh release edit --draft=false`）；`push v*` 不再无条件正式发布。  
+**配置测试：** `scripts/ci-config-gates.mjs`、`scripts/verify-ci-config.test.mjs`；缺 smoke 或无条件 `draft: false` 时校验失败。  
+**全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0（**212** 文件 **1549** 项，含 `verify-ci-config.test.mjs`）；`npm run build` 0；`npm run build:win` **未执行**。  
+**文档：** `docs/development/release-validation.md`；计划 §13 复选框（安装循环与 `build:win` 未勾选）。  
+**安装 / 升级：** **未执行** — 不宣称安装成功；2 环境 × 3 循环及更新场景均为 **UNVERIFIED**。  
+**下一项：** R13（用户研究，依赖 R10/R11/R12 条件）
+
 ## R11 结项（feat/strategy-execution）
 
 **任务号：** R11  
@@ -12,7 +22,7 @@
 **文档：** 计划 §14 研发子项；`command-panels.md` 引用入口；README / package description。  
 **用户研究边界：** 两位用户无口头提示演示 = **未执行**（不宣称通过）。  
 **实际工时：** ~（自动化记录）  
-**下一项：** R10（本任务未启动）
+**下一项：** R10（已完成，见上）
 
 ## R09 结项（feat/strategy-execution）
 

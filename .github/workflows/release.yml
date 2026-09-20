@@ -1,31 +1,54 @@
 name: release
 
-# 打 v* tag 时构建三平台安装包，并发布到 GitHub Release（正式发布，可直接下载）。
+# 候选包先验收、再正式发行（R10 / plan §13）。
 #
 # 触发方式：
-#   1. 推送 tag：git push origin v0.6.0
-#   2. Actions 页面手动 Run workflow（tag 留空则用 package.json 的 version）
+#   1. 推送 tag v*：仅产候选 artifact + GitHub Draft Release（不正式对外发布）
+#   2. workflow_dispatch action=candidate：同上（tag 可留空则用 package.json version）
+#   3. workflow_dispatch action=publish-formal：在候选 draft 已存在且 commit 一致时，
+#      输入 confirm_publish=PUBLISH 与 candidate_sha 后，才将 draft 改为正式 Release
 #
-# 与 build.yml 的分工：build.yml 是三平台质量门禁（不产安装包），
-# 本文件负责出安装包并发布。测试只在 gate job 跑一次，避免三平台重复消耗。
+# 与 build.yml 的分工：build.yml 是三平台质量门禁（不产安装包）；
+# 本文件负责出安装包；gate + smoke 只在候选链跑一次，避免三平台重复消耗。
 
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
     inputs:
+      action:
+        description: 'candidate=产候选 draft；publish-formal=在候选校验后正式发行'
+        required: true
+        default: candidate
+        type: choice
+        options:
+          - candidate
+          - publish-formal
       tag:
-        description: '发布 tag（留空则用 package.json 的 version，例如 v0.6.0）'
+        description: '发布 tag（candidate 留空则用 package.json 的 version，例如 v0.6.0）'
+        required: false
+        default: ''
+      candidate_sha:
+        description: 'publish-formal 必填：必须与候选 Draft Release 指向的 commit 一致'
+        required: false
+        default: ''
+      confirm_publish:
+        description: 'publish-formal 必填：输入 PUBLISH 才允许正式发行'
         required: false
         default: ''
 
-# 发布 Release 需要写仓库内容
 permissions:
   contents: write
 
+env:
+  IS_CANDIDATE_RUN: >-
+    ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.action == 'candidate') }}
+  IS_PUBLISH_FORMAL: >-
+    ${{ github.event_name == 'workflow_dispatch' && inputs.action == 'publish-formal' && inputs.confirm_publish == 'PUBLISH' }}
+
 jobs:
-  # 质量门禁：测试与 lint 只需跑一次，通过后三平台才开工
   gate:
+    if: env.IS_CANDIDATE_RUN == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,8 +60,23 @@ jobs:
       - run: npm run lint
       - run: npm run test:ci
 
-  build-win:
+  # Windows runner 有桌面会话，跑 Electron 冒烟作为候选包验收门禁
+  candidate-acceptance:
+    if: env.IS_CANDIDATE_RUN == 'true'
     needs: gate
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run smoke
+
+  build-win:
+    if: env.IS_CANDIDATE_RUN == 'true'
+    needs: candidate-acceptance
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,8 +87,6 @@ jobs:
       - run: npm ci
       # npm run build 内含 typecheck
       - run: npm run build
-      # --publish never：产物留在本地由 release job 统一上传，避免三个平台
-      # 同时写同一个 Release 造成竞态；app-update.yml 仍会照常写入产物
       - run: npx electron-builder --win --publish never
       - uses: actions/upload-artifact@v4
         with:
@@ -62,7 +98,8 @@ jobs:
           if-no-files-found: error
 
   build-mac:
-    needs: gate
+    if: env.IS_CANDIDATE_RUN == 'true'
+    needs: candidate-acceptance
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -72,7 +109,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      # 未做代码签名，用户首次打开需右键 → 打开
       - run: npx electron-builder --mac --publish never
       - uses: actions/upload-artifact@v4
         with:
@@ -83,7 +119,8 @@ jobs:
           if-no-files-found: error
 
   build-linux:
-    needs: gate
+    if: env.IS_CANDIDATE_RUN == 'true'
+    needs: candidate-acceptance
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -102,17 +139,16 @@ jobs:
             release/*/latest-linux.yml
           if-no-files-found: error
 
-  # 汇总三平台产物，统一发布一个 Release
-  release:
+  candidate-release:
+    if: env.IS_CANDIDATE_RUN == 'true'
     needs: [build-win, build-mac, build-linux]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: 解析发布 tag
+      - name: 解析候选 tag
         id: resolve
         shell: bash
         env:
-          # 经 env 传入，避免手动触发时输入直接拼进 shell
           INPUT_TAG: ${{ inputs.tag }}
           REF: ${{ github.ref }}
           REF_NAME: ${{ github.ref_name }}
@@ -126,18 +162,100 @@ jobs:
             tag="v$(node -p "require('./package.json').version")"
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "发布 tag: $tag"
+          echo "候选 tag: $tag"
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
-      - name: 列出待发布产物
+      - name: 列出候选产物
         run: ls -lh artifacts
+      - name: 写入候选校验记录
+        id: record
+        shell: bash
+        run: |
+          set -euo pipefail
+          record_file="artifacts/candidate-record.txt"
+          {
+            echo "Paperin candidate acceptance record"
+            echo "commit: ${{ github.sha }}"
+            echo "tag: ${{ steps.resolve.outputs.tag }}"
+            echo "workflow_run: ${{ github.run_id }}"
+            echo "smoke: npm run smoke (Windows candidate-acceptance job)"
+          } > "$record_file"
+          cat "$record_file"
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.resolve.outputs.tag }}
-          name: Paperin ${{ steps.resolve.outputs.tag }}
-          draft: false
+          name: Paperin ${{ steps.resolve.outputs.tag }} (candidate)
+          draft: true
           generate_release_notes: true
           fail_on_unmatched_files: true
-          files: artifacts/**
+          body: |
+            **候选包（Draft）— 非正式发行**
+
+            - commit: `${{ github.sha }}`
+            - workflow run: ${{ github.run_id }}
+            - 候选验收：`npm run smoke`（Windows）
+
+            正式发行须在同一 commit 上通过 `publish-formal` workflow，并填写 `candidate_sha=${{ github.sha }}` 与 `confirm_publish=PUBLISH`。
+          files: |
+            artifacts/**
+            artifacts/candidate-record.txt
+
+  publish-formal:
+    if: env.IS_PUBLISH_FORMAL == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 解析正式发行 tag
+        id: resolve
+        shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -z "$INPUT_TAG" ]; then
+            echo "publish-formal 必须提供 tag 输入" >&2
+            exit 1
+          fi
+          echo "tag=$INPUT_TAG" >> "$GITHUB_OUTPUT"
+      - name: 校验候选 draft 与 commit 门禁
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.resolve.outputs.tag }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CANDIDATE_SHA" ]; then
+            echo "candidate_sha 必填，必须与候选 Draft Release 的 commit 一致" >&2
+            exit 1
+          fi
+          if ! gh release view "$TAG" --json isDraft,targetCommitish -q '.isDraft' | grep -qx true; then
+            echo "tag $TAG 不存在 Draft Release，或已是正式发布；请先跑候选链" >&2
+            exit 1
+          fi
+          release_commit="$(gh release view "$TAG" --json targetCommitish -q '.targetCommitish')"
+          if [ "$release_commit" != "$CANDIDATE_SHA" ]; then
+            echo "candidate_sha ($CANDIDATE_SHA) 与 Draft Release commit ($release_commit) 不一致" >&2
+            exit 1
+          fi
+          if ! git cat-file -e "${CANDIDATE_SHA}^{commit}" 2>/dev/null; then
+            echo "candidate_sha 不是有效 commit" >&2
+            exit 1
+          fi
+          echo "候选门禁通过：tag=$TAG commit=$CANDIDATE_SHA"
+      - name: 将 Draft 提升为正式 Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.resolve.outputs.tag }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" \
+            --draft=false \
+            --title "Paperin ${TAG#v}" \
+            --notes "Formal release promoted from candidate draft at commit \`${CANDIDATE_SHA}\` (confirm_publish=PUBLISH)."

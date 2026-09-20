@@ -27,6 +27,7 @@
     "perf:workspace-search-watch": "vitest run --config vitest.performance.config.ts src/main/ipc/workspace-search-watch-production.perf.ts",
     "preview": "electron-vite preview",
     "smoke": "node scripts/smoke-electron.mjs",
+    "verify:ci-config": "node scripts/verify-ci-config.mjs",
     "build:win": "electron-vite build && electron-builder --win",
     "build:mac": "electron-vite build && electron-builder --mac",
     "build:linux": "electron-vite build && electron-builder --linux"
