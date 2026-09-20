@@ -138,6 +138,27 @@ function renderOps(fx: Fixture) {
   ).result.current
 }
 
+function renderOpsWithRerender(fx: Fixture) {
+  return renderHook(
+    (props: { openFiles: OpenFile[]; savedMap: Record<string, boolean>; fileMtime: Record<string, number> }) =>
+      useWorkspaceFiles({
+        workspace: { path: '/w', name: 'w', tree: [] },
+        openFiles: props.openFiles,
+        savedMap: props.savedMap,
+        fileMtime: props.fileMtime,
+        bridge: fx.bridge,
+        setToast: fx.setToast,
+      }),
+    {
+      initialProps: {
+        openFiles: [...fx.bridge.openFilesRef.current],
+        savedMap: fx.savedMap,
+        fileMtime: fx.fileMtime,
+      },
+    },
+  )
+}
+
 describe('useWorkspaceFiles', () => {
   it('新建成功后刷新文件树并打开新文档', async () => {
     const fx = createFixture()
@@ -402,6 +423,105 @@ describe('useWorkspaceFiles', () => {
 
     expect(fx.setToast).toHaveBeenCalledWith('已移动')
     expect(fx.bridge.openFolder).toHaveBeenCalledWith('/w', true, true)
+  })
+
+  describe('重渲染或 ref 更新后保存动作使用最新 mtime 与正文', () => {
+    it('首渲染捕获的删除回调在 ref 更新后仍带最新 mtime 与内容写盘', async () => {
+      const fx = createFixture({
+        savedMap: { [FILE_A.id]: true, [FILE_B.id]: true },
+        fileMtime: { [FILE_A.id]: 10, [FILE_B.id]: 20 },
+      })
+      fx.bridge.initialOrSavedRef.current[FILE_A.id] = '磁盘旧内容'
+      fx.bridge.fileMtimeRef.current = { [FILE_A.id]: 10, [FILE_B.id]: 20 }
+      const { result } = renderOpsWithRerender(fx)
+      const deleteFromFirstRender = result.current.handleDeleteFile
+
+      fx.bridge.contentsRef.current[FILE_A.id] = '重渲染后的正文'
+      fx.bridge.initialOrSavedRef.current[FILE_A.id] = '磁盘旧内容'
+      fx.bridge.fileMtimeRef.current[FILE_A.id] = 888
+      ;(fx.bridge.liveContentOf as ReturnType<typeof vi.fn>).mockReturnValue('重渲染后的正文')
+
+      await act(async () => {
+        await deleteFromFirstRender('/w/a.md')
+      })
+
+      expect(fx.bridge.saveWithEncodingFallback).toHaveBeenCalledWith(
+        '/w/a.md',
+        '重渲染后的正文',
+        888,
+        FILE_A.id,
+        true,
+      )
+      expect(fx.ipcFns.deleteFile).toHaveBeenCalledWith('/w/a.md')
+    })
+
+    it('重渲染后重命名使用 ref 中最新的 mtime，而非过期的 fileMtime prop', async () => {
+      const fx = createFixture({
+        savedMap: { [FILE_A.id]: false, [FILE_B.id]: true },
+        fileMtime: { [FILE_A.id]: 10, [FILE_B.id]: 20 },
+      })
+      fx.bridge.initialOrSavedRef.current[FILE_A.id] = ''
+      fx.bridge.contentsRef.current[FILE_A.id] = '过期闭包不应写这个'
+      const { result, rerender } = renderOpsWithRerender(fx)
+
+      fx.bridge.contentsRef.current[FILE_A.id] = '重渲染后应保存的正文'
+      fx.bridge.fileMtimeRef.current[FILE_A.id] = 555
+      ;(fx.bridge.liveContentOf as ReturnType<typeof vi.fn>).mockReturnValue('重渲染后应保存的正文')
+
+      rerender({
+        openFiles: [...fx.bridge.openFilesRef.current],
+        savedMap: { [FILE_A.id]: false, [FILE_B.id]: true },
+        fileMtime: { [FILE_A.id]: 10, [FILE_B.id]: 20 },
+      })
+
+      await act(async () => {
+        await result.current.handleRenameFile('/w/a.md', 'r.md')
+      })
+
+      expect(fx.bridge.saveWithEncodingFallback).toHaveBeenCalledWith(
+        '/w/a.md',
+        '重渲染后应保存的正文',
+        555,
+        FILE_A.id,
+        true,
+      )
+    })
+
+    it('首渲染捕获的重命名回调不会用过期正文写盘', async () => {
+      const fx = createFixture({
+        savedMap: { [FILE_A.id]: false, [FILE_B.id]: true },
+        fileMtime: { [FILE_A.id]: 10, [FILE_B.id]: 20 },
+      })
+      fx.bridge.initialOrSavedRef.current[FILE_A.id] = '首渲染基线'
+      fx.bridge.contentsRef.current[FILE_A.id] = '首渲染正文'
+      ;(fx.bridge.liveContentOf as ReturnType<typeof vi.fn>).mockReturnValue('首渲染正文')
+      const { result } = renderOpsWithRerender(fx)
+      const renameFromFirstRender = result.current.handleRenameFile
+
+      fx.bridge.contentsRef.current[FILE_A.id] = '用户继续输入后的正文'
+      fx.bridge.initialOrSavedRef.current[FILE_A.id] = '首渲染基线'
+      fx.bridge.fileMtimeRef.current[FILE_A.id] = 999
+      ;(fx.bridge.liveContentOf as ReturnType<typeof vi.fn>).mockReturnValue('用户继续输入后的正文')
+
+      await act(async () => {
+        await renameFromFirstRender('/w/a.md', 'r.md')
+      })
+
+      expect(fx.bridge.saveWithEncodingFallback).toHaveBeenCalledWith(
+        '/w/a.md',
+        '用户继续输入后的正文',
+        999,
+        FILE_A.id,
+        true,
+      )
+      expect(fx.bridge.saveWithEncodingFallback).not.toHaveBeenCalledWith(
+        '/w/a.md',
+        '首渲染正文',
+        expect.anything(),
+        FILE_A.id,
+        true,
+      )
+    })
   })
 
   describe('编码降级确认被取消（ENCODING_LOSS 上抛）时中止且不调用对应 IPC', () => {

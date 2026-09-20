@@ -63,11 +63,11 @@ R00–R14 加 R17 的初步任务投入合计 **122–195 小时**，不含缺�
 
 **接口：** 不改变产品 API。先使用 README/CI 支持的 Node 22 环境，再验证 Electron 二进制实际存在且版本与锁一致。
 
-- [ ] 记录 `node --version`、`npm --version`，按锁安装，检查 `node_modules/electron/dist/electron.exe`（Windows）。下载失败按网络/缓存处理，不伪造可执行文件路径绕过加载。
-- [ ] 运行 `npm run lint` 复现未使用导入及三个依赖警告；删除无用导入。逐项检查 `flushActiveIf/mtimeOf/needsSave` 的捕获值与最新状态，不能单纯关闭规则。
-- [ ] 在 `useWorkspaceFiles.test.ts` 增加重渲染后切换 dirty、mtime 与保存动作的行为用例，旧闭包调用不得保存过期内容。
-- [ ] 执行针对测试：`npx vitest run src/renderer/src/app/workspace/useWorkspaceFiles.test.ts src/renderer/src/components/HelpDialog/index.test.tsx`；再跑全局门禁和 smoke。
-- [ ] 按命令记录退出码、测试数量、运行时版本；环境错误与断言失败分别记录；更新完成记录后提交。
+- [x] 记录 `node --version`、`npm --version`，按锁安装，检查 `node_modules/electron/dist/electron.exe`（Windows）。下载失败按网络/缓存处理，不伪造可执行文件路径绕过加载。
+- [x] 运行 `npm run lint` 复现未使用导入及三个依赖警告；删除无用导入。逐项检查 `flushActiveIf/mtimeOf/needsSave` 的捕获值与最新状态，不能单纯关闭规则。
+- [x] 在 `useWorkspaceFiles.test.ts` 增加重渲染后切换 dirty、mtime 与保存动作的行为用例，旧闭包调用不得保存过期内容。
+- [x] 执行针对测试：`npx vitest run src/renderer/src/app/workspace/useWorkspaceFiles.test.ts src/renderer/src/components/HelpDialog/index.test.tsx`；再跑全局门禁和 smoke。
+- [x] 按命令记录退出码、测试数量、运行时版本；环境错误与断言失败分别记录；更新完成记录后提交。
 
 **验收：** lint 零错误；依赖警告有正确修复或具体设计证明；Electron 测试真正加载，不能沿用本轮 1,374 项部分通过记录。
 

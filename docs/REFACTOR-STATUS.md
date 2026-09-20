@@ -2,6 +2,20 @@
 
 更新时间：2026-09-20（Asia/Shanghai）
 
+## R00 结项（feat/strategy-execution）
+
+**任务号：** R00  
+**提交：** （见本分支 `git log -1`）  
+**失败测试（修复前）：** HelpDialog 未使用 `fireEvent`（lint error）；`useWorkspaceFiles` hooks 依赖警告 3 条；Electron 缺失时 3 套件无法加载。  
+**修复后结果：** 针对性 vitest 26/26 通过；全量 **194** 文件 **1408** 项通过（exit 0）；lint 0 error 0 warning；typecheck/build exit 0。  
+**全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0（1408 passed）；`npm run build` 0；`npm run smoke` **exit 1**（Electron 二进制已存在，首步 `SMOKE_FAIL 系统关联文件未进入外部标签`，渲染层 React #301，待 R00 后单独归因，不阻塞 lint/单测基线）。  
+**文档：** 本文件、`docs/superpowers/plans/2026-09-20-product-strategy-execution.md` §3 复选框。  
+**人工边界：** 本地 Node **v24.19.0** / npm **11.17.0**（CI 仍用 Node 22）；`node_modules/electron/dist/electron.exe` 存在；smoke 未绿。  
+**实际工时：** ~2h（自动化记录）  
+**下一项：** R01  
+
+**环境证据：** Node v24.19.0、npm 11.17.0、Electron 可执行文件 present、`useWorkspaceFiles.ts` 356 行（已拆 `workspace-file-pre-save.ts`、`workspace-move-file.ts`）。
+
 ## 2026-09-20 审查增量
 
 基线 `b6ad9a5` 本轮类型检查和生产构建通过；lint 有 1 个 error、3 个 warning；主题/焦点静态门禁通过但有 37 项主题基线豁免。全量测试为 190 文件通过、3 文件因 Electron 二进制缺失加载失败，执行到的 1,374 项通过；smoke 同样被运行时缺失阻塞。官方二进制下载超时，本轮没有新的桌面运行或性能通过记录。
@@ -43,7 +57,7 @@
 | 文件 | 行数 |
 | --- | --- |
 | `src/renderer/src/lib/docx.ts` | 599 |
-| `src/renderer/src/app/workspace/useWorkspaceFiles.ts` | 505 |
+| `src/renderer/src/app/workspace/useWorkspaceFiles.ts` | 356（R00 已拆 move/pre-save） |
 | `src/renderer/src/app/useAppSettings.ts` | 496 |
 | `src/renderer/src/components/Editor/overlays/useEditorOverlays.ts` | 486 |
 | `src/renderer/src/components/Editor/plugins/mermaidCodeBlock.ts` | 482 |

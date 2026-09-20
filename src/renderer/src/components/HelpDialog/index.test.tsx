@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { HelpDialog } from './index'
 import { DEFAULT_SHORTCUTS } from '../../data/shortcuts'
 
