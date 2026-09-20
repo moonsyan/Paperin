@@ -127,7 +127,7 @@ export interface DocumentFileVersion {
 
 **接口：** 保留 `renderMarkdownToHtml(markdown: string): string` 的兼容出口；内部统一解析 frontmatter、脚注与引用定义，HTML 仍按既有安全策略处理。不要为修内容保真放宽危险 URL/HTML。
 
-- [ ] 加入以下失败用例，并用 DOM 结构而不是全文快照检查层次：
+- [x] 加入以下失败用例，并用 DOM 结构而不是全文快照检查层次：
 
 ```ts
 it('集合输出保留引用图片并隐藏元数据', () => {
@@ -140,11 +140,11 @@ it('集合输出保留引用图片并隐藏元数据', () => {
 })
 ```
 
-- [ ] 补中文脚注 reference/definition 关联、重复标签、两层列表、列表中的段落/代码/引用、引用式链接、不闭合 frontmatter、危险引用 URL。
-- [ ] 运行 `npx vitest run src/renderer/src/lib/document-collection.test.ts` 确认至少本轮四类缺陷均被捕获。
-- [ ] 修正 AST 字段与 block/inline 渲染职责，明确公式/Mermaid 在集合中是渲染结果还是声明过的降级；不允许无提示丢失。
-- [ ] 将同一合成文档分别经单篇和集合输出，在浏览器查看 HTML；原 Markdown 文件 hash 不变，来源与图片完整。
-- [ ] 全量验证后提交，记录输出差异和支持子集；不把 HTML 修复自动算为 PDF/DOCX 全部通过。
+- [x] 补中文脚注 reference/definition 关联、重复标签、两层列表、列表中的段落/代码/引用、引用式链接、不闭合 frontmatter、危险引用 URL。
+- [x] 运行 `npx vitest run src/renderer/src/lib/document-collection.test.ts` 确认至少本轮四类缺陷均被捕获。
+- [x] 修正 AST 字段与 block/inline 渲染职责，明确公式/Mermaid 在集合中是渲染结果还是声明过的降级；不允许无提示丢失。
+- [x] 将同一合成文档分别经单篇和集合输出，在浏览器查看 HTML；原 Markdown 文件 hash 不变，来源与图片完整。
+- [x] 全量验证后提交，记录输出差异和支持子集；不把 HTML 修复自动算为 PDF/DOCX 全部通过。
 
 ## 7. R04：输出范围、图片失败与完整性一致
 

@@ -1,3 +1,5 @@
+/** @vitest-environment jsdom */
+
 import { describe, expect, it } from 'vitest'
 import {
   buildCollectionHtml,
@@ -106,7 +108,7 @@ describe('renderMarkdownToHtml', () => {
   it('列表、引用、代码块与分隔线', () => {
     const html = renderMarkdownToHtml('- 一\n- 二\n\n> 引用文字\n\n```ts\nconst a = 1\n```\n\n---')
     expect(html).toContain('<ul>')
-    expect(html).toContain('<li>一</li>')
+    expect(html).toContain('<li><p>一</p></li>')
     expect(html).toContain('<blockquote><p>引用文字</p></blockquote>')
     expect(html).toContain('<pre><code class="language-ts">const a = 1</code></pre>')
     expect(html).toContain('<hr>')
@@ -128,6 +130,47 @@ describe('renderMarkdownToHtml', () => {
     const html = renderMarkdownToHtml('中文 English 混排 **粗体**\n未闭合 `代码')
     expect(html).toContain('中文 English 混排')
     expect(renderMarkdownToHtml('')).toBe('')
+  })
+
+  it('集合输出保留引用图片并隐藏元数据', () => {
+    const html = renderMarkdownToHtml(
+      '---\ntitle: 内部标题\n---\n\n![架构图][img]\n\n[img]: assets/a.png',
+    )
+    expect(html).not.toContain('title: 内部标题')
+    expect(html).toContain('src="assets/a.png"')
+    expect(html).toContain('alt="架构图"')
+  })
+
+  it('A03：中文脚注引用与定义关联', () => {
+    const html = renderMarkdownToHtml('正文[^注一]\n\n[^注一]: 脚注说明')
+    const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html')
+    const root = doc.body.firstElementChild!
+    const ref = root.querySelector('[data-type="footnote_reference"]')
+    expect(ref?.textContent).toContain('注一')
+    const def = root.querySelector('[data-type="footnote_definition"]')
+    expect(def?.textContent).toContain('脚注说明')
+    const href = ref?.querySelector('a')?.getAttribute('href') ?? ''
+    expect(def?.id).toBeTruthy()
+    expect(href).toBe(`#${def?.id}`)
+  })
+
+  it('A03：引用式链接与图片解析定义', () => {
+    const html = renderMarkdownToHtml(
+      ['[文档][doc]', '![图标][icon]', '', '[doc]: ./guide.md', '[icon]: assets/icon.png'].join('\n'),
+    )
+    expect(html).toContain('<a href="./guide.md">文档</a>')
+    expect(html).toContain('src="assets/icon.png"')
+    expect(html).not.toContain('[doc]:')
+  })
+
+  it('A03：两层无序列表保留嵌套结构', () => {
+    const html = renderMarkdownToHtml('- 外层\n  - 内层')
+    const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html')
+    const outerLi = doc.body.querySelector('ul > li')
+    expect(outerLi?.textContent).toContain('外层')
+    const nestedUl = outerLi?.querySelector(':scope > ul')
+    expect(nestedUl).toBeTruthy()
+    expect(nestedUl?.querySelector('li')?.textContent).toContain('内层')
   })
 })
 

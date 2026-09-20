@@ -2,6 +2,18 @@
 
 更新时间：2026-09-20（Asia/Shanghai）
 
+## R03 结项（feat/strategy-execution）
+
+**任务号：** R03  
+**提交：** （见下方 git log）  
+**失败测试（修复前）：** A03 四类——闭合 frontmatter 泄漏为 `<hr>/<h2>`；脚注读错 AST 字段；引用式链接/图片未解析 `definition`；列表子节点走行内渲染导致嵌套列表失真。  
+**修复后结果：** `document-collection.test.ts` 19/19；`collection-markdown-renderer.test.ts` 17/17；全量 **198** 文件 **1461** 项通过。  
+**全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0（1461 passed）；`npm run build` 0；`npm run smoke` **exit 1**（与 R00–R02 相同：React #301 + `SMOKE_FAIL 系统关联文件未进入外部标签`，非 R03 回归）。  
+**文档：** `docs/export-formats.md` 集合 HTML 子集说明、计划 §6 复选框。  
+**人工边界：** 单篇 DOM 导出与集合 mdast 路径语义仍分表验收；PDF/DOCX 未因 HTML 保真自动宣称通过。集合导出不改磁盘 `.md` hash。  
+**实际工时：** ~1.5h（自动化记录）  
+**下一项：** R04  
+
 ## R02 结项（feat/strategy-execution）
 
 **任务号：** R02  

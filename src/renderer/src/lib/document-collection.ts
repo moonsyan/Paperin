@@ -1,9 +1,6 @@
-import { fromMarkdown } from 'mdast-util-from-markdown'
-import { gfmFromMarkdown } from 'mdast-util-gfm'
-import { mathFromMarkdown } from 'mdast-util-math'
-import { gfm } from 'micromark-extension-gfm'
-import { math } from 'micromark-extension-math'
 import { extractFrontmatterRaw, parseFrontmatterYaml } from './frontmatter-parser'
+
+export { renderMarkdownToHtml } from './collection-markdown-renderer'
 import { isWritingTemplate, renderWritingTemplate } from './writing-templates'
 import type { WritingTemplateId } from './writing-templates'
 
@@ -14,9 +11,7 @@ import type { WritingTemplateId } from './writing-templates'
  * 顺序约定：Frontmatter `order` 升序（同序号保持输入顺序稳定）；
  * 缺 order 的文档排在最后并按路径排序。
  *
- * 渲染：基于 mdast（CommonMark + GFM）的树遍历，正文文本一律转义，
- * 不输出任何来源侧原始 HTML（安全导出）。公式以 TeX 源码文本形式呈现
- * （集合导出不内嵌 KaTeX 字体），复杂排版建议逐篇使用当前文档导出。
+ * 渲染：见 collection-markdown-renderer（mdast 遍历 + 安全 URL）。
  */
 
 export type DocumentTemplate = 'readme' | 'api' | 'design' | 'changelog' | WritingTemplateId
@@ -71,166 +66,12 @@ export const orderCollection = (entries: CollectionEntry[]): CollectionEntry[] =
   return indexed.map((item) => item.entry)
 }
 
-/* ---------- mdast → HTML（转义文本，不透传来源 HTML） ---------- */
-
-interface MdastNode {
-  type: string
-  value?: string
-  depth?: number
-  lang?: string
-  alt?: string
-  url?: string
-  title?: string | null
-  children?: MdastNode[]
-  ordered?: boolean
-  start?: number | null
-  spread?: boolean
-  checked?: boolean | null
-  align?: Array<'left' | 'right' | 'center' | null> | null
-  meta?: string | null
-}
-
 const escapeHtml = (text: string): string =>
   text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-
-/** URL 属性安全化：仅允许 http(s)、mdimg、协议相对与相对路径/锚点；
- *  其余协议（javascript:/data:/vbscript: 等）降级为 #。
- *  协议必须显式判定——javascript: 同样以字母开头，不能用
- *  "字母开头即相对路径"放行；判定前去除控制字符，浏览器会忽略
- *  scheme 内的制表/换行（jAvASc\nript: 仍按 javascript 执行） */
-const safeUrl = (url: string): string => {
-  const trimmed = url.trim()
-  if (!trimmed) return '#'
-  const compact = Array.from(trimmed, (ch) => (ch.charCodeAt(0) <= 0x20 ? '' : ch)).join('')
-  if (/^(https?:|mdimg:)/i.test(compact) || compact.startsWith('//')) return trimmed
-  if (compact.startsWith('#')) return trimmed
-  // 无协议前缀才视为相对路径
-  if (/^[^:]*:/.test(compact)) return '#'
-  return trimmed
-}
-
-/** 行内节点渲染 */
-const renderInlineChildren = (nodes: MdastNode[]): string =>
-  nodes.map(renderNode).join('')
-
-const renderNode = (node: MdastNode): string => {
-  switch (node.type) {
-    case 'text':
-      return escapeHtml(node.value ?? '')
-    case 'emphasis':
-      return `<em>${renderInlineChildren(node.children ?? [])}</em>`
-    case 'strong':
-      return `<strong>${renderInlineChildren(node.children ?? [])}</strong>`
-    case 'delete':
-      return `<del>${renderInlineChildren(node.children ?? [])}</del>`
-    case 'inlineCode':
-      return `<code>${escapeHtml(node.value ?? '')}</code>`
-    case 'inlineMath':
-      return `<span class="math-inline">${escapeHtml(node.value ?? '')}</span>`
-    case 'break':
-      return '<br>\n'
-    case 'link':
-      return `<a href="${escapeHtml(safeUrl(node.url ?? ''))}"${node.title ? ` title="${escapeHtml(node.title)}"` : ''}>${renderInlineChildren(node.children ?? [])}</a>`
-    case 'image':
-      return `<img src="${escapeHtml(safeUrl(node.url ?? ''))}" alt="${escapeHtml(node.alt ?? '')}">`
-    case 'linkReference':
-    case 'imageReference':
-      // 引用定义未被解析时退化为文本内容
-      return renderInlineChildren(node.children ?? [])
-    case 'footnoteReference': {
-      const label = escapeHtml(node.value ?? '')
-      return `<sup data-type="footnote_reference">[${label}]</sup>`
-    }
-    case 'html':
-      // 来源侧 HTML 一律转义为文本（安全导出，不透传脚本/事件属性）
-      return escapeHtml(node.value ?? '')
-    default:
-      return node.children ? renderInlineChildren(node.children) : escapeHtml(node.value ?? '')
-  }
-}
-
-const renderList = (node: MdastNode): string => {
-  const tag = node.ordered ? 'ol' : 'ul'
-  const startAttr = node.ordered && node.start != null && node.start !== 1 ? ` start="${node.start}"` : ''
-  const items = (node.children ?? [])
-    .map((item) => {
-      const children = item.children ?? []
-      const checked = item.checked
-      if (checked === true || checked === false) {
-        const box = `<input type="checkbox" disabled${checked ? ' checked' : ''}> `
-        const body = children.map(renderNode).join('')
-        return `<li class="task-item">${box}${body}</li>`
-      }
-      const body = children.map(renderNode).join('')
-      return `<li>${body}</li>`
-    })
-    .join('')
-  return `<${tag}${startAttr}>${items}</${tag}>`
-}
-
-const renderTable = (node: MdastNode): string => {
-  const rows = node.children ?? []
-  if (rows.length === 0) return ''
-  const renderRow = (row: MdastNode, tag: 'th' | 'td'): string => {
-    const cells = (row.children ?? []).map((cell, i) => {
-      const align = node.align?.[i]
-      const style = align ? ` style="text-align:${align}"` : ''
-      return `<${tag}${style}>${renderInlineChildren(cell.children ?? [])}</${tag}>`
-    })
-    return `<tr>${cells.join('')}</tr>`
-  }
-  const [head, ...body] = rows
-  const headHtml = head ? `<thead>${renderRow(head, 'th')}</thead>` : ''
-  const bodyHtml = body.length > 0 ? `<tbody>${body.map((row) => renderRow(row, 'td')).join('')}</tbody>` : ''
-  return `<table>${headHtml}${bodyHtml}</table>`
-}
-
-/** 块级节点渲染 */
-const renderBlock = (node: MdastNode): string => {
-  switch (node.type) {
-    case 'heading': {
-      const level = Math.min(6, Math.max(1, node.depth ?? 1))
-      return `<h${level}>${renderInlineChildren(node.children ?? [])}</h${level}>`
-    }
-    case 'paragraph':
-      return `<p>${renderInlineChildren(node.children ?? [])}</p>`
-    case 'code':
-      return `<pre><code${node.lang ? ` class="language-${escapeHtml(node.lang)}"` : ''}>${escapeHtml(node.value ?? '')}</code></pre>`
-    case 'math':
-      return `<pre class="math-block">${escapeHtml(node.value ?? '')}</pre>`
-    case 'blockquote':
-      return `<blockquote>${(node.children ?? []).map(renderBlock).join('')}</blockquote>`
-    case 'list':
-      return renderList(node)
-    case 'table':
-      return renderTable(node)
-    case 'thematicBreak':
-      return '<hr>'
-    case 'footnoteDefinition': {
-      const label = escapeHtml(node.value ?? '')
-      return `<dl data-type="footnote_definition"><dt>[^${label}]</dt><dd>${(node.children ?? []).map(renderBlock).join('')}</dd></dl>`
-    }
-    case 'yaml':
-    case 'toml':
-      return ''
-    default:
-      return node.children ? (node.children.map(renderBlock).join('')) : ''
-  }
-}
-
-/** Markdown → HTML（CommonMark + GFM；来源 HTML 转义，公式保留 TeX 文本） */
-export const renderMarkdownToHtml = (markdown: string): string => {
-  if (typeof markdown !== 'string' || !markdown.trim()) return ''
-  const tree = fromMarkdown(markdown, {
-    extensions: [gfm(), math()],
-    mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()],
-  })
-  return tree.children.map((node) => renderBlock(node as MdastNode)).join('\n')
-}
 
 /** 集合 HTML：每篇一个锚点小节 + 集合目录（样式复用导出模板的 .doc-toc） */
 export const buildCollectionHtml = (entries: CollectionEntry[]): string => {
