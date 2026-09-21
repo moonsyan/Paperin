@@ -5,6 +5,7 @@ import {
   parseWorkspaceSettings,
   normalizeWorkspaceRelativePath,
   rememberRecentCitation,
+  rememberSourceSnapshot,
 } from './workspace-state'
 
 describe('工作区状态校验', () => {
@@ -160,7 +161,7 @@ describe('工作区状态校验', () => {
     })).toEqual({
       schemaVersion: 1,
       appearance: { theme: 'inherit' },
-      editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [] },
+      editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [], sourceSnapshots: [] },
     })
   })
 
@@ -168,12 +169,12 @@ describe('工作区状态校验', () => {
     expect(parseWorkspaceSettings({})).toEqual({
       schemaVersion: 1,
       appearance: { theme: 'inherit' },
-      editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [] },
+      editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [], sourceSnapshots: [] },
     })
     expect(parseWorkspaceSettings({ editor: { attachmentDirectory: ' media\\images/ ' } })).toEqual({
       schemaVersion: 1,
       appearance: { theme: 'inherit' },
-      editor: { attachmentDirectory: 'media/images', lastSearchQuery: '', recentCitations: [] },
+      editor: { attachmentDirectory: 'media/images', lastSearchQuery: '', recentCitations: [], sourceSnapshots: [] },
     })
     expect(parseWorkspaceSettings({ editor: { lastSearchQuery: ' 研究\n笔记 ' } }).editor.lastSearchQuery).toBe('研究 笔记')
     expect(parseWorkspaceSettings({}).editor.lastSearchQuery).toBe('')
@@ -187,5 +188,30 @@ describe('工作区状态校验', () => {
       editor: { recentCitations: ['资料/文章.md', '../秘密.md', '资料/文章.md'] },
     }).editor.recentCitations).toEqual(['资料/文章.md'])
     expect(parseWorkspaceSettings({}).editor.recentCitations).toEqual([])
+  })
+
+  it('来源快照拒绝绝对/越界路径，去重并限制数量，旧 schema 默认为空', () => {
+    expect(parseWorkspaceSettings({}).editor.sourceSnapshots).toEqual([])
+    expect(parseWorkspaceSettings({
+      editor: {
+        sourceSnapshots: [
+          { path: '资料/a.md', modifiedTime: 10, content: '丢弃正文' },
+          { path: 'C:/notes/a.md', modifiedTime: 11 },
+          { path: '../secret.md', modifiedTime: 12 },
+          { path: '资料/a.md', modifiedTime: 99 },
+          { path: '资料/b.md', hash: 'abc' },
+        ],
+      },
+    }).editor.sourceSnapshots).toEqual([{ path: '资料/a.md', modifiedTime: 10 }])
+    expect(rememberSourceSnapshot([], { path: 'D:/外部.md', modifiedTime: 1 })).toEqual([])
+    expect(rememberSourceSnapshot(
+      [{ path: '资料/a.md', modifiedTime: 1 }],
+      { path: '资料/a.md', modifiedTime: 8 },
+    )).toEqual([{ path: '资料/a.md', modifiedTime: 8 }])
+    const overflow = Array.from({ length: 55 }, (_, index) => ({
+      path: `资料/${index}.md`,
+      modifiedTime: index,
+    }))
+    expect(parseWorkspaceSettings({ editor: { sourceSnapshots: overflow } }).editor.sourceSnapshots).toHaveLength(50)
   })
 })

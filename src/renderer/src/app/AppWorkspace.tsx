@@ -20,6 +20,8 @@ import type { SearchBarHandlers } from './useEditorSearch'
 import { SKIP_LINK_TARGET_ID } from './SkipLink'
 import { workspaceCompatibilityNotes } from '../lib/workspace-compatibility'
 import { insertCitationFromPanel } from '../lib/insert-citation'
+import { evaluateSourceHealth } from '../lib/source-health'
+import type { SourceSnapshot } from '../../../shared/workspace-state'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -128,6 +130,10 @@ export interface AppWorkspaceProps {
   typographyIssues: TypographyIssue[]
   onOpenTypographyIssue: (issue: TypographyIssue) => void
   onFixTypography: () => void
+  sourceSnapshots?: SourceSnapshot[]
+  onRelocateSource?: (path: string) => void
+  onOpenWorkspaceSearch?: () => void
+  onSourceInserted?: (absolutePath: string) => void
   activeProperties: unknown
   showFrontmatterProps: boolean
   onToggleProperties: () => void
@@ -173,6 +179,7 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
     onRefreshIndex, onCancelIndex, onOpenDiagnostic, sidebarViewModel, linksLoading,
     onOpenLink, onOpenGraphView, tagIndex, tagsLoading, tagsTruncated, tagFilter, onToggleTagFilter,
     typographyIssues, onOpenTypographyIssue, onFixTypography,
+    sourceSnapshots = [], onRelocateSource, onOpenWorkspaceSearch, onSourceInserted,
     activeProperties, showFrontmatterProps, onToggleProperties, onUpdateProperty, onDeleteProperty, onAddProperty,
     activeOutlineIndex, onOutlineClick, focusEditorSoon,
   } = props
@@ -312,14 +319,17 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
         linksLoading={linksLoading}
         linksTruncated={linksTruncated}
         onOpenLink={onOpenLink}
-        onInsertCitation={(sourcePath, preview) => insertCitationFromPanel({
-          editor: editorRef.current,
-          activeFileId,
-          fromFile: activeFilePath ?? null,
-          toFile: sourcePath,
-          preview,
-          notify: onNotify,
-        })}
+        onInsertCitation={(sourcePath, preview) => {
+          insertCitationFromPanel({
+            editor: editorRef.current,
+            activeFileId,
+            fromFile: activeFilePath ?? null,
+            toFile: sourcePath,
+            preview,
+            notify: onNotify,
+          })
+          onSourceInserted?.(sourcePath)
+        }}
         onUnresolvedLinkClick={(target) => onNotify(`链接目标未创建：${target}`)}
         onOpenGraphView={onOpenGraphView}
         tagsFiles={tagIndex?.files ?? null}
@@ -336,6 +346,9 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
         typographyIssues={typographyIssues}
         onOpenTypographyIssue={onOpenTypographyIssue}
         onFixTypography={onFixTypography}
+        sourceHealth={evaluateSourceHealth(sourceSnapshots, workspaceIndex)}
+        onRelocateSource={onRelocateSource}
+        onOpenWorkspaceSearch={onOpenWorkspaceSearch}
         properties={activeProperties as never}
         showProperties={showFrontmatterProps}
         onToggleProperties={onToggleProperties}

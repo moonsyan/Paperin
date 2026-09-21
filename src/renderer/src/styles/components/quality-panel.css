@@ -102,3 +102,27 @@
   word-break: break-all;
 }
 
+.quality-source {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 6px 8px;
+  border-left: 3px solid var(--warning, #b7791f);
+}
+
+.quality-source-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.quality-source-actions button {
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-1);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 11px;
+  cursor: pointer;
+}
+

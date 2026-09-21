@@ -1,5 +1,6 @@
 import type { DiagnosticRecord } from '../../../../shared/workspace-index'
 import type { TypographyIssue } from '../../lib/chinese-typography'
+import type { SourceHealthRecord } from '../../lib/source-health'
 import '../../styles/components/quality-panel.css'
 
 interface QualityPanelProps {
@@ -15,6 +16,15 @@ interface QualityPanelProps {
   onOpenTypographyIssue?: (issue: TypographyIssue) => void
   /** 一键修复当前文档的可自动修复项 */
   onFixTypography?: () => void
+  sourceHealth?: SourceHealthRecord[]
+  onRelocateSource?: (path: string) => void
+  onOpenWorkspaceSearch?: () => void
+}
+
+const SOURCE_STATUS_LABEL: Record<Exclude<SourceHealthRecord['status'], 'current'>, string> = {
+  changed: '来源已变化',
+  missing: '来源缺失',
+  unverified: '索引未完成',
 }
 
 const GROUPS: Array<{ key: DiagnosticRecord['severity']; label: string }> = [
@@ -33,7 +43,14 @@ export function QualityPanel({
   typographyIssues = [],
   onOpenTypographyIssue,
   onFixTypography,
+  sourceHealth = [],
+  onRelocateSource,
+  onOpenWorkspaceSearch,
 }: QualityPanelProps): JSX.Element {
+  const visibleSources = sourceHealth.filter(
+    (record): record is SourceHealthRecord & { status: Exclude<SourceHealthRecord['status'], 'current'> } =>
+      record.status !== 'current',
+  )
   return (
     <section className="quality-panel" aria-label="质量诊断">
       <header className="quality-panel-header">
@@ -45,6 +62,23 @@ export function QualityPanel({
       </header>
       {!indexComplete && (
         <div className="quality-panel-incomplete" role="status">索引未完成，请重新扫描</div>
+      )}
+      {visibleSources.length > 0 && (
+        <div className="quality-group quality-group-source">
+          <h3>来源健康（{visibleSources.length}）</h3>
+          {visibleSources.map((record) => (
+            <div key={`${record.status}:${record.path}`} className="quality-source" role="status">
+              <span className="quality-item-message">{SOURCE_STATUS_LABEL[record.status]}</span>
+              <span className="quality-item-location">{record.path}</span>
+              {record.status === 'missing' && (
+                <div className="quality-source-actions">
+                  <button type="button" onClick={() => onRelocateSource?.(record.path)}>重新定位</button>
+                  <button type="button" onClick={() => onOpenWorkspaceSearch?.()}>打开搜索</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       )}
       <div className="quality-group quality-group-typography">
         <h3 className="quality-group-title-row">
@@ -97,7 +131,7 @@ export function QualityPanel({
           </div>
         )
       })}
-      {diagnostics.length === 0 && indexComplete && typographyIssues.length === 0 && (
+      {diagnostics.length === 0 && indexComplete && typographyIssues.length === 0 && visibleSources.length === 0 && (
         <div className="quality-panel-empty">未发现问题</div>
       )}
     </section>

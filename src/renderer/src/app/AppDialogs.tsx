@@ -49,6 +49,7 @@ import type { WorkspaceIndex } from '../../../shared/workspace-index'
 import type { WorkspaceInfo } from '../components/Sidebar'
 import type { WorkspaceSettingsState } from '../../../shared/workspace-state'
 import { rememberRecentCitation } from '../../../shared/workspace-state'
+import { rememberSourceSnapshotFromDisk } from '../lib/remember-source-snapshot'
 import { resolveWorkspacePath, toWorkspaceRelativePath } from '../lib/workspace-state'
 
 // ---------------------------------------------------------------------------
@@ -349,9 +350,9 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
             onClearNavigation={() => {
               setWorkspaceSettings((current) => ({
                 ...current,
-                editor: { ...current.editor, lastSearchQuery: '', recentCitations: [] },
+                editor: { ...current.editor, lastSearchQuery: '', recentCitations: [], sourceSnapshots: [] },
               }))
-              setToast('已清除搜索词和最近引用，正文没有改动')
+              setToast('已清除搜索词、最近引用和来源快照，正文没有改动')
             }}
             onInsertCitation={(match) => {
               if (!citationTargetsCurrentDocument(match.capturedFileId, activeFileId)) {
@@ -372,6 +373,7 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
                   ...current,
                   editor: { ...current.editor, recentCitations: rememberRecentCitation(current.editor.recentCitations, relative) },
                 }))
+                rememberSourceSnapshotFromDisk(match.path, workspace.path, setWorkspaceSettings)
               }
               onCloseWorkspaceSearch()
               setToast('已插入来源引用，已回到原位置，可用撤销收回')

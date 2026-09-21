@@ -10,6 +10,7 @@ import type { DiagnosticRecord, WorkspaceIndex } from '../../../../shared/worksp
 import type { PanelContext, PanelDefinition } from '../../app/panels/panel-registry'
 import type { BacklinkGraph } from '../../lib/backlinks'
 import type { TypographyIssue } from '../../lib/chinese-typography'
+import type { SourceHealthRecord } from '../../lib/source-health'
 import type { SidebarViewModel } from '../Sidebar/sidebar-view-model'
 import type { BuiltInContextDockPanel } from './context-dock-state'
 
@@ -42,6 +43,9 @@ export interface ContextDockContentProps {
   typographyIssues?: TypographyIssue[]
   onOpenTypographyIssue?: (issue: TypographyIssue) => void
   onFixTypography?: () => void
+  sourceHealth?: SourceHealthRecord[]
+  onRelocateSource?: (path: string) => void
+  onOpenWorkspaceSearch?: () => void
   properties: Record<string, string> | null
   showProperties: boolean
   onToggleProperties: () => void
@@ -105,6 +109,9 @@ export function ContextDockPanelContent({
   typographyIssues = [],
   onOpenTypographyIssue,
   onFixTypography,
+  sourceHealth = [],
+  onRelocateSource,
+  onOpenWorkspaceSearch,
   properties,
   showProperties,
   onToggleProperties,
@@ -135,7 +142,7 @@ export function ContextDockPanelContent({
         <FrontmatterProperties properties={properties} show={showProperties} onToggle={onToggleProperties} onUpdateProperty={onUpdateProperty} onDeleteProperty={onDeleteProperty} onAddProperty={onAddProperty} />
       )}
       {!panel.render && panel.id === 'quality' && (
-        <QualityPanel diagnostics={diagnostics} indexComplete={workspaceIndex?.complete ?? false} indexing={indexLoading} onRefresh={onRefreshIndex} onCancel={onCancelIndex} onOpenDiagnostic={onOpenDiagnostic} typographyIssues={typographyIssues} onOpenTypographyIssue={onOpenTypographyIssue} onFixTypography={onFixTypography} />
+        <QualityPanel diagnostics={diagnostics} indexComplete={workspaceIndex?.complete ?? false} indexing={indexLoading} onRefresh={onRefreshIndex} onCancel={onCancelIndex} onOpenDiagnostic={onOpenDiagnostic} typographyIssues={typographyIssues} onOpenTypographyIssue={onOpenTypographyIssue} onFixTypography={onFixTypography} sourceHealth={sourceHealth} onRelocateSource={onRelocateSource} onOpenWorkspaceSearch={onOpenWorkspaceSearch} />
       )}
     </section>
   )

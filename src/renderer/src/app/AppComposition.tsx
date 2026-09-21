@@ -15,6 +15,7 @@ import { useSystemFileOpen } from '../hooks/useSystemFileOpen'
 import { useDocumentSessionPersistence } from '../hooks/useDocumentSessionPersistence'
 import type { PublishOptions, PublishScope } from '../lib/export-bundle'
 import { normalizeWorkspaceRelativePath } from '../../../shared/workspace-state'
+import { rememberSourceSnapshotFromDisk, searchQueryForRelocate } from '../lib/remember-source-snapshot'
 
 import { useDocumentSession } from './document-session/useDocumentSession'
 import { useAppActions } from './useAppActions'
@@ -382,6 +383,16 @@ export function AppComposition(): JSX.Element {
           tagIndex={tagIndex} tagsLoading={tagsLoading} tagsTruncated={tagsTruncated}
           tagFilter={tagFilter} onToggleTagFilter={handleToggleTagFilter}
           typographyIssues={typographyIssues} onOpenTypographyIssue={handleOpenTypographyIssue} onFixTypography={handleFixTypography}
+          sourceSnapshots={workspaceSettings.editor.sourceSnapshots}
+          onRelocateSource={(path) => {
+            setWorkspaceSettings((current) => ({
+              ...current,
+              editor: { ...current.editor, lastSearchQuery: searchQueryForRelocate(path) },
+            }))
+            setWsSearchOpen(true)
+          }}
+          onOpenWorkspaceSearch={() => setWsSearchOpen(true)}
+          onSourceInserted={(absolutePath) => rememberSourceSnapshotFromDisk(absolutePath, workspace?.path, setWorkspaceSettings)}
           activeProperties={activeProperties} showFrontmatterProps={settings.showFrontmatterProps}
           onToggleProperties={() => settings.setShowFrontmatterProps((v) => !v)}
           onUpdateProperty={handleUpdateProperty} onDeleteProperty={handleDeleteProperty} onAddProperty={handleAddProperty}
