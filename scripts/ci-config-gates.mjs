@@ -114,6 +114,41 @@ export function validateReleaseWorkflowGates(content) {
   return errors
 }
 
+const parseVersionParts = (version) =>
+  String(version)
+    .split('.')
+    .map((part) => Number.parseInt(part, 10) || 0)
+
+const isVersionLower = (version, minimum) => {
+  const left = parseVersionParts(version)
+  const right = parseVersionParts(minimum)
+  const length = Math.max(left.length, right.length)
+  for (let index = 0; index < length; index++) {
+    const a = left[index] ?? 0
+    const b = right[index] ?? 0
+    if (a < b) return true
+    if (a > b) return false
+  }
+  return false
+}
+
+const JS_YAML_MIN_PRODUCTION = '4.3.2'
+
+/** 生产锁文件不得包含低于修复 CPU 消耗漏洞所需版本的 js-yaml。dev 依赖单独审计。 */
+export function validateProductionJsYaml(lockfile, minVersion = JS_YAML_MIN_PRODUCTION) {
+  const errors = []
+  const packages = lockfile?.packages ?? {}
+  for (const [path, pkg] of Object.entries(packages)) {
+    if (!path.endsWith('/js-yaml') && path !== 'node_modules/js-yaml') continue
+    if (pkg?.dev === true) continue
+    const version = String(pkg?.version ?? '')
+    if (!version || isVersionLower(version, minVersion)) {
+      errors.push(`生产依赖 js-yaml@${version || '未知'} 低于 ${minVersion}（${path}）`)
+    }
+  }
+  return errors
+}
+
 export function verifyCiConfig() {
   const errors = []
 
@@ -137,6 +172,13 @@ export function verifyCiConfig() {
   }
   if (releaseContent) {
     errors.push(...validateReleaseWorkflowGates(releaseContent))
+  }
+
+  try {
+    const lockfile = JSON.parse(readFileSync(resolve(root, 'package-lock.json'), 'utf8'))
+    errors.push(...validateProductionJsYaml(lockfile))
+  } catch (error) {
+    errors.push(`无法读取 package-lock.json：${error instanceof Error ? error.message : String(error)}`)
   }
 
   return { ok: errors.length === 0, errors }

@@ -15,6 +15,7 @@
 | 正式发行显式门禁 | 仅 `workflow_dispatch` + `action=publish-formal` + `confirm_publish=PUBLISH` + `candidate_sha` 与 Draft Release commit 一致 → `gh release edit --draft=false` | **已配置** |
 | tag 推送自动正式发布 | 已移除：`push tags v*` 只走候选 draft，不 `draft: false` | **已阻断** |
 | 配置回归测试 | `release.yml` 缺 smoke 或 `draft: true` 被改成无条件正式发布时，`validateReleaseWorkflowGates` 失败（见单测） | **已通过** |
+| 生产依赖审计 | 2026-09-21 `npm audit --omit=dev --audit-level=moderate` 为 0；`electron-updater` 间接依赖 `js-yaml` 由 4.3.1 升至 4.3.2。`validateProductionJsYaml` 拒绝生产树回退到 4.3.2 以下。dev 依赖漏洞未纳入本门禁 | **已处理生产 high** |
 
 未在本任务执行：`git push`、打 tag、`gh release publish`、上传安装包二进制到仓库。
 

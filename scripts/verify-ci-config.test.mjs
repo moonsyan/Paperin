@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import {
   readWorkflowOrThrow,
   validateBuildWorkflowSteps,
+  validateProductionJsYaml,
   validateReleaseWorkflowGates,
   verifyCiConfig,
 } from './ci-config-gates.mjs'
@@ -45,5 +46,29 @@ describe('verify-ci-config', () => {
       'npm run build',
     ])
     expect(errors).toEqual([])
+  })
+})
+
+describe('validateProductionJsYaml', () => {
+  it('拒绝生产树中低于 4.3.2 的 js-yaml', () => {
+    expect(
+      validateProductionJsYaml({
+        packages: {
+          'node_modules/js-yaml': { version: '4.3.1' },
+          'node_modules/eslint/node_modules/js-yaml': { version: '4.1.0', dev: true },
+        },
+      }),
+    ).toEqual(['生产依赖 js-yaml@4.3.1 低于 4.3.2（node_modules/js-yaml）'])
+  })
+
+  it('允许 4.3.2 及以上的生产 js-yaml，并忽略 dev 依赖', () => {
+    expect(
+      validateProductionJsYaml({
+        packages: {
+          'node_modules/js-yaml': { version: '4.3.2' },
+          'node_modules/eslint/node_modules/js-yaml': { version: '4.1.0', dev: true },
+        },
+      }),
+    ).toEqual([])
   })
 })
