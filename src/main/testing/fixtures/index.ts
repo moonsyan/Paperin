@@ -1,8 +1,9 @@
-import type { PerformanceFixtureKind } from './markdown-builders'
 import {
   FIXTURE_FILENAMES,
   FIXTURE_MARKERS,
   SCAN_MAX_FILE_BYTES,
+  STABILITY_FIXTURE_KINDS,
+  STABILITY_FIXTURE_MARKERS,
   createPerformanceFixtureMarkdown,
   fixtureFilename,
 } from './markdown-builders'
@@ -12,11 +13,13 @@ import {
   buildR09MultiStructureSkeleton,
 } from '../../../shared/testing/r09-fixture-contract'
 
-export type { PerformanceFixtureKind }
+export type { PerformanceFixtureKind, StabilityFixtureKind } from './markdown-builders'
 export {
   FIXTURE_FILENAMES,
   FIXTURE_MARKERS,
   SCAN_MAX_FILE_BYTES,
+  STABILITY_FIXTURE_KINDS,
+  STABILITY_FIXTURE_MARKERS,
   fixtureFilename,
   createPerformanceFixtureMarkdown,
   buildR09MultiStructureSkeleton,

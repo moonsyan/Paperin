@@ -7,6 +7,9 @@ import {
   LargeParagraphDocumentFixture,
   MultiStructureDocumentFixture,
   OrdinaryDocumentFixture,
+  STABILITY_FIXTURE_KINDS,
+  STABILITY_FIXTURE_MARKERS,
+  createPerformanceFixtureMarkdown,
 } from './index'
 
 describe('R09 performance fixtures', () => {
@@ -40,6 +43,16 @@ describe('R09 performance fixtures', () => {
     expect(markdown).toContain('[不完整链接](missing-target')
     for (const anchor of ['R09_MULTI_STRUCTURE_ANCHOR', '表格中文', '中文脚注', FIXTURE_MARKERS.originalTail]) {
       expect(markdown).toContain(anchor)
+    }
+  })
+
+  it('稳定性五结构夹具都达到 5 MiB，并保留首尾标记与不完整语法', () => {
+    for (const kind of STABILITY_FIXTURE_KINDS) {
+      const markdown = createPerformanceFixtureMarkdown(kind)
+      expect(Buffer.byteLength(markdown, 'utf8'), kind).toBeGreaterThanOrEqual(5 * 1024 * 1024)
+      expect(markdown).toContain(STABILITY_FIXTURE_MARKERS[kind].original)
+      expect(markdown).toContain(STABILITY_FIXTURE_MARKERS[kind].tail)
+      expect(markdown.includes('missing-target') || markdown.includes('[[未闭合')).toBe(true)
     }
   })
 

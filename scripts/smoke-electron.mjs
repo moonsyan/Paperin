@@ -6,6 +6,7 @@
 //   npm run build && node scripts/smoke-electron.mjs
 //   npm run build && npm run smoke   # 等价入口
 //   npm run build && npm run perf:electron  # 5 MiB / 20 标签真实 Electron 性能门禁
+//   node scripts/smoke-electron.mjs --performance --stability-hours 8  # 8 小时稳定性（人工/设备门禁）
 //
 // 场景：打开临时工作区 → 新建文档 → 保存并校验磁盘 → 外部修改 + 过期
 // mtime 保存必须 CONFLICT → 重读 → 重命名 → 工作区搜索 → 状态读取。
@@ -31,6 +32,14 @@ const electronBinary =
     : join(projectRoot, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
 const mainEntry = join(projectRoot, 'out', 'main', 'index.js')
 const performanceScenario = process.argv.includes('--performance')
+const stabilityHoursIndex = process.argv.indexOf('--stability-hours')
+const stabilityHoursFlag = process.argv.find((item) => item.startsWith('--stability-hours='))
+const stabilityHours = stabilityHoursIndex >= 0
+  ? Number(process.argv[stabilityHoursIndex + 1])
+  : stabilityHoursFlag
+    ? Number(stabilityHoursFlag.slice('--stability-hours='.length))
+    : 0
+const stabilityHoursSafe = Number.isFinite(stabilityHours) && stabilityHours > 0 ? stabilityHours : 0
 
 const createLargeMarkdown = () => createLargeParagraph5MibMarkdown()
 
@@ -85,6 +94,7 @@ const main = async () => {
       '--smoke',
       workspace,
       ...(performanceScenario ? ['--perf-electron'] : []),
+      ...(stabilityHoursSafe > 0 ? ['--stability-hours', String(stabilityHoursSafe)] : []),
       associatedFile,
     ],
     {
@@ -108,10 +118,13 @@ const main = async () => {
     output += String(chunk)
   })
 
+  const scriptTimeoutMs = performanceScenario || stabilityHoursSafe > 0
+    ? Math.max(420_000, stabilityHoursSafe * 3_600_000 + 420_000)
+    : 150_000
   const timeout = setTimeout(() => {
-    console.error(`SMOKE_FAIL 冒烟脚本总超时（${performanceScenario ? '420s' : '150s'}）`)
+    console.error(`SMOKE_FAIL 冒烟脚本总超时（${Math.round(scriptTimeoutMs / 1000)}s）`)
     child.kill()
-  }, performanceScenario ? 420_000 : 150_000)
+  }, scriptTimeoutMs)
 
   child.on('close', async (code) => {
     clearTimeout(timeout)

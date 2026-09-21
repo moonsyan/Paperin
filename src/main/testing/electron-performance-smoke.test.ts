@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   createSaveShortcutInput,
   hasSavedMarkdownMarkers,
+  parseStabilityHours,
   summarizeElectronPerformance,
+  summarizeStability,
 } from './electron-performance-smoke'
 
 describe('summarizeElectronPerformance', () => {
@@ -47,5 +49,51 @@ describe('summarizeElectronPerformance', () => {
       keyCode: 'S',
       modifiers: ['meta'],
     })
+  })
+})
+
+describe('summarizeStability', () => {
+  const hour = 60 * 60 * 1000
+  const mib = 1024 * 1024
+
+  it('用暖机后 30 分钟窗口与末两小时中位数计算增长，并报告 100 次重启', () => {
+    const samples = {
+      restartCycles: 100,
+      rssSeries: [
+        { at: 0, rssBytes: 400 * mib, watcherCount: 20 },
+        { at: hour - 1, rssBytes: 500 * mib, watcherCount: 20 },
+        { at: hour, rssBytes: 300 * mib, watcherCount: 10 },
+        { at: hour + 15 * 60 * 1000, rssBytes: 300 * mib, watcherCount: 10 },
+        { at: hour + 30 * 60 * 1000, rssBytes: 300 * mib, watcherCount: 10 },
+        { at: 6 * hour, rssBytes: 320 * mib, watcherCount: 10 },
+        { at: 8 * hour, rssBytes: 330 * mib, watcherCount: 10 },
+      ],
+    }
+    expect(summarizeStability(samples)).toMatchObject({
+      restartCycles: 100,
+      watcherLeak: false,
+    })
+    const summary = summarizeStability(samples)
+    expect(summary.rssGrowthPercent).toBeLessThanOrEqual(15)
+    expect(summary.rssGrowthMiB).toBeLessThanOrEqual(100)
+    expect(summary.withinBudget).toBe(true)
+  })
+
+  it('watcher 增多或内存超限时不能判通过', () => {
+    const leaking = summarizeStability({
+      restartCycles: 100,
+      rssSeries: [
+        { at: hour, rssBytes: 300 * mib, watcherCount: 10 },
+        { at: hour + 30 * 60 * 1000, rssBytes: 300 * mib, watcherCount: 10 },
+        { at: 8 * hour, rssBytes: 300 * mib, watcherCount: 12 },
+      ],
+    })
+    expect(leaking).toMatchObject({ restartCycles: 100, watcherLeak: true, withinBudget: false })
+  })
+
+  it('解析 --stability-hours', () => {
+    expect(parseStabilityHours(['--perf-electron'])).toBe(0)
+    expect(parseStabilityHours(['--stability-hours', '8'])).toBe(8)
+    expect(parseStabilityHours(['--stability-hours=8'])).toBe(8)
   })
 })

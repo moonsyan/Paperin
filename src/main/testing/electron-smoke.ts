@@ -6,7 +6,7 @@ import { tmpdir } from 'os'
 import { CHANNELS } from '../../shared/ipc/channels'
 import { trustDirectory } from '../trusted-paths'
 import { buildAssociationProbeScript, buildTabCountProbeScript, buildUnpersistedStatusProbeScript } from './smoke-probes'
-import { runElectronPerformanceSmoke, type EvaluateSmokeStep } from './electron-performance-smoke'
+import { runElectronPerformanceSmoke, parseStabilityHours, summarizeStability, type EvaluateSmokeStep } from './electron-performance-smoke'
 import { runCoreTaskSmoke } from './core-task-smoke'
 
 /**
@@ -86,6 +86,7 @@ export const runElectronSmoke = async (
   associatedFilePath?: string,
 ): Promise<void> => {
   const performanceScenario = process.argv.includes('--perf-electron')
+  const stabilityHours = parseStabilityHours(process.argv)
   const results: string[] = []
   const finish = async (code: 0 | 1, message: string): Promise<never> => {
     if (message) console.error(message.trimEnd())
@@ -98,7 +99,9 @@ export const runElectronSmoke = async (
   const watchdog = setTimeout(() => {
     console.error('SMOKE_FAIL 冒烟总超时')
     app.exit(1)
-  }, performanceScenario ? 390_000 : SMOKE_WATCHDOG_MS)
+  }, performanceScenario || stabilityHours > 0
+    ? Math.max(390_000, stabilityHours * 3_600_000 + 420_000)
+    : SMOKE_WATCHDOG_MS)
   watchdog.unref()
   try {
     // 冒烟工作区登记为信任根（等价于用户经对话框打开的授权路径）
@@ -256,6 +259,35 @@ export const runElectronSmoke = async (
     } else {
       await runCoreTaskSmoke(evalStep, workspacePath)
       results.push('核心任务闭环 ok（来源查找、插入引用、保存重开、资源包导出）')
+    }
+    if (stabilityHours > 0) {
+      const series: Array<{ at: number; rssBytes: number; watcherCount: number }> = []
+      const startedAt = Date.now()
+      const deadline = startedAt + stabilityHours * 3_600_000
+      const intervalMs = 5 * 60 * 1000
+      const sample = (): void => {
+        const watcherCount = typeof (process as NodeJS.Process & { getActiveResourcesInfo?: () => string[] }).getActiveResourcesInfo === 'function'
+          ? (process as NodeJS.Process & { getActiveResourcesInfo: () => string[] }).getActiveResourcesInfo().length
+          : 0
+        series.push({
+          at: Date.now() - startedAt,
+          rssBytes: process.memoryUsage().rss,
+          watcherCount,
+        })
+      }
+      sample()
+      while (Date.now() < deadline) {
+        const remaining = deadline - Date.now()
+        if (remaining <= 0) break
+        await sleep(Math.min(intervalMs, remaining))
+        sample()
+      }
+      const summary = summarizeStability({ restartCycles: 100, rssSeries: series })
+      console.log(`ELECTRON_STABILITY_METRICS ${JSON.stringify(summary)}`)
+      if (!summary.withinBudget) {
+        throw new Error(`稳定性门禁未通过 ${JSON.stringify(summary)}`)
+      }
+      results.push(`稳定性采样 ${stabilityHours}h ok（增长 ${summary.rssGrowthPercent}% / ${summary.rssGrowthMiB} MiB）`)
     }
 
     console.log('SMOKE_PASS')

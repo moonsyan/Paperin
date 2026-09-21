@@ -165,7 +165,7 @@ npm run perf:electron
 | 5 MiB 保存 | ≤5 s | 157.76 ms | 达标 |
 | 5000 文档搜索 P95 | ≤800 ms | `perf:production` watcher 子项失败（`INVALID_TARGET`）；历史搜索 P95 452.72 ms 见上节 | 门禁阻塞，不推断通过 |
 | 多结构 5 MiB ×20（Electron） | M01 协议 | 未跑 | **UNVERIFIED** |
-| 第二台 16GB 设备 / 8 h 稳定性 | M01/Q01 | 未跑 | **UNVERIFIED** |
+| 第二台 16GB 设备 / 8 h 稳定性 | M01/Q01 | 夹具与 `summarizeStability` 已具备；8 小时/两设备未跑 | **UNVERIFIED** |
 
 原始 JSON（当次 perf:electron）：
 

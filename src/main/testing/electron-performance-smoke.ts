@@ -60,6 +60,90 @@ export const summarizeElectronPerformance = (latencies: readonly number[]) => ({
   maxMs: Math.round(Math.max(0, ...latencies) * 100) / 100,
 })
 
+const STABILITY_WARMUP_MS = 60 * 60 * 1000
+const STABILITY_BASELINE_WINDOW_MS = 30 * 60 * 1000
+const STABILITY_LAST_WINDOW_MS = 2 * 60 * 60 * 1000
+const STABILITY_RSS_GROWTH_PERCENT_LIMIT = 15
+const STABILITY_RSS_GROWTH_MIB_LIMIT = 100
+
+export interface StabilityRssSample {
+  at: number
+  rssBytes: number
+  watcherCount: number
+}
+
+export interface StabilitySummaryInput {
+  restartCycles: number
+  rssSeries: readonly StabilityRssSample[]
+  warmupMs?: number
+  baselineWindowMs?: number
+  lastWindowMs?: number
+}
+
+export interface ElectronStabilityMetrics {
+  restartCycles: number
+  watcherLeak: boolean
+  rssGrowthPercent: number
+  rssGrowthMiB: number
+  withinBudget: boolean
+}
+
+const median = (values: readonly number[]): number => {
+  if (values.length === 0) return 0
+  const sorted = [...values].sort((a, b) => a - b)
+  const middle = Math.floor(sorted.length / 2)
+  if (sorted.length % 2 === 0) return (sorted[middle - 1] + sorted[middle]) / 2
+  return sorted[middle]
+}
+
+const windowMedian = (
+  samples: readonly StabilityRssSample[],
+  start: number,
+  end: number,
+  pick: (sample: StabilityRssSample) => number,
+): number => median(samples.filter((sample) => sample.at >= start && sample.at <= end).map(pick))
+
+/** 首小时暖机后，比较 30 分钟基线窗口与末两小时窗口的中位数。 */
+export const summarizeStability = (input: StabilitySummaryInput): ElectronStabilityMetrics => {
+  const warmupMs = input.warmupMs ?? STABILITY_WARMUP_MS
+  const baselineWindowMs = input.baselineWindowMs ?? STABILITY_BASELINE_WINDOW_MS
+  const lastWindowMs = input.lastWindowMs ?? STABILITY_LAST_WINDOW_MS
+  const series = [...input.rssSeries].sort((a, b) => a.at - b.at)
+  const end = series.length > 0 ? series[series.length - 1].at : 0
+  const baselineStart = warmupMs
+  const baselineEnd = warmupMs + baselineWindowMs
+  const lastStart = Math.max(baselineEnd, end - lastWindowMs)
+  const baselineRss = windowMedian(series, baselineStart, baselineEnd, (sample) => sample.rssBytes)
+  const lastRss = windowMedian(series, lastStart, end, (sample) => sample.rssBytes)
+  const baselineWatchers = windowMedian(series, baselineStart, baselineEnd, (sample) => sample.watcherCount)
+  const lastWatchers = windowMedian(series, lastStart, end, (sample) => sample.watcherCount)
+  const rssGrowthMiB = Math.round(((lastRss - baselineRss) / (1024 * 1024)) * 100) / 100
+  const rssGrowthPercent =
+    baselineRss <= 0 ? 0 : Math.round(((lastRss - baselineRss) / baselineRss) * 10000) / 100
+  const watcherLeak = lastWatchers > baselineWatchers
+  const withinBudget =
+    !watcherLeak && rssGrowthPercent <= STABILITY_RSS_GROWTH_PERCENT_LIMIT && rssGrowthMiB <= STABILITY_RSS_GROWTH_MIB_LIMIT
+  return {
+    restartCycles: input.restartCycles,
+    watcherLeak,
+    rssGrowthPercent,
+    rssGrowthMiB,
+    withinBudget,
+  }
+}
+
+export const parseStabilityHours = (argv: readonly string[]): number => {
+  const index = argv.indexOf('--stability-hours')
+  if (index >= 0) {
+    const raw = Number(argv[index + 1])
+    return Number.isFinite(raw) && raw > 0 ? raw : 0
+  }
+  const flag = argv.find((item) => item.startsWith('--stability-hours='))
+  if (!flag) return 0
+  const raw = Number(flag.slice('--stability-hours='.length))
+  return Number.isFinite(raw) && raw > 0 ? raw : 0
+}
+
 /** Milkdown 可把正文中的下划线转义为 `\\_`；两种写法读取后是同一文本。 */
 const hasMarkdownTextMarker = (markdown: string, marker: string): boolean =>
   markdown.includes(marker) || markdown.includes(marker.split('_').join('\\_'))
