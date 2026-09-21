@@ -10,6 +10,8 @@ import { allowImageDirectory, fetchAllowedImage } from './image-protocol'
 import { schedulePersistTrust } from './session-trust'
 import { applySmokeUserData, parseSmokeWorkspace, runElectronSmoke } from './testing/electron-smoke'
 import { trustFileForSave } from './trusted-paths'
+import { getSetting } from './settings/settings-store'
+import { shouldCheckForUpdates, shouldInstallUpdateOnQuit } from './updater/update-policy'
 import { CHANNELS } from '../shared/ipc/channels'
 import {
   chooseSystemOpenDisposition,
@@ -214,14 +216,17 @@ async function initApp(): Promise<void> {
   // 以进程退出码报告结果（正常用户启动不带 --smoke，不进入此分支）
   if (smokeWorkspace) void runElectronSmoke(smokeWorkspace, launchFiles[0])
 
-  // 自动更新：仅生产环境检查；未配置更新服务器时静默忽略
-  if (!is.dev) {
-    // autoDownload 后下载/校验阶段的异步错误经 error 事件发出，
-    // EventEmitter 无监听会成为主进程 uncaught exception——必须挂接
-    autoUpdater.on('error', () => {
-      /* 更新失败不影响使用 */
-    })
-    autoUpdater.autoDownload = true
+  // 自动更新：开发环境永不检查。生产环境由 autoUpdateEnabled 同时控制
+  // 检查、自动下载和退出时安装；关闭后不得安装此前已下载的包。
+  autoUpdater.on('error', () => {
+    /* 更新失败不影响使用 */
+  })
+  const autoUpdateEnabled = (await getSetting('autoUpdateEnabled')) !== false
+  const checkUpdates = shouldCheckForUpdates(is.dev, autoUpdateEnabled)
+  const installOnQuit = shouldInstallUpdateOnQuit(is.dev, autoUpdateEnabled)
+  autoUpdater.autoDownload = checkUpdates
+  autoUpdater.autoInstallOnAppQuit = installOnQuit
+  if (checkUpdates) {
     autoUpdater.checkForUpdatesAndNotify().catch(() => {
       /* 更新检查失败（未发布 latest.yml / 无网络等）不影响使用 */
     })

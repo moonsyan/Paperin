@@ -9,6 +9,7 @@ import type { EditorHandle } from '../components/Editor'
 import type { EditorViewState } from '../components/Editor/content/editor-view-state'
 import { buildSourceCitation, citationTargetsCurrentDocument } from '../lib/source-citation'
 import type { PublishOptions, PublishScope } from '../lib/export-bundle'
+import type { ImageHostStatus } from '../../../shared/image-host'
 
 /**
  * 低频对话框懒加载：设置 / 帮助 / 图片 / PDF 选项 / 发布 / 版本历史 / 工作区全文搜索
@@ -98,7 +99,9 @@ export interface AppDialogsProps {
   exportCssName: string | null
   onImportExportCss: () => void
   onRemoveExportCss: () => void
-  imageHost: { provider: 'local' | 'smms'; configured: boolean }
+  autoUpdateEnabled: boolean
+  onAutoUpdateEnabledChange: (v: boolean) => void
+  imageHost: ImageHostStatus
   onImageHostProviderChange: (provider: 'local' | 'smms') => Promise<void>
   onImageHostTokenSave: (token: string) => Promise<boolean>
   globalAttachmentDirectory: string
@@ -185,6 +188,7 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
     wordGoal, onWordGoalChange,
     customCssName, onImportCss, onRemoveCss,
     exportCssName, onImportExportCss, onRemoveExportCss,
+    autoUpdateEnabled, onAutoUpdateEnabledChange,
     imageHost, onImageHostProviderChange, onImageHostTokenSave,
     globalAttachmentDirectory, onGlobalAttachmentDirectoryChange,
     workspaceAttachmentDirectory, onWorkspaceAttachmentDirectoryChange,
@@ -257,6 +261,8 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
             exportCssName={exportCssName}
             onImportExportCss={onImportExportCss}
             onRemoveExportCss={onRemoveExportCss}
+            autoUpdateEnabled={autoUpdateEnabled}
+            onAutoUpdateEnabledChange={onAutoUpdateEnabledChange}
             imageHost={imageHost}
             onImageHostProviderChange={onImageHostProviderChange}
             onImageHostTokenSave={onImageHostTokenSave}

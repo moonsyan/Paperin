@@ -419,6 +419,7 @@ export function AppComposition(): JSX.Element {
         wordGoal={settings.wordGoal} onWordGoalChange={settings.setWordGoal}
         customCssName={settings.customCss?.name ?? null} onImportCss={() => void settings.handleImportCss()} onRemoveCss={settings.handleRemoveCss}
         exportCssName={settings.exportCss?.name ?? null} onImportExportCss={() => void settings.handleImportExportCss()} onRemoveExportCss={settings.handleRemoveExportCss}
+        autoUpdateEnabled={settings.autoUpdateEnabled} onAutoUpdateEnabledChange={settings.setAutoUpdateEnabled}
         imageHost={settings.imageHost} onImageHostProviderChange={settings.handleImageHostProviderChange} onImageHostTokenSave={settings.handleImageHostTokenSave}
         globalAttachmentDirectory={settings.globalAttachmentDirectory}
         onGlobalAttachmentDirectoryChange={(value) => {

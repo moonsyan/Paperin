@@ -72,4 +72,5 @@ export const SETTINGS_SEARCH_INDEX: { panel: string; label: string }[] = [
   { panel: 'shortcuts', label: '快捷键自定义 / 冲突检测 / 恢复默认' },
   { panel: 'advanced', label: '导出样式模板 CSS（HTML/PDF 排版）' },
   { panel: 'advanced', label: '版本历史说明' },
+  { panel: 'advanced', label: '自动检查更新 / 自动下载 / 退出时安装' },
 ]

@@ -63,7 +63,7 @@
 | 安全响应渠道 | **缺失** | 提供不要求公开用户文件、绝对路径或 token 的私密报告方式，并写明支持版本 |
 | 更新日志与贡献说明 | **不是 P0** | `CHANGELOG.md`、`CONTRIBUTING.md` 在 GitHub 外部 Alpha 发布时按真实版本和贡献方式编写，不提前提交空文件 |
 
-当前代码事实：生产版启动会调用 `electron-updater` 检查更新。`src/main/index.ts` 把 `autoDownload` 设为 `true`，且没有设置 `autoInstallOnAppQuit`；`electron-updater` 将该字段默认为 `true`，所以已下载的更新会在退出时安装。这三步都没有用户可见开关。默认图片模式为本地附件，只有用户主动配置并选择 SM.MS 后才上传图片，但 token 当前明文写入 `userData/settings.json`。拼写检查在窗口创建后默认关闭，用户打开后 Electron 可能下载词典，不上传正文。外部 Alpha 前必须先完成更新全流程的关闭能力、凭据安全迁移，并按上述三类路径编写隐私说明；不能直接把本记录当作正式隐私政策。
+当前代码事实：生产环境默认检查更新、自动下载并在退出时安装；`autoDownload` 与 `autoInstallOnAppQuit` 由 `shouldCheckForUpdates` / `shouldInstallUpdateOnQuit` 显式赋值，开发环境恒为 `false`。设置「自动检查更新」关闭后下次启动不调用更新服务器，也不在退出时安装已下载包。默认图片模式为本地附件；SM.MS token 经主进程 `safeStorage` 加密，渲染进程拿不到明文。拼写检查默认关闭，用户打开后 Electron 可能下载词典，不上传正文。独立隐私说明仍缺失，不能把本记录当作正式隐私政策。
 
 ## 与核心任务入口的关系
 

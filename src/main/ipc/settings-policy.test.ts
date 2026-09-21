@@ -20,4 +20,10 @@ describe('设置访问策略', () => {
     expect(isRestrictedSettingsWriteKey('exportCss')).toBe(true)
     expect(isRestrictedSettingsWriteKey('theme')).toBe(false)
   })
+
+  it('autoUpdateEnabled 可通过通用设置读写', () => {
+    expect(isRestrictedSettingsKey('autoUpdateEnabled')).toBe(false)
+    expect(isRestrictedSettingsReadKey('autoUpdateEnabled')).toBe(false)
+    expect(isRestrictedSettingsWriteKey('autoUpdateEnabled')).toBe(false)
+  })
 })

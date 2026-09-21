@@ -15,6 +15,7 @@ import { DEFAULT_GRAPH_SETTINGS } from '../components/GraphView'
 import type { SidebarView } from '../../../shared/workspace-state'
 import { DEMO_TREE_SCOPE, FRESH_MODE } from './constants'
 import type { SessionData } from '../hooks/useDocumentSessionPersistence'
+import type { ImageHostStatus } from '../../../shared/image-host'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -26,7 +27,7 @@ export interface AppSettingsState {
   codeLineNumbers: boolean
   customCss: { name: string; content: string } | null
   exportCss: { name: string; content: string } | null
-  imageHost: { provider: 'local' | 'smms'; configured: boolean }
+  imageHost: ImageHostStatus
   globalAttachmentDirectory: string
   spellcheckLang: string
   graphSettings: GraphSettings
@@ -34,6 +35,7 @@ export interface AppSettingsState {
   showFrontmatterProps: boolean
   wordGoal: number | null
   wordGoalOverrides: Record<string, number | null>
+  autoUpdateEnabled: boolean
 }
 
 export interface AppSettingsActions {
@@ -42,7 +44,7 @@ export interface AppSettingsActions {
   setCodeLineNumbers: Dispatch<SetStateAction<boolean>>
   setCustomCss: Dispatch<SetStateAction<{ name: string; content: string } | null>>
   setExportCss: Dispatch<SetStateAction<{ name: string; content: string } | null>>
-  setImageHost: Dispatch<SetStateAction<{ provider: 'local' | 'smms'; configured: boolean }>>
+  setImageHost: Dispatch<SetStateAction<ImageHostStatus>>
   setGlobalAttachmentDirectory: Dispatch<SetStateAction<string>>
   setSpellcheckLang: Dispatch<SetStateAction<string>>
   setGraphSettings: Dispatch<SetStateAction<GraphSettings>>
@@ -50,6 +52,7 @@ export interface AppSettingsActions {
   setShowFrontmatterProps: Dispatch<SetStateAction<boolean>>
   setWordGoal: Dispatch<SetStateAction<number | null>>
   setWordGoalOverrides: Dispatch<SetStateAction<Record<string, number | null>>>
+  setAutoUpdateEnabled: Dispatch<SetStateAction<boolean>>
 }
 
 export interface UseAppSettingsOptions {
@@ -158,10 +161,12 @@ export function useAppSettings({
   const [codeLineNumbers, setCodeLineNumbers] = useState(false)
   const [customCss, setCustomCss] = useState<{ name: string; content: string } | null>(null)
   const [exportCss, setExportCss] = useState<{ name: string; content: string } | null>(null)
-  const [imageHost, setImageHost] = useState<{ provider: 'local' | 'smms'; configured: boolean }>({
+  const [imageHost, setImageHost] = useState<ImageHostStatus>({
     provider: 'local',
     configured: false,
+    credentialState: 'missing',
   })
+  const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(true)
   const [globalAttachmentDirectory, setGlobalAttachmentDirectory] = useState('attachments')
   const [spellcheckLang, setSpellcheckLang] = useState('en-US')
   const [graphSettings, setGraphSettings] = useState<GraphSettings>(DEFAULT_GRAPH_SETTINGS)
@@ -210,8 +215,9 @@ export function useAppSettings({
       api.get('collapseFoldersOnOpen'),
       api.get('wordGoal'),
       api.get('wordGoalOverrides'),
+      api.get('autoUpdateEnabled'),
     ])
-      .then(async ([t, ad, a, sp, mw, f, z, sw, cw, lh, cf, ws, rf, sc, s, dr, srch, bce, cln, ccs, ecss, ih, scl, sck, sat, sfmp, gset, cfo, wg, wgo]) => {
+      .then(async ([t, ad, a, sp, mw, f, z, sw, cw, lh, cf, ws, rf, sc, s, dr, srch, bce, cln, ccs, ecss, ih, scl, sck, sat, sfmp, gset, cfo, wg, wgo, aue]) => {
         if (t?.ok && typeof t.data === 'string') setTheme(t.data)
         if (ad?.ok && typeof ad.data === 'string') {
           setGlobalAttachmentDirectory(ad.data.trim() || 'attachments')
@@ -284,12 +290,21 @@ export function useAppSettings({
           }
         }
         if (ih?.ok && ih.data && typeof ih.data === 'object') {
-          const v = ih.data as { provider?: unknown; configured?: unknown }
+          const v = ih.data as ImageHostStatus
           setImageHost({
             provider: v.provider === 'smms' ? 'smms' : 'local',
             configured: v.configured === true,
+            credentialState: v.credentialState === 'ok' || v.credentialState === 'unavailable' || v.credentialState === 'migrate-failed'
+              ? v.credentialState
+              : 'missing',
           })
+          if (v.credentialState === 'unavailable') {
+            setToast('系统安全存储不可用，已改用本地附件')
+          } else if (v.credentialState === 'migrate-failed') {
+            setToast('图床凭据无法加密保存，已禁用远程上传')
+          }
         }
+        if (typeof aue?.data === 'boolean') setAutoUpdateEnabled(aue.data)
         if (scl?.ok && typeof scl.data === 'string') setSpellcheckLang(scl.data)
         if (sat?.ok && typeof sat.data === 'string') {
           const legacyPanel: ContextDockPanel =
@@ -395,6 +410,7 @@ export function useAppSettings({
   usePersistedSetting('graphSettings', graphSettings, settingsReady)
   usePersistedSetting('wordGoal', wordGoal, settingsReady, 300, true)
   usePersistedSetting('wordGoalOverrides', wordGoalOverrides, settingsReady, 300)
+  usePersistedSetting('autoUpdateEnabled', autoUpdateEnabled, settingsReady)
 
   // --- 拼写检查同步到 Electron 会话 ---
   useEffect(() => {
@@ -447,6 +463,14 @@ export function useAppSettings({
       return false
     }
     setImageHost(result.data)
+    if (result.data.credentialState === 'unavailable') {
+      setToast('系统安全存储不可用，无法保存图床凭据')
+      return false
+    }
+    if (result.data.credentialState === 'migrate-failed' || !result.data.configured) {
+      setToast('图床凭据无法加密保存，已禁用远程上传')
+      return false
+    }
     setToast('Token 已保存')
     return true
   }, [setToast])
@@ -496,6 +520,7 @@ export function useAppSettings({
     customCss, setCustomCss,
     exportCss, setExportCss,
     imageHost, setImageHost,
+    autoUpdateEnabled, setAutoUpdateEnabled,
     globalAttachmentDirectory, setGlobalAttachmentDirectory,
     spellcheckLang, setSpellcheckLang,
     graphSettings, setGraphSettings,

@@ -92,8 +92,8 @@ export interface DesktopAPI {
     uploadImage(dataUrl: string): Promise<{ ok: boolean; data?: { url: string }; error?: { code: string; message?: string } }>
   }
   imageHost: {
-    getStatus(): Promise<{ ok: boolean; data?: { provider: 'local' | 'smms'; configured: boolean }; error?: { code: string; message?: string } }>
-    setConfig(provider: 'local' | 'smms', token?: string): Promise<{ ok: boolean; data?: { provider: 'local' | 'smms'; configured: boolean }; error?: { code: string; message?: string } }>
+    getStatus(): Promise<{ ok: boolean; data?: import('../shared/image-host').ImageHostStatus; error?: { code: string; message?: string } }>
+    setConfig(provider: 'local' | 'smms', token?: string): Promise<{ ok: boolean; data?: import('../shared/image-host').ImageHostStatus; error?: { code: string; message?: string } }>
   }
   workspace: {
     getAttachmentDirectory(): Promise<{ ok: boolean; data?: { directory: string | null }; error?: { code: string; message?: string } }>

@@ -5,12 +5,16 @@ interface AdvancedPanelProps {
   exportCssName?: string | null
   onImportExportCss: () => void
   onRemoveExportCss: () => void
+  autoUpdateEnabled: boolean
+  onAutoUpdateEnabledChange: (value: boolean) => void
 }
 
 export function AdvancedPanel({
   exportCssName,
   onImportExportCss,
   onRemoveExportCss,
+  autoUpdateEnabled,
+  onAutoUpdateEnabledChange,
 }: AdvancedPanelProps): JSX.Element {
   return (
     <>
@@ -42,6 +46,24 @@ export function AdvancedPanel({
             每次保存成功自动记录快照（每文件最近 20 份）；入口在文件菜单"版本历史…"
           </span>
         </span>
+      </div>
+      <div className="settings-row">
+        <span className="settings-label">
+          自动检查更新
+          <span className="settings-hint">
+            关闭后不会检查更新、不会自动下载，也不会在退出时安装已下载的包。下次启动生效。
+          </span>
+        </span>
+        <button
+          type="button"
+          className={`seg-item ${autoUpdateEnabled ? 'on' : ''}`}
+          role="switch"
+          aria-checked={autoUpdateEnabled}
+          aria-label="自动检查更新"
+          onClick={() => onAutoUpdateEnabledChange(!autoUpdateEnabled)}
+        >
+          {autoUpdateEnabled ? '开' : '关'}
+        </button>
       </div>
     </>
   )

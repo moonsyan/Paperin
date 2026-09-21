@@ -6,6 +6,7 @@ import { AppearancePanel } from './AppearancePanel'
 import { EditorPanel } from './EditorPanel'
 import { ShortcutsPanel } from './ShortcutsPanel'
 import { AdvancedPanel } from './AdvancedPanel'
+import type { ImageHostStatus } from '../../../../shared/image-host'
 
 /** 编辑区字号（像素，逐像素可调，对标 Typora） */
 export type FontSize = number
@@ -70,8 +71,10 @@ interface SettingsDialogProps {
   exportCssName?: string | null
   onImportExportCss: () => void
   onRemoveExportCss: () => void
+  autoUpdateEnabled: boolean
+  onAutoUpdateEnabledChange: (value: boolean) => void
   /** 图床配置 */
-  imageHost: { provider: 'local' | 'smms'; configured: boolean }
+  imageHost: ImageHostStatus
   onImageHostProviderChange: (provider: 'local' | 'smms') => Promise<void>
   onImageHostTokenSave: (token: string) => Promise<boolean>
   globalAttachmentDirectory: string
@@ -86,7 +89,7 @@ interface SettingsDialogProps {
 /**
  * 设置弹窗（Typora 风格：左侧分类导航 + 右侧配置面板）
  * 所有配置项通过 props 受控，持久化由 App 负责。
- * 三个面板拆分在同目录：AppearancePanel / EditorPanel / ShortcutsPanel。
+ * 四个面板拆分在同目录：AppearancePanel / EditorPanel / ShortcutsPanel / AdvancedPanel。
  */
 export function SettingsDialog({
   open,
@@ -130,6 +133,8 @@ export function SettingsDialog({
   exportCssName,
   onImportExportCss,
   onRemoveExportCss,
+  autoUpdateEnabled,
+  onAutoUpdateEnabledChange,
   imageHost,
   onImageHostProviderChange,
   onImageHostTokenSave,
@@ -287,6 +292,8 @@ export function SettingsDialog({
               exportCssName={exportCssName}
               onImportExportCss={onImportExportCss}
               onRemoveExportCss={onRemoveExportCss}
+              autoUpdateEnabled={autoUpdateEnabled}
+              onAutoUpdateEnabledChange={onAutoUpdateEnabledChange}
             />
           )}
         </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { ImageHostStatus } from '../../../../shared/image-host'
 import { SPELL_LANG_OPTIONS } from './constants'
 
 interface EditorPanelProps {
@@ -20,7 +21,7 @@ interface EditorPanelProps {
   onCollapseFoldersOnOpenChange: (value: boolean) => void
   wordGoal: number | null
   onWordGoalChange: (value: number | null) => void
-  imageHost: { provider: 'local' | 'smms'; configured: boolean }
+  imageHost: ImageHostStatus
   onImageHostProviderChange: (provider: 'local' | 'smms') => Promise<void>
   onImageHostTokenSave: (token: string) => Promise<boolean>
   globalAttachmentDirectory: string
@@ -102,7 +103,7 @@ export function EditorPanel({
       <button type="button" className="settings-row settings-row-toggle" aria-pressed={spellcheck} onClick={() => onSpellcheckChange(!spellcheck)}>
         <span className="settings-label">
           拼写检查（多语言词典）
-          <span className="settings-hint">仅检查正文，代码块与行内代码自动排除；中文不在词典范围</span>
+          <span className="settings-hint">默认关闭。打开后可能下载对应语言词典，不上传正文；代码块与行内代码自动排除，中文不在词典范围</span>
         </span>
         <span className={`switch ${spellcheck ? 'on' : ''}`} />
       </button>
@@ -208,6 +209,11 @@ export function EditorPanel({
           </button>
         </div>
       </div>
+      {imageHost.credentialState === 'unavailable' && (
+        <div className="settings-row">
+          <span className="settings-hint">系统安全存储不可用，无法保存凭据，已使用本地附件</span>
+        </div>
+      )}
       {imageHost.provider === 'smms' && (
         <div className="settings-row">
           <span className="settings-label">
@@ -231,7 +237,12 @@ export function EditorPanel({
           >
             保存
           </button>
-          {imageHost.configured && <span className="settings-hint">已配置</span>}
+          {imageHost.configured && imageHost.credentialState === 'ok' && (
+            <span className="settings-hint">已配置</span>
+          )}
+          {imageHost.credentialState === 'migrate-failed' && (
+            <span className="settings-hint">凭据无法加密保存，已禁用远程上传，明文未丢弃</span>
+          )}
         </div>
       )}
     </>
