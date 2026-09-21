@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import {
   readWorkflowOrThrow,
   validateBuildWorkflowSteps,
+  validateLocalScriptPaths,
   validateProductionJsYaml,
   validateReleaseWorkflowGates,
   verifyCiConfig,
@@ -69,6 +70,29 @@ describe('validateProductionJsYaml', () => {
           'node_modules/eslint/node_modules/js-yaml': { version: '4.1.0', dev: true },
         },
       }),
+    ).toEqual([])
+  })
+})
+
+describe('validateLocalScriptPaths', () => {
+  it('报告脚本中不存在的本地配置与目录引用', () => {
+    expect(
+      validateLocalScriptPaths(
+        { demo: 'vite --config design/soft-workbench/vite.config.ts' },
+        () => false,
+      ),
+    ).toEqual(['demo 引用不存在的本地路径: design/soft-workbench/vite.config.ts'])
+  })
+
+  it('允许存在的本地路径并忽略 npm run 转发', () => {
+    expect(
+      validateLocalScriptPaths(
+        {
+          typecheck: 'tsc -p tsconfig.web.json --noEmit',
+          follow: 'npm run typecheck',
+        },
+        (candidate) => candidate === 'tsconfig.web.json',
+      ),
     ).toEqual([])
   })
 })

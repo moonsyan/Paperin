@@ -6,9 +6,6 @@
   "license": "MIT",
   "main": "./out/main/index.js",
   "scripts": {
-    "demo:soft": "vite --config design/soft-workbench/vite.config.ts",
-    "demo:soft:check": "tsc -p design/soft-workbench/tsconfig.json && eslint \"design/soft-workbench/**/*.{ts,tsx}\"",
-    "demo:soft:build": "npm run demo:soft:check && vite build --config design/soft-workbench/vite.config.ts",
     "dev": "electron-vite dev",
     "typecheck": "tsc -p tsconfig.web.json --noEmit && tsc -p tsconfig.node.json --noEmit",
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"scripts/**/*.{js,mjs}\" \"*.{ts,mjs}\"",

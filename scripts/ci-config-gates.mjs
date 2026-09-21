@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -114,6 +114,31 @@ export function validateReleaseWorkflowGates(content) {
   return errors
 }
 
+const SCRIPT_FLAG_PATH = /(?:--config|-p)\s+(?:"([^"]+)"|'([^']+)'|(\S+))/g
+
+const localPathFromFlagValue = (raw) => {
+  const normalized = String(raw).replace(/\\/g, '/').replace(/\/\*\*.*$/, '')
+  if (!normalized || normalized.startsWith('-') || /^[a-z]+:\/\//i.test(normalized)) return ''
+  return normalized
+}
+
+/** 检查 npm scripts 中 --config / -p 指向的仓库相对路径是否真实存在。 */
+export function validateLocalScriptPaths(scripts, exists) {
+  const errors = []
+  for (const [name, command] of Object.entries(scripts ?? {})) {
+    const seen = new Set()
+    for (const match of String(command).matchAll(SCRIPT_FLAG_PATH)) {
+      const candidate = localPathFromFlagValue(match[1] ?? match[2] ?? match[3] ?? '')
+      if (!candidate || seen.has(candidate)) continue
+      seen.add(candidate)
+      if (!exists(candidate)) {
+        errors.push(`${name} 引用不存在的本地路径: ${candidate}`)
+      }
+    }
+  }
+  return errors
+}
+
 const parseVersionParts = (version) =>
   String(version)
     .split('.')
@@ -179,6 +204,15 @@ export function verifyCiConfig() {
     errors.push(...validateProductionJsYaml(lockfile))
   } catch (error) {
     errors.push(`无法读取 package-lock.json：${error instanceof Error ? error.message : String(error)}`)
+  }
+
+  try {
+    const packageJson = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'))
+    errors.push(
+      ...validateLocalScriptPaths(packageJson.scripts, (relativePath) => existsSync(resolve(root, relativePath))),
+    )
+  } catch (error) {
+    errors.push(`无法读取 package.json：${error instanceof Error ? error.message : String(error)}`)
   }
 
   return { ok: errors.length === 0, errors }

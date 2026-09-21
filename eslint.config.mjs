@@ -22,7 +22,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/renderer/**/*.{ts,tsx}', 'design/soft-workbench/**/*.{ts,tsx}'],
+    files: ['src/renderer/**/*.{ts,tsx}'],
     languageOptions: {
       globals: {
         ...globals.browser,
@@ -31,7 +31,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/renderer/**/*.{ts,tsx}', 'design/soft-workbench/**/*.{ts,tsx}'],
+    files: ['src/renderer/**/*.{ts,tsx}'],
     ...reactHooks.configs['recommended-latest'],
   },
   {
