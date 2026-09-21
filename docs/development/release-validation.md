@@ -4,7 +4,7 @@
 当前执行分支：`master`
 用途：记录候选包先验收、再进入正式发行的工程门禁和安装证据。
 
-> 当前状态不是“已发布”：`master` `97210a5` 上，工作区路径授权、核心任务冒烟（来源查找、插入引用、保存重开、资源包导出）、许可/隐私/安全材料和生产依赖审计已经落地。`build:win` 和真实安装/升级/卸载循环仍未完成。当前未验证项见 [PROJECT-STATUS](../PROJECT-STATUS.md)。
+> 当前状态不是“已发布”：`0.7.0` 候选 tag 只应生成 GitHub Draft Release。工作区路径授权、核心任务冒烟（来源查找、插入引用、保存重开、资源包导出）、许可/隐私/安全材料和生产依赖审计已经落地。`build:win` 的本机安装/升级/卸载循环仍未完成。当前未验证项见 [PROJECT-STATUS](../PROJECT-STATUS.md)。
 
 ## 本任务已验证（工程门禁）
 
@@ -61,7 +61,7 @@
 | 根许可证与第三方声明 | **已提供** | `LICENSE`（MIT，Copyright 2026 ming）与 `THIRD-PARTY-NOTICES.md`（含 Electron/Chromium、生产依赖、打包进渲染进程的库；`resources/icon.png` 来源未单独核证） |
 | 独立隐私说明 | **已提供** | `PRIVACY.md`：默认更新全流程、可选 SM.MS、可选拼写词典；写明发送内容、关闭方式和第三方责任 |
 | 安全响应渠道 | **已提供** | `SECURITY.md`：GitHub 私密安全公告；不要求公开用户文件、路径或 token。无另行公布的安全邮箱 |
-| 更新日志与贡献说明 | **不是 P0** | `CHANGELOG.md`、`CONTRIBUTING.md` 在 GitHub 外部 Alpha 发布时按真实版本和贡献方式编写，不提前提交空文件 |
+| 更新日志与贡献说明 | **0.7.0 已写入** | `CHANGELOG.md`、`CONTRIBUTING.md` 记录候选版本事实和当前贡献方式。安装循环仍为 UNVERIFIED，因此这不是正式公开发布 |
 
 当前代码事实：生产环境默认检查更新、自动下载并在退出时安装；`autoDownload` 与 `autoInstallOnAppQuit` 由 `shouldCheckForUpdates` / `shouldInstallUpdateOnQuit` 显式赋值，开发环境恒为 `false`。设置「自动检查更新」关闭后下次启动不调用更新服务器，也不在退出时安装已下载包。默认图片模式为本地附件；SM.MS token 经主进程 `safeStorage` 加密，渲染进程拿不到明文。拼写检查默认关闭，用户打开后 Electron 可能下载词典，不上传正文。正式隐私说明见仓库根目录 `PRIVACY.md`。
 
