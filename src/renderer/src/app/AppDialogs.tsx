@@ -49,6 +49,7 @@ import type { WorkspaceIndex } from '../../../shared/workspace-index'
 import type { WorkspaceInfo } from '../components/Sidebar'
 import type { WorkspaceSettingsState } from '../../../shared/workspace-state'
 import { rememberRecentCitation } from '../../../shared/workspace-state'
+import { createPublishProfile, rememberPublishProfile, removePublishProfile } from '../../../shared/publish-profile'
 import { rememberSourceSnapshotFromDisk } from '../lib/remember-source-snapshot'
 import { resolveWorkspacePath, toWorkspaceRelativePath } from '../lib/workspace-state'
 
@@ -299,9 +300,34 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
             busy={publishBusy}
             hasWorkspace={workspace !== null}
             availableTags={availableTags}
+            profiles={workspaceSettings.editor.publishProfiles}
             onClose={onClosePublish}
             onExportBundle={onExportBundle}
             onCopyRichText={onCopyRichText}
+            onSaveProfile={(name, options, scope) => {
+              const profile = createPublishProfile(name, options, scope)
+              if (!profile) {
+                setToast('配置名称无效，未保存')
+                return
+              }
+              setWorkspaceSettings((current) => ({
+                ...current,
+                editor: {
+                  ...current.editor,
+                  publishProfiles: rememberPublishProfile(current.editor.publishProfiles, profile),
+                },
+              }))
+              setToast('已保存发布配置')
+            }}
+            onDeleteProfile={(id) => {
+              setWorkspaceSettings((current) => ({
+                ...current,
+                editor: {
+                  ...current.editor,
+                  publishProfiles: removePublishProfile(current.editor.publishProfiles, id),
+                },
+              }))
+            }}
           />
         </Suspense>
       )}

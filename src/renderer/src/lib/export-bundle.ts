@@ -1,8 +1,11 @@
 import type { WorkspaceIndex } from '../../../shared/workspace-index'
+import type { PublishOptions, PublishScope, PublishTemplate } from '../../../shared/publish-profile'
+
+export type { PublishOptions, PublishScope, PublishTemplate }
 
 /* ==================== HTML 资源包导出与发布模板 ====================
  *
- * 资源包 = index.html + assets/：本地图片（mdimg://）改写为 assets/ 相对
+ * 资源包 = index.html + assets/ + 可选 reports/：本地图片（mdimg://）改写为 assets/ 相对
  * 路径并写为文件，HTML 不再依赖 base64 内联，可独立打开、便于托管与 diff。
  * 目录选择在调用 buildExportBundle 之前完成（独立 IPC），因此取消不会
  * 产生任何写入；写盘由主进程在临时目录完成后原子重命名，失败不残留半成品。
@@ -22,21 +25,6 @@ export interface ExportBundleResult {
   assetCount: number
   bytes: number
 }
-
-export type PublishTemplate = 'blog' | 'technical' | 'paper' | 'wechat'
-
-export interface PublishOptions {
-  template: PublishTemplate
-  includeToc: boolean
-  inlineImages: boolean
-  cleanWikiLinks: boolean
-}
-
-/** 发布范围：当前文档 / 当前目录集合 / 按标签集合 */
-export type PublishScope =
-  | { kind: 'document' }
-  | { kind: 'directory' }
-  | { kind: 'tag'; tag: string }
 
 /** 集合导出前置：不完整索引必须拒绝，避免静默漏篇 */
 export const getCollectionIndexBlockReason = (index: WorkspaceIndex | null): string | null => {
@@ -256,6 +244,7 @@ export interface BundleWriteRequest {
   folderName: string
   html: string
   assets: Array<{ fileName: string; data: Uint8Array }>
+  report?: { fileName: string; json: string }
 }
 
 export interface BundleWriteResult {
@@ -266,6 +255,7 @@ export interface BundleWriteResult {
 
 export interface BuildBundleDeps {
   writeBundle: (request: BundleWriteRequest) => Promise<BundleWriteResult>
+  report?: { fileName: string; json: string }
 }
 
 /** 从 HTML 提取 <title> 作为资源包目录名；缺失时回退"导出" */
@@ -318,6 +308,7 @@ export const buildExportBundle = async (
     folderName: extractHtmlTitle(html),
     html,
     assets: assets.map((asset) => ({ fileName: asset.fileName, data: asset.data })),
+    ...(deps?.report ? { report: deps.report } : {}),
   })
   if (!result.ok || !result.data) {
     throw new ExportBundleError(result.error?.code ?? 'IO_ERROR', result.error?.message)

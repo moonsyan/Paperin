@@ -140,6 +140,13 @@ describe('buildExportBundle', () => {
     }))
   })
 
+  it('附带交付报告时透传到主进程写出请求', async () => {
+    const deps = baseDeps({ ok: true, data: { path: 'D:/out/t/index.html', assetCount: 0, bytes: 1 } })
+    const report = { fileName: 'paperin-delivery-report.json', json: '{"schemaVersion":1}' }
+    await buildExportBundle('<title>t</title>', [], 'D:/out', { ...deps, report })
+    expect(deps.writeBundle).toHaveBeenCalledWith(expect.objectContaining({ report }))
+  })
+
   it('HTML 超限、单资源超限、总量超限抛出 TOO_LARGE', async () => {
     const asset = dataUrlToExportAsset('mdimg:///D:/a.png', PNG_DATA_URL)!
     const bigHtml = `<title>t</title>${'x'.repeat(MAX_BUNDLE_HTML_BYTES + 1)}`

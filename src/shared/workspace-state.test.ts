@@ -161,7 +161,7 @@ describe('工作区状态校验', () => {
     })).toEqual({
       schemaVersion: 1,
       appearance: { theme: 'inherit' },
-      editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [], sourceSnapshots: [] },
+      editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [], sourceSnapshots: [], publishProfiles: [] },
     })
   })
 
@@ -169,12 +169,12 @@ describe('工作区状态校验', () => {
     expect(parseWorkspaceSettings({})).toEqual({
       schemaVersion: 1,
       appearance: { theme: 'inherit' },
-      editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [], sourceSnapshots: [] },
+      editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [], sourceSnapshots: [], publishProfiles: [] },
     })
     expect(parseWorkspaceSettings({ editor: { attachmentDirectory: ' media\\images/ ' } })).toEqual({
       schemaVersion: 1,
       appearance: { theme: 'inherit' },
-      editor: { attachmentDirectory: 'media/images', lastSearchQuery: '', recentCitations: [], sourceSnapshots: [] },
+      editor: { attachmentDirectory: 'media/images', lastSearchQuery: '', recentCitations: [], sourceSnapshots: [], publishProfiles: [] },
     })
     expect(parseWorkspaceSettings({ editor: { lastSearchQuery: ' 研究\n笔记 ' } }).editor.lastSearchQuery).toBe('研究 笔记')
     expect(parseWorkspaceSettings({}).editor.lastSearchQuery).toBe('')
@@ -213,5 +213,37 @@ describe('工作区状态校验', () => {
       modifiedTime: index,
     }))
     expect(parseWorkspaceSettings({ editor: { sourceSnapshots: overflow } }).editor.sourceSnapshots).toHaveLength(50)
+  })
+
+  it('发布配置旧 schema 默认为空，非法项丢弃并限制 20 条', () => {
+    expect(parseWorkspaceSettings({}).editor.publishProfiles).toEqual([])
+    expect(parseWorkspaceSettings({
+      editor: {
+        publishProfiles: [
+          {
+            id: 'p-blog',
+            name: '  博客\n导出 ',
+            options: { template: 'blog', includeToc: true, inlineImages: false, cleanWikiLinks: true },
+            scope: { kind: 'document' },
+            body: '丢弃正文',
+          },
+          { id: '../evil', name: '坏', options: { template: 'blog' }, scope: { kind: 'document' } },
+        ],
+      },
+    }).editor.publishProfiles).toEqual([
+      {
+        id: 'p-blog',
+        name: '博客 导出',
+        options: { template: 'blog', includeToc: true, inlineImages: false, cleanWikiLinks: true },
+        scope: { kind: 'document' },
+      },
+    ])
+    const overflow = Array.from({ length: 25 }, (_, index) => ({
+      id: `p-${index}`,
+      name: `配置${index}`,
+      options: { template: 'blog', includeToc: true, inlineImages: true, cleanWikiLinks: true },
+      scope: { kind: 'document' },
+    }))
+    expect(parseWorkspaceSettings({ editor: { publishProfiles: overflow } }).editor.publishProfiles).toHaveLength(20)
   })
 })

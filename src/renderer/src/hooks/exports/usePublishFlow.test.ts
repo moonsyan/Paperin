@@ -190,4 +190,57 @@ describe('usePublishFlow（R04 缺图与写入一致）', () => {
     expect(setToast).toHaveBeenCalledWith('已有导出任务正在进行')
     session.finish()
   })
+
+  it('写出资源包时附带脱敏交付报告', async () => {
+    const pickExportDirectory = vi.fn(async () => ({ ok: true, data: { path: 'D:/out' } }))
+    const exportBundleIpc = vi.fn(async () => ({
+      ok: true,
+      data: { path: 'D:/out/pkg', assetCount: 0, bytes: 1 },
+    }))
+    Object.defineProperty(window, 'desktopAPI', {
+      configurable: true,
+      value: { document: { pickExportDirectory, exportBundle: exportBundleIpc } },
+    })
+    const buildExportBundleSpy = vi.spyOn(exportBundle, 'buildExportBundle')
+    const report = {
+      schemaVersion: 1 as const,
+      generatedAt: '2026-09-21T00:00:00.000Z',
+      documentCount: 1,
+      diagnosticsByCode: { BROKEN_LINK: 1 },
+      missingTargets: ['资料/a.md'],
+      indexComplete: true,
+    }
+    const { result } = renderHook(() =>
+      usePublishFlow({
+        editorRef: makeEditorRef(),
+        activeFileIdRef: { current: 'file-a' },
+        setToast: vi.fn(),
+        exportSessionRef: { current: createExportSession() },
+        buildPublishedHtml: vi.fn(async () => '<title>t</title>'),
+        inlineImagesInHtml: vi.fn(async () => ({ html: '<title>t</title>', failed: 0 })),
+        getDeliveryReport: () => report,
+      }),
+    )
+    await act(async () => {
+      await result.current.handlePublishBundle({
+        template: 'blog',
+        includeToc: true,
+        inlineImages: true,
+        cleanWikiLinks: true,
+      })
+    })
+    expect(buildExportBundleSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(Array),
+      'D:/out',
+      expect.objectContaining({
+        report: expect.objectContaining({
+          fileName: 'paperin-delivery-report.json',
+          json: expect.stringContaining('"schemaVersion":1'),
+        }),
+      }),
+    )
+    expect(buildExportBundleSpy.mock.calls[0]?.[3]?.report?.json).not.toMatch(/D:\\\\|content|query/)
+    buildExportBundleSpy.mockRestore()
+  })
 })

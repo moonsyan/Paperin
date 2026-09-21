@@ -40,6 +40,7 @@ export interface DesktopAPI {
       folderName: string
       html: string
       assets: Array<{ fileName: string; data: Uint8Array }>
+      report?: { fileName: string; json: string }
     }): Promise<{
       ok: boolean
       data?: { path: string; assetCount: number; bytes: number }

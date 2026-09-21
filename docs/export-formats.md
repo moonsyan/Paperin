@@ -23,6 +23,8 @@
 - **索引完整性**：工作区索引未完整（`complete=false` 或 `truncated=true`）时拒绝集合导出，并说明索引不完整；任一篇读失败也不生成「部分成功」的资源包。
 - **本地图片**：内联或 assets 模式下，任一 `mdimg://` 无法读取则取消导出/复制，不显示成功提示，不写入选定目录；当前 `.md` 原文不会被改写。
 - **取消选目录**：用户在选输出位置时取消，不产生任何写入。
+- **发布配置**：工作区最多保存 20 条模板/范围配置，只存名称与选项，不含正文；重启后可应用。
+- **交付报告**：资源包含 `reports/paperin-delivery-report.json`（上限 1 MiB）。字段仅有 schemaVersion、generatedAt、documentCount、diagnosticsByCode、missingTargets、indexComplete；不含正文、绝对路径或搜索词。文件名必须是该基名，含 `../`、空内容或超限则整个资源包失败，不留半成品。
 
 核心任务闭环把「当前文档」资源包当作可交付出口：自动冒烟会在插入来源引用并保存重开后写出 HTML 资源包，接收方用浏览器打开 `index.html` 即可阅读。集合导出、打印字体和对方软件的完整矩阵仍见本页其余行与 [compatibility-matrix](compatibility-matrix.md)。
 

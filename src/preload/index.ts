@@ -66,6 +66,7 @@ const desktopAPI = {
       folderName: string
       html: string
       assets: Array<{ fileName: string; data: Uint8Array }>
+      report?: { fileName: string; json: string }
     }) => ipcRenderer.invoke(CHANNELS.FILE_EXPORT_BUNDLE, request),
 
     /** 打开文件夹（返回 Markdown 目录树）；传 path 时跳过对话框（会话恢复用） */

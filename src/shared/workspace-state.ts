@@ -1,6 +1,8 @@
 import { isPanelId } from './panel-id'
+import { parsePublishProfiles } from './publish-profile'
 
 import type { PanelId } from './panel-id'
+import type { PublishProfile } from './publish-profile'
 
 export const WORKSPACE_STATE_SCHEMA_VERSION = 1 as const
 export const WORKSPACE_LAYOUT_SCHEMA_VERSION = 2 as const
@@ -9,6 +11,7 @@ export const MAX_COLLAPSED_DIRECTORIES = 2000
 export const MAX_DOCUMENT_VIEW_STATES = 500
 export const MAX_RECENT_CITATIONS = 8
 export const MAX_SOURCE_SNAPSHOTS = 50
+export { MAX_PUBLISH_PROFILES } from './publish-profile'
 
 const MIN_SIDEBAR_WIDTH = 180
 const MAX_SIDEBAR_WIDTH = 600
@@ -44,6 +47,8 @@ export interface WorkspaceSettingsState {
     recentCitations: string[]
     /** 插入时的来源 mtime 快照；不存正文或哈希。 */
     sourceSnapshots: SourceSnapshot[]
+    /** 可复用发布配置；只存模板/范围，不存正文。 */
+    publishProfiles: PublishProfile[]
   }
 }
 
@@ -92,7 +97,7 @@ export interface WorkspaceStateBundle {
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettingsState = {
   schemaVersion: WORKSPACE_STATE_SCHEMA_VERSION,
   appearance: { theme: 'inherit' },
-  editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [], sourceSnapshots: [] },
+  editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [], sourceSnapshots: [], publishProfiles: [] },
 }
 
 export const DEFAULT_WORKSPACE_LAYOUT: WorkspaceLayoutState = {
@@ -182,10 +187,11 @@ export const parseWorkspaceSettings = (value: unknown): WorkspaceSettingsState =
     sourceSnapshots.push({ path, modifiedTime: candidate.modifiedTime })
     if (sourceSnapshots.length >= MAX_SOURCE_SNAPSHOTS) break
   }
+  const publishProfiles = parsePublishProfiles(editor?.publishProfiles)
   return {
     schemaVersion: WORKSPACE_STATE_SCHEMA_VERSION,
     appearance: { theme },
-    editor: { attachmentDirectory, lastSearchQuery, recentCitations, sourceSnapshots },
+    editor: { attachmentDirectory, lastSearchQuery, recentCitations, sourceSnapshots, publishProfiles },
   }
 }
 

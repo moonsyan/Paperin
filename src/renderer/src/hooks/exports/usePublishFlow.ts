@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type { EditorHandle } from '../../components/Editor'
 import {
@@ -9,6 +9,11 @@ import {
   type PublishOptions,
   type PublishScope,
 } from '../../lib/export-bundle'
+import {
+  DELIVERY_REPORT_FILE_NAME,
+  serializeDeliveryReport,
+} from '../../lib/delivery-report'
+import type { DeliveryReport } from '../../lib/delivery-report'
 import {
   buildCollectionHtml,
   orderCollection,
@@ -40,6 +45,7 @@ export function usePublishFlow({
   buildPublishedHtml,
   inlineImagesInHtml,
   resolveCollectionEntries,
+  getDeliveryReport,
 }: {
   editorRef: MutableRefObject<EditorHandle | null>
   activeFileIdRef: MutableRefObject<string>
@@ -53,7 +59,10 @@ export function usePublishFlow({
   resolveCollectionEntries?: (
     scope: Exclude<PublishScope, { kind: 'document' }>,
   ) => Promise<CollectionEntry[]>
+  getDeliveryReport?: () => DeliveryReport
 }) {
+  const getDeliveryReportRef = useRef(getDeliveryReport)
+  getDeliveryReportRef.current = getDeliveryReport
   /** 发布：导出 HTML 资源包。目录选择独立进行——用户取消不产生任何写入。
    *  范围为目录/标签集合时由 resolveCollectionEntries 读盘收集并合并为单文档 */
   const handlePublishBundle = useCallback(
@@ -122,8 +131,12 @@ export function usePublishFlow({
           }
           const pick = await window.desktopAPI!.document.pickExportDirectory('选择资源包导出位置')
           if (!pick.ok || !pick.data) return
+          const deliveryReport = getDeliveryReportRef.current?.()
           const result = await buildExportBundle(finalHtml, assets, pick.data.path, {
             writeBundle: (request) => window.desktopAPI!.document.exportBundle(request),
+            report: deliveryReport
+              ? { fileName: DELIVERY_REPORT_FILE_NAME, json: serializeDeliveryReport(deliveryReport) }
+              : undefined,
           })
           const sizeMb = (result.bytes / 1024 / 1024).toFixed(1)
           setToast(`资源包已导出（${result.assetCount} 张图片，共 ${sizeMb} MB）`)

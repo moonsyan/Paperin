@@ -4,6 +4,7 @@ import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { mkdir, rename, rm, stat, unlink, writeFile } from 'fs/promises'
 import { extname, join } from 'path'
 import { CHANNELS } from '../../shared/ipc/channels'
+import { parseOptionalExportBundleReport } from '../../shared/delivery-report'
 import { MAX_DOCUMENT_FILE_SIZE } from './file-io'
 import { createSaveAsWriteTargetAuthorizer, writeIfDialogTargetStillAuthorized } from '../trusted-paths'
 import { allowExportDirectory, isExportDirectoryAuthorized } from './export-dirs'
@@ -317,6 +318,7 @@ export const registerExportHandlers = (): void => {
         folderName: string
         html: string
         assets: Array<{ fileName: string; data: Uint8Array }>
+        report?: { fileName: string; json: string }
       },
     ) => {
       const parent = BrowserWindow.fromWebContents(event.sender)
@@ -335,6 +337,10 @@ export const registerExportHandlers = (): void => {
         !Array.isArray(assets)
       ) {
         return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
+      }
+      const reportResult = parseOptionalExportBundleReport(args?.report)
+      if (!reportResult.ok) {
+        return { ok: false, error: { code: reportResult.code, message: reportResult.message } }
       }
       if (Buffer.byteLength(html, 'utf-8') > MAX_BUNDLE_HTML_BYTES) {
         return { ok: false, error: { code: 'TOO_LARGE', message: 'HTML 超过 10MB，无法导出资源包' } }
@@ -390,6 +396,14 @@ export const registerExportHandlers = (): void => {
         await writeFile(join(tempDir, 'index.html'), html, 'utf8')
         for (const asset of assets) {
           await writeFile(join(tempDir, 'assets', asset.fileName), asset.data)
+        }
+        if (reportResult.report) {
+          await mkdir(join(tempDir, 'reports'), { recursive: true })
+          await writeFile(
+            join(tempDir, 'reports', reportResult.report.fileName),
+            reportResult.report.json,
+            'utf8',
+          )
         }
         await rename(tempDir, finalDir)
         return {

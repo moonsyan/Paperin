@@ -14,6 +14,7 @@ import { useEditorViewState } from '../hooks/useEditorViewState'
 import { useSystemFileOpen } from '../hooks/useSystemFileOpen'
 import { useDocumentSessionPersistence } from '../hooks/useDocumentSessionPersistence'
 import type { PublishOptions, PublishScope } from '../lib/export-bundle'
+import { buildDeliveryReport } from '../lib/delivery-report'
 import { normalizeWorkspaceRelativePath } from '../../../shared/workspace-state'
 import { rememberSourceSnapshotFromDisk, searchQueryForRelocate } from '../lib/remember-source-snapshot'
 
@@ -246,6 +247,7 @@ export function AppComposition(): JSX.Element {
 
   const { handleExportHtml, handleDoExportPdf, handleExportMarkdown, handleExportPandoc, handleExportDocx, handlePublishBundle, handleCopyRichText, isExportActive } = useExports({
     editorRef, docTitle, activeFileId, activeFileIdRef, contents, dirOfFile, setToast, exportCss: settings.exportCss, resolveCollectionEntries: resolveCollectionEntriesFn,
+    getDeliveryReport: () => buildDeliveryReport(workspaceIndex, diagnostics),
   })
 
   const { previewContentRef, previewPaneRef, handleRichRender } = usePreviewSync({ previewMode, activeContent, editorRef, editorAreaRef, isExportActive })

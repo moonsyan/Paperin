@@ -21,8 +21,9 @@
 | 打开知识库检查 | `workspace-compatibility.ts`、开始页 | 对应单元测试 | 已有：未扫完、缺附件、断链、残缺脚注只提示 | 来源夹具 hash 与五分钟任务未测 |
 | 写作模板 | 命令 `newTemplate:article`、`newTemplate:decision` | 命令注册表测试 | 已有：两份普通 Markdown，不覆盖已打开文件 | 用户无需讲解完成起步未测 |
 | HTML/PDF/DOCX/EPUB/LaTeX/发布 | `hooks/exports/`、导出 IPC | `export-preflight`、`review-export` 测试；对话框目标真实路径在写出前复核 | 已有：Markdown、HTML、PDF、Word、Pandoc 导出前检查；说明见 `export-formats.md` | 各平台打开导出文件的人工检查 |
+| 发布配置与交付报告 | `publish-profile`、`delivery-report`、`PublishDialog`、export bundle IPC | `publish-profile`、`delivery-report`、`export-handlers`、PublishDialog 测试 | 已有：最多 20 条配置；资源包含脱敏 JSON 报告，拒绝 `../`/空/超过 1 MiB | 接收方阅读报告与集合导出人工检查 |
 | GFM、任务列表、表格、代码、公式、Mermaid、脚注、frontmatter | Milkdown plugins | editor plugin tests、`markdownPaste`、`structured-code`、`mermaid-source` | 保留 | 粘贴 Markdown 原文按标记排版；网页 HTML 用 DOMParser 转换，不执行脚本。JSON/YAML 可格式化、压成一行并按缩进折叠，折叠不改文件，复制导出去掉按钮。Mermaid 渲染前清理缩进、零宽字符和 init；主题 CSS 里的 `.error-icon` 不算失败。覆盖中文与异常输入 |
-| 性能/兼容夹具 | `src/main/testing/fixtures/`、`shared/testing/r09-fixture-contract.ts` | `fixtures.test.ts`、`document-collection.test.ts`（多结构导出） | 已有：普通、2 MiB±1、长段落 5 MiB、多结构 5 MiB | M01 多结构 20× Electron、Q02 全时序矩阵 **UNVERIFIED** |
+| 性能/兼容夹具 | `src/main/testing/fixtures/`、`shared/testing/r09-fixture-contract.ts` | `fixtures.test.ts`、`document-collection.test.ts`（多结构导出）、`summarizeStability` | 已有：普通、2 MiB±1、长段落/短节点/超长行/中文 emoji/混合语法 5 MiB；稳定性汇总函数 | 8 小时采样与第二台 16 GB 设备为 **UNVERIFIED** |
 | Renderer CSP | `src/renderer/index.html` | Electron smoke | 保留 | `data:` 仅在 `font-src`/`img-src` 按已知内嵌资源放行；脚本与连接仍只允许显式来源 |
 | 图片、附件、图片协议 | `image-file-handlers.ts`、attachment IPC + `mdimg://` | attachment/protocol tests；协议和导出内联都按普通文件句柄读取，图片目录钉住结果会跨重启保留；自定义 CSS 导入不跟随符号链接 | 保留 | 外部文件附件 |
 | 标签、Wiki 链接、反向链接、图谱 | shared indexes + panels | tag/link/graph tests | 已有；反链可插入引用 | 大库往返与图谱规模仍按现有上限 |

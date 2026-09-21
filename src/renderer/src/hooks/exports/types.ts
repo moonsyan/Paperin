@@ -2,6 +2,7 @@ import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type { EditorHandle } from '../../components/Editor'
 import type { PublishScope } from '../../lib/export-bundle'
 import type { CollectionEntry } from '../../lib/document-collection'
+import type { DeliveryReport } from '../../lib/delivery-report'
 
 /**
  * useExports 入口参数。集中定义在 exports 子目录，方便各拆分模块按需要
@@ -23,6 +24,8 @@ export interface UseExportsOptions {
   /** 解析集合范围的文档条目（读盘 + 标题/顺序提取 + 图片协议转换；
    *  读取失败的文档以含 path 的错误抛出）。未提供时集合范围回退当前文档 */
   resolveCollectionEntries?: (scope: Exclude<PublishScope, { kind: 'document' }>) => Promise<CollectionEntry[]>
+  /** 资源包交付报告；不含正文、绝对路径或搜索词 */
+  getDeliveryReport?: () => DeliveryReport
 }
 
 /**

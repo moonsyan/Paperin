@@ -38,6 +38,7 @@ export function useExports({
   setToast,
   exportCss = null,
   resolveCollectionEntries,
+  getDeliveryReport,
 }: UseExportsOptions): {
   handleExportHtml: () => Promise<void>
   handleDoExportPdf: (options: PdfOptions) => Promise<void>
@@ -100,6 +101,7 @@ export function useExports({
     buildPublishedHtml,
     inlineImagesInHtml,
     resolveCollectionEntries,
+    getDeliveryReport,
   })
 
   return {

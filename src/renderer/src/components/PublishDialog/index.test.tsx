@@ -163,6 +163,43 @@ describe('PublishDialog（R04 范围与动作一致）', () => {
     expect(scope?.kind).not.toBe('document')
   })
 
+  it('可保存、应用和删除发布配置，空名称不保存', () => {
+    const onSaveProfile = vi.fn()
+    const onDeleteProfile = vi.fn()
+    const profiles = [
+      {
+        id: 'p-tech',
+        name: '技术文档',
+        options: { template: 'technical' as const, includeToc: false, inlineImages: false, cleanWikiLinks: true },
+        scope: { kind: 'document' as const },
+      },
+    ]
+    render(
+      <PublishDialog
+        open
+        onClose={vi.fn()}
+        onExportBundle={vi.fn()}
+        onCopyRichText={vi.fn()}
+        profiles={profiles}
+        onSaveProfile={onSaveProfile}
+        onDeleteProfile={onDeleteProfile}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: '保存当前配置' }))
+    expect(onSaveProfile).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByPlaceholderText('配置名称'), { target: { value: '博客发布' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存当前配置' }))
+    expect(onSaveProfile).toHaveBeenCalledWith(
+      '博客发布',
+      expect.objectContaining({ template: 'blog' }),
+      { kind: 'document' },
+    )
+    fireEvent.click(screen.getByRole('button', { name: '应用' }))
+    expect(screen.getByRole('radio', { name: '技术文档' }).getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(screen.getByRole('button', { name: '删除' }))
+    expect(onDeleteProfile).toHaveBeenCalledWith('p-tech')
+  })
+
   it('非 busy 时点击遮罩取消，不触发导出', () => {
     const onClose = vi.fn()
     const onExportBundle = vi.fn()
