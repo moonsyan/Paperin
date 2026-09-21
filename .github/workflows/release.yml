@@ -40,11 +40,13 @@ on:
 permissions:
   contents: write
 
+# tag 推送没有 workflow_dispatch 的 inputs 上下文。工作流级表达式若直接写 inputs，
+# GitHub 会在创建 job 之前判定工作流无效。两种触发都改读 github.event.inputs。
 env:
   IS_CANDIDATE_RUN: >-
-    ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.action == 'candidate') }}
+    ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'candidate') }}
   IS_PUBLISH_FORMAL: >-
-    ${{ github.event_name == 'workflow_dispatch' && inputs.action == 'publish-formal' && inputs.confirm_publish == 'PUBLISH' }}
+    ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'publish-formal' && github.event.inputs.confirm_publish == 'PUBLISH' }}
 
 jobs:
   gate:
@@ -149,7 +151,7 @@ jobs:
         id: resolve
         shell: bash
         env:
-          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
           REF: ${{ github.ref }}
           REF_NAME: ${{ github.ref_name }}
         run: |
@@ -217,7 +219,7 @@ jobs:
         id: resolve
         shell: bash
         env:
-          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
           set -euo pipefail
           if [ -z "$INPUT_TAG" ]; then
@@ -230,7 +232,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.resolve.outputs.tag }}
-          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          CANDIDATE_SHA: ${{ github.event.inputs.candidate_sha }}
         run: |
           set -euo pipefail
           if [ -z "$CANDIDATE_SHA" ]; then
@@ -256,7 +258,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.resolve.outputs.tag }}
-          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          CANDIDATE_SHA: ${{ github.event.inputs.candidate_sha }}
         run: |
           set -euo pipefail
           gh release edit "$TAG" \
