@@ -6,7 +6,9 @@
 
 ## 结论
 
-> 2026-09-21 夹具授权修复：生产搜索门禁不再使用 `isTrustedPath: () => true` 替身。`beforeAll` 写入 5000 篇后调用 `trustDirectory(root, { essential: true })`，handler 传入真实 `isPathTrusted`。修复前搜索 IPC 返回 `INVALID_TARGET`，未进入性能测量；修复后本轮 `PRODUCTION_SEARCH_PERF_METRICS` 为 searchP95Ms 1350.59–1592.53 ms（阈值 5000 ms），watcher 稳定 P95 189.08–194.03 ms。这与合成 `perf:regression` 的 2000/1500 ms 索引/搜索阈值是不同口径，后者仍独立失败，不得把夹具授权修复写成合成门禁通过。
+> 2026-09-21 合成回归诊断：`measureWorkspacePerformance` 增加 `fixtureWriteMs`、三次 `treeRunsMs`、`indexReadMs`/`indexParseMs`、`searchReadMs`/`searchScanMs`，**不修改** `treeMs/indexMs/searchMs` 与 200/2000/1500 ms 阈值，也未运行 `--update-baseline`。本机空闲连跑 Node 24.19.0 与 Node 22.23.2 各三轮均退出 0，墙钟与 2026-09-09 基线同量级；索引/搜索墙钟中读盘约占 85%–95%，解析/扫描约 50–61 / 11–13 ms。同日审查记录的索引 3482 ms、搜索 1672 ms 与空闲样本相差约 7–10 倍，且生产 `WorkspaceIndexService` 冷索引 1558 ms 仍低于其 15000 ms 阈值，故判定为临时目录 I/O / 杀软扫描波动，而不是生产解析逻辑退化。未覆盖：CI 主机、同时段高负载对照、真实用户库。高波动时门禁仍应失败，不得放宽阈值。
+
+> 2026-09-21 夹具授权修复：生产搜索门禁不再使用 `isTrustedPath: () => true` 替身。`beforeAll` 写入 5000 篇后调用 `trustDirectory(root, { essential: true })`，handler 传入真实 `isPathTrusted`。修复前搜索 IPC 返回 `INVALID_TARGET`，未进入性能测量；修复后本轮 `PRODUCTION_SEARCH_PERF_METRICS` 为 searchP95Ms 1350.59–1592.53 ms（阈值 5000 ms），watcher 稳定 P95 189.08–194.03 ms。这与合成 `perf:regression` 的 2000/1500 ms 索引/搜索阈值是不同口径。
 
 2026-09-20 历史批次：修复 Electron 冒烟 React **#301** 后曾记录 `npm run smoke` exit **0**；`npm run perf:electron` exit **0**，当次 `ELECTRON_PERF_METRICS` 为 `largeOpenMs` 1275.45、`largeSaveMs` 157.76、`largeExportMs` 85.33、20 标签切换 P95 **79.3** ms（40 次样本）。同日 Node 24 合成回归为树 176.52 ms（通过）、索引 3482.26 ms 与搜索 1672.44 ms（失败）。未测项与未达标项仍标 **UNVERIFIED** 或阻塞原因，不修改阈值。
 
@@ -100,6 +102,19 @@ npm run perf:large-file
 ```powershell
 npm run perf:regression
 ```
+
+2026-09-21 本机空闲分段样本（阈值仍为树 200 / 索引 2000 / 搜索 1500 ms，未改基线）：
+
+| Node | 轮次 | treeMs | indexMs（读/解析） | searchMs（读/扫描） | 峰值 RSS | 结果 |
+| --- | ---: | ---: | --- | --- | ---: | --- |
+| 24.19.0 | 1 | 10.89 | 445.42（301.37 / 49.61） | 311.18（299.27 / 11.14） | 145.0 | 通过 |
+| 24.19.0 | 2 | 11.51 | 438.92（299.84 / 46.72） | 308.81（295.37 / 12.59） | 144.2 | 通过 |
+| 24.19.0 | 3 | 11.30 | 455.03（305.73 / 52.81） | 301.32（289.07 / 11.47） | 144.4 | 通过 |
+| 22.23.2 | 1 | 10.17 | 500.43（337.44 / 59.28） | 336.21（321.89 / 13.45） | 109.3 | 通过 |
+| 22.23.2 | 2 | 10.88 | 509.59（345.37 / 60.68） | 324.56（311.45 / 12.26） | 114.3 | 通过 |
+| 22.23.2 | 3 | 10.05 | 504.90（337.29 / 61.49） | 334.69（321.08 / 12.73） | 114.5 | 通过 |
+
+审查当日同机曾记录树 176.52 ms、索引 3482.26 ms、搜索 1672.44 ms。分段后解析/扫描仍只有几十毫秒，墙钟差异集中在读盘；因此保留原阈值，把高 I/O 波动继续当作红灯，而不是下调门禁。
 
 临时比较其他场景时可显式覆盖 `--documents` 和 `--size`。只有在相同口径下重新采集并人工审查结果后，才应运行以下命令更新 JSON 中的 `baseline` 和默认 `scenario`；更新基线不会自动放宽 `targets`：
 

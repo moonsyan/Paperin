@@ -155,46 +155,65 @@ export const measureWorkspacePerformance = async ({
   const root = await mkdtemp(join(tmpdir(), 'paperin-perf-'))
   const rssSamples = []
   const sampler = setInterval(() => rssSamples.push(process.memoryUsage().rss), 10)
+  const roundMs = (value) => Math.round(value * 100) / 100
   try {
+    const fixtureWriteStart = performance.now()
     await writeFixtures(root, documents, bytesPerDoc, query)
+    const fixtureWriteMs = roundMs(performance.now() - fixtureWriteStart)
 
     // 首屏树：冷启动后连续测量三次取中位，减少 GC 抖动
-    const treeRuns = []
+    const treeRunsMs = []
     for (let run = 0; run < 3; run++) {
       const start = performance.now()
       await scanTree(root)
-      treeRuns.push(performance.now() - start)
+      treeRunsMs.push(roundMs(performance.now() - start))
     }
-    treeRuns.sort((a, b) => a - b)
-    const treeMs = Math.round(treeRuns[1] * 100) / 100
+    const sortedTreeRuns = [...treeRunsMs].sort((a, b) => a - b)
+    const treeMs = sortedTreeRuns[1]
 
-    // 结构索引
+    // 结构索引：保留 tree/index/search 墙钟口径，同时拆出读盘与解析
     const indexStart = performance.now()
     const files = await scanTree(root)
     let tagCount = 0
     let linkCount = 0
     let imageCount = 0
+    let indexReadMs = 0
+    let indexParseMs = 0
     for (const file of files) {
       const info = await stat(file)
+      const readStart = performance.now()
       const content = await readFile(file, 'utf-8')
+      indexReadMs += performance.now() - readStart
       void info.size
+      const parseStart = performance.now()
       const parsed = parseDocument(content)
+      indexParseMs += performance.now() - parseStart
       tagCount += parsed.tags.length
       linkCount += parsed.links.length
       imageCount += parsed.imageRefs.length
     }
-    const indexMs = Math.round((performance.now() - indexStart) * 100) / 100
+    const indexMs = roundMs(performance.now() - indexStart)
+    indexReadMs = roundMs(indexReadMs)
+    indexParseMs = roundMs(indexParseMs)
 
     // 行级全文搜索
     const searchStart = performance.now()
     let resultCount = 0
+    let searchReadMs = 0
+    let searchScanMs = 0
     for (const file of files) {
+      const readStart = performance.now()
       const content = await readFile(file, 'utf-8')
+      searchReadMs += performance.now() - readStart
+      const scanStart = performance.now()
       for (const line of content.split(/\r?\n/)) {
         if (line.includes(query)) resultCount++
       }
+      searchScanMs += performance.now() - scanStart
     }
-    const searchMs = Math.round((performance.now() - searchStart) * 100) / 100
+    const searchMs = roundMs(performance.now() - searchStart)
+    searchReadMs = roundMs(searchReadMs)
+    searchScanMs = roundMs(searchScanMs)
 
     clearInterval(sampler)
     const peakRssMb =
@@ -207,6 +226,12 @@ export const measureWorkspacePerformance = async ({
       treeMs,
       indexMs,
       searchMs,
+      fixtureWriteMs,
+      treeRunsMs,
+      indexReadMs,
+      indexParseMs,
+      searchReadMs,
+      searchScanMs,
       peakRssMb,
       tagCount,
       linkCount,

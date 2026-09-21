@@ -67,6 +67,28 @@ describe('perf-regression 阈值守卫', () => {
     expect(result.stdout).toContain('性能回归通过')
   })
 
+  it('输出分段指标且保留 treeMs/indexMs/searchMs 口径', async () => {
+    const file = await writeThresholds({ treeMs: 999999, indexMs: 999999, searchMs: 999999 })
+    const result = await runRegression(file)
+    const metrics = JSON.parse(result.stdout.slice(0, result.stdout.lastIndexOf('}') + 1))
+    expect(metrics).toEqual(
+      expect.objectContaining({
+        treeMs: expect.any(Number),
+        indexMs: expect.any(Number),
+        searchMs: expect.any(Number),
+        fixtureWriteMs: expect.any(Number),
+        treeRunsMs: expect.any(Array),
+        indexReadMs: expect.any(Number),
+        indexParseMs: expect.any(Number),
+        searchReadMs: expect.any(Number),
+        searchScanMs: expect.any(Number),
+      }),
+    )
+    expect(metrics.treeRunsMs).toHaveLength(3)
+    expect(metrics.fixtureWriteMs).toBeGreaterThan(0)
+    expect(String(result.stdout)).not.toContain('补充段落')
+  })
+
   it('未传场景参数时使用阈值文件中记录的场景', async () => {
     const file = await writeThresholds(
       { treeMs: 999999, indexMs: 999999, searchMs: 999999 },
@@ -89,6 +111,33 @@ describe('perf-regression 阈值守卫', () => {
     expect(document.baseline.documents).toBe(7)
     expect(document.baseline.bytesPerDoc).toBe(768)
   })
+
+  it('默认 5000×2048B 场景按阈值文件判定，超阈值时非零退出且不打印正文', async () => {
+    const document = JSON.parse(await readFile(DEFAULT_THRESHOLDS, 'utf-8'))
+    expect(document.scenario).toEqual({ documents: 5000, bytesPerDoc: 2048 })
+    expect(document.targets.treeMs).toBe(200)
+    expect(document.targets.indexMs).toBe(2000)
+    expect(document.targets.searchMs).toBe(1500)
+    let result
+    try {
+      result = await execFileAsync(process.execPath, [SCRIPT], { timeout: 180_000 })
+    } catch (error) {
+      result = error
+    }
+    const stdout = String(result.stdout ?? '')
+    expect(stdout).not.toContain('补充段落')
+    const metrics = JSON.parse(stdout.slice(0, stdout.lastIndexOf('}') + 1))
+    const exceeded = ['treeMs', 'indexMs', 'searchMs'].filter((key) => metrics[key] > document.targets[key])
+    console.log(`PERF_REGRESSION_EXCEEDED ${JSON.stringify({ exceeded, nodeVersion: metrics.nodeVersion })}`)
+    if (exceeded.length > 0) {
+      expect(result.code).not.toBe(0)
+      expect(stdout).toContain('超阈值')
+      for (const key of exceeded) expect(stdout).toContain(`${key}=`)
+    } else {
+      expect(result.code ?? 0).toBe(0)
+      expect(stdout).toContain('性能回归通过')
+    }
+  }, 180_000)
 
   it('阈值文件缺失时给出可读错误', async () => {
     let failed
