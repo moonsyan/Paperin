@@ -1,10 +1,22 @@
 # Paperin 当前完成度
 
-更新时间：2026-09-20（Asia/Shanghai）
+更新时间：2026-09-21（Asia/Shanghai）
+
+## 昨日提交后的当前状态
+
+截至 `b31ace3`（2026-09-20 22:05，当前 `master`）：
+
+- **R00–R11 工程任务已完成对应代码交付**，提交依次为 `bead366`、`971c692`、`d1eeeb7`、`8e85531`、`6dbd297`、`35e5cd8`、`8bf3d25`、`48fa84b`、`ca59809`、`aef5ddb`、`447f0a5`。
+- **R10 的候选发布门禁**已完成配置测试，但 `build:win`、真实安装/升级/卸载和三平台签名仍未执行，不能写成已发布。
+- **R12 的文档与研究协议**已提交（`b31ace3`）；观察表仍为空，R13–R16 均为条件未满足、未执行。
+- **R17 只完成维护文档和门禁账本增量**；根 `LICENSE`、实际安装包验证和超限文件拆分仍是明确缺口。
+
+后续阅读顺序：先看本摘要和下方 R12/R17，工程细节看对应 R00–R11 条目；下一项不是自动开始 R13，必须先补齐 R10 安装证据并完成 R12 观察数据。
 
 ## R12 文档结项（feat/strategy-execution）
 
 **任务号：** R12（用户研究，非功能）  
+**提交：** `b31ace3`
 **交付：** [user-research/_index.md](development/user-research/_index.md)、[seed-study-2026-09.md](development/user-research/seed-study-2026-09.md)；R13–R16 占位说明 **条件未满足，未执行**。  
 **数据边界：** 参与者 A/B 任务表与背景字段均为 **未采集**；最大三个阻塞 **未采集**；不报留存率。  
 **工程对照：** seed 研究文档 §5 链接 R01–R11 残留 **UNVERIFIED** 边界，**不**代表用户已遇到。  
@@ -20,6 +32,7 @@
 ## R10 结项（feat/strategy-execution）
 
 **任务号：** R10  
+**提交：** `11b696e`
 **工程变更：** `release.yml` 拆为候选链（`gate` → `candidate-acceptance`/`npm run smoke` → 三平台打包 → `candidate-release` draft + `candidate-record.txt`）与 `publish-formal`（`confirm_publish=PUBLISH` + `candidate_sha` 与 draft commit 一致后才 `gh release edit --draft=false`）；`push v*` 不再无条件正式发布。  
 **配置测试：** `scripts/ci-config-gates.mjs`、`scripts/verify-ci-config.test.mjs`；缺 smoke 或无条件 `draft: false` 时校验失败。  
 **全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0（**212** 文件 **1549** 项，含 `verify-ci-config.test.mjs`）；`npm run build` 0；`npm run build:win` **未执行**。  
@@ -30,6 +43,7 @@
 ## R11 结项（feat/strategy-execution）
 
 **任务号：** R11  
+**提交：** `447f0a5`
 **产品变更：** 开始页 / 合成示例树 / README / package 描述统一为「打开资料 → 用来源写一段技术说明」；首屏列出资料、模板与「插入引用」可发现动作；开库时图谱标签出现但**不自动激活**（避免打断首次任务，见 `useGraphView.ts`）。  
 **失败测试（修复前）：** `useGraphView` 开库即 `graphTabActive=true`；开始页与 README/package 任务表述不一致；示例树缺少旧笔记 / 技术草稿 / 来源资料合成夹具。  
 **修复后结果：** `useGraphView.test.ts` 8/8；`StartScreen/index.test.tsx` 4/4；`r11-core-task-entry.test.ts` 9/9；`r11-fixture-contract.test.ts` 1/1；`demo-files.test.ts` 1/1；全量 **211** 文件 **1546** 项通过（以当次 `npm run test` 为准）。  
@@ -37,22 +51,24 @@
 **文档：** 计划 §14 研发子项；`command-panels.md` 引用入口；README / package description。  
 **用户研究边界：** 两位用户无口头提示演示 = **未执行**（不宣称通过）。  
 **实际工时：** ~（自动化记录）  
-**下一项：** R10（已完成，见上）
+**后续状态：** R10 已于 `11b696e` 完成；本条“下一项”仅保留当时执行顺序，不代表当前待办。
 
 ## R09 结项（feat/strategy-execution）
 
 **任务号：** R09  
+**提交：** `aef5ddb`
 **失败测试（修复前）：** Electron 冒烟 React **#301**（`AppComposition` 渲染期调用 `syncFromSettings` → 无限重渲染）；`SMOKE_FAIL 系统关联文件未进入外部标签`（#301 的连带症状）；`perf:electron` 资源包导出 `INVALID_PATH`（性能工作区未 `allowExportDirectory`）。  
 **修复后结果：** `useSessionPersistReady.test.tsx` 2/2；`fixtures.test.ts` 4/4；`document-collection.test.ts` R09 导出 1/1；全量 **209** 文件 **1536+** 项通过（以当次 `npm run test` 为准）。  
 **全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0；`npm run build` 0；`npm run smoke` **0**（#301 已修复）；`npm run perf:electron` **0**（`ELECTRON_PERF_METRICS` 见 `performance-baseline.md`）；`npm run perf:production` **1/2**（索引门禁通过；`workspace-search-watch-production.perf.ts` 仍 `INVALID_TARGET`，与 R05 同 harness 缺口，非夹具回归）。  
 **文档：** 计划 §12 复选框；`development/performance-baseline.md` R09 体验预算对照；`compatibility-matrix.md` 夹具行。  
 **人工边界：** M01 多结构 5 MiB ×20 次 Electron、普通输入 P95、第二台 16GB 设备、8 小时稳定性、磁盘满/进程 kill — **UNVERIFIED**（未改体验目标）。  
 **实际工时：** ~2h（自动化记录）  
-**下一项：** R11（本任务未启动）
+**后续状态：** R11 已于 `447f0a5` 完成；本条“下一项”仅保留当时执行顺序，不代表当前待办。
 
 ## R08 结项（feat/strategy-execution）
 
 **任务号：** R08  
+**提交：** `ca59809`
 **失败测试（修复前）：** A07——工作区搜索/发布弹窗缺少 dialog 语义、Tab 约束与一致焦点恢复；Escape 在 IME 组合态可能误关；发布 busy 时 Escape 策略未与导出取消对齐。  
 **修复后结果：** `useModalDialogKeyboard.test.tsx` 9/9；`WorkspaceSearchDialog/index.test.tsx` 4/4；`PublishDialog/index.test.tsx` 8/8（含 R04）；全量 **208** 文件 **1530** 项通过。  
 **全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0（1530 passed）；`npm run build` 0；`npm run a11y` 0；`npm run smoke` **未重跑**（React **#301** + 系统关联标签，非 R08 回归）。  
@@ -64,6 +80,7 @@
 ## R07 结项（feat/strategy-execution）
 
 **任务号：** R07  
+**提交：** `48fa84b`
 **失败测试（修复前）：** A07——fresh 窗口共享 drafts 竞态；草稿写失败被静默吞掉；状态栏不区分落盘与草稿备份；多窗口同路径可互相覆盖；重启后外部改盘缺少可验证边界。  
 **修复后结果：** `draft-storage.test.ts` 6/6；`settings-store.draft.test.ts` 2/2；`useDraftPersistence.test.ts` 4/4；`useDocumentRestore.test.ts` 3/3；`version-store.test.ts` 8/8；`document-save-status.test.ts` 3/3；全量 **206** 文件 **1512** 项通过。  
 **全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0（1512 passed）；`npm run build` 0；`npm run smoke` **未重跑**（React **#301** + 系统关联标签，真实双窗口双重启仍阻塞，非 R07 回归）。  
@@ -75,6 +92,7 @@
 ## R06 结项（feat/strategy-execution）
 
 **任务号：** R06  
+**提交：** `8bf3d25`
 **失败测试（修复前）：** A06——根/目录/无名 watch 事件被 Markdown 过滤器丢弃（探针 0 回调）；单篇读取失败可拖垮整库；watcher 无法区分增量路径与目录级 rescan。  
 **修复后结果：** `workspace-file-watcher.test.ts` 12/12；`workspace-index-service.test.ts` 11/11；`workspace-search-coverage.test.ts` 9/9（沿用 R05）；`workspace-coverage.test.ts` 2/2；全量 **203** 文件 **1496** 项通过。  
 **全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0（1496 passed）；`npm run build` 0；`npm run perf:workspace-search-watch` **1/2**（20k watcher 合并通过；5000 篇搜索 IPC 仍 `INVALID_TARGET`，与 R05 同 harness 缺口，非 watcher 回归）；`npm run smoke` **未重跑**（React **#301** + 系统关联标签，非 R06 回归）。  
@@ -86,6 +104,7 @@
 ## R05 结项（feat/strategy-execution）
 
 **任务号：** R05  
+**提交：** `35e5cd8`
 **失败测试（修复前）：** A05——超大/超深/超预算漏扫仍可能呈现「完整无结果」；搜索与索引覆盖口径分散；旧查询响应可覆盖 UI。  
 **修复后结果：** `workspace-search-coverage.test.ts` 9/9；`useWorkspaceSearch.test.ts` 3/3；`workspace-index-service.test.ts` 9/9；`workspace-coverage.test.ts` 2/2；全量 **203** 文件 **1488** 项通过。  
 **全量门禁：** `npm run lint` 0；`npm run typecheck` 0；`npm run test` 0（1488 passed）；`npm run build` 0；`npm run smoke` **未重跑**（与 R00–R04 相同：React **#301** + `SMOKE_FAIL 系统关联文件未进入外部标签`，非 R05 回归）。  

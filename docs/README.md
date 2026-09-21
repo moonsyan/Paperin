@@ -1,15 +1,15 @@
 # Paperin 文档索引
 
-更新时间：2026-09-20（Asia/Shanghai）
+更新时间：2026-09-21（Asia/Shanghai）
 
-`docs/` 保留当前说明与有日期的审查证据。持续完成度看 [REFACTOR-STATUS](REFACTOR-STATUS.md)；本轮审查结果固定在证据附录中。下一轮优先顺序以 [R00–R17 实施任务](superpowers/plans/2026-09-20-product-strategy-execution.md) 为准；已替代的旧战略和任务计划可从 Git 历史追溯，不重复实施已经落地的能力。
+`docs/` 保留当前说明与有日期的审查证据。持续完成度看 [REFACTOR-STATUS](REFACTOR-STATUS.md)；9 月 20 日的审查结果固定在证据附录中。R00–R12 的昨天提交状态已经记录，R13–R16 仍受前置条件约束，R17 只保留维护缺口；不要把旧战略和任务计划重新当成待实施清单。
 
 ## 先读哪一份
 
 | 目的 | 文档 |
 | --- | --- |
 | 本轮产品取舍与竞品比较 | [2026-09-20 战略审查报告](PRODUCT-STRATEGY-REVIEW-2026-09-20.md) |
-| 下一项工作与完整实施任务 | [R00–R17 优先级实施计划](superpowers/plans/2026-09-20-product-strategy-execution.md) |
+| 后续条件与完整实施任务 | [R00–R17 优先级实施计划](superpowers/plans/2026-09-20-product-strategy-execution.md) |
 | 本轮代码与验证证据 | [product-audit-2026-09-20](development/product-audit-2026-09-20.md) |
 | 历史审查与任务依据 | [代码与验证证据](development/product-audit-2026-09-20.md)、Git 提交历史 |
 | 现在做到哪 | [REFACTOR-STATUS](REFACTOR-STATUS.md) |
