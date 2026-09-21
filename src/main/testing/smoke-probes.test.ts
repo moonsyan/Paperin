@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildAssociationProbeScript, buildTabCountProbeScript } from './smoke-probes'
+import { CORE_TASK_STEPS, formatCoreTaskFail } from '../../shared/testing/core-task-contract'
+import { buildCompactMenuPathScript } from './core-task-smoke-ui'
 
 /**
  * 冒烟探针契约：CurrentFileBanner 收敛后文件名由标签页承担，
@@ -40,5 +42,40 @@ describe('buildTabCountProbeScript', () => {
   it('返回读取标签数的同步脚本（关联去重契约）', () => {
     const script = buildTabCountProbeScript()
     expect(script).toContain('[role="tab"]')
+  })
+})
+
+describe('核心任务失败输出', () => {
+  it('按步骤输出 CORE_TASK_FAIL <step> <reason>，不只检查最终 toast', () => {
+    expect(CORE_TASK_STEPS).toEqual(['find-source', 'insert-citation', 'save-reopen', 'export-bundle'])
+    expect(formatCoreTaskFail('find-source', 'NO_MATCH')).toBe('CORE_TASK_FAIL find-source NO_MATCH')
+    expect(formatCoreTaskFail('insert-citation', 'INSERT_BUTTON_MISSING')).toBe(
+      'CORE_TASK_FAIL insert-citation INSERT_BUTTON_MISSING',
+    )
+    expect(formatCoreTaskFail('save-reopen', 'SAVE_MISSING_CITATION')).toMatch(/^CORE_TASK_FAIL save-reopen /)
+    expect(formatCoreTaskFail('export-bundle', 'EXPORT_DIR_DENIED')).toMatch(/^CORE_TASK_FAIL export-bundle /)
+  })
+})
+
+describe('核心任务更多菜单路径脚本', () => {
+  it('在同一次脚本里点击打开文件夹并等待工作区壳层变为 open', () => {
+    const script = buildCompactMenuPathScript(
+      ['更多菜单', '文档与知识库', '打开文件夹'],
+      'document.querySelector(\'[role="region"][aria-label="工作区"]\')?.getAttribute("data-workspace-state") === "open"',
+    )
+    expect(script).toContain('更多菜单')
+    expect(script).toContain('打开文件夹')
+    expect(script).toContain('data-workspace-state')
+    expect(script).toContain('button.disabled')
+  })
+
+  it('工作区搜索走全工作区搜索菜单项，失败带 toast 诊断', () => {
+    const script = buildCompactMenuPathScript(
+      ['更多菜单', '文档与知识库', '全工作区搜索…'],
+      'Boolean(document.querySelector(\'[aria-label="工作区搜索关键词"]\'))',
+    )
+    expect(script).toContain('全工作区搜索…')
+    expect(script).toContain('工作区搜索关键词')
+    expect(script).toContain('.toast')
   })
 })

@@ -36,10 +36,10 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 | --- | --- | --- |
 | `npm run lint` | 退出 0 | 当前 lint 基线通过 |
 | `npm run typecheck` | 退出 0 | Renderer 与 Node 严格类型检查通过 |
-| `npm run test -- --silent --reporter=dot` | 215 个文件、1569 项测试通过 | 自动测试基线通过，不代表桌面链路通过 |
+| `npm run test -- --silent --reporter=dot` | 215 个文件、1577 项测试通过 | 自动测试基线通过，不代表桌面链路通过 |
 | `npm run build` | 退出 0 | 生产构建通过，未证明安装器可用 |
 | `npm run a11y` | 退出 0；仍有 37 项对比度基线债务 | 没有新增静态违规，不能宣称全面可访问 |
-| `npm run smoke` | 退出 0；打开工作区、新建、保存、冲突、重命名、搜索、关闭与系统文件关联通过 | 工作区路径授权已用最近存在父目录的真实路径比较；历史 `INVALID_TARGET` 红灯已覆盖 |
+| `npm run smoke` | 退出 0；打开工作区、新建、保存、冲突、重命名、搜索、关闭、系统文件关联，以及来源查找/插入引用/保存重开/资源包导出 | 核心任务冒烟先走真实「打开文件夹」菜单绑定渲染层工作区，再打开全文搜索；步骤失败输出 `CORE_TASK_FAIL` |
 | `npm run perf:regression` | Node 22.23.2 与 Node 24.19.0 空闲各三轮退出 0；索引/搜索读盘占墙钟约 85%–95% | 与 2026-09-09 基线同量级。同日审查的 3482/1672 ms 判定为 I/O 波动；阈值未改 |
 | `npm run perf:production` | 2 个性能文件、3 项测试全部通过；搜索 P95 1350.59 ms，冷索引 1558.02 ms | 夹具已调用真实 `trustDirectory`；搜索 IPC 进入性能测量。合成 `perf:regression` 门禁仍独立失败 |
 | `npm audit --omit=dev --audit-level=moderate` | 0 vulnerabilities；生产 `js-yaml@4.3.2` | 已消除 GHSA-2883-xcg3-v3hh；dev 依赖审计仍独立 |
@@ -57,6 +57,7 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 | P0 | 清理失效 `demo:soft*` 脚本 | **已完成**：`package.json` 不再引用不存在的 `design/soft-workbench` |
 | P0 | 收紧联网与外部服务凭据 | **已完成**：生产环境默认检查/下载/退出安装，设置中有可见开关，关闭后下次启动不联网也不安装已下载包。开发环境永不检查。SM.MS token 经 `safeStorage` 加密；渲染进程只有 `configured`/`credentialState`；明文迁移失败与安全存储不可用均禁用远程上传并回退本地附件 |
 | P0 | 补齐许可、隐私与 Windows 候选材料 | **材料已提交**：`LICENSE`、`THIRD-PARTY-NOTICES.md`、`PRIVACY.md`、`SECURITY.md` 与四类 Issue 模板；`validateReleaseMaterials` 拒绝缺文件。Windows 两套隔离环境安装/升级/卸载循环为 **UNVERIFIED** |
+| P1 | 验证 15 分钟首次核心闭环 | **自动链路已完成**：`runCoreTaskSmoke` 按真实 UI 覆盖来源查找、插入引用、保存重开、资源包导出，`npm run smoke` 退出 0。无口头帮助的真人 15 分钟样本为 **UNVERIFIED** |
 | P1 | 完成两位现有用户任务记录 | 两周内每人至少 3 次真实任务，记录阻塞、成果和再次使用理由，不计算虚假留存率 |
 
 完整依赖、文件、失败测试和验证命令见[产品战略实施计划](superpowers/plans/2026-09-21-product-strategy-implementation.md)。

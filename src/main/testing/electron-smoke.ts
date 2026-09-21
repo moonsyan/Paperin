@@ -7,6 +7,7 @@ import { CHANNELS } from '../../shared/ipc/channels'
 import { trustDirectory } from '../trusted-paths'
 import { buildAssociationProbeScript, buildTabCountProbeScript, buildUnpersistedStatusProbeScript } from './smoke-probes'
 import { runElectronPerformanceSmoke, type EvaluateSmokeStep } from './electron-performance-smoke'
+import { runCoreTaskSmoke } from './core-task-smoke'
 
 /**
  * Electron 级端到端冒烟（`--smoke <工作区>` 启动参数触发）。
@@ -18,7 +19,7 @@ import { runElectronPerformanceSmoke, type EvaluateSmokeStep } from './electron-
  */
 
 const SMOKE_STEP_TIMEOUT_MS = 15_000
-const SMOKE_WATCHDOG_MS = 120_000
+const SMOKE_WATCHDOG_MS = 180_000
 
 /** 解析 --smoke 启动参数，返回冒烟工作区路径（无则返回 null） */
 export const parseSmokeWorkspace = (argv = process.argv): string | null => {
@@ -252,6 +253,9 @@ export const runElectronSmoke = async (
 
     if (performanceScenario) {
       results.push(...await runElectronPerformanceSmoke(win, workspacePath, evalStep))
+    } else {
+      await runCoreTaskSmoke(evalStep, workspacePath)
+      results.push('核心任务闭环 ok（来源查找、插入引用、保存重开、资源包导出）')
     }
 
     console.log('SMOKE_PASS')

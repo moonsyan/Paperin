@@ -76,3 +76,24 @@ describe('WorkspaceSearchDialog 键盘与可访问性（R08）', () => {
     expect(document.activeElement).toBe(host)
   })
 })
+
+describe('WorkspaceSearchDialog 失败与取消可采取行动', () => {
+  it('搜索失败时显示错误且可关闭，不误报命中', async () => {
+    const onClose = vi.fn()
+    window.desktopAPI = {
+      workspace: {
+        search: vi.fn(async () => ({
+          ok: false,
+          error: { code: 'INVALID_REGEX', message: '正则表达式不合法，请检查后重试' },
+        })),
+      },
+    } as unknown as Window['desktopAPI']
+    render(<WorkspaceSearchDialog {...baseProps} onClose={onClose} />)
+    fireEvent.change(screen.getByLabelText('工作区搜索关键词'), { target: { value: '(unclosed' } })
+    fireEvent.click(screen.getByRole('button', { name: '搜索' }))
+    expect(await screen.findByText('正则表达式不合法，请检查后重试')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /插入引用/ })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '关闭' }))
+    expect(onClose).toHaveBeenCalled()
+  })
+})

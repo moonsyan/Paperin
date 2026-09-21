@@ -15,6 +15,7 @@ import { renderHook } from '@testing-library/react'
 import { useDocumentCreationAndCollection } from './useDocumentCreationAndCollection'
 import { act } from '@testing-library/react'
 import { insertCitationFromPanel } from '../lib/insert-citation'
+import { CORE_TASK_STEPS, formatCoreTaskFail } from '../../../shared/testing/core-task-contract'
 
 describe('R11 核心任务入口', () => {
   it('首次打开只展示欢迎示例一篇标签', () => {
@@ -100,5 +101,10 @@ describe('R11 核心任务入口', () => {
   it('窄窗口样式仍声明抽屉断点（关闭全部标签/start 屏不另开布局）', () => {
     const css = readFileSync(join(process.cwd(), 'src/renderer/src/styles/soft-workbench.css'), 'utf8')
     expect(css).toContain('@media (max-width: 820px)')
+  })
+
+  it('核心闭环步骤失败必须带 CORE_TASK_FAIL 步骤名', () => {
+    expect(CORE_TASK_STEPS).toEqual(['find-source', 'insert-citation', 'save-reopen', 'export-bundle'])
+    expect(formatCoreTaskFail('find-source', 'NO_MATCH')).toBe('CORE_TASK_FAIL find-source NO_MATCH')
   })
 })

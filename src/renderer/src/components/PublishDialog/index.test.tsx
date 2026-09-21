@@ -162,4 +162,20 @@ describe('PublishDialog（R04 范围与动作一致）', () => {
     expect(scope).toEqual({ kind: 'tag', tag: 'note' })
     expect(scope?.kind).not.toBe('document')
   })
+
+  it('非 busy 时点击遮罩取消，不触发导出', () => {
+    const onClose = vi.fn()
+    const onExportBundle = vi.fn()
+    const { container } = render(
+      <PublishDialog
+        open
+        onClose={onClose}
+        onExportBundle={onExportBundle}
+        onCopyRichText={vi.fn()}
+      />,
+    )
+    fireEvent.click(container.querySelector('.dialog-overlay')!)
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(onExportBundle).not.toHaveBeenCalled()
+  })
 })

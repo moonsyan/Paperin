@@ -24,6 +24,8 @@
 - **本地图片**：内联或 assets 模式下，任一 `mdimg://` 无法读取则取消导出/复制，不显示成功提示，不写入选定目录；当前 `.md` 原文不会被改写。
 - **取消选目录**：用户在选输出位置时取消，不产生任何写入。
 
+核心任务闭环把「当前文档」资源包当作可交付出口：自动冒烟会在插入来源引用并保存重开后写出 HTML 资源包，接收方用浏览器打开 `index.html` 即可阅读。集合导出、打印字体和对方软件的完整矩阵仍见本页其余行与 [compatibility-matrix](compatibility-matrix.md)。
+
 ## 集合导出 Markdown → HTML（与单篇 DOM 导出区分）
 
 标签/目录集合在写出 HTML/PDF/Word 前，会先把每篇 Markdown 经 `collection-markdown-renderer` 转成 HTML，再拼成合集。该路径**不会改写磁盘上的 `.md` 源文件**。
