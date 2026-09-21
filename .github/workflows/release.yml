@@ -40,17 +40,12 @@ on:
 permissions:
   contents: write
 
-# tag 推送没有 workflow_dispatch 的 inputs 上下文。工作流级表达式若直接写 inputs，
-# GitHub 会在创建 job 之前判定工作流无效。两种触发都改读 github.event.inputs。
-env:
-  IS_CANDIDATE_RUN: >-
-    ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'candidate') }}
-  IS_PUBLISH_FORMAL: >-
-    ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'publish-formal' && github.event.inputs.confirm_publish == 'PUBLISH' }}
+# job 级 if 不能读取 env 上下文，否则 GitHub 在创建 job 前判定工作流无效。
+# tag 推送也没有 inputs 上下文，条件统一读 github.event.inputs。
 
 jobs:
   gate:
-    if: env.IS_CANDIDATE_RUN == 'true'
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'candidate') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -64,7 +59,7 @@ jobs:
 
   # Windows runner 有桌面会话，跑 Electron 冒烟作为候选包验收门禁
   candidate-acceptance:
-    if: env.IS_CANDIDATE_RUN == 'true'
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'candidate') }}
     needs: gate
     runs-on: windows-latest
     steps:
@@ -77,7 +72,7 @@ jobs:
       - run: npm run smoke
 
   build-win:
-    if: env.IS_CANDIDATE_RUN == 'true'
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'candidate') }}
     needs: candidate-acceptance
     runs-on: windows-latest
     steps:
@@ -100,7 +95,7 @@ jobs:
           if-no-files-found: error
 
   build-mac:
-    if: env.IS_CANDIDATE_RUN == 'true'
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'candidate') }}
     needs: candidate-acceptance
     runs-on: macos-latest
     steps:
@@ -121,7 +116,7 @@ jobs:
           if-no-files-found: error
 
   build-linux:
-    if: env.IS_CANDIDATE_RUN == 'true'
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'candidate') }}
     needs: candidate-acceptance
     runs-on: ubuntu-latest
     steps:
@@ -142,7 +137,7 @@ jobs:
           if-no-files-found: error
 
   candidate-release:
-    if: env.IS_CANDIDATE_RUN == 'true'
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'candidate') }}
     needs: [build-win, build-mac, build-linux]
     runs-on: ubuntu-latest
     steps:
@@ -209,7 +204,7 @@ jobs:
             artifacts/candidate-record.txt
 
   publish-formal:
-    if: env.IS_PUBLISH_FORMAL == 'true'
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'publish-formal' && github.event.inputs.confirm_publish == 'PUBLISH' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
