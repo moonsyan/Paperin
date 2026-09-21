@@ -18,6 +18,6 @@
 6. 运行相关测试后，再运行 `npm run lint`、`npm run typecheck`、`npm run test`、`npm run build`；涉及 UI、IPC、文件或打包时运行 `npm run smoke`，涉及 UI 时运行 `npm run a11y`。
 7. 性能任务保留原阈值和失败结果，只有多轮代表性证据与用户体验预算共同支持时才能评审修改阈值。
 8. 使用 `git diff`、`git diff --check` 和 `git status --short` 检查无生成物、密钥、用户数据或无关改动。
-9. 提交信息必须为 `<type>: <摘要> #<PM号>`；未取得真实 PM 号时保持已验证但未提交，禁止编造编号。
+9. Paperin 不使用 PM 号；提交信息使用 `<type>: <摘要>`，每个边界完整的变更通过相应门禁后立即主动提交。
 
 当前首个任务是实施计划中的 `P0-01`：修复工作区规范路径比较并恢复 Electron smoke。P0 全部退出前，不进入公开发布、收费系统、团队协作或企业架构实现。

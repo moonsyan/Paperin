@@ -6,7 +6,7 @@
 
 ## 结论
 
-2026-09-20 历史批次：修复 Electron 冒烟 React **#301** 后曾记录 `npm run smoke` exit **0**；`npm run perf:electron` exit **0**，当次 `ELECTRON_PERF_METRICS` 为 `largeOpenMs` 1275.45、`largeSaveMs` 157.76、`largeExportMs` 85.33、20 标签切换 P95 **79.3** ms（40 次样本）。这不是当前 HEAD 的绿灯；2026-09-21 新鲜 smoke 在新建文档返回 `INVALID_TARGET`，5000 篇性能回归也失败。未测项与未达标项仍标 **UNVERIFIED** 或阻塞原因，不修改阈值。
+2026-09-20 历史批次：修复 Electron 冒烟 React **#301** 后曾记录 `npm run smoke` exit **0**；`npm run perf:electron` exit **0**，当次 `ELECTRON_PERF_METRICS` 为 `largeOpenMs` 1275.45、`largeSaveMs` 157.76、`largeExportMs` 85.33、20 标签切换 P95 **79.3** ms（40 次样本）。这不是当前 HEAD 的绿灯；2026-09-21 新鲜 smoke 在新建文档返回 `INVALID_TARGET`。同日 Node 24 合成回归为树 176.52 ms（通过）、索引 3482.26 ms 与搜索 1672.44 ms（失败）；生产性能套件冷索引 5624.66 ms 通过，但搜索 IPC 因 `INVALID_TARGET` 未进入性能测量。未测项与未达标项仍标 **UNVERIFIED** 或阻塞原因，不修改阈值。
 
 2026-09-10 在 Windows 开发机上完成了四项可复现基线：直接调用生产 `WorkspaceIndexService` 和真实文件系统适配器的 5000 文件索引门禁、真实主进程搜索 IPC 和 watcher 风暴门禁，以及 5000 文件、单个 5 MiB 文件的两项合成扫描。仓库随附实测基线和独立阈值。另提供真实 Electron 性能 smoke：它启动构建产物，让 5 MiB Markdown 经 Main → Preload → 文档会话 → Milkdown 打开、编辑、快捷键保存，并将编辑器真实 DOM 写入受信任的临时资源包；随后打开 20 个真实文件标签并循环切换。
 

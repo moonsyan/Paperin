@@ -18,7 +18,7 @@
 - 新功能先写失败测试，再实现最小修复；触及超过 300 行的生产文件先评估拆分，超过 450 行不得继续增加无关职责。
 - 不新增账号、云同步、实时协作、全库 AI 问答、插件市场或移动端主线；这些只能在本计划阶段门槛满足后另立方案。
 - 现有 `lint`、`typecheck`、全量测试、`build` 和 `a11y` 的通过记录不代表 smoke、性能、安装、用户价值或商业验证通过。
-- 所有提交消息必须为 `<type>: <摘要> #<PM号>`；本计划不执行提交，实际 PM 号由维护者在执行时提供。
+- Paperin 不使用 PM 号；提交消息使用 `<type>: <摘要>`。每个任务形成边界完整的变更并通过相应门禁后立即主动提交，不积压无关任务。
 
 ---
 
@@ -41,8 +41,8 @@
 
 | 阶段 | 目标 | 进入条件 | 退出证据 |
 | --- | --- | --- | --- |
-| P0 | 可信发行候选 | 当前 smoke、性能夹具、依赖、许可和失效入口均有明确任务 | Windows 候选可安装，P0 阻断清零，两位现有用户各完成 3 次真实任务 |
-| P1 | GitHub 外部 Alpha | P0 退出，定位和核心任务入口稳定 | 6–8 位外部用户中大多数无需口头帮助完成任务，至少 3 人第二次主动使用 |
+| P0 | 可信发行候选 | 当前 smoke、性能夹具、依赖、联网与凭据、许可、隐私和失效入口均有明确任务 | Windows 候选可安装，P0 工程与发行阻断清零；更新检查、下载和退出安装可控，凭据不明文落盘，三类联网路径已披露 |
+| P1 | GitHub 外部 Alpha | P0 退出；先完成两位现有用户任务基线，再对陌生用户发布 | 6–8 位外部用户中大多数无需口头帮助完成任务，至少 3 人第二次主动使用 |
 | P2 | 个人专业版 | P1 有重复使用证据 | 20 人四周队列、W4 有效留存目标 40%、至少 5 位非关联用户真实付款实验 |
 | P3 | 团队/企业扩展 | 至少 3 个真实团队重复提出同一类交付或治理问题 | 团队连续两个周期使用并出现真实预算；企业另立身份、权限、审计和部署架构方案 |
 
@@ -108,7 +108,7 @@ Expected: 授权单测通过；Electron smoke 覆盖打开工作区、新建、�
 
 - [ ] **Step 5: 同步文档并提交**
 
-记录 Windows 短路径与 `realpath` 口径、链接换靶拒绝和 smoke 版本；运行 `git diff --check`，再由维护者使用实际 PM 号提交：`git commit -m "fix: 修复工作区路径授权与冒烟门禁 #<PM号>"`。
+记录 Windows 短路径与 `realpath` 口径、链接换靶拒绝和 smoke 版本；运行 `git diff --check` 后提交：`git commit -m "fix: 修复工作区路径授权与冒烟门禁"`。
 
 ### Task P0-02: 让生产搜索性能夹具使用真实信任根
 
@@ -161,11 +161,11 @@ Expected: 搜索 IPC 返回最后一个文件的唯一命中，报告 `PRODUCTIO
 
 - [ ] **Step 5: 同步文档并提交**
 
-在性能基线中区分“夹具授权修复”和“实际性能结果”；使用实际 PM 号提交：`git commit -m "test: 修正生产搜索性能授权装配 #<PM号>"`。
+在性能基线中区分“夹具授权修复”和“实际性能结果”；提交：`git commit -m "test: 修正生产搜索性能授权装配"`。
 
 ### Task P0-03: 诊断并处理 5000 篇性能回归
 
-**Priority:** P0/P1 交界，影响用户承诺和性能阈值可信度。
+**Priority:** P0，影响用户承诺和性能阈值可信度。
 
 **Files:**
 - Modify: `scripts/perf-baseline.mjs`, `scripts/perf-regression.mjs`
@@ -214,7 +214,7 @@ Expected: 性能门禁退出 0，或报告明确的未达标项和停止扩张�
 
 - [ ] **Step 5: 同步文档并提交**
 
-在 `performance-baseline.md` 写入设备、Node、样本、分位数、阈值和未覆盖场景；使用实际 PM 号提交：`git commit -m "fix: 收敛五千文档性能门禁结果 #<PM号>"`。
+在 `performance-baseline.md` 写入设备、Node、样本、分位数、阈值和未覆盖场景；提交：`git commit -m "fix: 收敛五千文档性能门禁结果"`。
 
 ### Task P0-04: 消除生产依赖高危漏洞
 
@@ -262,7 +262,7 @@ Expected: 生产依赖审计无 moderate 及以上漏洞；构建和测试通过
 
 - [ ] **Step 5: 同步文档并提交**
 
-记录依赖来源、版本、审计日期和未覆盖的 dev 依赖风险；使用实际 PM 号提交：`git commit -m "chore: 升级生产依赖并消除高危审计项 #<PM号>"`。
+记录依赖来源、版本、审计日期和未覆盖的 dev 依赖风险；提交：`git commit -m "chore: 升级生产依赖并消除高危审计项"`。
 
 ### Task P0-05: 清理失效脚本与发行入口
 
@@ -318,36 +318,88 @@ Expected: 配置检查和全量工程门禁通过，`rg -n "demo:soft|design/sof
 
 - [ ] **Step 5: 提交**
 
-使用实际 PM 号提交：`git commit -m "chore: 清理失效设计演示入口 #<PM号>"`。
+提交：`git commit -m "chore: 清理失效设计演示入口"`。
 
-### Task P0-06: 补齐许可、第三方声明和 Windows 候选材料
+### Task P0-06: 让默认联网可控并保护外部服务凭据
+
+**Priority:** P0，本地优先承诺和用户凭据安全阻断。
+
+**Files:**
+- Create: `src/main/updater/update-policy.ts`, `src/main/updater/update-policy.test.ts`
+- Create: `src/main/settings/secure-token-store.ts`, `src/main/settings/secure-token-store.test.ts`
+- Modify: `src/main/index.ts`, `src/main/ipc/image-host-handlers.ts`, `src/main/settings/settings-store.ts`
+- Modify: `src/preload/api.d.ts`, `src/renderer/src/app/useAppSettings.ts`, `src/renderer/src/app/AppDialogs.tsx`
+- Modify: `src/renderer/src/components/SettingsDialog/AdvancedPanel.tsx`, `src/renderer/src/components/SettingsDialog/EditorPanel.tsx`, `src/renderer/src/components/SettingsDialog/index.tsx`
+- Test: `src/renderer/src/components/SettingsDialog/index.test.tsx`, `src/main/ipc/settings-policy.test.ts`
+- Docs: `README.md`, `docs/PROJECT-STATUS.md`, `docs/UI-INTERACTION-SPEC.md`, `docs/development/release-validation.md`
+
+**Interfaces:**
+- Produces: `shouldCheckForUpdates(isDev, enabled): boolean` 与 `shouldInstallUpdateOnQuit(isDev, enabled): boolean`。生产环境默认保持检查、下载和退出安装，但设置中有一个可见开关。关闭后下次启动不得调用更新服务器，也不得在退出时安装此前已下载的包。`autoDownload` 与 `autoInstallOnAppQuit` 必须由该策略显式赋值，不能继续依赖库默认值。
+- Produces: `SecureTokenStore`，只在主进程通过 Electron `safeStorage` 加密/解密 SM.MS token；渲染进程只能获得 `configured` 和 `credentialState`，永远拿不到明文。
+- Migrates: 旧 `{ provider: 'smms', token: string }` 先成功写入加密值，再原子删除明文；迁移失败时禁用远程上传、保留本地附件路径并显示可操作错误，不静默丢弃凭据。
+- Documents: 拼写检查保持现有默认关闭的开关，不在本任务新增第三套联网控件。隐私与状态文档必须把它列为用户打开后可能下载词典的可选联网，且明确不上传正文。
+
+- [ ] **Step 1: 写失败测试**
+
+覆盖这些契约：开发环境永不检查更新、也永不在退出时安装；生产环境在设置为 `false` 时既不联网也不在退出时安装；生产环境在设置为 `true` 时，检查和退出安装都是策略函数返回的显式 `true`。安全存储写入后的 `settings.json` 不含原 token；旧明文 token 只有在加密写入成功后才删除。另用组件测试确认更新开关有可访问名称，文案同时说明关闭后不会自动下载、也不会在退出时安装。安全存储不可用时 SM.MS 显示明确状态且不能误报“已配置”。
+
+```ts
+expect(shouldCheckForUpdates(false, true)).toBe(false)
+expect(shouldInstallUpdateOnQuit(false, false)).toBe(false)
+expect(shouldInstallUpdateOnQuit(true, true)).toBe(true)
+expect(await readFile(settingsPath, 'utf8')).not.toContain(rawToken)
+expect(status).toEqual({ provider: 'local', configured: false, credentialState: 'unavailable' })
+```
+
+- [ ] **Step 2: 运行失败测试**
+
+Run: `npx vitest run src/main/updater/update-policy.test.ts src/main/settings/secure-token-store.test.ts src/renderer/src/components/SettingsDialog/index.test.tsx`
+
+Expected: FAIL，当前更新检查没有设置策略，`autoInstallOnAppQuit` 仍是库默认 `true`，SM.MS token 仍以明文写入通用设置文件，也没有安全存储不可用状态。
+
+- [ ] **Step 3: 实现最小边界**
+
+将更新策略提取为无副作用函数。主进程在调用 `checkForUpdatesAndNotify` 前读取布尔设置，并把 `autoDownload`、`autoInstallOnAppQuit` 设为同一策略的结果。关闭时两者都为 `false`。安全凭据只经专用主进程 store 访问，Windows 使用 DPAPI 支持的 `safeStorage`；不得把明文、加密 Buffer 或错误详情暴露给 Renderer。默认本地附件必须在迁移、解密、网络和第三方服务失败时始终可用。拼写检查继续使用现有设置开关，默认关闭。
+
+- [ ] **Step 4: 运行安全与全量门禁**
+
+Run: 上述定向测试；`npm run lint`; `npm run typecheck`; `npm run test`; `npm run build`; `npm run a11y`; `npm run smoke`
+
+Expected: 关闭更新后启动不发起更新请求，且退出时不安装已下载包；设置文件扫描不包含测试 token；SM.MS 成功、取消、迁移失败和安全存储不可用分支均有测试；工程门禁通过。真实联网抓包仍需在 Windows 候选阶段人工核对。
+
+- [ ] **Step 5: 同步文档并提交**
+
+记录默认联网、关闭生效时机、退出安装、SM.MS 发送内容、凭据迁移、不可用降级，以及拼写检查打开后可能下载词典且不上传正文。提交：`git commit -m "fix: 收紧更新联网与图床凭据边界"`。
+
+### Task P0-07: 补齐许可、隐私、安全入口和 Windows 候选材料
 
 **Priority:** P0，公开发布前置条件。
 
 **Files:**
 - Create after rights review: `LICENSE`, `THIRD-PARTY-NOTICES.md`
+- Create after behavior review: `PRIVACY.md`, `SECURITY.md`
 - Create: `.github/ISSUE_TEMPLATE/bug.yml`, `.github/ISSUE_TEMPLATE/compatibility.yml`, `.github/ISSUE_TEMPLATE/data-safety.yml`, `.github/ISSUE_TEMPLATE/feature.yml`
 - Modify: `README.md`, `docs/README.md`, `docs/development/release-validation.md`
 - Modify: `scripts/ci-config-gates.mjs`, `scripts/verify-ci-config.test.mjs`
 - Verify: `.github/workflows/build.yml`, `.github/workflows/release.yml`
 
 **Interfaces:**
-- Consumes: `package.json` 的许可证字段、Electron/Chromium 和 `resources/` 资产来源、GitHub Release workflow。
-- Produces: `validateReleaseMaterials(root): string[]`、可审查的根许可证、依赖/资源声明、四类 Issue 模板和 Windows 候选记录格式。
+- Consumes: `package.json` 的许可证字段、Electron/Chromium 和 `resources/` 资产来源、GitHub Release workflow、`electron-updater` 的检查/自动下载/退出安装，以及可选 SM.MS 图片上传和可选拼写词典下载。
+- Produces: `validateReleaseMaterials(root): string[]`、可审查的根许可证、依赖/资源声明、隐私说明、安全响应渠道、四类 Issue 模板和 Windows 候选记录格式。
 
 - [ ] **Step 1: 写失败发行检查**
 
-在 `verify-ci-config.test.mjs` 的临时目录中只写入 `package.json`，断言 `validateReleaseMaterials` 同时报告缺少 `LICENSE`、`THIRD-PARTY-NOTICES.md` 和四类 Issue 模板；补齐合成文件后断言无错误。测试材料不得伪装成仓库最终许可证。
+在 `verify-ci-config.test.mjs` 的临时目录中只写入 `package.json`，断言 `validateReleaseMaterials` 同时报告缺少 `LICENSE`、`THIRD-PARTY-NOTICES.md`、`PRIVACY.md`、`SECURITY.md` 和四类 Issue 模板；补齐合成文件后断言无错误。测试材料不得伪装成仓库最终许可证或政策文本。
 
 - [ ] **Step 2: 运行失败检查**
 
-Run: `npm run verify:ci-config`; `if (!(Test-Path LICENSE) -or !(Test-Path THIRD-PARTY-NOTICES.md)) { exit 1 }`
+Run: `npm run verify:ci-config`; `if (!(Test-Path LICENSE) -or !(Test-Path THIRD-PARTY-NOTICES.md) -or !(Test-Path PRIVACY.md) -or !(Test-Path SECURITY.md)) { exit 1 }`
 
 Expected: workflow 配置检查可能通过，但许可证材料检查失败；不得把 `package.json` 的 `MIT` 字段当作完整授权。
 
 - [ ] **Step 3: 实现材料**
 
-在确认版权所有者和第三方资产权利后写入准确的许可证文本；逐项列出生产依赖、Electron/Chromium 必要声明、图标和资源来源。无法确认的权利不得用猜测文本填充。
+在确认版权所有者和第三方资产权利后写入准确的许可证文本；逐项列出生产依赖、Electron/Chromium 必要声明、图标和资源来源。隐私说明必须区分三类路径：默认的更新检查、自动下载和退出时安装；用户主动启用的 SM.MS 上传；用户打开拼写检查后可能发生的词典下载。写明发送内容、目标、token 存储、关闭方式及第三方责任，并写明拼写词典下载不上传正文。安全说明提供私密报告方式和支持版本。`CHANGELOG.md` 与 `CONTRIBUTING.md` 不在本任务创建。无法确认的权利、联系方式和政策承诺不得用猜测文本填充。
 
 ```text
 候选 commit:
@@ -366,13 +418,13 @@ Expected: 候选记录包含版本、commit、安装环境、失败/回退、文
 
 - [ ] **Step 5: 同步文档并提交**
 
-更新支持平台、已知限制、数据位置和卸载行为；使用实际 PM 号提交：`git commit -m "docs: 补齐许可与 Windows 候选发行材料 #<PM号>"`。
+更新支持平台、已知限制、联网边界、数据位置和卸载行为；提交：`git commit -m "docs: 补齐许可隐私与 Windows 候选发行材料"`。
 
 ## P1：外部 Alpha 与核心任务验证
 
 ### Task P1-01: 完成两位现有用户真实任务基线
 
-**Priority:** P0 研究并行项 / P1 输入，低成本验证核心任务是否真实发生。
+**Priority:** P1，外部 Alpha 的进入条件。可以与 P0 工程修复并行采集，但不作为 P0 退出条件，也不计为 P0 任务。
 
 **Files:**
 - Modify: `docs/development/user-research/_index.md`
@@ -418,7 +470,7 @@ Expected: 记录可追溯到任务版本；由最大阻塞选择下一项代码�
 
 - [ ] **Step 5: 提交**
 
-使用实际 PM 号提交：`git commit -m "docs: 记录两位现有用户核心任务基线 #<PM号>"`。
+提交：`git commit -m "docs: 记录两位现有用户核心任务基线"`。
 
 ### Task P1-02: 验证 15 分钟首次核心闭环
 
@@ -465,7 +517,7 @@ Expected: 核心流程可在无口头帮助下执行，失败分支仍保留；�
 
 - [ ] **Step 5: 提交**
 
-使用实际 PM 号提交：`git commit -m "feat: 打通资料到可交付文档的首次闭环 #<PM号>"`。
+提交：`git commit -m "feat: 打通资料到可交付文档的首次闭环"`。
 
 ### Task P1-03: GitHub 外部 Alpha 发布和反馈闭环
 
@@ -473,12 +525,13 @@ Expected: 核心流程可在无口头帮助下执行，失败分支仍保留；�
 
 **Files:**
 - Modify: `README.md`, `docs/README.md`, `docs/development/release-validation.md`
+- Create: `CHANGELOG.md`, `CONTRIBUTING.md`
 - Create/Modify: `.github/ISSUE_TEMPLATE/bug.yml`, `.github/ISSUE_TEMPLATE/compatibility.yml`, `.github/ISSUE_TEMPLATE/data-safety.yml`, `.github/ISSUE_TEMPLATE/feature.yml`
 - Verify: `.github/workflows/release.yml`
 
 **Interfaces:**
 - Consumes: P0 Windows 候选、隐私说明、已知限制、2–3 分钟核心任务演示和脱敏示例项目。
-- Produces: GitHub Draft Release、校验信息、安装说明、反馈分类和公开的验证范围。
+- Produces: GitHub Draft Release、校验信息、安装说明、反馈分类、公开的验证范围、对应当次版本的 `CHANGELOG.md`，以及说明问题报告和贡献方式的 `CONTRIBUTING.md`。这两份文件只在本任务随真实 Alpha 发布编写，不得提前用空模板充当 P0 完成证据。
 
 - [ ] **Step 1: 写发布门禁检查**
 
@@ -501,7 +554,7 @@ Expected: 当前 workflow 配置门禁通过不等于候选可发布；缺少安
 
 - [ ] **Step 3: 生成 Draft Release**
 
-使用候选 workflow，上传 Windows 安装器和校验信息；不把 Draft 自动提升为正式发布，不在正文中承诺未验证的平台。
+使用候选 workflow，上传 Windows 安装器和校验信息；不把 Draft 自动提升为正式发布，不在正文中承诺未验证的平台。同时写入该候选版本的变更说明和贡献入口：`CHANGELOG.md` 只记录已经发生的版本事实，`CONTRIBUTING.md` 只写当前仓库真实的构建、测试和问题报告方式。不要在 P0 阶段提前创建这两份空文件。
 
 ```powershell
 gh workflow run release.yml -f action=candidate -f tag=candidate-2026-09-21
@@ -516,7 +569,7 @@ Expected: 外部用户能报告安装、兼容、数据安全和功能问题；�
 
 - [ ] **Step 5: 提交文档变更**
 
-使用实际 PM 号提交：`git commit -m "docs: 建立 GitHub 外部 Alpha 发布入口 #<PM号>"`。
+提交：`git commit -m "docs: 建立 GitHub 外部 Alpha 发布入口"`。
 
 ### Task P1-04: 完成 6–8 位外部用户任务对照
 
@@ -569,7 +622,7 @@ Expected: 大多数用户无需口头教学完成核心任务，且至少 3 人�
 
 - [ ] **Step 5: 提交**
 
-使用实际 PM 号提交：`git commit -m "docs: 完成外部 Alpha 核心任务对照 #<PM号>"`。
+提交：`git commit -m "docs: 完成外部 Alpha 核心任务对照"`。
 
 ## P2：个人专业版与重复价值
 
@@ -627,7 +680,7 @@ Expected: 参考机和另一台 16 GB RAM/SSD 设备分别保存原始聚合指�
 
 - [ ] **Step 5: 同步文档并提交**
 
-写明设备、commit、样本量、P50/P95/最大值和超时率；使用实际 PM 号提交：`git commit -m "test: 建立个人版长期稳定性门禁 #<PM号>"`。
+写明设备、commit、样本量、P50/P95/最大值和超时率；提交：`git commit -m "test: 建立个人版长期稳定性门禁"`。
 
 ### Task P2-02: 增加来源变化、缺失和移动提示
 
@@ -679,7 +732,7 @@ Expected: 状态重启后仍可派生，清除导航记录同时清除来源快�
 
 - [ ] **Step 5: 同步文档并提交**
 
-说明 mtime 提示的局限和“移动不自动修复”边界；使用实际 PM 号提交：`git commit -m "feat: 增加来源健康与变化提示 #<PM号>"`。
+说明 mtime 提示的局限和“移动不自动修复”边界；提交：`git commit -m "feat: 增加来源健康与变化提示"`。
 
 ### Task P2-03: 保存发布配置并输出项目交付报告
 
@@ -739,7 +792,7 @@ Expected: 保存配置重启后可用；导出目录同时含可读 `index.html`
 
 - [ ] **Step 5: 同步文档并提交**
 
-更新格式支持、大小上限和隐私字段；使用实际 PM 号提交：`git commit -m "feat: 增加可复用发布配置与交付报告 #<PM号>"`。
+更新格式支持、大小上限和隐私字段；提交：`git commit -m "feat: 增加可复用发布配置与交付报告"`。
 
 ### Task P2-04: 建立 20 人四周重复使用队列
 
@@ -780,7 +833,7 @@ Expected: 两批分别达到 W4 有效留存 40% 和来源复用 25% 才进入�
 
 - [ ] **Step 5: 提交**
 
-使用实际 PM 号提交：`git commit -m "docs: 建立个人版四周重复使用队列 #<PM号>"`。
+提交：`git commit -m "docs: 建立个人版四周重复使用队列"`。
 
 ### Task P2-05: 进行真实付款实验，不开发授权系统
 
@@ -821,7 +874,7 @@ Expected: 明确继续个人 Pro、暂停收费或回到任务价值；不以下
 
 - [ ] **Step 5: 提交研究记录**
 
-使用实际 PM 号提交：`git commit -m "docs: 记录个人专业价值与付款实验 #<PM号>"`。
+提交：`git commit -m "docs: 记录个人专业价值与付款实验"`。
 
 ## P3：团队与企业扩展（有条件）
 
@@ -871,7 +924,7 @@ Expected: 只有一个明确团队结果进入下一份独立实现计划；身�
 
 - [ ] **Step 5: 提交**
 
-使用实际 PM 号提交：`git commit -m "feat: 建立团队文档交付桥梁 #<PM号>"`。
+提交：`git commit -m "feat: 建立团队文档交付桥梁"`。
 
 ### Task P3-02: 企业内部知识库架构评审
 
@@ -916,7 +969,7 @@ Expected: 明确进入、暂缓或停止；不以功能清单替代预算和运�
 
 - [ ] **Step 5: 提交**
 
-使用实际 PM 号提交：`git commit -m "docs: 评审企业知识库架构进入条件 #<PM号>"`。
+提交：`git commit -m "docs: 评审企业知识库架构进入条件"`。
 
 ## 完成前总验收
 
