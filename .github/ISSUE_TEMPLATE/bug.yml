@@ -1,0 +1,47 @@
+name: Bug
+description: 功能异常、崩溃或结果与预期不符
+title: '[Bug] '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请不要粘贴用户文档正文、绝对路径、token 或设置文件内容。
+  - type: input
+    id: version
+    attributes:
+      label: 版本或 commit
+      description: 例如 0.6.0 或短 SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: 操作系统
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - 不确定
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 用最少步骤说明。不要附带真实知识库路径。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+      description: 可以贴错误码（如 CONFLICT、INVALID_TARGET），不要贴文件内容。
+    validations:
+      required: true

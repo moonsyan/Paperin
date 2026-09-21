@@ -134,10 +134,15 @@ npm run perf:regression
 
 ## 当前边界与后续方向
 
-已有工程能力包括已有文件的中断恢复、快照超时不写旧版本、关闭前不放行未确认内容，以及大文档 Electron 夹具。当前 `npm run smoke` 因新建文档 `INVALID_TARGET` 失败，5000 篇合成性能回归和生产搜索性能夹具也未通过；仍需继续验证大文档编辑/保存/导出的正确性、写入故障矩阵、长时间运行，以及 Windows 安装包和 macOS/Linux 文件关联。三平台安装验证、真实输入法、缩放和权限异常不能用一次开发态构建替代。
+已有工程能力包括已有文件的中断恢复、快照超时不写旧版本、关闭前不放行未确认内容。工作区路径授权与 Electron smoke 已通过；5000 篇合成性能在空闲机器上与基线同量级。Windows 安装/升级/卸载循环仍为 **UNVERIFIED**。三平台安装验证、真实输入法、缩放和权限异常不能用一次开发态构建替代。
 
 产品下一步优先验证“资料找到后真的被重新用进写作”的任务闭环，再决定 AI 资料问答、发布预览和跨设备同步的投入。同步暂缓，不新增账号或云端前置条件；发布从已有导出能力开始，所有扩展都必须保留原始 Markdown 的可取回性。
 
-## 许可证
+## 许可证、隐私与安全
 
-仓库根目录尚无经权利依据补齐的 `LICENSE` 文件；`package.json` 中的 `MIT` 字段不能单独作为全部版权与第三方分发结论。发布安装包前须核对根许可、`resources/`、Electron/Chromium 必需声明及各依赖许可证要求。维护说明见 [docs/README.md](docs/README.md)。
+- 源码许可：[LICENSE](LICENSE)（MIT，版权所有者为 `package.json` 的 `author`：ming）
+- 第三方与 Electron/Chromium：[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)
+- 联网与数据位置：[PRIVACY.md](PRIVACY.md)
+- 安全报告：[SECURITY.md](SECURITY.md)
+
+用户 Markdown 始终是本地文件。应用设置、草稿、最近文件和统计与正文分开存放。生产环境默认检查更新、自动下载并在退出时安装；可在设置中关闭，下次启动生效。SM.MS 与拼写词典均为可选联网。卸载是否保留用户知识库文件夹尚未在隔离环境验证。

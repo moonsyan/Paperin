@@ -1,0 +1,47 @@
+name: Data safety
+description: 保存、冲突、编码、删除或草稿恢复相关的数据安全问题
+title: '[Data safety] '
+labels: ['data-safety']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **禁止**粘贴：Markdown 正文、绝对路径、token、settings.json、草稿全文。
+        只需错误码、是否可复现、以及是否已用回收站/版本历史恢复。
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 问题类型
+      options:
+        - 保存失败或冲突
+        - 编码损失或乱码
+        - 误删或回收站
+        - 草稿恢复
+        - 外部修改被覆盖
+        - 其他
+    validations:
+      required: true
+  - type: dropdown
+    id: outcome
+    attributes:
+      label: 数据结果
+      options:
+        - 已用应用内方式恢复
+        - 未恢复，磁盘上还有副本
+        - 未恢复，内容可能丢失
+        - 不确定
+    validations:
+      required: true
+  - type: textarea
+    id: codes
+    attributes:
+      label: 错误码或界面提示
+      description: 例如 CONFLICT、ENCODING_LOSS。不要贴路径。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 可复现步骤（脱敏）
+    validations:
+      required: true

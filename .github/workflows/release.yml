@@ -177,10 +177,14 @@ jobs:
           record_file="artifacts/candidate-record.txt"
           {
             echo "Paperin candidate acceptance record"
-            echo "commit: ${{ github.sha }}"
+            echo "候选 commit: ${{ github.sha }}"
+            echo "支持平台: Windows candidate-acceptance（本 job）；macOS/Linux 安装 UNVERIFIED"
+            echo "smoke 结果: npm run smoke (Windows candidate-acceptance job)"
+            echo "安装/升级/卸载环境: UNVERIFIED"
+            echo "用户文件保留: UNVERIFIED"
+            echo "未验证项: 两个隔离环境的安装/文件关联/升级/卸载循环未在本 job 执行"
             echo "tag: ${{ steps.resolve.outputs.tag }}"
             echo "workflow_run: ${{ github.run_id }}"
-            echo "smoke: npm run smoke (Windows candidate-acceptance job)"
           } > "$record_file"
           cat "$record_file"
       - uses: softprops/action-gh-release@v2

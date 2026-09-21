@@ -1,14 +1,17 @@
-import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
 import {
   readWorkflowOrThrow,
+  RELEASE_MATERIAL_FILES,
   validateBuildWorkflowSteps,
   validateLocalScriptPaths,
   validateProductionJsYaml,
+  validateReleaseMaterials,
   validateReleaseWorkflowGates,
   verifyCiConfig,
 } from './ci-config-gates.mjs'
@@ -94,5 +97,28 @@ describe('validateLocalScriptPaths', () => {
         (candidate) => candidate === 'tsconfig.web.json',
       ),
     ).toEqual([])
+  })
+})
+
+describe('validateReleaseMaterials', () => {
+  it('仅有 package.json 时同时报告许可证、隐私、安全和四类 Issue 模板缺失', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'paperin-release-empty-'))
+    writeFileSync(join(dir, 'package.json'), '{"name":"fixture","license":"MIT"}\n')
+    expect(validateReleaseMaterials(dir)).toEqual(
+      RELEASE_MATERIAL_FILES.map((relative) => `缺少发行材料: ${relative}`),
+    )
+  })
+
+  it('补齐合成占位文件后无错误，且占位内容不是仓库许可证文本', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'paperin-release-filled-'))
+    writeFileSync(join(dir, 'package.json'), '{"name":"fixture","license":"MIT"}\n')
+    mkdirSync(join(dir, '.github', 'ISSUE_TEMPLATE'), { recursive: true })
+    const placeholder = 'SYNTHETIC-RELEASE-MATERIAL-NOT-A-LICENSE'
+    for (const relative of RELEASE_MATERIAL_FILES) {
+      writeFileSync(join(dir, relative), `${placeholder}\n${relative}\n`)
+    }
+    expect(validateReleaseMaterials(dir)).toEqual([])
+    expect(readFileSync(join(dir, 'LICENSE'), 'utf8')).toContain(placeholder)
+    expect(readFileSync(join(dir, 'LICENSE'), 'utf8')).not.toMatch(/Permission is hereby granted/)
   })
 })

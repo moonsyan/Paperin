@@ -33,8 +33,8 @@
 
 ## 当前发行边界
 
-仓库根目录尚无经权利确认的 `LICENSE`、第三方分发声明和独立隐私说明。`package.json` 的 `MIT` 字段不能单独作为完整授权依据；发布安装包前必须核对版权所有者、`resources/`、Electron/Chromium 必需声明和生产依赖许可证，并准确披露三类联网路径：生产环境默认的更新检查、自动下载和退出时安装；用户主动启用的 SM.MS 图床；用户打开拼写检查后可能发生的词典下载。外部 Alpha 还必须提供安全问题的私密报告方式。`CHANGELOG.md` 与 `CONTRIBUTING.md` 属于 Alpha 发布材料，不作为 P0 发行阻断，也不提前写空文件。
+根目录已有 `LICENSE`（MIT，版权所有者与 `package.json` `author` 一致为 ming）、`THIRD-PARTY-NOTICES.md`、`PRIVACY.md` 和 `SECURITY.md`。隐私说明覆盖三类联网：生产环境默认的更新检查/自动下载/退出安装；用户启用的 SM.MS；用户打开拼写检查后可能的词典下载。安全问题走 GitHub 私密公告，不要求公开用户文件。`CHANGELOG.md` 与 `CONTRIBUTING.md` 仍属 Alpha 发布材料，本阶段不提前写空文件。
 
-当前不能宣称“三平台已发布”“所有设备上 5 MiB 都达标”“用户留存成立”或“商业模式已验证”。Windows 候选也必须先通过当前 smoke、性能、生产依赖、安装/升级/卸载、文件关联和用户文件保留门禁。
+当前不能宣称“三平台已发布”“所有设备上 5 MiB 都达标”“用户留存成立”或“商业模式已验证”。Windows 两个隔离环境的安装 → 启动 → 文件关联 → 保存 → 升级 → 卸载循环为 **UNVERIFIED**。
 
 常规提交至少运行 `npm run lint`、`npm run typecheck`、`npm run test` 和 `npm run build`；涉及 UI 追加 `npm run a11y`，涉及 UI、IPC、文件和打包追加 `npm run smoke`，性能变更运行相应性能门禁。历史通过记录不能替代当前提交的新鲜结果。

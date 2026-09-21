@@ -215,5 +215,29 @@ export function verifyCiConfig() {
     errors.push(`无法读取 package.json：${error instanceof Error ? error.message : String(error)}`)
   }
 
+  errors.push(...validateReleaseMaterials(root))
+
   return { ok: errors.length === 0, errors }
+}
+
+export const RELEASE_MATERIAL_FILES = [
+  'LICENSE',
+  'THIRD-PARTY-NOTICES.md',
+  'PRIVACY.md',
+  'SECURITY.md',
+  '.github/ISSUE_TEMPLATE/bug.yml',
+  '.github/ISSUE_TEMPLATE/compatibility.yml',
+  '.github/ISSUE_TEMPLATE/data-safety.yml',
+  '.github/ISSUE_TEMPLATE/feature.yml',
+]
+
+/** 公开发布前置材料：存在性检查，不把 package.json 的 license 字段当作完整授权。 */
+export function validateReleaseMaterials(rootDir) {
+  const errors = []
+  for (const relative of RELEASE_MATERIAL_FILES) {
+    if (!existsSync(resolve(rootDir, relative))) {
+      errors.push(`缺少发行材料: ${relative}`)
+    }
+  }
+  return errors
 }

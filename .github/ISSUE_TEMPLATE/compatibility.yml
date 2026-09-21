@@ -1,0 +1,41 @@
+name: Compatibility
+description: 导出、打开或与其他 Markdown 工具之间的兼容问题
+title: '[Compatibility] '
+labels: ['compatibility']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请不要上传真实项目文档。可用合成短文或打码后的片段说明结构。
+  - type: dropdown
+    id: surface
+    attributes:
+      label: 出问题的环节
+      options:
+        - 打开已有 Markdown
+        - 导出 HTML
+        - 导出 PDF
+        - 导出 Word
+        - 导出资源包
+        - Pandoc / 其他格式
+        - 与 Typora / Obsidian / 其他编辑器往返
+        - 打印
+    validations:
+      required: true
+  - type: input
+    id: other-tool
+    attributes:
+      label: 对方软件与版本（若适用）
+  - type: textarea
+    id: result
+    attributes:
+      label: 观察到的结果
+      description: 说明缺图、字体、样式或结构差异。不要附带完整用户文件。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 你希望怎样兼容
+    validations:
+      required: true

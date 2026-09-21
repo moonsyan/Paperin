@@ -1,0 +1,27 @@
+name: Feature
+description: 对核心任务有帮助的功能建议
+title: '[Feature] '
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请说明它如何帮助「打开资料 → 用来源写一段技术说明 → 保存重开 → 导出」。
+        账号、云同步、团队协作和通用 AI 助手目前不在范围内，除非能指出它们挡住了上述闭环。
+  - type: textarea
+    id: task
+    attributes:
+      label: 你在完成什么任务
+    validations:
+      required: true
+  - type: textarea
+    id: block
+    attributes:
+      label: 现在卡在哪里
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议（可选）
+      description: 描述结果，不必指定实现。

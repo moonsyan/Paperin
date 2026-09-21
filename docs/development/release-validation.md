@@ -58,12 +58,25 @@
 
 | 材料 | 当前状态 | 外部 Alpha 前门槛 |
 | --- | --- | --- |
-| 根许可证与第三方声明 | **缺失** | 确认版权和资源来源后补 `LICENSE`、`THIRD-PARTY-NOTICES.md` |
-| 独立隐私说明 | **缺失** | 说明三类联网：默认更新检查、自动下载和退出时安装；可选 SM.MS 图片上传及其 token 安全存储；用户打开拼写检查后可能下载的词典。写明发送内容、关闭能力和第三方责任 |
-| 安全响应渠道 | **缺失** | 提供不要求公开用户文件、绝对路径或 token 的私密报告方式，并写明支持版本 |
+| 根许可证与第三方声明 | **已提供** | `LICENSE`（MIT，Copyright 2026 ming）与 `THIRD-PARTY-NOTICES.md`（含 Electron/Chromium、生产依赖、打包进渲染进程的库；`resources/icon.png` 来源未单独核证） |
+| 独立隐私说明 | **已提供** | `PRIVACY.md`：默认更新全流程、可选 SM.MS、可选拼写词典；写明发送内容、关闭方式和第三方责任 |
+| 安全响应渠道 | **已提供** | `SECURITY.md`：GitHub 私密安全公告；不要求公开用户文件、路径或 token。无另行公布的安全邮箱 |
 | 更新日志与贡献说明 | **不是 P0** | `CHANGELOG.md`、`CONTRIBUTING.md` 在 GitHub 外部 Alpha 发布时按真实版本和贡献方式编写，不提前提交空文件 |
 
-当前代码事实：生产环境默认检查更新、自动下载并在退出时安装；`autoDownload` 与 `autoInstallOnAppQuit` 由 `shouldCheckForUpdates` / `shouldInstallUpdateOnQuit` 显式赋值，开发环境恒为 `false`。设置「自动检查更新」关闭后下次启动不调用更新服务器，也不在退出时安装已下载包。默认图片模式为本地附件；SM.MS token 经主进程 `safeStorage` 加密，渲染进程拿不到明文。拼写检查默认关闭，用户打开后 Electron 可能下载词典，不上传正文。独立隐私说明仍缺失，不能把本记录当作正式隐私政策。
+当前代码事实：生产环境默认检查更新、自动下载并在退出时安装；`autoDownload` 与 `autoInstallOnAppQuit` 由 `shouldCheckForUpdates` / `shouldInstallUpdateOnQuit` 显式赋值，开发环境恒为 `false`。设置「自动检查更新」关闭后下次启动不调用更新服务器，也不在退出时安装已下载包。默认图片模式为本地附件；SM.MS token 经主进程 `safeStorage` 加密，渲染进程拿不到明文。拼写检查默认关闭，用户打开后 Electron 可能下载词典，不上传正文。正式隐私说明见仓库根目录 `PRIVACY.md`。
+
+## Windows 候选记录
+
+```text
+候选 commit: 28e72ce（P0-06；本材料提交后以 HEAD 为准）
+支持平台: Windows 候选链可配置；macOS 签名/公证 UNVERIFIED；Linux 桌面集成 UNVERIFIED
+smoke 结果: 2026-09-21 `npm run smoke` 退出 0（打开工作区、新建、保存、冲突、重命名、搜索、关闭、系统文件关联）
+安装/升级/卸载环境: UNVERIFIED（未执行 `npm run build:win` 后的两套隔离安装循环）
+用户文件保留: UNVERIFIED
+未验证项: 安装器签名、.md 文件关联、升级回退、卸载后知识库文件夹是否仍在
+```
+
+`scripts/verify-ci-config` 中的 `validateReleaseMaterials` 检查根许可、第三方声明、隐私、安全与四类 Issue 模板是否存在；不把 `package.json` 的 `license` 字段当作完整授权。
 
 ## 与核心任务入口的关系
 
