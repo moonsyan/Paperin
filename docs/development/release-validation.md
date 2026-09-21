@@ -4,7 +4,7 @@
 当前执行分支：`master`
 用途：记录候选包先验收、再进入正式发行的工程门禁和安装证据。
 
-> 当前状态不是“已发布”：2026-09-21 新鲜 `npm run smoke` 在新建文档步骤返回 `INVALID_TARGET`，`build:win` 和真实安装/升级/卸载循环仍未完成。当前执行任务见 [产品战略实施计划](../superpowers/plans/2026-09-21-product-strategy-implementation.md) 的 P0。
+> 当前状态不是“已发布”：工作区路径授权修复后，2026-09-21 新鲜 `npm run smoke` 退出 0，覆盖打开工作区、新建、保存、冲突、重命名、搜索、关闭与系统文件关联。`build:win` 和真实安装/升级/卸载循环仍未完成。当前执行任务见 [产品战略实施计划](../superpowers/plans/2026-09-21-product-strategy-implementation.md) 的 P0。
 
 ## 本任务已验证（工程门禁）
 

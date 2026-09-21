@@ -1,6 +1,6 @@
 import type { IpcMainInvokeEvent } from 'electron'
 import { realpath } from 'fs/promises'
-import { isAbsolute, relative, resolve, sep } from 'path'
+import { basename, dirname, isAbsolute, relative, resolve, sep } from 'path'
 import { getPinnedTrustRoot, isPathTrustedAfterResolvingLinks } from '../trusted-paths'
 
 /**
@@ -26,9 +26,25 @@ export interface WorkspaceScopeDependencies {
   isTrustedPath(candidate: unknown): boolean
 }
 
+/** 沿候选路径向上找到最近存在的父目录，用其真实路径拼回不存在的后缀。
+ *  新建文件、短路径别名和尚未落盘的子目录都必须和钉住的真实根比较；
+ *  整条链都不存在时返回 null，不得把失败的 realpath 当成授权。 */
+const resolveCandidateForComparison = async (candidate: string): Promise<string | null> => {
+  let current = resolve(candidate)
+  const suffix: string[] = []
+  while (true) {
+    const realCurrent = await realpath(current).catch(() => null)
+    if (realCurrent) return resolve(realCurrent, ...suffix)
+    const parent = dirname(current)
+    if (parent === current) return null
+    suffix.unshift(basename(current))
+    current = parent
+  }
+}
+
 /** 目标路径是否属于调用窗口当前工作区根。
  *  存在的路径先经 realpath 消解符号链接与大小写差异再比较，
- *  防止工作区内的链接把操作引到根外；候选不存在时退回字面路径比较。 */
+ *  防止工作区内的链接把操作引到根外；候选不存在时规范化最近存在父目录后再比较。 */
 export const withinCallerWorkspace = async (
   deps: WorkspaceScopeDependencies,
   event: IpcMainInvokeEvent,
@@ -40,6 +56,7 @@ export const withinCallerWorkspace = async (
   if (!(await isPathTrustedAfterResolvingLinks(root))) return false
   const pinnedRoot = getPinnedTrustRoot(root)
   if (!pinnedRoot) return false
-  const realCandidate = await realpath(candidate).catch(() => null)
-  return isInsideRoot(pinnedRoot, realCandidate ?? candidate)
+  const realCandidate = await resolveCandidateForComparison(candidate)
+  if (!realCandidate) return false
+  return isInsideRoot(pinnedRoot, realCandidate)
 }

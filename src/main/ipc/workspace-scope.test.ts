@@ -1,3 +1,4 @@
+import { execFileSync } from 'child_process'
 import { describe, expect, it, beforeEach } from 'vitest'
 import type { IpcMainInvokeEvent } from 'electron'
 import { lstat, mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'fs/promises'
@@ -5,6 +6,36 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { isPathTrusted, trustDirectory } from '../trusted-paths'
 import { isInsideRoot, withinCallerWorkspace } from './workspace-scope'
+
+const windowsShortPath = (value: string): string | null => {
+  if (process.platform !== 'win32') return null
+  try {
+    const script = `(New-Object -ComObject Scripting.FileSystemObject).GetFolder(${JSON.stringify(value)}).ShortPath`
+    const short = execFileSync('powershell', ['-NoProfile', '-Command', script], {
+      encoding: 'utf8',
+    }).trim()
+    return short.length > 0 ? short : null
+  } catch {
+    return null
+  }
+}
+
+const createDirectoryAlias = async (target: string): Promise<{ alias: string; parent: string } | null> => {
+  const parent = await mkdtemp(join(tmpdir(), 'mk-scope-alias-'))
+  const alias = join(parent, 'workspace')
+  try {
+    await symlink(target, alias, process.platform === 'win32' ? 'junction' : 'dir')
+    const stat = await lstat(alias)
+    if (!stat.isSymbolicLink() && !stat.isDirectory()) {
+      await rm(parent, { recursive: true, force: true })
+      return null
+    }
+    return { alias, parent }
+  } catch {
+    await rm(parent, { recursive: true, force: true })
+    return null
+  }
+}
 
 let tempRoot = ''
 let outsideRoot = ''
@@ -105,13 +136,10 @@ describe('withinCallerWorkspace（工作区 IPC 的窗口绑定授权）', () =>
     await expect(withinCallerWorkspace(deps, event, linkPath)).resolves.toBe(false)
   })
 
-  it('候选路径不存在时回退字面路径比较', async () => {
+  it('候选路径不存在时按最近存在父目录的真实路径比较', async () => {
     trustDirectory(tempRoot)
     const deps = { workspaceRootFor: () => tempRoot, isTrustedPath: (p: unknown) => isPathTrusted(p as string) }
     const event = eventOf(7)
-    // realpath 会展开短路径/别名（如 CI Windows runner 的 TEMP 形如
-    // C:\Users\RUNNER~1\...），断言基准必须与实现的 realpath 基准一致，
-    // 否则字面比较因前缀形态不同而失败
     const realTempRoot = await realpath(tempRoot)
     const realOutsideRoot = await realpath(outsideRoot)
     await expect(withinCallerWorkspace(deps, event, join(realTempRoot, '尚未创建.md'))).resolves.toBe(true)
@@ -162,5 +190,84 @@ describe('withinCallerWorkspace（工作区 IPC 的窗口绑定授权）', () =>
     await rm(parent, { recursive: true, force: true })
     await rm(original, { recursive: true, force: true })
     await rm(rebound, { recursive: true, force: true })
+  })
+
+  it('规范化最近存在父目录后允许根内的未存在目标', async ({ skip }) => {
+    const alias = await createDirectoryAlias(tempRoot)
+    if (!alias) {
+      console.warn('SKIP: 无法创建 junction/symlink，环境不支持目录链接')
+      skip()
+      return
+    }
+    try {
+      trustDirectory(alias.alias)
+      const deps = {
+        workspaceRootFor: () => alias.alias,
+        isTrustedPath: (p: unknown) => isPathTrusted(p as string),
+      }
+      const candidate = join(alias.alias, 'new', 'note.md')
+      await expect(withinCallerWorkspace(deps, eventOf(7), candidate)).resolves.toBe(true)
+      const realRoot = await realpath(tempRoot)
+      await expect(withinCallerWorkspace(deps, eventOf(7), join(realRoot, 'new', 'note.md'))).resolves.toBe(true)
+    } finally {
+      await rm(alias.parent, { recursive: true, force: true })
+    }
+  })
+
+  it('字面短路径与真实长路径对根内未存在目标给出同一授权结果', async ({ skip }) => {
+    if (process.platform !== 'win32') {
+      console.warn('SKIP: 仅 Windows 具备 8.3 短路径语义')
+      skip()
+      return
+    }
+    const shortRoot = windowsShortPath(tempRoot)
+    const realRoot = await realpath(tempRoot)
+    if (!shortRoot || shortRoot.toLowerCase() === realRoot.toLowerCase()) {
+      console.warn('SKIP: 当前环境未提供与真实路径不同的 8.3 短路径')
+      skip()
+      return
+    }
+    trustDirectory(shortRoot)
+    const deps = {
+      workspaceRootFor: () => shortRoot,
+      isTrustedPath: (p: unknown) => isPathTrusted(p as string),
+    }
+    await expect(withinCallerWorkspace(deps, eventOf(7), join(shortRoot, 'new', 'note.md'))).resolves.toBe(true)
+    await expect(withinCallerWorkspace(deps, eventOf(7), join(realRoot, 'new', 'note.md'))).resolves.toBe(true)
+    await expect(withinCallerWorkspace(deps, eventOf(7), join(outsideRoot, 'new', 'note.md'))).resolves.toBe(false)
+  })
+
+  it('链接换靶到根外后拒绝未存在目标', async ({ skip }) => {
+    const original = await mkdtemp(join(tmpdir(), 'mk-scope-rebind-in-'))
+    const rebound = await mkdtemp(join(tmpdir(), 'mk-scope-rebind-out-'))
+    const alias = await createDirectoryAlias(original)
+    if (!alias) {
+      await rm(original, { recursive: true, force: true })
+      await rm(rebound, { recursive: true, force: true })
+      console.warn('SKIP: 无法创建 junction/symlink，环境不支持目录链接')
+      skip()
+      return
+    }
+    try {
+      trustDirectory(alias.alias)
+      const deps = {
+        workspaceRootFor: () => alias.alias,
+        isTrustedPath: (p: unknown) => isPathTrusted(p as string),
+      }
+      await expect(withinCallerWorkspace(deps, eventOf(1), join(alias.alias, 'new', 'note.md'))).resolves.toBe(true)
+      await rm(alias.alias, { recursive: true, force: true })
+      try {
+        await symlink(rebound, alias.alias, process.platform === 'win32' ? 'junction' : 'dir')
+      } catch {
+        console.warn('SKIP: 无法重绑 junction/symlink 到根外目录')
+        skip()
+        return
+      }
+      await expect(withinCallerWorkspace(deps, eventOf(1), join(alias.alias, 'new', 'note.md'))).resolves.toBe(false)
+    } finally {
+      await rm(alias.parent, { recursive: true, force: true })
+      await rm(original, { recursive: true, force: true })
+      await rm(rebound, { recursive: true, force: true })
+    }
   })
 })
