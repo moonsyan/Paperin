@@ -8,6 +8,7 @@ import { CHANNELS } from '../../shared/ipc/channels'
 import { createWorkspaceIndexFilesystemDependencies } from '../indexing/workspace-index-filesystem'
 import { createWorkspaceIndexService } from '../indexing/workspace-index-service'
 import { createWorkspaceFileWatcher } from '../indexing/workspace-file-watcher'
+import { isPathTrusted, trustDirectory } from '../trusted-paths'
 import { registerWorkspaceHandlers } from './workspace-handlers'
 
 vi.mock('electron', () => ({
@@ -72,6 +73,7 @@ beforeAll(async () => {
       }),
     )
   }
+  trustDirectory(root, { essential: true })
 }, 120_000)
 
 afterAll(async () => {
@@ -89,7 +91,7 @@ describe('production workspace search and watcher performance gate', () => {
       setWorkspaceRoot: () => undefined,
       clearWorkspaceRoot: () => undefined,
       workspaceRootFor: () => root,
-      isTrustedPath: () => true,
+      isTrustedPath: (candidate) => typeof candidate === 'string' && isPathTrusted(candidate),
     })
     const search = getSearchHandler()
     const samples: number[] = []
