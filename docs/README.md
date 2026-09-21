@@ -17,6 +17,7 @@
 
 ## 用户与产品说明
 
+- [入门](getting-started.md)：首次打开时看到的分模块说明，与应用内「欢迎使用.md」同一正文。
 - [coexistence](coexistence.md)：和 Typora、Obsidian，以及 Notion、语雀、思源导出副本如何共存。
 - [export-formats](export-formats.md)：各导出格式实际检查什么、不保证什么。
 - [command-panels](command-panels.md)：命令、快捷键、模板和插入引用。

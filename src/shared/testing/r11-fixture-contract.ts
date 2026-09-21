@@ -1,4 +1,4 @@
-import { CORE_TASK_HEADLINE, CORE_TASK_TAGLINE } from '../product/core-task'
+import { buildGettingStartedMarkdown } from '../product/getting-started'
 import { R11_FIXTURE_MARKERS } from '../product/r11-demo-markers'
 
 export { R11_FIXTURE_MARKERS }
@@ -72,25 +72,7 @@ ${R11_FIXTURE_MARKERS.techNoteAnchor}
 }
 
 export function buildR11WelcomeMarkdown(): string {
-  return `# 欢迎使用 Paperin
-
-${CORE_TASK_HEADLINE}
-
-${CORE_TASK_TAGLINE}
-
-## 先试一个小任务
-
-1. 在左侧打开 **资料来源** 里的两篇合成资料，或搜索 \`${R11_FIXTURE_MARKERS.sourceAAnchor}\`。
-2. 打开 **API 网关技术说明（草稿）**（或命令面板新建「技术文章模板」），用 **插入引用** 写一段带依据的说明。
-3. 保存后关闭再打开，确认正文与来源仍在。
-
-示例内容只存在于本机演示树，**不会**自动写入你打开的知识库文件夹。
-
-## 更多能力
-
-- 侧栏「示例任务 / 资料来源」中有旧笔记、技术草稿与可引用来源
-- 「更多示例 / 快速开始.md」仍是 Markdown 语法速查
-`
+  return buildGettingStartedMarkdown()
 }
 
 export const R11_SEARCHABLE_PHRASES = [

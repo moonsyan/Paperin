@@ -116,6 +116,7 @@ npm run perf:regression
 
 - [`docs/README.md`](./docs/README.md)：文档入口。完成度不在这里重复抄表。
 - [`docs/coexistence.md`](./docs/coexistence.md)：和现有 Markdown 工具、以及导出副本怎么一起用。
+- [`docs/getting-started.md`](./docs/getting-started.md)：首次打开「欢迎使用.md」时的分模块入门，与应用内正文相同。
 - [`docs/export-formats.md`](./docs/export-formats.md)：各导出格式实际检查什么。
 - [`docs/development/strategy-validation.md`](./docs/development/strategy-validation.md)：正确性、性能、复用效率、留存与增长的验收指标及采样口径。
 - [`docs/PROJECT-STATUS.md`](./docs/PROJECT-STATUS.md)：当前唯一的项目状态与门禁记录。
