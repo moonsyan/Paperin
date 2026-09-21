@@ -4,7 +4,7 @@
 
 ## 结论
 
-建议继续使用 Electron + React + TypeScript。当前版本先冻结到已验证组合，待 R01、R02 和 R10 的数据安全及发布门禁完成后，再单独评估 Electron、Node、Vite 或 React 的升级。不要为了追逐 Web 框架趋势而改用 Next.js、Tauri 或 React Native：这是本地优先桌面编辑器，文件系统、窗口、协议、原生对话框和跨平台打包是核心能力，Electron 的生态和现有代码资产更匹配。
+建议继续使用 Electron + React + TypeScript。当前版本先冻结到已验证组合，待 P0 文件安全、性能、供应链和 Windows 候选发布门禁完成后，再单独评估 Electron、Node、Vite 或 React 的升级。不要为了追逐 Web 框架趋势而改用 Next.js、Tauri 或 React Native：这是本地优先桌面编辑器，文件系统、窗口、协议、原生对话框和跨平台打包是核心能力，Electron 的生态和现有代码资产更匹配。
 
 推荐的第一阶段组合：
 

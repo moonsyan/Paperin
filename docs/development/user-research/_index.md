@@ -1,15 +1,14 @@
 # 用户研究与验证记录
 
-> 本目录存放脱敏后的研究协议、占位表与结项说明。**不写入**真实正文、绝对路径、可识别个人信息或未经授权的招募联系记录。汇总指标口径见 [strategy-validation](../strategy-validation.md)；工程与门禁证据见 [REFACTOR-STATUS](../../REFACTOR-STATUS.md)。
+> 本目录存放脱敏后的研究协议、实际观察记录与结项说明。**不写入**真实正文、绝对路径、可识别个人信息或未经授权的招募联系记录。汇总指标口径见 [strategy-validation](../strategy-validation.md)；当前工程与门禁状态见 [PROJECT-STATUS](../../PROJECT-STATUS.md)。
 
 ## 当前状态（2026-09-21）
 
-| 任务 | 文档 | 状态 |
+| 阶段 | 文档 | 状态 |
 | --- | --- | --- |
-| R12 两位已知用户任务基线 | [seed-study-2026-09](seed-study-2026-09.md) | 协议与空表已建立；**观察数据未采集** |
-| R13 外部小样本对照 | [external-task-study](external-task-study.md) | **条件未满足，未执行** |
-| R14 重复使用验证 | [repeated-use-study](repeated-use-study.md) | **条件未满足，未执行** |
-| R15 真实付费实验 | [paid-value-study](paid-value-study.md) | **条件未满足，未执行**（默认不开发收费系统） |
-| R16 小团队交付研究 | [team-handoff-study](team-handoff-study.md) | **条件未满足，未执行** |
+| 两位现有用户任务基线 | [seed-study-2026-09](seed-study-2026-09.md) | 协议与空表已建立；观察数据未采集 |
+| 外部 Alpha 发现轮 | P0/P1 退出后按实际日期创建 | 进入条件未满足，不创建空占位文档 |
+| 重复使用与个人专业价值 | P1 有重复使用证据后按实际日期创建 | 条件未满足，不开发收费系统 |
+| 团队交付桥梁 | 至少 3 个团队重复提出同类问题后按实际日期创建 | 条件未满足，不建设实时协作 |
 
-执行顺序与依赖见 [R00–R17 实施任务](../../superpowers/plans/2026-09-20-product-strategy-execution.md)。R13 依赖 R10 安装证据、R11 入口与 R12 基线数据；当前 R10 安装循环仍为 **UNVERIFIED**，R12 表内字段均为 **未采集**。
+研究文档只在进入条件满足后创建，并使用实际日期命名。没有样本时保留“条件未满足”，不要用空表制造阶段已启动的错觉。执行顺序、进入/退出条件和提交格式见[产品战略实施计划](../../superpowers/plans/2026-09-21-product-strategy-implementation.md)。

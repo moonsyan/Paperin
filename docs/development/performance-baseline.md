@@ -1,12 +1,12 @@
 # 性能基线与可执行回归
 
-> 2026-09-19：下文保留当时的夹具和阈值。后来的 Electron 记录以 [REFACTOR-STATUS](../REFACTOR-STATUS.md) 为准，不要把 2026-09-10 的合成扫描和 2026-09-15/18 的真实保存耗时拼成同一次结果。
+> 2026-09-19：下文保留当时的夹具和阈值。历史 Electron 记录只作为日期快照；当前实测以 [PROJECT-STATUS](../PROJECT-STATUS.md) 为准，不要把不同日期、设备和 Node 版本拼成同一次结果。
 
-> 2026-09-14 历史复核说明：本文保留既有夹具、历史样本与阈值。当时 5 MiB 门禁还没有通过记录；2026-09-15 起的通过记录写在 [REFACTOR-STATUS](../REFACTOR-STATUS.md)，不要回写成“仍未通过”。文中“超过 1 MiB 优先快照”的实现实际为 `content.length > 1_000_000`（字符串长度），不是字节数。当前执行顺序见 [R00–R17 实施任务](../superpowers/plans/2026-09-20-product-strategy-execution.md)。
+> 2026-09-14 历史复核说明：本文保留既有夹具、历史样本与阈值。文中“超过 1 MiB 优先快照”的实现实际为 `content.length > 1_000_000`（字符串长度），不是字节数。当前执行顺序见 [产品战略实施计划](../superpowers/plans/2026-09-21-product-strategy-implementation.md)。
 
 ## 结论
 
-2026-09-20（R09）：修复 Electron 冒烟 React **#301** 后重跑门禁。`npm run smoke` exit **0**；`npm run perf:electron` exit **0**，当次 `ELECTRON_PERF_METRICS`：`largeOpenMs` 1275.45、`largeSaveMs` 157.76、`largeExportMs` 85.33、20 标签切换 P95 **79.3** ms（40 次样本）。体验预算对照见下文 **§R09 体验预算（M01）**；未测项与未达标项保留目标值并标 **UNVERIFIED** 或阻塞原因，不修改阈值。
+2026-09-20 历史批次：修复 Electron 冒烟 React **#301** 后曾记录 `npm run smoke` exit **0**；`npm run perf:electron` exit **0**，当次 `ELECTRON_PERF_METRICS` 为 `largeOpenMs` 1275.45、`largeSaveMs` 157.76、`largeExportMs` 85.33、20 标签切换 P95 **79.3** ms（40 次样本）。这不是当前 HEAD 的绿灯；2026-09-21 新鲜 smoke 在新建文档返回 `INVALID_TARGET`，5000 篇性能回归也失败。未测项与未达标项仍标 **UNVERIFIED** 或阻塞原因，不修改阈值。
 
 2026-09-10 在 Windows 开发机上完成了四项可复现基线：直接调用生产 `WorkspaceIndexService` 和真实文件系统适配器的 5000 文件索引门禁、真实主进程搜索 IPC 和 watcher 风暴门禁，以及 5000 文件、单个 5 MiB 文件的两项合成扫描。仓库随附实测基线和独立阈值。另提供真实 Electron 性能 smoke：它启动构建产物，让 5 MiB Markdown 经 Main → Preload → 文档会话 → Milkdown 打开、编辑、快捷键保存，并将编辑器真实 DOM 写入受信任的临时资源包；随后打开 20 个真实文件标签并循环切换。
 
@@ -135,7 +135,7 @@ npm run perf:electron
 | 2 | 1231.72 ms | 226.47 ms | 52.33 ms | 29.6 ms | 全部通过 |
 | 3 | 1212.50 ms | 185.64 ms | 54.29 ms | 29.4 ms | 全部通过 |
 
-## R09 体验预算（M01，2026-09-20）
+## 历史体验预算记录（M01，2026-09-20）
 
 环境：Windows 11 26200、Core Ultra 7 265K、31.4 GiB、Node v24.19.0、Electron 43、生产构建；夹具见 `src/main/testing/fixtures/` 与 `scripts/performance-fixtures.mjs`（smoke 用）。下列为**真实 Electron 用户动作**或**生产 IPC 门禁**；合成 `perf:baseline` 扫描时延不得代入本表。
 

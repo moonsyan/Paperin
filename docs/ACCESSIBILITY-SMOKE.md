@@ -11,7 +11,7 @@
 | 1 | 九套主题 token 完整性 | 机械（`scripts/theme-contrast.mjs`） | 通过 |
 | 2 | 九套主题文本/边框/弹层/系统标题栏对比度 | 机械（硬门禁 + 棘轮基线） | 通过；43 项存量债务已登记，新增主题零债务（`--border-m` 除外） |
 | 3 | 焦点可见性（`outline: none` 是否有替代） | 机械（`scripts/focus-outline.mjs`） | 通过；本轮修掉 7 处真实缺陷 |
-| 4 | 关键界面的可访问名称与状态语义 | 机械（`src/renderer/src/a11y-smoke.test.tsx` + 弹窗组件测试） | 通过；工作区搜索/发布弹窗具备 dialog 语义与 Tab 陷阱（R08） |
+| 4 | 关键界面的可访问名称与状态语义 | 机械（`src/renderer/src/a11y-smoke.test.tsx` + 弹窗组件测试） | 通过；工作区搜索/发布弹窗具备 dialog 语义与 Tab 陷阱 |
 | 5 | 跳转链接（键盘绕过顶栏/侧栏直达正文） | 机械（组件 + 接线契约测试） | 通过；本轮新增，此前 demo 有、生产缺 |
 | 6 | 全局 `prefers-reduced-motion` 降级 | 机械（`global.css` 全局规则，`context-dock.css` 单点保留） | 通过 |
 | 7 | 全键盘导航路径 | 人工（见文末清单） | **未执行**，需人工冒烟 |
@@ -116,7 +116,7 @@ npm run a11y:focus      # 只看焦点可见性
 
 扫描结果：29 个样式表，抹掉轮廓且已有焦点兜底 10 处，豁免 1 处，违规 0 处。
 
-## R08：工作区搜索与发布弹窗（2026-09-20）
+## 2026-09-20 工作区搜索与发布弹窗基线
 
 共享 hook `src/renderer/src/hooks/useModalDialogKeyboard.ts` 统一：`role="dialog"`、`aria-modal`、初始焦点、捕获阶段 Tab 循环、Escape（`isImeComposing`）与关闭后焦点恢复（触发器失联时落到 `#editor-content`）。
 
@@ -125,7 +125,7 @@ npm run a11y:focus      # 只看焦点可见性
 | 工作区搜索 | `aria-labelledby` → 标题「在工作区中搜索 · …」 | 搜索输入框 | `WorkspaceSearchDialog/index.test.tsx` |
 | 发布 | `aria-labelledby` → 「发布」 | 关闭按钮（与帮助弹窗一致） | `PublishDialog/index.test.tsx` |
 
-导出进行中（`busy`）时 Escape 与遮罩点击仍不关闭，与 R04 取消策略一致。
+导出进行中（`busy`）时 Escape 与遮罩点击仍不关闭，与现有导出取消策略一致。
 
 ### 主题豁免复核（37 项基线）
 

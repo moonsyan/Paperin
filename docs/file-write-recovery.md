@@ -40,7 +40,7 @@ Windows、macOS 和 Linux 的桌面环境会把已有文件对象与图标位置
 
 - **fresh 窗口**（`#fresh`）不读写共享 `drafts`，也不恢复主窗口会话，避免多窗口互相覆盖。
 - 主窗口每条草稿绑定 `draftSessionId`；其他窗口对同一路径写入会收到 `DRAFT_SESSION_CONFLICT`，编辑与 dirty 仍保留在本窗口，仅提示一次并可重试，**不会**因此自动做破坏性恢复。
-- 起草时记录 `baselineSha256`（R02 磁盘版本绑定）；重启后若磁盘正文哈希已与基线不一致，**放弃**该草稿，保留外部新版本。
+- 起草时记录 `baselineSha256`（磁盘版本绑定）；重启后若磁盘正文哈希已与基线不一致，**放弃**该草稿，保留外部新版本。
 - 升级前缺少 `draftSessionId` 的遗留草稿条目会保留，直至本会话首次成功备份时认领。
 
 ## 本地版本历史（非独立备份）
@@ -49,4 +49,4 @@ Windows、macOS 和 Linux 的桌面环境会把已有文件对象与图标位置
 
 ## 验证
 
-`src/main/ipc/file-write-recovery.test.ts` 专门覆盖复制中断、备份复制失败和目标同步失败后的恢复，以及遗留 `prepared`/`committed` journal 的读取恢复与外部修改保留；`src/main/ipc/file-io.test.ts` 与 `text-decoding.test.ts` 覆盖严格编码解码、读失败不 mutate 原文件，以及目录 I/O 测试。草稿/会话边界见 `src/shared/draft-storage.test.ts`、`src/main/settings/settings-store.draft.test.ts`、`src/renderer/src/hooks/useDraftPersistence.test.ts` 与 `useDocumentRestore.test.ts`。真实双窗口连续重启端到端仍受 React **#301** 冒烟阻塞（见 `docs/REFACTOR-STATUS.md`）。完整故障矩阵、跨平台文件身份和进程终止验证按 [战略验收协议](development/strategy-validation.md) 的 Q01 执行。
+`src/main/ipc/file-write-recovery.test.ts` 专门覆盖复制中断、备份复制失败和目标同步失败后的恢复，以及遗留 `prepared`/`committed` journal 的读取恢复与外部修改保留；`src/main/ipc/file-io.test.ts` 与 `text-decoding.test.ts` 覆盖严格编码解码、读失败不 mutate 原文件，以及目录 I/O 测试。草稿/会话边界见 `src/shared/draft-storage.test.ts`、`src/main/settings/settings-store.draft.test.ts`、`src/renderer/src/hooks/useDraftPersistence.test.ts` 与 `useDocumentRestore.test.ts`。真实双窗口连续重启、进程终止和跨平台文件身份仍未完成；当前 Electron smoke 还在新建文档步骤返回 `INVALID_TARGET`，见 [PROJECT-STATUS](PROJECT-STATUS.md)。完整故障矩阵按 [战略验收协议](development/strategy-validation.md) 的 Q01 执行。

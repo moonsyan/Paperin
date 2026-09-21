@@ -105,9 +105,10 @@ npm run perf:regression
 
 本轮战略审查与后续执行入口：
 
-- [2026-09-20 战略发展报告](docs/PRODUCT-STRATEGY-REVIEW-2026-09-20.md)：代码现状、主流竞品、定位优势、12 周路线与商业/团队进入条件。
-- [R00–R17 优先级实施任务](docs/superpowers/plans/2026-09-20-product-strategy-execution.md)：修改边界、依赖、测试、验收和工时；R00–R12 的昨天提交状态见 `REFACTOR-STATUS`，R13–R16 仍需满足前置条件。
-- [代码与验证证据](docs/development/product-audit-2026-09-20.md)：本轮已复现问题、门禁结果及环境/平台限制。
+- [2026-09-21 全量战略发展报告](docs/PRODUCT-STRATEGY-REVIEW-2026-09-21.md)：基于当前代码与新鲜门禁结果的产品现状、竞品定位、阶段路线、商业化和团队/企业进入条件。
+- [按优先级排列的完整实施计划](docs/superpowers/plans/2026-09-21-product-strategy-implementation.md)：P0 发行阻断、P1 外部 Alpha、P2 个人专业版和 P3 团队/企业进入条件。
+- [当前项目状态](docs/PROJECT-STATUS.md)：当前代码能力、新鲜门禁结果、红灯、未验证范围和执行顺序。
+- [2026-09-20 代码与验证证据](docs/development/product-audit-2026-09-20.md)：上一轮审查的历史快照；不作为当前绿灯依据。
 
 文档已经收敛为当前仍有用途的维护资料、设计规范和验证记录：
 
@@ -115,8 +116,8 @@ npm run perf:regression
 - [`docs/coexistence.md`](./docs/coexistence.md)：和现有 Markdown 工具、以及导出副本怎么一起用。
 - [`docs/export-formats.md`](./docs/export-formats.md)：各导出格式实际检查什么。
 - [`docs/development/strategy-validation.md`](./docs/development/strategy-validation.md)：正确性、性能、复用效率、留存与增长的验收指标及采样口径。
-- [`docs/REFACTOR-STATUS.md`](./docs/REFACTOR-STATUS.md)：当前唯一的完成度记录。历史批次日志已删除。
-- [`docs/NEXT-UI-SPEC.md`](./docs/NEXT-UI-SPEC.md)：顶栏、侧栏、路径条、上下文面板、主题和窄窗口规范。
+- [`docs/PROJECT-STATUS.md`](./docs/PROJECT-STATUS.md)：当前唯一的项目状态与门禁记录。
+- [`docs/UI-INTERACTION-SPEC.md`](./docs/UI-INTERACTION-SPEC.md)：顶栏、侧栏、路径条、上下文面板、主题和窄窗口规范。
 - [`docs/compatibility-matrix.md`](./docs/compatibility-matrix.md)：旧能力、当前实现、测试依据和平台验证边界。
 - [`docs/command-panels.md`](./docs/command-panels.md)：命令注册表、快捷键、面板插槽和低频能力入口。
 - [`docs/workspace-shell.md`](./docs/workspace-shell.md)：工作区壳层、路径来源、dirty 和窄窗口交互契约。
@@ -127,11 +128,11 @@ npm run perf:regression
 - [`docs/ACCESSIBILITY-SMOKE.md`](./docs/ACCESSIBILITY-SMOKE.md)：主题可读性、焦点和人工冒烟范围。
 - [`docs/development/`](./docs/development/)：性能基线、主题基线和回归脚本数据。
 
-`docs/IMPLEMENTATION-PLAN.md` 说明开发约束。本轮战略取舍以 2026-09-20 报告为背景，当前完成度和提交顺序以 `REFACTOR-STATUS` 为准；R00–R12 已完成对应的代码或文档交付，R13–R16 未执行，R17 仅记录维护缺口。旧计划仅保留在 Git 历史中供追溯。
+`docs/IMPLEMENTATION-PLAN.md` 是稳定开发入口，详细任务以 2026-09-21 实施计划为准。旧战略和旧任务计划已从当前文档树移除，历史事实由 Git 与带日期的审计快照承担。
 
 ## 当前边界与后续方向
 
-已完成的 P0 工程增量包括已有文件的中断恢复、快照超时不写旧版本、关闭前不放行未确认内容，以及 5 MiB 保存的阶段诊断。仍需继续验证大文档编辑/保存/导出的性能与正确性、写入故障矩阵、长时间运行下的索引与 UI 性能，以及 Windows 安装包和 macOS/Linux 文件关联。三平台安装验证、真实输入法、缩放和权限异常不能用一次开发态构建替代。
+已有工程能力包括已有文件的中断恢复、快照超时不写旧版本、关闭前不放行未确认内容，以及大文档 Electron 夹具。当前 `npm run smoke` 因新建文档 `INVALID_TARGET` 失败，5000 篇合成性能回归和生产搜索性能夹具也未通过；仍需继续验证大文档编辑/保存/导出的正确性、写入故障矩阵、长时间运行，以及 Windows 安装包和 macOS/Linux 文件关联。三平台安装验证、真实输入法、缩放和权限异常不能用一次开发态构建替代。
 
 产品下一步优先验证“资料找到后真的被重新用进写作”的任务闭环，再决定 AI 资料问答、发布预览和跨设备同步的投入。同步暂缓，不新增账号或云端前置条件；发布从已有导出能力开始，所有扩展都必须保留原始 Markdown 的可取回性。
 

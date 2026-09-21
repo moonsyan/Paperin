@@ -1,14 +1,14 @@
-# Paperin 下一版界面与交互规范
+# Paperin 界面与交互规范
 
-更新时间：2026-09-20（界面规范内容未重估）
+更新时间：2026-09-21（Asia/Shanghai）
 
-状态：生产界面规范与后续验收基线；已实现部分以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准，不改变现有快捷键和用户设置。
+状态：当前生产界面规范与验收基线；已实现部分以 [PROJECT-STATUS](PROJECT-STATUS.md) 为准，不改变现有快捷键和用户设置。
 
-依据：[2026-09-20 战略审查报告](PRODUCT-STRATEGY-REVIEW-2026-09-20.md)、生产组件与 quiet-workspace 已有设计；具体完成度以 [REFACTOR-STATUS](REFACTOR-STATUS.md) 为准。
+依据：[2026-09-21 全量战略发展报告](PRODUCT-STRATEGY-REVIEW-2026-09-21.md)、生产组件与 quiet-workspace 已有设计；具体完成度以 [PROJECT-STATUS](PROJECT-STATUS.md) 为准。
 
 ## 1. 设计目标
 
-保留“安静、清晰、本地文件可掌握”的气质。下一轮优化重心是**降低信息重复、提高状态可信度和操作可发现性**，不增加装饰层或更换整套视觉系统。
+保留“安静、清晰、本地文件可掌握”的气质。持续优化重心是**降低信息重复、提高状态可信度和操作可发现性**，不增加装饰层或更换整套视觉系统。
 
 用户在任何时刻应能回答四个问题：
 
