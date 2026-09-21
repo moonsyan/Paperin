@@ -7,6 +7,8 @@
 > 结论口径：本报告区分“代码存在”“自动测试通过”“真实桌面链路通过”“用户价值已验证”四种证据，不用功能数量代替成熟度。
 >
 > 当前执行入口：[项目状态](PROJECT-STATUS.md)｜[产品战略实施计划](superpowers/plans/2026-09-21-product-strategy-implementation.md)｜[验收协议](development/strategy-validation.md)
+>
+> **同日代码进展：** 正文冻结在审查基线 `ade255fc`。后续 `master` `97210a5` 已完成该基线上列出的工程修复：路径授权、搜索夹具、5000 篇诊断、`js-yaml` 升级、失效 `demo:soft*` 脚本、更新与图床凭据、许可/隐私/安全材料、核心任务冒烟、来源健康、发布配置与交付报告、五结构 5 MiB 夹具和 `summarizeStability`。Windows 安装循环、真人任务、8 小时与第二台设备、GitHub Draft Release 仍未验证。读当前能力以 [PROJECT-STATUS](PROJECT-STATUS.md) 为准，不要把下文表格里的当时红灯当成现在的代码缺口。
 
 ## 1. 执行摘要
 

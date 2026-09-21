@@ -1,7 +1,7 @@
 # Paperin 项目状态
 
 更新时间：2026-09-21（Asia/Shanghai）  
-代码基线：`ade255fc6b88621b0f56dc2b8553dab5661a68f7`（`master`）  
+代码基线：`97210a50e16606bae60ad9ed9b158d7e599b10d6`（`master`）  
 产品版本：`0.6.0`
 
 > 本文只记录当前状态，不保存逐批实施日志。历史任务、提交与当时的验证结果由 Git 历史和 [2026-09-20 代码审计快照](development/product-audit-2026-09-20.md)承担。当前战略见[全量战略发展报告](PRODUCT-STRATEGY-REVIEW-2026-09-21.md)，执行顺序见[产品战略实施计划](superpowers/plans/2026-09-21-product-strategy-implementation.md)。
@@ -12,7 +12,7 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 
 > 工程化程度较高的个人产品候选，处于私有种子验证和发行门禁收敛期。
 
-目前不能称为稳定公开版。许可和安装循环仍有阻断或缺口；两位现有用户的任务记录尚未采集。
+目前不能称为稳定公开版。许可、隐私和安全入口已经在仓库里；Windows 安装循环仍未验证，两位现有用户的任务记录尚未采集。
 
 ## 产品定位
 
@@ -36,15 +36,15 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 | --- | --- | --- |
 | `npm run lint` | 退出 0 | 当前 lint 基线通过 |
 | `npm run typecheck` | 退出 0 | Renderer 与 Node 严格类型检查通过 |
-| `npm run test -- --silent --reporter=dot` | 215 个文件、1577 项测试通过 | 自动测试基线通过，不代表桌面链路通过 |
+| `npm run test` | 221 个文件、1600 项测试通过 | 自动测试基线通过，不代表桌面链路通过 |
 | `npm run build` | 退出 0 | 生产构建通过，未证明安装器可用 |
 | `npm run a11y` | 退出 0；仍有 37 项对比度基线债务 | 没有新增静态违规，不能宣称全面可访问 |
 | `npm run smoke` | 退出 0；打开工作区、新建、保存、冲突、重命名、搜索、关闭、系统文件关联，以及来源查找/插入引用/保存重开/资源包导出 | 核心任务冒烟先走真实「打开文件夹」菜单绑定渲染层工作区，再打开全文搜索；步骤失败输出 `CORE_TASK_FAIL` |
 | `npm run perf:regression` | Node 22.23.2 与 Node 24.19.0 空闲各三轮退出 0；索引/搜索读盘占墙钟约 85%–95% | 与 2026-09-09 基线同量级。同日审查的 3482/1672 ms 判定为 I/O 波动；阈值未改 |
-| `npm run perf:production` | 2 个性能文件、3 项测试全部通过；搜索 P95 1350.59 ms，冷索引 1558.02 ms | 夹具已调用真实 `trustDirectory`；搜索 IPC 进入性能测量。合成 `perf:regression` 门禁仍独立失败 |
+| `npm run perf:production` | 2 个性能文件、3 项测试全部通过；搜索 P95 1350.59 ms，冷索引 1558.02 ms | 夹具已调用真实 `trustDirectory`；搜索 IPC 进入性能测量。与合成 `perf:regression` 的 2000/1500 ms 阈值是不同口径 |
 | `npm audit --omit=dev --audit-level=moderate` | 0 vulnerabilities；生产 `js-yaml@4.3.2` | 已消除 GHSA-2883-xcg3-v3hh；dev 依赖审计仍独立 |
 
-历史提交上的绿灯不能替代当前 `HEAD` 的新鲜结果。工作区路径授权已按短路径/真实路径与 junction 别名回归；其余性能、依赖和发行材料仍以本页当前红灯为准。
+历史提交上的绿灯不能替代当前 `HEAD` 的新鲜结果。上表里的 lint、a11y、smoke、性能和审计是同日工程提交上的记录；测试计数在 `97210a5` 上重跑。工作区路径授权、依赖升级和发行材料的代码与文档已经落地；安装循环、真人样本和 8 小时实测仍未验证。
 
 ## 当前阻断和优先级
 
@@ -83,10 +83,13 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 
 | 文件 | 行数 | 主要职责 |
 | --- | ---: | --- |
-| `src/renderer/src/lib/docx.ts` | 559 | OOXML、关系、图片、样式与转换 |
-| `src/renderer/src/app/useAppSettings.ts` | 489 | 设置加载、状态与持久化装配 |
-| `src/renderer/src/components/Editor/overlays/useEditorOverlays.ts` | 460 | 编辑器浮层与交互生命周期 |
-| `src/renderer/src/components/Editor/instance/useMilkdownInstance.ts` | 456 | Milkdown 插件注册和实例生命周期 |
+| `src/renderer/src/lib/docx.ts` | 599 | OOXML、关系、图片、样式与转换 |
+| `src/renderer/src/data/demo-files.ts` | 552 | 内置示例文档正文 |
+| `src/renderer/src/app/useAppSettings.ts` | 538 | 设置加载、状态与持久化装配 |
+| `src/renderer/src/components/Editor/overlays/useEditorOverlays.ts` | 486 | 编辑器浮层与交互生命周期 |
+| `src/renderer/src/components/Editor/plugins/mermaidCodeBlock.ts` | 484 | Mermaid 代码块渲染与源码回退 |
+| `src/renderer/src/app/AppComposition.tsx` | 478 | 页面编排与对话框装配 |
+| `src/renderer/src/components/Editor/instance/useMilkdownInstance.ts` | 462 | Milkdown 插件注册和实例生命周期 |
 
 ## 明确未验证
 
@@ -99,8 +102,8 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 
 ## 执行顺序
 
-1. Windows 两个隔离环境的安装循环仍为 UNVERIFIED，不能把材料齐全当成已发布。
-2. P0 工程任务完成后，完成两位现有用户两周任务观察，只修最大的真实阻塞；该观察不阻塞 P0。
-3. 再进入 GitHub 外部 Alpha，并在发布材料中补 `CHANGELOG.md` 与 `CONTRIBUTING.md`。个人重复价值成立后才验证付费；至少 3 个团队重复提出同类问题后才进入团队方案。
+1. 计划中的产品代码已经在 `master`。下一步是 Windows 两个隔离环境的安装循环；材料齐全不等于已发布。
+2. 完成两位现有用户两周任务观察，只修最大的真实阻塞。
+3. 再进入 GitHub 外部 Alpha，并在真实发布材料中补 `CHANGELOG.md` 与 `CONTRIBUTING.md`。个人重复价值成立后才验证付费；至少 3 个团队重复提出同类问题后才进入团队方案。
 
 本状态页每次只接受新鲜证据更新。已完成工程任务的旧编号、逐批日志和旧计划不再复制到这里。

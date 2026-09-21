@@ -8,6 +8,20 @@
 
 **Tech Stack:** Electron 43、React 18、TypeScript strict、Milkdown/ProseMirror、Vitest、Testing Library、electron-vite、electron-builder、GitHub Actions、Node 22 CI。
 
+## 当前完成状态（2026-09-21，`master` `97210a5`）
+
+下文步骤保留当时的失败测试和预期，不回写成已经通过。对照当前代码：
+
+| 任务 | 代码 | 仍未验证 |
+| --- | --- | --- |
+| P0-01–P0-06 | 已完成 | — |
+| P0-07 | 许可、隐私、安全入口和 Issue 模板已提交 | Windows 两套环境安装/升级/卸载 |
+| P1-02 | `runCoreTaskSmoke` 已接入 `npm run smoke` | 无口头帮助的真人 15 分钟样本 |
+| P1-01、P1-03、P1-04 | 不在本仓库伪造样本或空 `CHANGELOG` | 用户记录与 GitHub Draft Release |
+| P2-02、P2-03 | 来源健康、发布配置、交付报告已完成 | 接收方阅读与真人复用 |
+| P2-01 | 五结构夹具与 `summarizeStability` 已完成 | 8 小时采样和第二台 16 GB 设备 |
+| P2-04、P2-05、P3 | 未开始 | 研究进入条件未满足 |
+
 ## Global Constraints
 
 - 产品定位固定为：面向个人技术写作者和独立开发者的本地 Markdown 项目知识工作台，帮助用户把散落的项目资料写成带来源、可持续维护、可直接交付的文档。
