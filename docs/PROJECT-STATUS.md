@@ -59,7 +59,7 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 | P0 | 升级易受攻击的间接依赖 | **已完成**：生产依赖审计无 moderate 及以上漏洞；`js-yaml` 由 4.3.1 升至 4.3.2，锁文件门禁拒绝回退 |
 | P0 | 清理失效 `demo:soft*` 脚本 | **已完成**：`package.json` 不再引用不存在的 `design/soft-workbench` |
 | P0 | 收紧联网与外部服务凭据 | **已完成**：生产环境默认检查/下载/退出安装，设置中有可见开关，关闭后下次启动不联网也不安装已下载包。开发环境永不检查。SM.MS token 经 `safeStorage` 加密；渲染进程只有 `configured`/`credentialState`；明文迁移失败与安全存储不可用均禁用远程上传并回退本地附件 |
-| P0 | 补齐许可、隐私与 Windows 候选材料 | **材料已提交**：`LICENSE`、`THIRD-PARTY-NOTICES.md`、`PRIVACY.md`、`SECURITY.md` 与四类 Issue 模板；`validateReleaseMaterials` 拒绝缺文件。Windows 两套隔离环境安装/升级/卸载循环为 **UNVERIFIED** |
+| P0 | 补齐许可、隐私与 Windows 候选材料 | **材料已提交**：`LICENSE`、`THIRD-PARTY-NOTICES.md`、`PRIVACY.md`、`SECURITY.md` 与四类 Issue 模板；`validateReleaseMaterials` 拒绝缺文件。`scripts/verify-windows-install.mjs` 与单测已建立（dry-run/脱敏门禁）；Windows 两套隔离环境真实安装/升级/卸载循环仍为 **UNVERIFIED** |
 | P1 | 验证 15 分钟首次核心闭环 | **自动链路已完成**：`runCoreTaskSmoke` 按真实 UI 覆盖来源查找、插入引用、保存重开、资源包导出，`npm run smoke` 退出 0。无口头帮助的真人 15 分钟样本为 **UNVERIFIED** |
 | P1 | 完成两位现有用户任务记录 | 两周内每人至少 3 次真实任务，记录阻塞、成果和再次使用理由，不计算虚假留存率 |
 | P2 | 来源健康与变化提示 | **P1-07 已落地**：`documentSourceBaselines` 按引用文档维护 mtime 基线；旧 `sourceSnapshots` 迁移为 `legacySourceSnapshots`（归属未知）；质量面板按当前文章展示异常并提供「复核当前文章」（mtime 一致不等于正文已人工复核）；清除导航与删除来源关系分开。缺失仍只提供重新定位/搜索。两设备 8 小时稳定性与真人验证仍为 **UNVERIFIED** |

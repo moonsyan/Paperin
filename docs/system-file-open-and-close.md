@@ -38,7 +38,7 @@
 
 仍需发布前平台验证：
 
-- 安装 Windows NSIS 后由资源管理器双击 `.md`/`.markdown`，检查系统默认应用注册和卸载清理。
+- 安装 Windows NSIS 后由资源管理器双击 `.md`/`.markdown`，检查系统默认应用注册和卸载清理。自动化驱动见 `scripts/verify-windows-install.mjs`（**UNVERIFIED**：两隔离环境未跑通完整循环）。
 - macOS Finder `open-file` 与 DMG 文件关联；Linux 桌面环境 MIME/default-app 行为。
 - 多个真实安装包实例同时编辑不同文件时的人工关闭、任务栏聚焦与输入法冒烟。
 

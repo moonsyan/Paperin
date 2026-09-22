@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,7 +14,9 @@ import {
   validateReleaseIdentity,
   validateReleaseMaterials,
   validateReleaseWorkflowGates,
+  validateWindowsInstallAcceptanceJob,
   verifyCiConfig,
+  WINDOWS_INSTALL_VERIFY_SCRIPT,
 } from './ci-config-gates.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -146,6 +148,29 @@ describe('validateReleaseIdentity', () => {
         'scripts/sync-gitee.js': "const t = access_token = 'secret-token-value'",
       }).some((e) => e.includes('access_token')),
     ).toBe(true)
+  })
+})
+
+describe('validateWindowsInstallAcceptanceJob', () => {
+  it('当前 release.yml 的 installed-acceptance-win 为 if: false 时不报错', () => {
+    const release = readWorkflowOrThrow(releasePath)
+    expect(validateWindowsInstallAcceptanceJob(release)).toEqual([])
+  })
+
+  it('启用 job 但未跑 verify-windows-install 时应失败', () => {
+    const bad = `
+  installed-acceptance-win:
+    if: true
+    steps:
+      - run: echo success
+`
+    expect(validateWindowsInstallAcceptanceJob(bad).some((e) => e.includes('verify-windows-install'))).toBe(
+      true,
+    )
+  })
+
+  it('Windows 安装验收脚本路径存在', () => {
+    expect(existsSync(resolve(root, WINDOWS_INSTALL_VERIFY_SCRIPT))).toBe(true)
   })
 })
 

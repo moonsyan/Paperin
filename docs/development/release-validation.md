@@ -17,6 +17,7 @@
 | 正式发行显式门禁 | 仅 `workflow_dispatch` + `action=publish-formal` + `confirm_publish=PUBLISH` + `candidate_sha` 与 Draft Release commit 一致 → `gh release edit --draft=false` | **已配置** |
 | tag 推送自动正式发布 | 已移除：`push tags v*` 只走候选 draft，不 `draft: false` | **已阻断** |
 | 配置回归测试 | `release.yml` 缺 smoke 或 `draft: true` 被改成无条件正式发布时，`validateReleaseWorkflowGates` 失败（见单测） | **已通过** |
+| Windows 安装态脚本 | `scripts/verify-windows-install.mjs` + `scripts/verify-windows-install.test.mjs`；无 `--confirm-isolated-environment` 时仅 dry-run；`release.yml` 中 `installed-acceptance-win` 暂 `if: false` | **UNVERIFIED**（两隔离环境安装循环未实测） |
 | 生产依赖审计 | 2026-09-22 `npm audit --omit=dev --audit-level=moderate` 为 0；`electron-updater` 间接依赖 `js-yaml` 由 4.3.1 升至 4.3.2。`validateProductionJsYaml` 拒绝生产树回退到 4.3.2 以下。dev 依赖漏洞未纳入本门禁 | **已处理生产 high** |
 | 仓库与发布身份 | 本地元数据与 `build.publish` 已对齐 GitHub `moonsyan/Paperin`；`origin` 仍为 Gitee + `github` 远端；旧 Gitee Release 同步脚本已移除 | **部分完成（P0-04 本地）**：Draft/Release 可达性 **UNVERIFIED**；未推送 tag、不触发正式发布 |
 
@@ -34,8 +35,8 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 两个独立环境 × 每环境 3 次「安装 → 启动 → 文件关联 → 保存 → 卸载」 | **UNVERIFIED**（无第二台机器；不在唯一真实配置上破坏性升级） |
-| 安装成功宣称 | **禁止** — 本任务仅工作流与配置测试 |
+| 两个独立环境 × 每环境 3 次「安装 → 启动 → 文件关联 → 保存 → 卸载」 | **UNVERIFIED**（验收脚本与单测已就绪；`npx vitest run scripts/verify-windows-install.test.mjs` 通过不等于已安装） |
+| 安装成功宣称 | **禁止** — 自动化仅覆盖 NSIS 参数、候选 exe 发现、超时/退出码与证据脱敏；真实循环须 `--confirm-isolated-environment` + 隔离环境 |
 
 ## 更新与数据保留场景
 

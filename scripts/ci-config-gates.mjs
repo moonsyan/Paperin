@@ -111,6 +111,40 @@ export function validateReleaseWorkflowGates(content) {
     }
   }
 
+  errors.push(...validateWindowsInstallAcceptanceJob(content))
+
+  return errors
+}
+
+export const WINDOWS_INSTALL_VERIFY_SCRIPT = 'scripts/verify-windows-install.mjs'
+
+/**
+ * 可选 installed-acceptance-win job：未启用时不报错；启用时必须跑 verify-windows-install 且不得伪造通过。
+ * @param {string} content
+ */
+export function validateWindowsInstallAcceptanceJob(content) {
+  const errors = []
+  const marker = 'installed-acceptance-win:'
+  if (!/\n  installed-acceptance-win:/.test(content)) {
+    return errors
+  }
+  const section = sliceJobSection(content, marker)
+  if (!section) {
+    return errors
+  }
+  const disabled = /\n\s+if:\s*false\b/.test(section) || section.includes('if: ${{ false }}')
+  if (disabled) {
+    return errors
+  }
+  if (!section.includes('verify-windows-install.mjs')) {
+    errors.push('installed-acceptance-win 必须运行 scripts/verify-windows-install.mjs')
+  }
+  if (!section.includes('--confirm-isolated-environment')) {
+    errors.push('installed-acceptance-win 必须显式传入 --confirm-isolated-environment')
+  }
+  if (/run:\s*echo\s+.*(pass|success|通过)/i.test(section) && !section.includes('verify-windows-install.mjs')) {
+    errors.push('installed-acceptance-win 不得用 echo 伪造验收通过')
+  }
   return errors
 }
 
@@ -217,6 +251,10 @@ export function verifyCiConfig() {
   }
 
   errors.push(...validateReleaseMaterials(root))
+
+  if (!existsSync(resolve(root, WINDOWS_INSTALL_VERIFY_SCRIPT))) {
+    errors.push(`缺少 Windows 安装验收脚本: ${WINDOWS_INSTALL_VERIFY_SCRIPT}`)
+  }
 
   return { ok: errors.length === 0, errors }
 }

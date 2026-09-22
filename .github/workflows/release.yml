@@ -96,6 +96,30 @@ jobs:
             release/*/latest.yml
           if-no-files-found: error
 
+  # P0-05 Windows 安装态验收（UNVERIFIED：脚本已具备，两隔离环境未实测；启用前勿去掉 if: false）
+  installed-acceptance-win:
+    if: false
+    needs: build-win
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-win
+          path: artifacts/win
+      - name: Windows 安装/升级/卸载循环（隔离 runner + 显式确认）
+        shell: pwsh
+        run: |
+          $base = Get-ChildItem -Path artifacts/win -Recurse -Filter 'Paperin-Setup-*.exe' |
+            Sort-Object { [version]($_.BaseName -replace '^Paperin-Setup-','') } |
+            Select-Object -First 1
+          if (-not $base) { throw '未找到 Paperin-Setup 候选 exe' }
+          node scripts/verify-windows-install.mjs `
+            --confirm-isolated-environment `
+            --from "release/0.6.0/Paperin-Setup-0.6.0.exe" `
+            --to $base.FullName `
+            --install-dir "$env:TEMP\paperin-installed-acceptance"
+
   build-mac:
     if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'candidate') }}
     needs: candidate-acceptance
@@ -181,7 +205,7 @@ jobs:
             echo "smoke 结果: npm run smoke (Windows candidate-acceptance job)"
             echo "安装/升级/卸载环境: UNVERIFIED"
             echo "用户文件保留: UNVERIFIED"
-            echo "未验证项: 两个隔离环境的安装/文件关联/升级/卸载循环未在本 job 执行"
+            echo "未验证项: installed-acceptance-win 仍为 if:false；verify-windows-install 脚本已就绪，两隔离环境未实测"
             echo "tag: ${{ steps.resolve.outputs.tag }}"
             echo "workflow_run: ${{ github.run_id }}"
           } > "$record_file"
