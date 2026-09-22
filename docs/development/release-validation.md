@@ -6,7 +6,7 @@
 
 本轮全量文档核对不创建 tag、推送、上传安装器或触发发布。下文安装/发行记录保留原状态；来源异步隔离、逐篇基线、索引目标失效与缓存边界仍待 P0-07/P1-06/07/08 完成，自动门禁通过不能代替这些新增行为回归。
 
-> 当前状态不是“已发布”：`0.7.0` 候选 tag 只应生成 GitHub Draft Release。工作区路径授权、核心任务冒烟（来源查找、插入引用、保存重开、资源包导出）、许可/隐私/安全材料和生产依赖审计已经落地。当前 Git `origin` 指向 Gitee `MingProject/FileHome`，另有 `github` 远端指向 `moonsyan/Paperin`；`package.json` 和 GitHub Actions 发布目标是 GitHub `moonsyan/Paperin`；`scripts/sync-gitee.js` 仍指向旧的 `MingProject/mk-editormkEditor`。发布身份未对齐，Draft/Release 可达性与 `build:win` 的本机安装/升级/卸载循环也未完成。当前未验证项见 [PROJECT-STATUS](../PROJECT-STATUS.md)。
+> 当前状态不是“已发布”：`0.7.0` 候选 tag 只应生成 GitHub Draft Release。工作区路径授权、核心任务冒烟（来源查找、插入引用、保存重开、资源包导出）、许可/隐私/安全材料和生产依赖审计已经落地。Git `origin` 仍指向 Gitee `MingProject/FileHome`（日常推送镜像），另有 `github` 远端指向 `moonsyan/Paperin`；`package.json` 的 `repository`/`homepage`/`bugs` 与 `build.publish`、GitHub Actions 发布目标已对齐为 GitHub `moonsyan/Paperin`；已删除指向旧 `mk-editormkEditor` 的 `scripts/sync-gitee.js`，`validateReleaseIdentity` 门禁拒绝旧 Gitee 仓库名回流。**Draft/Release 在 GitHub 上的可达性仍为 UNVERIFIED**（本轮未 push tag、未跑 `gh release view`）；`build:win` 的本机安装/升级/卸载循环也未完成。当前未验证项见 [PROJECT-STATUS](../PROJECT-STATUS.md)。
 
 ## 本任务已验证（工程门禁）
 
@@ -18,7 +18,7 @@
 | tag 推送自动正式发布 | 已移除：`push tags v*` 只走候选 draft，不 `draft: false` | **已阻断** |
 | 配置回归测试 | `release.yml` 缺 smoke 或 `draft: true` 被改成无条件正式发布时，`validateReleaseWorkflowGates` 失败（见单测） | **已通过** |
 | 生产依赖审计 | 2026-09-22 `npm audit --omit=dev --audit-level=moderate` 为 0；`electron-updater` 间接依赖 `js-yaml` 由 4.3.1 升至 4.3.2。`validateProductionJsYaml` 拒绝生产树回退到 4.3.2 以下。dev 依赖漏洞未纳入本门禁 | **已处理生产 high** |
-| 仓库与发布身份 | `origin` 为 Gitee，另有 `github` 远端；构建/发布配置为 GitHub，Gitee 同步脚本仍含旧仓库名；Draft/Release 可达性未验证 | **阻断**：先执行实施计划 P0-04，不推送 tag、不触发正式发布 |
+| 仓库与发布身份 | 本地元数据与 `build.publish` 已对齐 GitHub `moonsyan/Paperin`；`origin` 仍为 Gitee + `github` 远端；旧 Gitee Release 同步脚本已移除 | **部分完成（P0-04 本地）**：Draft/Release 可达性 **UNVERIFIED**；未推送 tag、不触发正式发布 |
 
 未在本任务执行：`git push`、打 tag、`gh release publish`、上传安装包二进制到仓库。
 
@@ -89,7 +89,7 @@ smoke 结果: 2026-09-22 `npm run smoke` 退出 0（打开工作区、新建、�
 
 ## 操作备忘（维护者）
 
-1. **先对齐仓库**：完成 P0-04，确认 GitHub 主仓可用、`origin`/镜像命名和发布目标一致，删除或修正旧 Gitee 同步目标。
+1. **发布元数据**：P0-04 本地部分已完成（`package.json` + CI 门禁）；推送与 Draft 验证仍须在 GitHub 权限可用时单独执行，且不得在本记录未更新证据前宣称 Draft 可达。
 2. **产候选**：推送新的 `v*` tag，或 Actions → release → `action=candidate`（可选 tag）。不得复用当前未完成 P0 门禁的 `v0.7.0` 本地 tag 作为正式候选。
 3. **验候选**：在 Draft Release 核对 `candidate-record.txt` 与 commit；人工安装试用（本记录未做）。
 4. **正式发行**：Actions → release → `action=publish-formal`，填写 tag、`candidate_sha`（与 draft 相同 commit）、`confirm_publish=PUBLISH`。

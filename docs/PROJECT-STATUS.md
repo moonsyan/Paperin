@@ -108,7 +108,7 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 ## 执行顺序
 
 1. 先为搜索建立分段指标，复现并修复 5000 篇合成索引/搜索和生产搜索红灯；不得用历史绿灯或放宽阈值替代。
-2. 对齐用户指定的 GitHub 发布渠道、当前 Gitee `origin` 和 `package.json`/Actions 的 GitHub 目标，移除或重写仍指向旧仓库的同步脚本。
+2. ~~对齐 GitHub 发布元数据与 Gitee `origin`~~ **P0-04 本地已完成**：`repository`/`homepage`/`bugs`/`build.publish` 与 `validateReleaseIdentity` 门禁；已删除旧 `sync-gitee.js`。GitHub Draft 可达性与远端 push 仍为 **UNVERIFIED**（未改 `origin`、未 push tag）。
 3. 完成 Windows 两个隔离环境的安装、升级、文件关联、保存、卸载和用户文件保留循环；材料齐全不等于已发布。
 4. 来源异步隔离、逐篇基线、索引失效与缓存校验可以提前推进；同步完成两位现有用户两周观察，研究驱动增量只选最大阻塞。P0、补充正确性任务及种子阻塞解决后才进入外部 Alpha。
 5. Alpha 发现轮成功后进入 P2-05 确认轮、长期稳定与接收方验证，再做两批 W2/W4 队列和有条件付款实验；至少 3 个团队连续两个周期重复同类需求后才进入团队方案。

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -211,6 +211,7 @@ export function verifyCiConfig() {
     errors.push(
       ...validateLocalScriptPaths(packageJson.scripts, (relativePath) => existsSync(resolve(root, relativePath))),
     )
+    errors.push(...validateReleaseIdentity(packageJson, readReleaseScriptContents(root)))
   } catch (error) {
     errors.push(`无法读取 package.json：${error instanceof Error ? error.message : String(error)}`)
   }
@@ -230,6 +231,92 @@ export const RELEASE_MATERIAL_FILES = [
   '.github/ISSUE_TEMPLATE/data-safety.yml',
   '.github/ISSUE_TEMPLATE/feature.yml',
 ]
+
+export const RELEASE_GITHUB_OWNER = 'moonsyan'
+export const RELEASE_GITHUB_REPO = 'Paperin'
+export const FORBIDDEN_LEGACY_GITEE_REPO_MARKERS = ['mk-editormkEditor']
+
+const normalizeRepositoryUrl = (repository) => {
+  if (typeof repository === 'string') return repository.trim()
+  if (repository && typeof repository.url === 'string') {
+    return repository.url.replace(/^git\+/, '').trim()
+  }
+  return ''
+}
+
+/** 校验 package.json 发布身份与 electron-builder publish 目标一致，均为 GitHub moonsyan/Paperin。 */
+export function validateReleaseIdentity(packageMeta, scriptContents = {}) {
+  const errors = []
+  const owner = RELEASE_GITHUB_OWNER
+  const repo = RELEASE_GITHUB_REPO
+  const expectedHomepage = `https://github.com/${owner}/${repo}#readme`
+  const expectedBugsUrl = `https://github.com/${owner}/${repo}/issues`
+
+  const repositoryUrl = normalizeRepositoryUrl(packageMeta?.repository)
+  if (!repositoryUrl) {
+    errors.push('package.json 缺少 repository（GitHub moonsyan/Paperin）')
+  } else if (!repositoryUrl.includes(`github.com/${owner}/${repo}`)) {
+    errors.push(`repository 必须为 GitHub ${owner}/${repo}，当前: ${repositoryUrl}`)
+  }
+
+  const homepage = String(packageMeta?.homepage ?? '').trim()
+  if (!homepage) {
+    errors.push('package.json 缺少 homepage')
+  } else if (homepage !== expectedHomepage) {
+    errors.push(`homepage 应对齐 ${expectedHomepage}`)
+  }
+
+  const bugsUrl = String(packageMeta?.bugs?.url ?? '').trim()
+  if (!bugsUrl) {
+    errors.push('package.json 缺少 bugs.url')
+  } else if (bugsUrl !== expectedBugsUrl) {
+    errors.push(`bugs.url 应对齐 ${expectedBugsUrl}`)
+  }
+
+  const publish = packageMeta?.build?.publish ?? packageMeta?.publish
+  if (!publish || typeof publish !== 'object') {
+    errors.push('package.json 缺少 build.publish（GitHub 发布目标）')
+  } else {
+    if (publish.provider !== 'github') {
+      errors.push(`build.publish.provider 必须为 github，当前: ${publish.provider ?? '缺失'}`)
+    }
+    if (publish.owner !== owner || publish.repo !== repo) {
+      errors.push(
+        `build.publish 必须为 owner=${owner} repo=${repo}，当前: owner=${publish.owner ?? '缺失'} repo=${publish.repo ?? '缺失'}`,
+      )
+    }
+  }
+
+  for (const [relativePath, content] of Object.entries(scriptContents)) {
+    const text = String(content)
+    for (const marker of FORBIDDEN_LEGACY_GITEE_REPO_MARKERS) {
+      if (text.includes(marker)) {
+        errors.push(`${relativePath} 仍含已废弃的 Gitee 仓库标识: ${marker}`)
+      }
+    }
+    if (/access_token\s*=\s*['"][^{$][^'"]*['"]/.test(text)) {
+      errors.push(`${relativePath} 不得硬编码 access_token`)
+    }
+  }
+
+  return errors
+}
+
+const RELEASE_SCRIPT_SCAN_SKIP = new Set(['ci-config-gates.mjs'])
+
+/** 读取 scripts 下 JS/MJS 文本，供 validateReleaseIdentity 扫描废弃 Gitee 标识（跳过门禁与单测文件）。 */
+export function readReleaseScriptContents(rootDir) {
+  const scriptsDir = resolve(rootDir, 'scripts')
+  const contents = {}
+  if (!existsSync(scriptsDir)) return contents
+  for (const name of readdirSync(scriptsDir)) {
+    if (!/\.(js|mjs|cjs)$/.test(name)) continue
+    if (RELEASE_SCRIPT_SCAN_SKIP.has(name) || /\.test\.(js|mjs|cjs)$/.test(name)) continue
+    const relativePath = `scripts/${name}`
+    contents[relativePath] = readFileSync(resolve(scriptsDir, name), 'utf8')
+  }
+  return contents
+}
 
 /** 公开发布前置材料：存在性检查，不把 package.json 的 license 字段当作完整授权。 */
 export function validateReleaseMaterials(rootDir) {

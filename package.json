@@ -4,6 +4,14 @@
   "description": "本地 Markdown 知识工作台：打开资料 → 用来源写一段技术说明",
   "author": "ming",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/moonsyan/Paperin.git"
+  },
+  "homepage": "https://github.com/moonsyan/Paperin#readme",
+  "bugs": {
+    "url": "https://github.com/moonsyan/Paperin/issues"
+  },
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",

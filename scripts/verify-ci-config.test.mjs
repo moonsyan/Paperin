@@ -11,6 +11,7 @@ import {
   validateBuildWorkflowSteps,
   validateLocalScriptPaths,
   validateProductionJsYaml,
+  validateReleaseIdentity,
   validateReleaseMaterials,
   validateReleaseWorkflowGates,
   verifyCiConfig,
@@ -97,6 +98,54 @@ describe('validateLocalScriptPaths', () => {
         (candidate) => candidate === 'tsconfig.web.json',
       ),
     ).toEqual([])
+  })
+})
+
+describe('validateReleaseIdentity', () => {
+  const validMeta = {
+    repository: { type: 'git', url: 'git+https://github.com/moonsyan/Paperin.git' },
+    homepage: 'https://github.com/moonsyan/Paperin#readme',
+    bugs: { url: 'https://github.com/moonsyan/Paperin/issues' },
+    build: {
+      publish: { provider: 'github', owner: 'moonsyan', repo: 'Paperin' },
+    },
+  }
+
+  it('对齐 GitHub moonsyan/Paperin 时无错误', () => {
+    expect(
+      validateReleaseIdentity({
+        repository: 'https://github.com/moonsyan/Paperin.git',
+        homepage: 'https://github.com/moonsyan/Paperin#readme',
+        bugs: { url: 'https://github.com/moonsyan/Paperin/issues' },
+        publish: { provider: 'github', owner: 'moonsyan', repo: 'Paperin' },
+      }),
+    ).toEqual([])
+    expect(validateReleaseIdentity(validMeta)).toEqual([])
+  })
+
+  it('repository 缺失或 publish 不一致时应失败', () => {
+    expect(validateReleaseIdentity({ ...validMeta, repository: undefined }).some((e) => e.includes('repository'))).toBe(
+      true,
+    )
+    expect(
+      validateReleaseIdentity({
+        ...validMeta,
+        build: { publish: { provider: 'github', owner: 'moonsyan', repo: 'Other' } },
+      }).some((e) => e.includes('build.publish')),
+    ).toBe(true)
+  })
+
+  it('Gitee 脚本含旧仓库名或硬编码 token 时应失败', () => {
+    expect(
+      validateReleaseIdentity(validMeta, {
+        'scripts/sync-gitee.js': "const GITEE_REPO = 'MingProject/mk-editormkEditor'",
+      }).some((e) => e.includes('mk-editormkEditor')),
+    ).toBe(true)
+    expect(
+      validateReleaseIdentity(validMeta, {
+        'scripts/sync-gitee.js': "const t = access_token = 'secret-token-value'",
+      }).some((e) => e.includes('access_token')),
+    ).toBe(true)
   })
 })
 

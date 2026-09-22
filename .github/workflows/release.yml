@@ -1,6 +1,8 @@
 name: release
 
 # 候选包先验收、再正式发行（R10 / plan §13）。
+# 发布身份：GitHub moonsyan/Paperin（与 package.json build.publish / electron-updater 一致）；
+# 本地 Git 可保留 origin=Gitee 推送镜像，候选 Draft 与正式发行仍只走 GitHub Actions 本仓库。
 #
 # 触发方式：
 #   1. 推送 tag v*：仅产候选 artifact + GitHub Draft Release（不正式对外发布）
