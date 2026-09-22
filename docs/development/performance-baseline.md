@@ -19,10 +19,10 @@
 | 全进程上限 | **128 MiB** | `DEFAULT_WORKSPACE_SEARCH_CORPUS_PROCESS_BYTES`，多工作区共享 |
 | 单篇上限 | 2 MiB | 与 `WORKSPACE_SCAN_MAX_FILE_BYTES` 一致，超限不进语料 |
 | 驱逐/回退 | 超预算跳过语料项 | 索引结构仍可用；搜索对该路径走读盘 fallback，`snapshot.complete=false` |
-| 生命周期 | `retain`/`release` 引用计数 | 同根多窗口共享语料；`release` 至 0 或 `dispose` 清空语料与 `getSearchSnapshot` |
+| 生命周期 | `retain`/`release` 引用计数 + `lifecycleEpoch` | 同根多窗口共享语料；释放后旧 refresh/缓存写入失效；`release` 至 0 或 `dispose` 清空语料与 `getSearchSnapshot` |
 | RSS | 记录项 | 5000×2048 B 夹具峰值约 145 MiB；**不设硬门禁** |
 
-P1-08 仍负责缓存 DTO 校验、迟到写入与释放边界回归。不得让正文语料落盘或靠少扫文件通过性能测试。
+磁盘索引缓存（`workspace-index-cache.ts`）使用 stat 预检 + 有界读取、schema 版本与根绑定校验；损坏/超大/迟到 lifecycle 写入回退重建，不持久化正文 `lines`。不得让正文语料落盘或靠少扫文件通过性能测试。
 
 > 2026-09-21 合成回归诊断：`measureWorkspacePerformance` 增加 `fixtureWriteMs`、三次 `treeRunsMs`、`indexReadMs`/`indexParseMs`、`searchReadMs`/`searchScanMs`，**不修改** `treeMs/indexMs/searchMs` 与 200/2000/1500 ms 阈值，也未运行 `--update-baseline`。本机空闲连跑 Node 24.19.0 与 Node 22.23.2 各三轮均退出 0，墙钟与 2026-09-09 基线同量级；索引/搜索墙钟中读盘约占 85%–95%，解析/扫描约 50–61 / 11–13 ms。同日审查记录的索引 3482 ms、搜索 1672 ms 与空闲样本相差约 7–10 倍，且生产 `WorkspaceIndexService` 冷索引 1558 ms 仍低于其 15000 ms 阈值，故判定为临时目录 I/O / 杀软扫描波动，而不是生产解析逻辑退化。未覆盖：CI 主机、同时段高负载对照、真实用户库。高波动时门禁仍应失败，不得放宽阈值。
 

@@ -25,7 +25,6 @@ import {
   DEFAULT_WORKSPACE_SEARCH_CORPUS_PER_ROOT_BYTES,
   DEFAULT_WORKSPACE_SEARCH_CORPUS_PROCESS_BYTES,
   WorkspaceSearchCorpusBudget,
-  type WorkspaceSearchDocument,
   type WorkspaceSearchSnapshot,
 } from './workspace-search-corpus'
 import { runWorkspaceIndexRefresh, type WorkspaceIndexRefreshState } from './workspace-index-refresh'
@@ -76,12 +75,16 @@ export interface WorkspaceIndexService {
   release(root: string): void
   /** 当前 generation 的 Main-only 搜索语料；未就绪或已 dispose 时为 null */
   getSearchSnapshot(root: string): WorkspaceSearchSnapshot | null
+  /** 当前工作区生命周期代次（缓存写入与释放边界） */
+  getLifecycleEpoch(root: string): number
   dispose(root?: string): void
 }
 
 interface WorkspaceIndexState extends WorkspaceIndexRefreshState {
   running: Promise<void>
   refCount: number
+  /** 与刷新 generation 独立；release/dispose 递增后旧队列与 cache writer 失效 */
+  lifecycleEpoch: number
 }
 
 /** 产品预算覆盖阶段 5 的 5000 文件验收场景；第 5001 个文件触发截断。 */
@@ -104,7 +107,14 @@ export const createWorkspaceIndexService = (
 
   const states = new Map<string, WorkspaceIndexState>()
   const listeners = new Map<string, Set<(event: WorkspaceIndexEvent) => void>>()
+  const lifecycleEpochByRoot = new Map<string, number>()
   const corpusBudget = new WorkspaceSearchCorpusBudget(CORPUS_PER_ROOT, CORPUS_PROCESS)
+
+  const lifecycleEpochOf = (root: string): number => lifecycleEpochByRoot.get(root) ?? 0
+
+  const bumpLifecycleEpoch = (root: string): void => {
+    lifecycleEpochByRoot.set(root, lifecycleEpochOf(root) + 1)
+  }
 
   const releaseSearchCorpusForState = (state: WorkspaceIndexRefreshState): void => {
     if (state.searchCorpusBytes <= 0) {
@@ -129,6 +139,7 @@ export const createWorkspaceIndexService = (
         running: Promise.resolve(),
         controller: null,
         refCount: 0,
+        lifecycleEpoch: lifecycleEpochOf(root),
         searchDocuments: new Map(),
         searchCorpusBytes: 0,
         searchSnapshot: null,
@@ -150,6 +161,19 @@ export const createWorkspaceIndexService = (
     })
   }
 
+  const emitForState = (
+    root: string,
+    state: WorkspaceIndexState,
+    event: WorkspaceIndexEvent,
+  ): void => {
+    if (states.get(root) !== state) return
+    if (lifecycleEpochOf(root) !== state.lifecycleEpoch) return
+    emit(root, event)
+  }
+
+  const isStateActive = (root: string, state: WorkspaceIndexState): boolean =>
+    states.get(root) === state && lifecycleEpochOf(root) === state.lifecycleEpoch
+
   const refreshOne = (
     root: string,
     state: WorkspaceIndexState,
@@ -167,7 +191,14 @@ export const createWorkspaceIndexService = (
       progressInterval: PROGRESS_INTERVAL,
       corpusBudget,
       releaseSearchCorpus: releaseSearchCorpusForState,
-      emit,
+      emit: (event) => emitForState(root, state, event),
+      isStateActive: () => isStateActive(root, state),
+      saveIndex: (index) => {
+        if (!isStateActive(root, state)) return
+        void deps.cacheStore
+          ?.save(root, index, { lifecycleEpoch: state.lifecycleEpoch })
+          .catch(() => undefined)
+      },
     })
 
   return {
@@ -184,11 +215,11 @@ export const createWorkspaceIndexService = (
       if (state?.index) return normalize(state.index)
       const cached = await deps.cacheStore?.load(root)
       const normalized = cached ? normalize(cached) : null
-      if (normalized && state) {
+      if (normalized && state && isStateActive(root, state)) {
         state.index = normalized
         state.generation = normalized.generation
       }
-      return normalized ?? (state?.index ? normalize(state.index) : null)
+      return normalized ?? (state?.index && isStateActive(root, state) ? normalize(state.index) : null)
     },
 
     refresh(root, requestOptions) {
@@ -231,6 +262,7 @@ export const createWorkspaceIndexService = (
       state.refCount = Math.max(0, state.refCount - 1)
       if (state.refCount > 0) return
       state.controller?.abort()
+      bumpLifecycleEpoch(root)
       releaseSearchCorpusForState(state)
       states.delete(root)
       listeners.delete(root)
@@ -239,6 +271,10 @@ export const createWorkspaceIndexService = (
 
     getSearchSnapshot(root) {
       return states.get(root)?.searchSnapshot ?? null
+    },
+
+    getLifecycleEpoch(root) {
+      return lifecycleEpochOf(root)
     },
 
     dispose(root) {
@@ -250,6 +286,7 @@ export const createWorkspaceIndexService = (
       if (!state) return
       state.refCount = 0
       state.controller?.abort()
+      bumpLifecycleEpoch(root)
       releaseSearchCorpusForState(state)
       states.delete(root)
       listeners.delete(root)

@@ -83,10 +83,15 @@ export function registerIpcHandlers(): void {
 
   registerFileHandlers({ isTrustedPath: ensureTrusted })
 
+  let workspaceLifecycleEpoch: (root: string) => number = () => 0
   const workspaceIndexService = createWorkspaceIndexService({
     ...createWorkspaceIndexFilesystemDependencies(),
-    cacheStore: createFileWorkspaceIndexCache(() => join(app.getPath('userData'), 'workspace-index-cache')),
+    cacheStore: createFileWorkspaceIndexCache(
+      () => join(app.getPath('userData'), 'workspace-index-cache'),
+      (root) => workspaceLifecycleEpoch(root),
+    ),
   })
+  workspaceLifecycleEpoch = (root) => workspaceIndexService.getLifecycleEpoch(root)
   const watchers = new Map<number, { root: string; watcher: ReturnType<typeof createWorkspaceFileWatcher> }>()
   registerWorkspaceHandlers({
     hasWorkspaceRoot: (webContentsId) => workspaceRootsByWebContents.has(webContentsId),

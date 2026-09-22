@@ -62,6 +62,7 @@ const createService = (): WorkspaceIndexService & {
     retain: vi.fn(),
     release: vi.fn(),
     getSearchSnapshot: vi.fn(() => null),
+    getLifecycleEpoch: vi.fn(() => 0),
     emit: (event) => listener?.(event),
   }
 }

@@ -84,7 +84,9 @@ export interface WorkspaceIndexRefreshContext {
   progressInterval: number
   corpusBudget: WorkspaceSearchCorpusBudget
   releaseSearchCorpus: (state: WorkspaceIndexRefreshState) => void
-  emit: (root: string, event: WorkspaceIndexEvent) => void
+  emit: (event: WorkspaceIndexEvent) => void
+  isStateActive: () => boolean
+  saveIndex: (index: WorkspaceIndex) => void
 }
 
 export const runWorkspaceIndexRefresh = async (
@@ -102,6 +104,8 @@ export const runWorkspaceIndexRefresh = async (
     corpusBudget,
     releaseSearchCorpus,
     emit,
+    isStateActive,
+    saveIndex,
   } = context
 
   const generation = state.generation + 1
@@ -119,6 +123,9 @@ export const runWorkspaceIndexRefresh = async (
   else signal?.addEventListener('abort', onOuterAbort, { once: true })
 
   const check = (): void => {
+    if (!isStateActive()) {
+      throw Object.assign(new Error('生命周期已释放'), { code: WORKSPACE_INDEX_SUPERSEDED })
+    }
     if (token !== state.refreshSeq) {
       throw Object.assign(new Error('过期任务'), { code: WORKSPACE_INDEX_SUPERSEDED })
     }
@@ -236,7 +243,7 @@ export const runWorkspaceIndexRefresh = async (
       coverage.scannedFiles += 1
       scanned++
       if (scanned % PROGRESS_INTERVAL === 0 || scanned === withinBudget.length) {
-        emit(root, { type: 'progress', generation, scanned, total: withinBudget.length })
+        emit({ type: 'progress', generation, scanned, total: withinBudget.length })
       }
     }
     check()
@@ -263,6 +270,12 @@ export const runWorkspaceIndexRefresh = async (
       diagnostics,
     }
 
+    check()
+
+    if (!isStateActive()) {
+      throw Object.assign(new Error('生命周期已释放'), { code: WORKSPACE_INDEX_SUPERSEDED })
+    }
+
     state.documents = documents
     state.index = index
     state.searchDocuments = nextSearchDocuments
@@ -271,8 +284,8 @@ export const runWorkspaceIndexRefresh = async (
       complete: !truncated && !searchCorpusIncomplete,
       documents: Array.from(nextSearchDocuments.values()),
     }
-    emit(root, { type: 'updated', index })
-    void deps.cacheStore?.save(root, index).catch(() => undefined)
+    emit({ type: 'updated', index })
+    saveIndex(index)
 
     return {
       index,
@@ -287,7 +300,9 @@ export const runWorkspaceIndexRefresh = async (
       code === WORKSPACE_INDEX_CANCELLED || isAbortErrorLike(error)
         ? WORKSPACE_INDEX_CANCELLED
         : 'INDEX_FAILED'
-    emit(root, { type: 'failed', generation, code: failedCode })
+    if (isStateActive()) {
+      emit({ type: 'failed', generation, code: failedCode })
+    }
     throw Object.assign(error instanceof Error ? error : new Error(String(error)), {
       code: failedCode,
     })

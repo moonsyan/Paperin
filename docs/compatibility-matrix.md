@@ -16,7 +16,7 @@
 | 保存状态文案 | 顶栏、路径条、状态栏共用 `document-save-status.ts` | 保存回执与状态组件测试 | 已有：已保存/未保存、示例、未命名、保存中、冲突、编码、失败 | 九主题与缩放人工看 |
 | 工作区全文搜索 | `WorkspaceSearchDialog`、`workspace-search-handler`、`WorkspaceIndexService` 语料 | `workspace-search-coverage.test.ts`、`workspace-index-service.test.ts`（语料复用）、`useWorkspaceSearch.test.ts` | 已有：共享 `WorkspaceCoverage`；暖搜索优先 Main 内存语料（`getSearchSnapshot`），未缓存/超预算读盘 fallback；结构索引缓存不含正文 `lines` | 2026-09-22 P0-02 后本机搜索 P95 约 17 ms（暖语料）；watcher 稳定 P95 仍偶发超 5000 ms；60 题 Hit@5 未测 |
 | 插入来源引用 | 搜索结果与反链；`source-citation.ts` | `source-citation`、`insert-citation` 测试 | 已有：片段快照、相对链接、标题锚点、切文档拒绝、回到打开搜索时的位置 | 用户任务耗时未测 |
-| 来源健康 | 工作区设置 `sourceSnapshots` + `evaluateSourceHealth` | `workspace-state`、`source-health`、QualityPanel 测试 | 全工作区共享最多 50 条路径/mtime；重复来源更新共享基线；重新定位目前仅打开搜索 | P1-06 异步隔离、P1-07 逐篇基线和迁移未完成；mtime 不代表人工复核 |
+| 来源健康 | `documentSourceBaselines` + `legacySourceSnapshots` + `evaluateSourceHealth` | `source-tracking`、`workspace-state`、`source-health`、QualityPanel 测试 | 按引用文档独立基线；旧全局快照迁移为归属未知；复核只更新当前文章；重新定位仅打开搜索 | mtime 一致不等于人工复核正文 |
 | 重启后的搜索词与阅读位置 | 工作区设置 `lastSearchQuery` / `recentCitations`；文档视图状态 | `workspace-state` 测试 | 已有：缺字段默认为空，可清除且不删正文；选区与滚动随文档视图保存 | 真实重启、改名后回访未测 |
 | 打开知识库检查 | `workspace-compatibility.ts`、开始页 | 对应单元测试 | 已有：未扫完、缺附件、断链、残缺脚注只提示 | 来源夹具 hash 与五分钟任务未测 |
 | 写作模板 | 命令 `newTemplate:article`、`newTemplate:decision` | 命令注册表测试 | 已有：两份普通 Markdown，不覆盖已打开文件 | 用户无需讲解完成起步未测 |
@@ -48,9 +48,9 @@
 
 | 任务 | 未完成的边界 | 验收重点 |
 | --- | --- | --- |
-| ~~P0-02~~ | Main 搜索语料总预算 | **已落地（2026-09-22）**：64/128 MiB 预算、语料复用与 fallback；P1-08 仍补释放/缓存迟到写入 |
+| ~~P0-02~~ | Main 搜索语料总预算 | **已落地（2026-09-22）**：64/128 MiB 预算、语料复用与 fallback |
 | P1-06/07 | 来源生命周期和逐篇关系 | 切库/清除/卸载旧回包不登记；A/B 文章基线不互相覆盖；旧记录归属未知 |
-| P1-08 | 索引释放与缓存 DTO | 排队任务/迟到写入不污染新根生命周期；有界读取、损坏回退重建 |
+| ~~P1-08~~ | 索引释放与缓存 DTO | **已落地（2026-09-22）**：生命周期 epoch、有界读取、schema/根校验、损坏回退重建 |
 | P1-02 / P2-03 | 来源工具与接收方软件矩阵 | 合成实际导出、正常试开 hash 不变、真实阅读器检查，未运行继续 UNVERIFIED |
 
 以上是计划，不改变当前 schema 或声明新增支持。详细任务见[实施计划](superpowers/plans/2026-09-22-product-workflow-implementation.md)。

@@ -465,6 +465,21 @@ describe('workspace-index-service：搜索语料复用', () => {
     expect(saved.join('')).not.toContain(marker)
   })
 
+  it('关闭一个同根窗口后另一窗口仍保留语料与索引', async () => {
+    const deps = createDeps({
+      'D:/notes/a.md': { content: MD('A'), mtimeMs: 10, size: 10 },
+    })
+    const service = createWorkspaceIndexService(deps)
+    service.retain('D:/notes')
+    service.retain('D:/notes')
+    await service.refresh('D:/notes')
+    service.release('D:/notes')
+    expect(service.getSearchSnapshot('D:/notes')).not.toBeNull()
+    expect(await service.load('D:/notes')).not.toBeNull()
+    service.release('D:/notes')
+    expect(service.getSearchSnapshot('D:/notes')).toBeNull()
+  })
+
   it('语料总预算超限时 complete=false 且未缓存文件可经搜索回退读盘', async () => {
     const unique = 'corpus_budget_fallback_token'
     const deps = createDeps({
@@ -480,5 +495,82 @@ describe('workspace-index-service：搜索语料复用', () => {
     expect(snap?.complete).toBe(false)
     expect(snap!.documents.length).toBeLessThan(2)
     expect(snap?.documents.some((doc) => doc.lines.join('\n').includes(unique))).toBe(true)
+  })
+})
+
+describe('workspace-index-service：P1-08 生命周期 epoch', () => {
+  it('释放后排队中的旧 refresh 不得污染新订阅、内存与缓存', async () => {
+    let releaseR1: (() => void) | undefined
+    const gate = new Promise<void>((resolve) => {
+      releaseR1 = resolve
+    })
+    const deps = createDeps({
+      'D:/notes/a.md': { content: MD('A'), mtimeMs: 10, size: 10 },
+      'D:/notes/stale.md': { content: MD('Stale'), mtimeMs: 20, size: 10 },
+    })
+    let listCalls = 0
+    deps.listMarkdownFiles = async () => {
+      listCalls += 1
+      if (listCalls === 1) await gate
+      return Object.entries(deps.files).map(([path, f]) => ({
+        path,
+        size: f.size,
+        mtimeMs: f.mtimeMs,
+      }))
+    }
+    const savedGenerations: number[] = []
+    const saveEpochs: number[] = []
+    deps.cacheStore = {
+      async load() {
+        return null
+      },
+      async save(_root, index, context) {
+        savedGenerations.push(index.generation)
+        saveEpochs.push(context?.lifecycleEpoch ?? -1)
+      },
+      async clear() {},
+    }
+    const service = createWorkspaceIndexService(deps)
+    service.retain('D:/notes')
+    const staleListener = vi.fn()
+    service.subscribe('D:/notes', staleListener)
+
+    const r1 = service.refresh('D:/notes')
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    service.release('D:/notes')
+    service.retain('D:/notes')
+    const freshListener = vi.fn()
+    service.subscribe('D:/notes', freshListener)
+    deps.files['D:/notes/stale.md'] = { content: MD('FreshOnly'), mtimeMs: 99, size: 12 }
+
+    releaseR1?.()
+    await r1.catch(() => undefined)
+    expect(saveEpochs.filter((epoch) => epoch === 0)).toHaveLength(0)
+
+    const afterStale = await service.refresh('D:/notes')
+    expect(afterStale.index.documents['D:/notes/stale.md'].headings[0].text).toBe('FreshOnly')
+    expect(staleListener).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'updated', index: expect.objectContaining({ generation: 1 }) }),
+    )
+    expect(freshListener).toHaveBeenCalledWith(expect.objectContaining({ type: 'updated' }))
+    expect(saveEpochs).toContain(1)
+  })
+
+  it('cancel 后新的 refresh 仍可成功', async () => {
+    const deps = createDeps({
+      'D:/notes/a.md': { content: MD('A'), mtimeMs: 10, size: 10 },
+    })
+    const service = createWorkspaceIndexService(deps)
+    service.retain('D:/notes')
+    const controller = new AbortController()
+    const cancelled = service.refresh('D:/notes', { signal: controller.signal })
+    controller.abort()
+    await expect(cancelled).rejects.toMatchObject({ code: 'CANCELLED' })
+    const ok = await service.refresh('D:/notes')
+    expect(ok.complete).toBe(true)
+    service.release('D:/notes')
   })
 })
