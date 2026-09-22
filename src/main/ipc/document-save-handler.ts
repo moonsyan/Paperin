@@ -15,6 +15,7 @@ import {
   writeFileAtomically,
 } from './file-io'
 import { acquireCrossProcessSaveLock, SaveLockIoError } from './save-lock'
+import { recordSupportIpcFailure } from '../support/support-ipc-tracking'
 
 /** 同路径并发保存互斥（T-OCTOU）：按 path 串行化 FILE_SAVE 的完整写盘流程 */
 const saveLocks = new Map<string, Promise<unknown>>()
@@ -162,7 +163,11 @@ export const enqueueDocumentSave = async (args: DocumentSaveArgs): Promise<Docum
   const tracked = task.catch(() => undefined)
   saveLocks.set(args.path, tracked)
   try {
-    return await task
+    const result = await task
+    if (!result.ok) {
+      recordSupportIpcFailure(result.error.code, { failureEvent: 'save_failed' })
+    }
+    return result
   } finally {
     if (saveLocks.get(args.path) === tracked) saveLocks.delete(args.path)
   }

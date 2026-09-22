@@ -10,6 +10,8 @@ import {
 } from '../../shared/support-summary'
 import { getSetting } from '../settings/settings-store'
 import { getRecentSupportErrorCodes } from '../support/recent-error-codes'
+import { getSupportEventCounts } from '../support/support-event-counts'
+import { recordSupportIpcFailure } from '../support/support-ipc-tracking'
 
 const parseSummaryJson = (json: unknown): SupportSummaryV1 | null => {
   if (typeof json !== 'string' || !json.trim()) return null
@@ -35,11 +37,12 @@ export const registerSupportHandlers = (): void => {
           arch: process.arch,
           electronVersion: process.versions.electron ?? 'unknown',
           autoUpdateEnabled,
-          eventCounts: {},
+          eventCounts: { ...getSupportEventCounts() },
           recentErrorCodes: [...getRecentSupportErrorCodes()],
         },
       }
     } catch (error) {
+      recordSupportIpcFailure('IO_ERROR')
       return { ok: false, error: { code: 'IO_ERROR', message: String(error) } }
     }
   })

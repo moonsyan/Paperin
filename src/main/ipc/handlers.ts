@@ -28,6 +28,7 @@ import { registerWorkspaceIndexHandlers } from './workspace-index-handlers'
 import { createFileWorkspaceIndexCache, createWorkspaceIndexService } from '../indexing/workspace-index-service'
 import { createWorkspaceIndexFilesystemDependencies } from '../indexing/workspace-index-filesystem'
 import { createFsWatchAdapter, createWorkspaceFileWatcher } from '../indexing/workspace-file-watcher'
+import { recordSupportIpcFailure } from '../support/support-ipc-tracking'
 
 const workspaceStateStore = new WorkspaceStateStore()
 const workspaceRootsByWebContents = new Map<number, string>()
@@ -37,8 +38,10 @@ const workspaceRootFor = (webContentsId: number): string | null =>
 
 const workspaceStateError = (err: unknown) => {
   if (err instanceof WorkspaceStateStoreError) {
+    recordSupportIpcFailure(err.code)
     return { ok: false, error: { code: err.code } }
   }
+  recordSupportIpcFailure('IO_ERROR')
   return { ok: false, error: { code: 'IO_ERROR', message: String(err) } }
 }
 

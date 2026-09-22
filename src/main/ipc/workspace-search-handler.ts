@@ -23,6 +23,7 @@ import {
   type WorkspaceSearchInstrumentation,
 } from './workspace-search-metrics'
 import type { WorkspaceSearchSnapshot } from '../indexing/workspace-search-corpus'
+import { recordSupportIpcFailure } from '../support/support-ipc-tracking'
 
 export const WORKSPACE_SEARCH_MAX_MATCHES = 200
 
@@ -365,11 +366,19 @@ export const registerWorkspaceSearchHandler = ({
           { getSearchSnapshot },
         )
         if (isStale()) {
+          recordSupportIpcFailure('CANCELLED', {
+            failureEvent: 'search_cancelled',
+            recordCancelledError: true,
+          })
           return { ok: false, error: { code: 'CANCELLED', message: '搜索已取消' } }
         }
         return { ok: true, data }
       } catch (error) {
         if ((error as { code?: string }).code === 'CANCELLED' || isStale()) {
+          recordSupportIpcFailure('CANCELLED', {
+            failureEvent: 'search_cancelled',
+            recordCancelledError: true,
+          })
           return { ok: false, error: { code: 'CANCELLED', message: '搜索已取消' } }
         }
         if (error instanceof Error && error.message === 'REGEX_TIMEOUT') {

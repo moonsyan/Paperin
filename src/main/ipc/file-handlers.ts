@@ -23,6 +23,7 @@ import {
   writeFileAtomically,
 } from './file-io'
 import { registerImageFileHandlers } from './image-file-handlers'
+import { recordSupportIpcFailure, trackSupportIpcResult } from '../support/support-ipc-tracking'
 
 const MAX_CSS_FILE_SIZE = 1024 * 1024
 const SAVE_ENCODINGS: ReadonlySet<DocumentSaveEncoding> = new Set(['UTF-8', 'UTF-8-BOM', 'UTF-16LE', 'UTF-16BE', 'GBK'] as const)
@@ -51,25 +52,26 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       }
     | { ok: false; error: { code: string; message?: string } }
   > => {
+    const readFail = (error: { code: string; message?: string }) => {
+      recordSupportIpcFailure(error.code)
+      return { ok: false as const, error }
+    }
     try {
       // Recovery must run before stat: copyFile may remove its destination
       // after an interrupted overwrite, leaving only the verified backup.
       await recoverInterruptedFileWrite(filePath, { isTargetAuthorized })
       if (isTargetAuthorized && !(await isTargetAuthorized(filePath))) {
-        return { ok: false, error: { code: 'NOT_AUTHORIZED' } }
+        return readFail({ code: 'NOT_AUTHORIZED' })
       }
       const fileStat = await stat(filePath)
       if (!fileStat.isFile()) {
-        return { ok: false, error: { code: 'NOT_FILE' } }
+        return readFail({ code: 'NOT_FILE' })
       }
       if (fileStat.size > MAX_DOCUMENT_FILE_SIZE) {
-        return {
-          ok: false,
-          error: { code: 'TOO_LARGE', message: 'Markdown 文件超过 20MB，无法打开' },
-        }
+        return readFail({ code: 'TOO_LARGE', message: 'Markdown 文件超过 20MB，无法打开' })
       }
       if (isTargetAuthorized && !(await isTargetAuthorized(filePath))) {
-        return { ok: false, error: { code: 'NOT_AUTHORIZED' } }
+        return readFail({ code: 'NOT_AUTHORIZED' })
       }
       const { content, encoding, contentSha256 } = await readTextAutoEncoding(filePath, { isTargetAuthorized })
       const afterRead = await stat(filePath)
@@ -88,15 +90,15 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
       }
     } catch (error) {
       if (error instanceof FileWriteRecoveryPendingError) {
-        return { ok: false, error: { code: 'FILE_BUSY', message: error.message } }
+        return readFail({ code: 'FILE_BUSY', message: error.message })
       }
       if (error instanceof UnsupportedEncodingError) {
-        return { ok: false, error: { code: 'UNSUPPORTED_ENCODING', message: error.message } }
+        return readFail({ code: 'UNSUPPORTED_ENCODING', message: error.message })
       }
       if (error instanceof FileIdentityChangedError) {
-        return { ok: false, error: { code: 'NOT_AUTHORIZED', message: error.message } }
+        return readFail({ code: 'NOT_AUTHORIZED', message: error.message })
       }
-      return { ok: false, error: { code: 'IO_ERROR', message: String(error) } }
+      return readFail({ code: 'IO_ERROR', message: String(error) })
     }
   }
 
@@ -223,37 +225,40 @@ export const registerFileHandlers = ({ isTrustedPath }: FileHandlerDependencies)
         typeof args.path !== 'string' ||
         typeof args.content !== 'string'
       ) {
-        return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
+        return trackSupportIpcResult({ ok: false, error: { code: 'INVALID_ARGUMENT' } }, { failureEvent: 'save_failed' })
       }
       if (
         args.encoding !== undefined &&
         !SAVE_ENCODINGS.has(args.encoding as DocumentSaveEncoding)
       ) {
-        return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
+        return trackSupportIpcResult({ ok: false, error: { code: 'INVALID_ARGUMENT' } }, { failureEvent: 'save_failed' })
       }
       if (args.forceOverwrite !== undefined && typeof args.forceOverwrite !== 'boolean') {
-        return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
+        return trackSupportIpcResult({ ok: false, error: { code: 'INVALID_ARGUMENT' } }, { failureEvent: 'save_failed' })
       }
       if (
         args.expectedContentHash !== undefined
         && args.expectedContentHash !== null
         && !isValidContentHash(args.expectedContentHash)
       ) {
-        return { ok: false, error: { code: 'INVALID_ARGUMENT' } }
+        return trackSupportIpcResult({ ok: false, error: { code: 'INVALID_ARGUMENT' } }, { failureEvent: 'save_failed' })
       }
       try {
         if (!(await isPathAuthorizedForReadOrSave(args.path))) {
-          return { ok: false, error: { code: 'INVALID_PATH' } }
+          return trackSupportIpcResult({ ok: false, error: { code: 'INVALID_PATH' } }, { failureEvent: 'save_failed' })
         }
         if (encodedDocumentByteLength(args.content ?? '', args.encoding) > MAX_DOCUMENT_FILE_SIZE) {
-          return {
-            ok: false,
-            error: { code: 'TOO_LARGE', message: 'Markdown 文件超过 20MB，无法保存' },
-          }
+          return trackSupportIpcResult(
+            { ok: false, error: { code: 'TOO_LARGE', message: 'Markdown 文件超过 20MB，无法保存' } },
+            { failureEvent: 'save_failed' },
+          )
         }
         return await enqueueDocumentSave(args)
       } catch (err) {
-        return { ok: false, error: { code: 'IO_ERROR', message: String(err) } }
+        return trackSupportIpcResult(
+          { ok: false, error: { code: 'IO_ERROR', message: String(err) } },
+          { failureEvent: 'save_failed' },
+        )
       }
     },
   )

@@ -1,7 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { CHANNELS } from '../../shared/ipc/channels'
-import { buildSupportSummary, serializeSupportSummary } from '../../shared/support-summary'
-import { resetRecentSupportErrorCodesForTests } from '../support/recent-error-codes'
+import {
+  buildSupportSummary,
+  scanSupportSummaryForForbiddenContent,
+  serializeSupportSummary,
+} from '../../shared/support-summary'
+import { noteSupportErrorCode, resetRecentSupportErrorCodesForTests } from '../support/recent-error-codes'
+import { noteSupportEvent, resetSupportEventCountsForTests } from '../support/support-event-counts'
 
 const writeFile = vi.fn(async () => undefined)
 const showSaveDialog = vi.fn(async () => ({ canceled: true, filePath: undefined as string | undefined }))
@@ -33,6 +38,35 @@ describe('support-handlers 契约', () => {
     writeFile.mockClear()
     showSaveDialog.mockClear()
     resetRecentSupportErrorCodesForTests()
+    resetSupportEventCountsForTests()
+  })
+
+  it('SUPPORT_GET_ENV 合并事件计数与 recentErrorCodes', async () => {
+    noteSupportEvent('workspace_open')
+    noteSupportErrorCode('CONFLICT')
+    noteSupportErrorCode('IO_ERROR')
+    const { registerSupportHandlers } = await import('./support-handlers')
+    registerSupportHandlers()
+    const { ipcMain } = await import('electron')
+    const handler = vi.mocked(ipcMain.handle).mock.calls.find(
+      (call) => call[0] === CHANNELS.SUPPORT_GET_ENV,
+    )?.[1] as () => Promise<{ ok: boolean; data?: { eventCounts: Record<string, number>; recentErrorCodes: string[] } }>
+    const result = await handler?.()
+    expect(result?.ok).toBe(true)
+    expect(result?.data?.eventCounts).toEqual({ workspace_open: 1 })
+    expect(result?.data?.recentErrorCodes).toEqual(['IO_ERROR', 'CONFLICT'])
+    const json = serializeSupportSummary({
+      schemaVersion: 1,
+      appVersion: result?.data ? '0.7.0-test' : '0.0.0',
+      platform: 'win32',
+      arch: 'x64',
+      electronVersion: '33.0.0',
+      autoUpdateEnabled: true,
+      eventCounts: result?.data?.eventCounts ?? {},
+      recentErrorCodes: result?.data?.recentErrorCodes ?? [],
+      workspace: { documentCount: 0, indexComplete: false, diagnosticsByCode: {} },
+    })
+    expect(scanSupportSummaryForForbiddenContent(json)).toBe(false)
   })
 
   it('取消保存时不写文件', async () => {

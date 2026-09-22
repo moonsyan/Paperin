@@ -17,6 +17,8 @@ import { safeWorkspaceFileName } from './workspace-file-name'
 import { forgetSnapshots, moveSnapshots } from '../history/version-store'
 import { historyRoot } from './history-handlers'
 import { registerWorkspaceSearchHandler, type WorkspaceSearchHandlerDependencies } from './workspace-search-handler'
+import { noteSupportEvent } from '../support/support-event-counts'
+import { recordSupportIpcFailure } from '../support/support-ipc-tracking'
 
 export interface WorkspaceHandlerDependencies {
   hasWorkspaceRoot(webContentsId: number): boolean
@@ -85,7 +87,10 @@ export const registerWorkspaceHandlers = ({
       const rootChanged = previousRoot !== folderPath
       setWorkspaceRoot(webContentsId, folderPath)
       if (previousRoot && rootChanged) onWorkspaceClosed?.(webContentsId, previousRoot)
-      if (rootChanged) onWorkspaceOpened?.(webContentsId, folderPath)
+      if (rootChanged) {
+        onWorkspaceOpened?.(webContentsId, folderPath)
+        noteSupportEvent('workspace_open')
+      }
       schedulePersistTrust(true)
       return {
         ok: true,
@@ -97,6 +102,7 @@ export const registerWorkspaceHandlers = ({
         },
       }
     } catch (error) {
+      recordSupportIpcFailure('IO_ERROR')
       return { ok: false, error: { code: 'IO_ERROR', message: String(error) } }
     }
   })
