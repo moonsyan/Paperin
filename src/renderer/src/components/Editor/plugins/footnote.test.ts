@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest'
+import { fireEvent } from '@testing-library/react'
 import {
   Editor as MilkdownCore,
   defaultValueCtx,
@@ -207,9 +208,7 @@ describe('脚注：输入规则', () => {
   it('已有段落的行首输入 [^1]: 同样转定义（与加载解析一致），前缀文本保留为段落', async () => {
     const { view } = await buildDoc('前缀')
     // 光标移动到段首再输入
-    view.dispatch(
-      view.state.tr.setSelection(TextSelection.create(view.state.doc, 1)),
-    )
+    moveCursorToDocStart(view)
     typeText(view, '[^1]:')
     expect(nodeNames(view)).toContain('footnote_definition')
     expect(view.state.doc.textContent).toContain('前缀')
@@ -244,11 +243,11 @@ const buildWithFullStack = async (
 }
 
 const moveCursorToEnd = (view: EditorView) => {
-  view.dispatch(
-    view.state.tr.setSelection(
-      TextSelection.create(view.state.doc, view.state.doc.content.size - 1),
-    ),
-  )
+  view.dispatch(view.state.tr.setSelection(TextSelection.atEnd(view.state.doc)))
+}
+
+const moveCursorToDocStart = (view: EditorView) => {
+  view.dispatch(view.state.tr.setSelection(TextSelection.atStart(view.state.doc)))
 }
 
 describe('脚注：全量插件栈（输入规则 + orphan 兜底，对标真实应用）', () => {
@@ -285,9 +284,7 @@ describe('脚注：全量插件栈（输入规则 + orphan 兜底，对标真实
 
   it('行首键入 [^label]: → def rule 完整接管，不留游离冒号', async () => {
     const { view, root } = await buildWithFullStack('')
-    view.dispatch(
-      view.state.tr.setSelection(TextSelection.create(view.state.doc, 1)),
-    )
+    moveCursorToDocStart(view)
     typeText(view, '[^multi]:')
     const defLabels: string[] = []
     view.state.doc.descendants((n) => {
@@ -301,9 +298,7 @@ describe('脚注：全量插件栈（输入规则 + orphan 兜底，对标真实
 
   it('行首键入 [^label] 空格（引用而非定义）：标签仍为多字符', async () => {
     const { view } = await buildWithFullStack('')
-    view.dispatch(
-      view.state.tr.setSelection(TextSelection.create(view.state.doc, 1)),
-    )
+    moveCursorToDocStart(view)
     typeText(view, '[^note1] 正文')
     const labels: string[] = []
     view.state.doc.descendants((n) => {
@@ -349,9 +344,7 @@ describe('脚注：全量插件栈（输入规则 + orphan 兜底，对标真实
     // 行首是定义候选区：`]` 键入时不转换（等 `:`），继续键入非 `:` 内容后
     // 由 orphan 在下一 dispatch 转换——旧实现会永久保留字面文本
     const { view } = await buildWithFullStack('')
-    view.dispatch(
-      view.state.tr.setSelection(TextSelection.create(view.state.doc, 1)),
-    )
+    moveCursorToDocStart(view)
     typeText(view, '[^note9] 后续')
     const labels: string[] = []
     view.state.doc.descendants((n) => {
@@ -391,6 +384,27 @@ describe('脚注：全量插件栈（输入规则 + orphan 兜底，对标真实
       if (n.type.name === 'footnote_reference') labels.push(n.attrs.label)
     })
     expect(labels).toEqual(['haha'])
+  })
+
+  it('IME：composition 期间 orphan 不转换，compositionend 后再转为引用', async () => {
+    const { view } = await buildWithFullStack('看这里')
+    moveCursorToEnd(view)
+    fireEvent.compositionStart(view.dom)
+    for (const character of '[^note]') {
+      const { from, to } = view.state.selection
+      view.dispatch(view.state.tr.insertText(character, from, to))
+    }
+    let labels: string[] = []
+    view.state.doc.descendants((n) => {
+      if (n.type.name === 'footnote_reference') labels.push(n.attrs.label)
+    })
+    expect(labels).toEqual([])
+    fireEvent.compositionEnd(view.dom)
+    labels = []
+    view.state.doc.descendants((n) => {
+      if (n.type.name === 'footnote_reference') labels.push(n.attrs.label)
+    })
+    expect(labels).toEqual(['note'])
   })
 
   it('回归：正文残留旧 ] 时键入 [^h 不被立即转换（光标保护）', async () => {
@@ -441,9 +455,7 @@ describe('脚注：点击跳转', () => {
       ['引用[^1]处。', '', '[^1]: 目标定义。'].join('\n'),
     )
     // 光标先放远处，跳转后应落在定义块内
-    view.dispatch(
-      view.state.tr.setSelection(TextSelection.create(view.state.doc, 1)),
-    )
+    moveCursorToDocStart(view)
     const sup = root.querySelector('sup[data-type="footnote_reference"]')
     expect(sup).toBeTruthy()
     const fakeEvent = {
@@ -461,9 +473,7 @@ describe('脚注：点击跳转', () => {
 
   it('无同标签定义时不动作（光标不动）', async () => {
     const { view, root } = await buildDoc('引用[^1]处。')
-    view.dispatch(
-      view.state.tr.setSelection(TextSelection.create(view.state.doc, 1)),
-    )
+    moveCursorToDocStart(view)
     const sup = root.querySelector('sup[data-type="footnote_reference"]')
     const fakeEvent = {
       target: sup,
@@ -572,7 +582,7 @@ describe('脚注：orphanAsRef 兜底插件', () => {
     expect(refs).toBe(1)
     expect(defs).toBe(1)
     // 再 dispatch 一个无害事务，节点数应保持稳定（不会自我膨胀）
-    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1)))
+    moveCursorToDocStart(view)
     refs = 0
     defs = 0
     view.state.doc.descendants((node) => {

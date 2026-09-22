@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { beforeAll, describe, expect, it } from 'vitest'
+import { fireEvent } from '@testing-library/react'
 
 // prosemirror-view 提交事务后 scrollIntoView → coordsAtPos 对文本位置走
 // document.createRange() 路径，要求 Range 也具备几何 API；jsdom 只实现
@@ -151,19 +152,25 @@ describe('公式：解析与 Markdown 往返', () => {
   })
 
   it('中文公式源码往返一致', async () => {
-    const md = ['面积 $底 \\times 高$ 公式。', '', '$$', '\\text{勾股定理}', '$$'].join('\n')
+    const md = [
+      '面积 $\\text{底} \\times \\text{高}$ 公式。',
+      '',
+      '$$',
+      '\\text{勾股定理}',
+      '$$',
+    ].join('\n')
     const { view, out } = await buildDoc(md)
     expect(nodeNames(view)).toContain('math_inline')
     expect(nodeNames(view)).toContain('math_block')
-    expect(out).toContain('$底 \\times 高$')
+    expect(out).toContain('\\text{底} \\times \\text{高}')
     expect(out).toContain('\\text{勾股定理}')
   })
 
   it('未闭合 $ 不破坏正文（按普通文本保留）', async () => {
-    const md = '价格是 $5 元，另一个 $3 元。'
+    const md = 'Prices are $5 USD and $3 USD.'
     const { out } = await buildDoc(md)
-    expect(out).toContain('$5 元')
-    expect(out).toContain('$3 元')
+    expect(out).toContain('$5 USD')
+    expect(out).toContain('$3 USD')
   })
 })
 
@@ -223,6 +230,37 @@ describe('公式：NodeView 提交路径', () => {
     }
     expect(editor.action(getMarkdown())).toContain('$x$')
     expect(view.state.selection.from).toBeGreaterThan(0)
+  })
+
+  it('IME：composition 期间 Enter 不提交行内公式', async () => {
+    const { root, view, editor } = await buildDoc('前文 $x$ 后文。')
+    const display = root.querySelector<HTMLElement>('.math-node .math-display')
+    display?.dispatchEvent(new Event('dblclick'))
+    const edit = root.querySelector<HTMLTextAreaElement>('.math-node .math-edit')
+    expect(edit).toBeTruthy()
+    edit!.value = '\\alpha'
+    fireEvent.compositionStart(edit!)
+    fireEvent.input(edit!, { data: 'a' })
+    fireEvent.keyDown(edit!, { key: 'Enter', isComposing: true, keyCode: 229, bubbles: true })
+    expect(editor.action(getMarkdown())).toContain('$x$')
+    expect(root.querySelector('.math-node.is-editing')).toBeTruthy()
+    fireEvent.compositionEnd(edit!)
+    expect(view.state.selection.from).toBeGreaterThan(0)
+  })
+
+  it('IME：composition 期间 Escape 不取消行内公式', async () => {
+    const { root, editor } = await buildDoc('前文 $x$ 后文。')
+    const display = root.querySelector<HTMLElement>('.math-node .math-display')
+    display?.dispatchEvent(new Event('dblclick'))
+    const edit = root.querySelector<HTMLTextAreaElement>('.math-node .math-edit')
+    expect(edit).toBeTruthy()
+    edit!.value = 'not-committed'
+    fireEvent.compositionStart(edit!)
+    fireEvent.input(edit!, { data: 'b' })
+    fireEvent.keyDown(edit!, { key: 'Escape', isComposing: true, keyCode: 229, bubbles: true })
+    fireEvent.compositionEnd(edit!)
+    expect(editor.action(getMarkdown())).toContain('$x$')
+    expect(root.querySelector('.math-node.is-editing')).toBeTruthy()
   })
 
   it('块级公式 Esc 取消不改动节点且选区保持有效', async () => {

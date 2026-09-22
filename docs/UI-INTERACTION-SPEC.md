@@ -220,6 +220,8 @@
 
 - 全流程可用键盘完成；Tab 顺序跟随视觉顺序，树有方向键/展开/收起/打开策略，菜单和标签支持自己的导航模式。
 - IME 组合态中 Enter/Escape 属于输入法，不触发保存、搜索提交、重命名或关闭浮层；同时验证 composition 事件和实际中文输入法。
+- **自动门禁（已通过）**：`isImeComposing` 守卫全局快捷键与多数弹层；`math-edit` / 脚注 orphan（composition 期间不改写）；`useModalDialogKeyboard` 关闭后焦点恢复；相关 Vitest 见 `footnote.test.ts`、`mathEditable.test.ts`、`useModalDialogKeyboard.test.tsx`。
+- **UNVERIFIED（须真机）**：Windows 系统拼音、100/125/150% 缩放、1280×800 / 820 / 640×600、九主题下的组合态误提交、弹层重叠与长中文标签布局。
 - 恢复焦点应落回原触发控件；触发项已被删除则落到合理替代，如相邻标签或编辑区。
 - 指针拖拽有键盘替代；缩放和减少动态效果不影响完成任务。
 

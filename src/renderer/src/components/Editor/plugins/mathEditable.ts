@@ -173,7 +173,7 @@ class MathNodeView implements NodeView {
     const pos = this.getPos()
     if (typeof pos === 'number') {
       this.view.dispatch(
-        this.view.state.tr.setSelection(TextSelection.create(this.view.state.doc, pos)),
+        this.view.state.tr.setSelection(TextSelection.near(this.view.state.doc.resolve(pos))),
       )
     }
     this.view.focus()

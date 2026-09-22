@@ -113,9 +113,8 @@ export const footnoteDefInputRule = $inputRule((ctx) => {
     ])
     if (!node) return null
     const tr = state.tr.replaceRangeWith(start, end, node)
-    return tr
-      .setSelection(TextSelection.create(tr.doc, start + 2))
-      .scrollIntoView()
+    // 定义块是 block+ 容器，不能用 start+2 硬编码文本光标（会触发 PM 警告且选区无效）
+    return tr.setSelection(TextSelection.near(tr.doc.resolve(start + 1))).scrollIntoView()
   })
 })
 
@@ -280,6 +279,8 @@ export const footnoteOrphanAsRefPlugin = $prose((ctx) => {
   const RE = /\[\^([^\]\s]+)\](?!:)/g
   const runScan = (state: EditorState, options: OrphanFixOptions = {}) =>
     buildOrphanFixTr(state, scanOrphanRefRanges(state, RE).ranges, refType, defType, schema, options)
+  /** 同一插件实例内共享：IME 组合期间不 dispatch orphan 改写，避免打断候选提交 */
+  let composing = false
   return new Plugin({
     key: new PluginKey('footnote-orphan'),
     // 首次挂载（EditorState.create 完成后）主动跑一次扫描，
@@ -291,13 +292,32 @@ export const footnoteOrphanAsRefPlugin = $prose((ctx) => {
         tr.setMeta('addToHistory', false)
         view.dispatch(tr)
       }
-      return {}
+      const onCompositionStart = (): void => {
+        composing = true
+      }
+      const onCompositionEnd = (): void => {
+        composing = false
+        const afterTr = runScan(view.state, { cursorGuard: true })
+        if (afterTr) {
+          afterTr.setMeta('addToHistory', false)
+          view.dispatch(afterTr)
+        }
+      }
+      view.dom.addEventListener('compositionstart', onCompositionStart, true)
+      view.dom.addEventListener('compositionend', onCompositionEnd, true)
+      return {
+        destroy: () => {
+          view.dom.removeEventListener('compositionstart', onCompositionStart, true)
+          view.dom.removeEventListener('compositionend', onCompositionEnd, true)
+        },
+      }
     },
     // 后续 dispatch（replaceContent / 实时键入）由 appendTransaction 兜底。
     // 行首候选延迟一次转换：只有上一状态就存在的行首 `[^label]`（`]` 之后
     // 已继续键入且并未出现 `:`）才转引用，刚键入的留给 def 规则。
     // 光标保护开启：标签尚未键入完（光标在 `[^` 与 `]` 之间）不转换。
     appendTransaction(_transactions, oldState, newState) {
+      if (composing) return null
       const { ranges } = scanOrphanRefRanges(newState, RE)
       const hasLineStartCandidate = ranges.some(
         (r) => newState.doc.resolve(r.from).parentOffset === 0,
@@ -331,7 +351,7 @@ const jumpToDefinition = (
   })
   if (defPos < 0) return false
   const tr = state.tr
-    .setSelection(TextSelection.create(state.doc, defPos + 2))
+    .setSelection(TextSelection.near(state.doc.resolve(defPos + 1)))
     .scrollIntoView()
   dispatch(tr)
   return true

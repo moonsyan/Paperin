@@ -14,9 +14,9 @@
 | 4 | 关键界面的可访问名称与状态语义 | 机械（`src/renderer/src/a11y-smoke.test.tsx` + 弹窗组件测试） | 通过；工作区搜索/发布弹窗具备 dialog 语义与 Tab 陷阱 |
 | 5 | 跳转链接（键盘绕过顶栏/侧栏直达正文） | 机械（组件 + 接线契约测试） | 已有实现与回归；非本轮新增功能 |
 | 6 | 全局 `prefers-reduced-motion` 降级 | 机械（`global.css` 全局规则，`context-dock.css` 单点保留） | 通过 |
-| 7 | 全键盘导航路径 | 人工（见文末清单） | **未执行**，需人工冒烟 |
-| 8 | 焦点不被弹层遮挡 | 人工 + 组件测试（搜索/发布 Tab 循环） | 部分覆盖；九主题×缩放矩阵未跑 |
-| 9 | 中文输入法组合态 | 人工 + 组合态 Escape 单测 | 单测覆盖 `isComposing`/`229`；真机 IME 仍 **未执行** |
+| 7 | 全键盘导航路径 | 人工（见文末清单） | **UNVERIFIED**（真机 Electron） |
+| 8 | 焦点不被弹层遮挡 | 自动单测 + 真机矩阵 | **已通过（自动）**：`useModalDialogKeyboard` 关闭后焦点恢复触发器/正文宿主、搜索/发布 Tab 陷阱；**UNVERIFIED**：九主题 × 三档缩放弹层裁切 |
+| 9 | 中文输入法组合态 | 自动单测 + 真机矩阵 | **已通过（自动）**：`isImeComposing`/`229`、脚注 orphan 组合态、`math-edit` Enter/Escape、模态 Escape、工作区搜索/发布组合态 Escape；**UNVERIFIED**：Windows 系统拼音 × 100/125/150% × 九主题真机 |
 
 三条机械门禁已进 `npm run test`（随 vitest 全量运行），也可以单独跑：
 
@@ -137,9 +137,20 @@ npm run a11y:focus      # 只看焦点可见性
 - 搜索/发布弹窗内按钮与分段控件补 `:focus-visible` 描边，避免仅依赖 `--accent` 在弱色主题上对比不足时失去焦点线索。
 - `--border-m` 九主题装饰线债务维持登记；输入描边继续走 `--border-input` 硬门禁。
 
-### 九主题 × 缩放矩阵（未测组合）
+### 九主题 × 缩放矩阵（UNVERIFIED）
 
-目标设备人工矩阵（100% / 125% / 150% 缩放、窄窗口 &lt; 900px）**本轮未在 Electron 真窗执行**。自动化仅覆盖 jsdom 组件行为 + `npm run a11y` 静态主题/焦点扫描。未测组合示例：`rose`/`ocean` @ 150% 下发布弹窗滚动区焦点环裁切；`typewriter` @ 125% 下搜索正则切换按钮对比；窄窗口抽屉与搜索弹层叠放。真机 IME 与全键盘路径仍见文末清单 A/B/C。
+目标设备人工矩阵（100% / 125% / 150% 缩放、1280×800 / 820px / 640×600、九主题）**未在 Electron 真窗执行**，状态标 **UNVERIFIED**。自动化已通过：`npm run a11y`（对比度 + 焦点扫描）、`footnote.test.ts` / `mathEditable.test.ts` 组合态与合法 `TextSelection`、`useModalDialogKeyboard.test.tsx` 焦点恢复、既有弹窗 IME Escape 单测。未测组合示例：`rose`/`ocean` @ 150% 发布弹窗滚动区焦点环裁切；640px 长中文标签顶栏溢出；Windows 系统拼音误提交/误关闭。真机清单见文末 A/B/C。
+
+### P1-03 自动门禁（2026-09-22）
+
+| 范围 | 命令 / 测试 | 结果 |
+| --- | --- | --- |
+| 脚注 IME + 选区 | `footnote.test.ts` | 通过；无 `TextSelection`  stderr 噪声 |
+| 公式 IME + KaTeX 夹具 | `mathEditable.test.ts` | 通过；中文用 `\text{}`，未屏蔽未知 KaTeX 警告 |
+| 弹层焦点恢复 | `useModalDialogKeyboard.test.tsx` | 通过 |
+| 组件 a11y 冒烟 | `a11y-smoke.test.tsx` | 通过 |
+| 主题/焦点机械扫描 | `npm run a11y` | 退出 0（随全量 `npm run test`） |
+| 缩放 / 系统拼音 / 九主题真机 | 人工 | **UNVERIFIED** |
 
 ## 门禁三：组件级无障碍冒烟
 

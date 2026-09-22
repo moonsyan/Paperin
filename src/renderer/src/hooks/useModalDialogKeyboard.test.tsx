@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { useRef, type RefObject } from 'react'
+import { useRef, useState, type RefObject } from 'react'
 import { SKIP_LINK_TARGET_ID } from '../app/SkipLink'
 import {
   focusSafeWorkspaceEntry,
@@ -115,6 +115,26 @@ describe('useModalDialogKeyboard', () => {
     render(<TrapDialog open onClose={onClose} closeOnEscape={false} />)
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('Escape 关闭后焦点回到打开弹窗的触发按钮', () => {
+    function Harness(): JSX.Element {
+      const [open, setOpen] = useState(true)
+      const triggerRef = useRef<HTMLButtonElement>(null)
+      return (
+        <>
+          <button ref={triggerRef} type="button">
+            打开弹窗
+          </button>
+          <TrapDialog open={open} onClose={() => setOpen(false)} triggerRef={triggerRef} />
+        </>
+      )
+    }
+    render(<Harness />)
+    const trigger = screen.getByRole('button', { name: '打开弹窗' })
+    trigger.focus()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(document.activeElement).toBe(trigger)
   })
 
   it('Tab 在首尾控件间循环，不落到背景按钮', () => {
