@@ -114,3 +114,9 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 5. Alpha 发现轮成功后进入 P2-05 确认轮、长期稳定与接收方验证，再做两批 W2/W4 队列和有条件付款实验；至少 3 个团队连续两个周期重复同类需求后才进入团队方案。
 
 本状态页每次只接受新鲜证据更新。已完成工程任务的旧编号、逐批日志和旧计划不再复制到这里。
+
+### P0-06 进程中断保存恢复（2026-09-22）
+
+- **范围**：`src/main/testing/write-recovery-child.ts`、`write-recovery-process.test.ts`；生产 `file-write-recovery.ts` 未改。
+- **证据**：Windows / Node 24.19.0 下 `npx vitest run src/main/testing/write-recovery-process.test.ts` 通过；五阶段（`preparing`/`prepared`/`target-copy`/`target-synced`/`committed`）各 20 次真进程 `SIGKILL` 后 `recoverInterruptedFileWrite` 符合契约，二次恢复幂等。
+- **未覆盖**：磁盘满/权限、安装态、双窗口竞争、硬件掉电；见 [file-write-recovery.md](file-write-recovery.md) 与 Q01 其余项。
