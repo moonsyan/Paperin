@@ -1,7 +1,7 @@
 # Paperin 项目状态
 
 更新时间：2026-09-22（Asia/Shanghai）
-代码核对基线：`5416936`；本批已完成全部可自动化代码任务（含 P1-03 自动部分、P2-02 显式重定位、P1-04 事件接线、兼容 smoke、导出接收方矩阵骨架）。仍待：隔离安装实测、真人研究、真机 IME/缩放矩阵、接收方软件实测。
+代码核对基线：`fb2f0a3`；本批已完成全部可自动化代码任务（含 P1-03 自动部分、P2-02 显式重定位、P1-04 事件接线、兼容 smoke、导出接收方矩阵骨架）。仍待：隔离安装实测、真人研究、真机 IME/缩放矩阵、接收方软件实测。
 
 产品版本：`0.7.0`
 
@@ -33,12 +33,12 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 
 ## 新鲜门禁结果
 
-本批收尾复验（2026-09-22，Windows / Node 24.19.0，基线 `5416936`）：见本次提交后的门禁输出；安装循环真人实测、种子用户、8 小时与第二设备、真机 IME/缩放仍为 **UNVERIFIED**。
+本批收尾复验（2026-09-22，Windows / Node 24.19.0，基线 `fb2f0a3`）：lint、typecheck、**239** 文件/**1717** 测试、build、a11y（254/37）、smoke、`smoke --compatibility`、verify:ci-config 均退出 0。安装循环真人实测、种子用户、8 小时与第二设备、真机 IME/缩放仍为 **UNVERIFIED**。
 
 | 检查 | 当前判断 |
 | --- | --- |
-| lint / typecheck / test / build / a11y / smoke / verify:ci-config | 以本批收尾命令新鲜输出为准 |
-| `smoke --compatibility` | 合成夹具只读 hash 门禁已接入；≠ 真实导出兼容 |
+| lint / typecheck / test / build / a11y / smoke / verify:ci-config | 本批收尾新鲜通过（1717 测试） |
+| `smoke --compatibility` | 合成夹具只读 hash 门禁通过；≠ 真实导出兼容 |
 | perf:regression / perf:production | 本机近期曾连续通过；不替代固定 Node 22 / 安装态 |
 | npm audit | 本批未强制重跑 |
 
