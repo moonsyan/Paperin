@@ -2,7 +2,7 @@
 
 > 2026-09-22 更新：表内“已有”表示当前代码和自动测试里有这条行为，不代表三平台、安装态、性能或用户验收已通过。端到端顺序见 [PRODUCT-WORKFLOW](PRODUCT-WORKFLOW.md)，未验证项见 [PROJECT-STATUS](PROJECT-STATUS.md)。
 
-| 能力 | 旧实现 | 现有测试/依据 | 第一批状态 | 后续验证 |
+| 能力 | 当前实现边界 | 现有测试/依据 | 已有行为 | 后续验证 |
 |---|---|---|---|---|
 | 打开文件/目录/系统关联 | `src/main/window/system-file-open.ts`, `file-handlers.ts`, `workspace-handlers.ts` | 参数/分流单测、Windows Electron smoke、`system-file-open-and-close.md` | 开发态已固化 | Windows 安装包关联、macOS Finder 与 Linux MIME 验证 |
 | 保存、另存为、重命名、移动、回收站删除 | Main IPC + save queue | file-io、save-lock、close-save；已有桌面文件保留对象并有 journal/backup 恢复协议；超时/会话切换不写旧快照；等锁期间写入授权消失则拒绝，不当成放行；冲突哈希不跟随链接，记下的基线是刚写出的字节 | 保留；P0 工程闭环 | Q01 故障注入、Q02 时序、进程终止与三平台文件身份验证 |
@@ -16,7 +16,7 @@
 | 保存状态文案 | 顶栏、路径条、状态栏共用 `document-save-status.ts` | 保存回执与状态组件测试 | 已有：已保存/未保存、示例、未命名、保存中、冲突、编码、失败 | 九主题与缩放人工看 |
 | 工作区全文搜索 | `WorkspaceSearchDialog`、`workspace-search-handler` | `workspace-search-coverage.test.ts`、`useWorkspaceSearch.test.ts`、`search-rank` | 已有：共享 `WorkspaceCoverage`；200 条命中上限与扫描跳过分开；未扫完时不把空列表当确定无结果；关闭/新查询通过 `queryId`+`cancel` 中止 Main 扫描 | 2026-09-22 生产搜索 P95 13371.8765 ms 超过 5000 ms，当前红灯；60 题 Hit@5 与用户侧时延未测 |
 | 插入来源引用 | 搜索结果与反链；`source-citation.ts` | `source-citation`、`insert-citation` 测试 | 已有：片段快照、相对链接、标题锚点、切文档拒绝、回到打开搜索时的位置 | 用户任务耗时未测 |
-| 来源健康 | 工作区设置 `sourceSnapshots` + `evaluateSourceHealth` | `workspace-state`、`source-health`、QualityPanel 测试 | 已有：mtime 一致/变化/缺失/索引未完成；缺失只提供重新定位和打开搜索，不猜测新路径、不改正文 | 真实移动文件后的人工跟踪未测 |
+| 来源健康 | 工作区设置 `sourceSnapshots` + `evaluateSourceHealth` | `workspace-state`、`source-health`、QualityPanel 测试 | 全工作区共享最多 50 条路径/mtime；重复来源更新共享基线；重新定位目前仅打开搜索 | P1-06 异步隔离、P1-07 逐篇基线和迁移未完成；mtime 不代表人工复核 |
 | 重启后的搜索词与阅读位置 | 工作区设置 `lastSearchQuery` / `recentCitations`；文档视图状态 | `workspace-state` 测试 | 已有：缺字段默认为空，可清除且不删正文；选区与滚动随文档视图保存 | 真实重启、改名后回访未测 |
 | 打开知识库检查 | `workspace-compatibility.ts`、开始页 | 对应单元测试 | 已有：未扫完、缺附件、断链、残缺脚注只提示 | 来源夹具 hash 与五分钟任务未测 |
 | 写作模板 | 命令 `newTemplate:article`、`newTemplate:decision` | 命令注册表测试 | 已有：两份普通 Markdown，不覆盖已打开文件 | 用户无需讲解完成起步未测 |
@@ -27,8 +27,13 @@
 | Renderer CSP | `src/renderer/index.html` | Electron smoke | 保留 | `data:` 仅在 `font-src`/`img-src` 按已知内嵌资源放行；脚本与连接仍只允许显式来源 |
 | 图片、附件、图片协议 | `image-file-handlers.ts`、attachment IPC + `mdimg://` | attachment/protocol tests；协议和导出内联都按普通文件句柄读取，图片目录钉住结果会跨重启保留；自定义 CSS 导入不跟随符号链接 | 保留 | 外部文件附件 |
 | 标签、Wiki 链接、反向链接、图谱 | shared indexes + panels | tag/link/graph tests | 已有；反链可插入引用 | 大库往返与图谱规模仍按现有上限 |
+| 九套主题、字体、Typewriter、快捷键 | renderer settings/styles | theme/menu/shortcut tests | 雾白/夜松已加入；提示由 `formatShortcutHint` 同源渲染 | 真机缩放、弱色文本实际对比度 |
+| 质量检查与写作统计 | renderer panels/libs | diagnostics/stats tests | 已有诊断与本机统计 | 目标变化后的诊断新鲜度与大库性能 |
+| 安全边界 | preload narrow bridge、trusted paths | trusted-paths、IPC guard tests | 保留 typed API 与真实路径校验 | 打包启动和故障矩阵 |
+| 命令中心与面板插槽 | command registry、MenuBar、CommandPalette、ContextDock | registry / Testing Library tests | ContextDock 由注册表驱动 | 插槽、快捷键冲突与跨窗口焦点 |
+| 低频能力作用域登记 | `app/actions/commands/`、`useCommandRegistry` | low-frequency-capabilities、菜单及应用动作测试 | scope、菜单灰显与快捷键/右键提示同源 | 三平台菜单实机冒烟 |
 
-### 工作区扫描预算（三处口径一致）
+### 工作区扫描预算（文件数和深度的口径不同）
 
 | 场景 | 文件树 UI | 全文搜索 | 后台索引 |
 |---|---|---|---|
@@ -38,11 +43,18 @@
 | 命中/结果 | — | 最多 **200** 条匹配（`matchCapped`） | — |
 
 总文件数未知时不展示百分比；跳过计数仅本地诊断，不进遥测。
-| 九套主题、字体、Typewriter、快捷键 | renderer settings/styles | theme/menu/shortcut tests | 保留；雾白/夜松已加入；快捷键提示已由映射同源渲染（`formatShortcutHint`） | 小窗口、实际文字使用对比度 |
-| 质量检查与写作统计 | renderer panels/libs | diagnostics/stats tests | 保留 | 大工作区性能 |
-| 安全边界 | preload narrow bridge、trusted paths | trusted-paths、IPC guard tests | 保留 | 打包启动验证 |
-| 命令中心与面板插槽 | `app-command-registry`、MenuBar、CommandPalette、ContextDock | command registry、panel registry、ContextDock Testing Library tests | ContextDock 已由注册表驱动 | Sidebar/StatusBar 插槽、快捷键冲突与跨窗口焦点 |
-| 低频能力作用域登记（图片/发布/导出/历史/另存为/设置/统计/图谱/全文搜索） | `app/actions/commands/`、`useCommandRegistry`、`MenuBar` | `low-frequency-capabilities.test.ts`、`useCommandRegistry.test.ts`、`MenuBar/index.test.tsx`、`useAppActions.test.ts` | 已登记为命令；scope + 菜单灰显 + 快捷键/右键提示三处同源 | 三平台菜单实机冒烟、命令面板过滤与 toast 文案复核 |
+
+### 待实施的正确性与兼容门禁
+
+| 任务 | 未完成的边界 | 验收重点 |
+| --- | --- | --- |
+| P0-07 | 引用目标/附件变化后的增量失效 | 不改引用者正文，增删/补回/移动目标也更新关系与缺图诊断 |
+| P0-02 | Main 搜索语料总预算 | 单根与全进程预算、未缓存文件安全回退、完整 coverage |
+| P1-06/07 | 来源生命周期和逐篇关系 | 切库/清除/卸载旧回包不登记；A/B 文章基线不互相覆盖；旧记录归属未知 |
+| P1-08 | 索引释放与缓存 DTO | 排队任务/迟到写入不污染新根生命周期；有界读取、损坏回退重建 |
+| P1-02 / P2-03 | 来源工具与接收方软件矩阵 | 合成实际导出、正常试开 hash 不变、真实阅读器检查，未运行继续 UNVERIFIED |
+
+以上是计划，不改变当前 schema 或声明新增支持。详细任务见[实施计划](superpowers/plans/2026-09-22-product-workflow-implementation.md)。
 
 ## 基线命令
 

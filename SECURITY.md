@@ -8,8 +8,12 @@ Paperin 尚未有经过安装循环验证的正式公开发布。当前开发候
 
 请使用 GitHub 私密安全公告，不要在公开 Issue 里粘贴用户文件、绝对路径、token 或可识别的知识库内容：
 
-https://github.com/moonsyan/Paperin/security/advisories/new
+[配置的 GitHub 私密安全报告入口](https://github.com/moonsyan/Paperin/security/advisories/new)
+
+该地址来自当前发布配置，仓库主渠道与 Gitee 镜像仍待 P0-04 对齐，私密报告入口的可达性本轮未验证。若不可用，不要改为公开上传复现资料；先通过不含敏感内容的问题请求维护者提供可用私密渠道。
 
 没有另行公布的安全邮箱。报告时说明受影响版本/commit、复现所需的最少步骤和影响范围即可。维护者不承诺响应时限。
 
 数据安全类非漏洞问题（保存冲突、编码、误删）请用 [Data safety](.github/ISSUE_TEMPLATE/data-safety.yml) 模板，同样不要附带正文或凭据。
+
+复现使用合成文件。`.paperin`、草稿、版本历史、索引缓存和交付报告均可能含用户数据或可关联元数据；恢复 **backup** 含旧正文，临时文件含待保存正文，**journal** 只含阶段/进程标识与哈希等恢复元数据。上述材料不能直接作为公开附件。当前已知的来源/索引/缓存待办见[代码审阅](docs/development/reviews/2026-09-22-code-function-review.md)；它们尚未全部复现或修复，不视为已完成安全审计。

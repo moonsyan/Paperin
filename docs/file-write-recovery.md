@@ -16,7 +16,7 @@ Windows、macOS 和 Linux 的桌面环境会把已有文件对象与图标位置
 4. 将临时文件复制到原目标对象并同步；校验目标哈希。
 5. 将 journal 更新为 `committed`，再删除临时文件、backup 和 journal。
 
-恢复材料位于目标文件同目录，分别是 `.{文件名}.paperin-save-backup` 与 `.{文件名}.paperin-save-journal`。它们不包含绝对路径或正文；journal 只保存阶段、进程标识和哈希。正常成功保存后应不存在这些文件。
+恢复材料位于目标文件同目录，分别是 `.{文件名}.paperin-save-backup` 与 `.{文件名}.paperin-save-journal`。**backup 含上一个确认版本的正文，临时文件含待保存正文**；journal 只保存阶段、进程标识和哈希，不含绝对路径或正文。正常成功保存后应不存在这些文件；失败时保留的材料属于用户数据，不能上传仓库或当成普通缓存清理。
 
 ## 恢复规则
 
@@ -48,5 +48,7 @@ Windows、macOS 和 Linux 的桌面环境会把已有文件对象与图标位置
 `src/main/history/version-store.ts` 在每次**保存成功**后尝试读盘快照：源文件 **> 2 MiB** 跳过；每文件最多 **20** 份、合计 **5 MiB**，超出淘汰最旧。删除或移动正文时清理对应快照目录。这不构成完整离线备份；扩容策略需单独设计与测试。
 
 ## 验证
+
+当前证据是可控注入单测和开发态 smoke；真实进程终止、磁盘满/权限矩阵与安装态恢复尚待 P0-06/P0-05 验证。文档中的协议是实现边界，不是任意掉电下零丢失承诺。新近来源/索引/缓存改进不替代保存冲突与恢复门禁，详见[当前状态](PROJECT-STATUS.md)。
 
 `src/main/ipc/file-write-recovery.test.ts` 专门覆盖复制中断、备份复制失败和目标同步失败后的恢复，以及遗留 `prepared`/`committed` journal 的读取恢复与外部修改保留；`src/main/ipc/file-io.test.ts` 与 `text-decoding.test.ts` 覆盖严格编码解码、读失败不 mutate 原文件，以及目录 I/O 测试。草稿/会话边界见 `src/shared/draft-storage.test.ts`、`src/main/settings/settings-store.draft.test.ts`、`src/renderer/src/hooks/useDraftPersistence.test.ts` 与 `useDocumentRestore.test.ts`。工作区授权对不存在目标会规范化最近存在父目录的真实路径，再与钉住的信任根比较，因此 Windows 短路径、junction 别名和新建文件不会因字面路径形态不同被拒绝；链接换靶到根外仍拒绝。真实双窗口连续重启、进程终止和跨平台文件身份仍未完成。完整故障矩阵按 [战略验收协议](development/strategy-validation.md) 的 Q01 执行。

@@ -26,6 +26,8 @@ GraphView 是编辑器区的工作区级图谱标签。它保持零额外图形�
 
 ## 直接测试
 
+当前图谱反映传入索引，不自行证明磁盘目标仍存在。引用者未修改但目标增删/移动的失效属于 P0-07；索引释放与迟到回包属于 P1-08。实施时保持旧 generation 不被原地改写，并补目标删除/补回后的已解析节点、ghost 和反链联动测试；这些回归目前待补，不能由图布局测试替代。详见[实施计划](superpowers/plans/2026-09-22-product-workflow-implementation.md)。
+
 - `graph-visual.test.ts`：结构签名、搜索命中、相邻表和稳定视觉计算。
 - `GraphSettingsPanel.test.tsx`：设置控件的可访问名称、当前值和逐项更新契约。
 - `index.test.tsx`：激活/失活、图数据变化、孤立节点、Escape 输入例外与节点点击路由。

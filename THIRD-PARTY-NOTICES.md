@@ -1,8 +1,10 @@
 # 第三方声明
 
-本文件列出 Paperin 安装包会带上的主要第三方软件与资源。版权所有者以 `package.json` 的 `author` 字段 `ming` 为准。间接依赖的完整许可证文本随各包发布；Electron 运行时还带有 Chromium 的 `LICENSES.chromium.html`（打包后保留，见 `scripts/afterPack.js`）。
+本文件列出 Paperin 安装包会带上的主要第三方软件与资源。Paperin 自有代码的版权署名见根 LICENSE；第三方权利人和许可以上游声明为准，不能用项目 author 字段代替。间接依赖的完整许可证文本随各包发布；Electron 运行时还带有 Chromium 的 `LICENSES.chromium.html`（打包后保留，见 `scripts/afterPack.js`）。
 
 本声明不是法律意见，也不替代各上游许可证原文。
+
+文档核对日期：2026-09-22。依赖范围以 `package.json`、锁文件与实际打包产物共同核对；本轮未升级依赖，也未完成安装包许可证逐项审计。图标来源未核证的边界保持不变；发行前检查见 [发行验证](docs/development/release-validation.md)。
 
 ## 运行时与桌面容器
 

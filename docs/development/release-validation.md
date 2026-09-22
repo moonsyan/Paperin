@@ -4,7 +4,9 @@
 当前执行分支：`master`
 用途：记录候选包先验收、再进入正式发行的工程门禁和安装证据。
 
-> 当前状态不是“已发布”：`0.7.0` 候选 tag 只应生成 GitHub Draft Release。工作区路径授权、核心任务冒烟（来源查找、插入引用、保存重开、资源包导出）、许可/隐私/安全材料和生产依赖审计已经落地。当前 Git `origin` 指向 Gitee `MingProject/FileHome`，而 `package.json` 和 GitHub Actions 发布目标是 GitHub `moonsyan/Paperin`；`scripts/sync-gitee.js` 仍指向旧的 `MingProject/mk-editormkEditor`。发布身份未对齐，`build:win` 的本机安装/升级/卸载循环也未完成。当前未验证项见 [PROJECT-STATUS](../PROJECT-STATUS.md)。
+本轮全量文档核对不创建 tag、推送、上传安装器或触发发布。下文安装/发行记录保留原状态；来源异步隔离、逐篇基线、索引目标失效与缓存边界仍待 P0-07/P1-06/07/08 完成，自动门禁通过不能代替这些新增行为回归。
+
+> 当前状态不是“已发布”：`0.7.0` 候选 tag 只应生成 GitHub Draft Release。工作区路径授权、核心任务冒烟（来源查找、插入引用、保存重开、资源包导出）、许可/隐私/安全材料和生产依赖审计已经落地。当前 Git `origin` 指向 Gitee `MingProject/FileHome`，另有 `github` 远端指向 `moonsyan/Paperin`；`package.json` 和 GitHub Actions 发布目标是 GitHub `moonsyan/Paperin`；`scripts/sync-gitee.js` 仍指向旧的 `MingProject/mk-editormkEditor`。发布身份未对齐，Draft/Release 可达性与 `build:win` 的本机安装/升级/卸载循环也未完成。当前未验证项见 [PROJECT-STATUS](../PROJECT-STATUS.md)。
 
 ## 本任务已验证（工程门禁）
 
@@ -16,7 +18,7 @@
 | tag 推送自动正式发布 | 已移除：`push tags v*` 只走候选 draft，不 `draft: false` | **已阻断** |
 | 配置回归测试 | `release.yml` 缺 smoke 或 `draft: true` 被改成无条件正式发布时，`validateReleaseWorkflowGates` 失败（见单测） | **已通过** |
 | 生产依赖审计 | 2026-09-22 `npm audit --omit=dev --audit-level=moderate` 为 0；`electron-updater` 间接依赖 `js-yaml` 由 4.3.1 升至 4.3.2。`validateProductionJsYaml` 拒绝生产树回退到 4.3.2 以下。dev 依赖漏洞未纳入本门禁 | **已处理生产 high** |
-| 仓库与发布身份 | `origin` 为 Gitee，构建/发布配置为 GitHub，Gitee 同步脚本仍含旧仓库名 | **阻断**：先执行实施计划 P0-04，不推送 tag、不触发正式发布 |
+| 仓库与发布身份 | `origin` 为 Gitee，另有 `github` 远端；构建/发布配置为 GitHub，Gitee 同步脚本仍含旧仓库名；Draft/Release 可达性未验证 | **阻断**：先执行实施计划 P0-04，不推送 tag、不触发正式发布 |
 
 未在本任务执行：`git push`、打 tag、`gh release publish`、上传安装包二进制到仓库。
 
@@ -80,6 +82,8 @@ smoke 结果: 2026-09-22 `npm run smoke` 退出 0（打开工作区、新建、�
 `scripts/verify-ci-config` 中的 `validateReleaseMaterials` 检查根许可、第三方声明、隐私、安全与四类 Issue 模板是否存在；不把 `package.json` 的 `license` 字段当作完整授权。
 
 ## 与核心任务入口的关系
+
+外部 Alpha 是 P1-05 的 6–8 人发现轮，进入前须 P0 退出、种子最大阻塞解决及补充正确性任务通过；成功后才退出 P1。公开 Beta 还需 P2-05 的 12 人 U01/U02、P2-01 长期稳定及 P2-03 接收方验证。Draft 工作流配置、实际 Draft 产物、安装成功和正式公开发布是四项独立证据。
 
 候选链在 `release.yml` 的 `candidate-acceptance` 跑 `npm run smoke`，核心任务入口或协议变更必须与候选 artifact 使用同一 commit；**UI/协议变更后须重新跑候选**，不得复用旧 commit 的安装记录。
 

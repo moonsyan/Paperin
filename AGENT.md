@@ -3,3 +3,5 @@
 本项目的完整开发门禁与代码规范统一维护在根目录 [`AGENTS.md`](./AGENTS.md)。
 
 任何自动化开发代理、代码生成工具或人工开发流程都必须先阅读 `AGENTS.md`，并遵守其中的架构边界、文件拆分、测试门禁、文档同步和完成定义。
+
+当前任务与进入条件见 [开发执行入口](docs/IMPLEMENTATION-PLAN.md)，文档事实来源及全量同步规则见 [文档维护](docs/development/documentation-maintenance.md)。本文仅作入口，不维护第二份规范或任务完成状态。

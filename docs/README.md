@@ -15,8 +15,11 @@
 | 每次开发必须遵守的入口约束 | [IMPLEMENTATION-PLAN](IMPLEMENTATION-PLAN.md) 与仓库根目录 `AGENTS.md` |
 | 质量、研究和商业指标口径 | [strategy-validation](development/strategy-validation.md) |
 | 代码与功能缺口、证据及补充任务 | [代码与功能完整性审阅](development/reviews/2026-09-22-code-function-review.md) |
+| 全量文档覆盖、事实来源与同步规则 | [文档维护与全量核对](development/documentation-maintenance.md) |
 
 ## 用户与产品说明
+
+本轮核对全部 37 份既有 Markdown：35 份当前说明按需同步，两份有基线的审阅保留历史结论；另新增文档维护记录。原始性能/主题 JSON 与本地 `.paperin` 状态不作文本同步修改。应用内欢迎正文和示例中的快捷键说明同步更新。
 
 - [入门](getting-started.md)：首次打开时看到的分模块说明，与应用内「欢迎使用.md」同一正文。
 - [coexistence](coexistence.md)：和 Typora、Obsidian，以及 Notion、语雀、思源导出副本如何共存。
@@ -31,9 +34,12 @@
 - [file-write-recovery](file-write-recovery.md)：已有文件的恢复写入协议和验证边界。
 - [graph-view-architecture](graph-view-architecture.md)：图谱模块边界。
 - [development/](development/)：性能基线、发行验证、主题对比度基线和验收协议；原始 JSON 是绑定日期和环境的测量，不代表当前全部通过。
+- [development/reviews/](development/reviews/_index.md)：战略与代码审阅索引；历史发现保留原基线，不改写为已修复。
 - [development/user-research/](development/user-research/_index.md)：用户研究协议与脱敏记录入口，不含个人资料。
 
 ## 当前发行边界
+
+阶段口径：种子两人各 3 次 → Alpha 6–8 人发现轮 → 12 位新用户 U01/U02 确认轮 → 两批各至少 20 人 W2/W4 → 条件成立后的付款实验。未采集继续标未知；没有将文档更新当成发布、研究或代码修复。
 
 根目录已有 `LICENSE`（MIT，版权所有者与 `package.json` `author` 一致为 ming）、`THIRD-PARTY-NOTICES.md`、`PRIVACY.md`、`SECURITY.md`、`CHANGELOG.md` 和 `CONTRIBUTING.md`。隐私说明覆盖三类联网：生产环境默认的更新检查/自动下载/退出安装；用户启用的 SM.MS；用户打开拼写检查后可能的词典下载。安全问题走 GitHub 私密公告，不要求公开用户文件。`0.7.0` 是候选版本，变更说明只记录已经发生的事实。
 

@@ -6,7 +6,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        **禁止**粘贴：Markdown 正文、绝对路径、token、settings.json、草稿全文。
+        **禁止**粘贴：Markdown 正文、绝对路径、token、.paperin 状态、settings.json、草稿或恢复材料。
+        恢复 backup 含旧正文；不要为了报告问题删除它，也不要公开上传。安全漏洞请按 SECURITY.md 使用私密渠道。
         只需错误码、是否可复现、以及是否已用回收站/版本历史恢复。
   - type: dropdown
     id: kind

@@ -4,6 +4,8 @@ release
 .superpowers
 # 智能体工作区：本地记忆日志与临时产物，不入库
 .workbuddy
+# 工作区私有状态（布局、阅读位置、来源快照等）；任何路径下均不入库
+**/.paperin/
 # electron-vite 构建时把 electron.vite.config.ts 转译到仓库根的临时副本（带时间戳），
 # 属于构建副产物，不应入库；每次构建都会残留一个，曾误被 git add -A 收入暂存区
 electron.vite.config.*.mjs

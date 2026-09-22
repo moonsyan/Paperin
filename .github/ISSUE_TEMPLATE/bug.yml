@@ -6,12 +6,13 @@ body:
   - type: markdown
     attributes:
       value: |
-        请不要粘贴用户文档正文、绝对路径、token 或设置文件内容。
+        请使用合成内容复现，不要粘贴用户正文、绝对路径、token、.paperin 状态、草稿或恢复备份。
+        当前为 0.7.0 候选；自动测试通过不代表安装、性能或所有场景已验证。
   - type: input
     id: version
     attributes:
       label: 版本或 commit
-      description: 例如 0.6.0 或短 SHA
+      description: 例如 0.7.0 和短 SHA；请区分源码开发态与安装包。
     validations:
       required: true
   - type: dropdown

@@ -6,7 +6,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        请不要上传真实项目文档。可用合成短文或打码后的片段说明结构。
+        请不要上传真实项目文档、私有状态或恢复备份，使用合成短文说明结构。
+        请说明来源工具/版本、导出方式或接收方软件；相对文件名和交付报告也可能含敏感信息。
   - type: dropdown
     id: surface
     attributes:

@@ -4,5 +4,9 @@
 | --- | --- |
 | 专题审阅 | [文档审阅记录](reviews/_index.md) |
 | 用户研究 | [用户研究与验证记录](user-research/_index.md) |
+| 文档维护 | [全量核对与事实来源](documentation-maintenance.md) |
+| 指标协议 | [战略验收协议](strategy-validation.md) |
+| 性能证据 | [基线与采样范围](performance-baseline.md) |
+| 发行证据 | [候选、安装与发布门禁](release-validation.md) |
 
 性能、发行和指标协议的稳定入口继续由 [文档索引](../README.md) 维护；原始性能 JSON 与对应协议同目录保存。

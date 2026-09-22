@@ -1,6 +1,6 @@
 # Paperin 产品整体工作流实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> 按任务逐项执行，使用复选框记录实际结果。遵守根目录 AGENTS.md；本计划不要求安装额外插件或启动子代理，不能把工具可用性当作已完成证据。
 
 **Goal:** 把 Paperin 从工程化个人产品候选推进为可在 Windows 上可信安装、能让陌生用户独立完成“资料到可维护交付文档”的外部 Alpha，并为个人专业版、团队交付和企业评审建立证据门槛。
 
@@ -60,7 +60,8 @@ P1 外部 Alpha
 P2 个人专业版
   两设备/8 小时稳定
   -> 来源重定位与交付兼容减少返工
-  -> 20 人四周重复使用
+  -> 12 位新用户确认轮（U01/U02）
+  -> 两批各至少 20 人 W2/W4 重复使用
   -> 真实付款实验
 
 P3 团队与企业
@@ -73,7 +74,7 @@ P3 团队与企业
 | --- | --- | --- | --- |
 | P0 | P0-01 至 P0-07 | 当前即可执行；P0-07 先固定正确性，P0-02 再优化复用 | 性能、索引新鲜度、发布、安装和恢复无 P0 红灯 |
 | P1 | P1-01 至 P1-08 | 外部 Alpha 等待 P0 退出；种子研究及 P1-06/07/08 正确性修复可提前执行 | 来源隔离与缓存边界通过，多数外部样本独立完成，至少 3 人第二次主动使用 |
-| P2 | P2-01 至 P2-04 | P1 退出 | 两批四周队列与至少 5 位真实付款样本 |
+| P2 | P2-01 至 P2-05 | P1 退出；先确认轮、长期稳定与交付验证，再进入队列 | U01/U02、两批 W2/W4 与付款实验或明确暂停商业化决定 |
 | P3 | P3-01 至 P3-02 | 至少 3 个团队重复同类问题 | 团队试点和企业预算分别作出进入/暂缓决定 |
 
 ## P0：代码与发行可信度
@@ -406,7 +407,7 @@ Expected: 测试期间遇到性能或安装红灯要记录其影响；不把工�
 
 - [ ] **Step 2: 执行无口头教学任务**
 
-每次记录 `participantId`、真实成果、原工具、找到来源、插入来源、保存重开、交付结果、求助、阻塞和再次使用。限时 15 分钟，超时/求助/放弃保留原结果。
+每次记录 `participantId`、日期、commit/版本、任务类型、库规模区间、真实成果类型、原工具、找到来源、插入来源、保存重开、交付结果、耗时、求助、阻塞和再次使用。合成示例仅作练习；正式六次均为真实任务的可恢复副本。限时 15 分钟，超时/求助/放弃保留原结果；开发者不计陌生首次用户样本。
 
 - [ ] **Step 3: 选出一个最大阻塞**
 
@@ -583,7 +584,7 @@ Expected: `isDraft=true`，commit 与已验证 commit 相同，Windows 安装包
 
 - [ ] **Step 4: 作出 Alpha 决策**
 
-Expected: 多数样本无需口头教学完成，至少 3 人在第二个真实任务主动使用，且没有内容损坏；否则保留 Draft，选择唯一最大阻塞回到独立规格。
+Expected: 多数样本无需口头教学完成，至少 3 人在第二个真实任务主动使用，且没有内容损坏；否则保留 Draft，选择唯一最大阻塞回到独立规格。连续两轮针对该阻塞修复仍无改善时，记录收缩画像、暂停扩张或停止的决定。通过只代表发现轮退出；U01/U02 的 12 人确认交由 P2-05。
 
 - [ ] **Step 5: 提交记录**
 
@@ -698,23 +699,25 @@ Expected: 取消不写文件，预检分支按文档执行；所有失败记录�
 
 ### Task P2-04: 建立四周队列和真实付款实验
 
+**Entry condition:** P2-05 确认轮、P2-01 稳定性和 P2-03 接收方验证通过；P2-02 按来源移动的独立进入条件执行。
+
 **Files:**
 - Create after P1 exit: `docs/development/user-research/retention-cohort-2026-<month>.md`
 - Create after retention exit: `docs/development/user-research/paid-value-study-2026-<month>.md`
 - Modify: `docs/development/user-research/_index.md`, `docs/PROJECT-STATUS.md`, `docs/PRODUCT-STRATEGY-REVIEW-2026-09-22.md`
 
 **Interfaces:**
-- Consumes: 至少 20 位激活用户；固定 W1/W4 窗口、有效成果和资料复用定义。
+- Consumes: 两批各至少 20 位激活用户；固定 day 7–13（W2）与 day 21–27（W4）窗口、有效成果和资料复用定义。
 - Produces: 整数分子/分母、失访、W4 使用和复用结果；达到门槛后至少 5 位非关联用户的实际付款/退款/30 天使用/支持时间。
 
 - [ ] **Step 1: 冻结队列字段与分母**
 
 ```text
-participantId | activatedAt | w1ValidUse | w4ValidUse | w4Reuse |
-usefulOutcome | lostOrWithdrawn | evidence
+participantId | activatedAt | validActionDatesAndKinds | usefulOutcomeDate |
+w2ValidDays | w4ValidDays | w4ReuseCount | followUpStatus | evidence
 ```
 
-退出和失访保留在原分母；不上传正文或路径。
+`followUpStatus` 区分 active、lost、stopped-retain、withdraw-delete。失访及允许留存数据的停止参与者保留原分母；撤回删除按同意协议执行并披露分母变化，补招者必须等各自窗口成熟。研究北极星要求有效复用进入真实成果；不上传正文或路径。W2/W4 有效留存均须两个不同日，不能用无日期布尔值替代。
 
 - [ ] **Step 2: 执行两批队列**
 
@@ -727,6 +730,20 @@ usefulOutcome | lostOrWithdrawn | evidence
 - [ ] **Step 4: 作出商业决定并提交**
 
 明确继续个人 Pro、暂停收费或回到任务价值。提交：`docs: 记录个人版留存与付款验证`。
+
+### Task P2-05: 完成公开 Beta 前的首次任务与效率确认
+
+**Entry condition:** P1 发现轮退出、主要阻塞已修复；该任务不等待 P2-04 留存结果，避免循环依赖。
+
+**Files:** 满足条件后创建 `docs/development/user-research/beta-confirmation-study-<实际日期>.md`；同步研究索引、PROJECT-STATUS、战略报告和发行验证。
+
+**Interfaces:** 使用战略验收协议 U01/U02；12 位符合首轮画像的新用户，发现轮/开发者样本不拼入。任务、版本、题组与限时先冻结，提供统一静态入门材料，竞品正常配置保留。
+
+- [ ] **Step 1：冻结协议。** 记录筛选、同意、版本、任务顺序、A/B 交叉与失败定义；不得在计时前演示同一道题。
+- [ ] **Step 2：执行 U01。** 12 人中至少 10 人在 15 分钟内独立完成，受助/超时/不可读成果计失败。
+- [ ] **Step 3：执行 U02。** 每人两工具各 3 项等价任务；Paperin 至少 10/12 人三项均成功，失败人数不高于原工具；两工具均成功者总耗时中位改善至少 30%，完整报告失败与成功者数量。
+- [ ] **Step 4：作出决定。** U01/U02、P2-01/P2-03 及发行门禁通过才评估公开 Beta 和 P2-04；未通过保留候选，连续两轮无改善按协议收缩或暂停。
+- [ ] **Step 5：提交脱敏记录。** `docs: 记录首次任务与效率确认结果`；此任务不自动发布、招募或收费。
 
 ## P3：团队与企业的条件任务
 
@@ -885,5 +902,5 @@ Expected: 少于 3 个团队或不足两个周期时停止并记录“未达到�
 
 - P0 完成：搜索性能及总语料预算、目标变化后的索引正确性、GitHub 发布身份、Windows 安装循环和进程中断恢复均有新鲜绿灯。
 - P1 完成：来源异步隔离、逐篇基线及迁移、索引释放/缓存回归通过；外部 Alpha 多数用户独立完成核心任务，至少 3 人第二次主动使用，无内容损坏。
-- P2 完成：两设备长期稳定、专业交付可验证、两批四周队列完成，并有至少 5 位真实付款样本或明确停止商业化的决定。
+- P2 完成：U01/U02 确认轮、两设备长期稳定、专业交付通过，两批 W2/W4 队列完成；达标后有至少 5 位真实付款样本及 30 天结果，或明确暂停/停止商业化的决定。暂停不等于已证明商业可行。
 - P3 完成：只代表团队/企业是否进入已由证据决定；企业代码需要新的独立规格和计划。

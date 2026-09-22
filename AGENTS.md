@@ -91,6 +91,8 @@ Shared (side-effect-free DTOs, state, constants)
 
 ## 文档同步门禁
 
+文档事实来源与核对范围见 [文档维护](docs/development/documentation-maintenance.md)。当前状态、目标契约和历史证据必须明确区分；文档更新不得把待实现功能、未执行门禁或用户研究写成完成。仓库入门说明与应用内欢迎正文同步，并运行现有一致性测试。历史审阅和原始性能数据不得改写为当前通过。
+
 以下变化必须同步文档：
 
 - 用户功能、快捷键、设置、导出格式：更新 README 或 `docs/` 使用说明。
