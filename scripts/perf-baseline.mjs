@@ -12,11 +12,16 @@
 // 约束：只在 os.tmpdir() 下生成 fixture 并在结束后清理；输出为聚合指标，
 // 不包含文件正文和绝对路径。可 --save <file> 追加保存指标 JSON。
 
+import { execFile } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { performance } from 'node:perf_hooks'
 import { pathToFileURL } from 'node:url'
+import { promisify } from 'node:util'
+
+const execFileAsync = promisify(execFile)
+const scriptDir = dirname(fileURLToPath(import.meta.url))
 
 const args = process.argv.slice(2)
 const readArg = (name, fallback) => {
@@ -27,6 +32,16 @@ const DOCUMENTS = Number(readArg('documents', 1000))
 const BYTES_PER_DOC = Number(readArg('bytes-per-doc', readArg('size', 2048)))
 const SEARCH_QUERY = readArg('query', '中文正文段落')
 const SAVE_PATH = args.includes('--save') && args[args.indexOf('--save') + 1]
+
+const measureProductionWorkspaceSearchSegments = async (root, query) => {
+  const viteNodeCli = join(scriptDir, '..', 'node_modules', 'vite-node', 'dist', 'cli.mjs')
+  const runner = join(scriptDir, 'perf-workspace-search-segments.mjs')
+  const { stdout } = await execFileAsync(process.execPath, [viteNodeCli, runner], {
+    env: { ...process.env, PAPERIN_PERF_ROOT: root, PAPERIN_PERF_QUERY: query },
+    maxBuffer: 10 * 1024 * 1024,
+  })
+  return JSON.parse(stdout.trim())
+}
 
 const buildDocContent = (index, documents, bytesPerDoc, query) => {
   const lines = [
@@ -215,6 +230,8 @@ export const measureWorkspacePerformance = async ({
     searchReadMs = roundMs(searchReadMs)
     searchScanMs = roundMs(searchScanMs)
 
+    const workspaceSearchMetrics = await measureProductionWorkspaceSearchSegments(root, query)
+
     clearInterval(sampler)
     const peakRssMb =
       Math.round((rssSamples.reduce((max, v) => Math.max(max, v), 0) / (1024 * 1024)) * 10) / 10
@@ -232,6 +249,7 @@ export const measureWorkspacePerformance = async ({
       indexParseMs,
       searchReadMs,
       searchScanMs,
+      workspaceSearchMetrics,
       peakRssMb,
       tagCount,
       linkCount,

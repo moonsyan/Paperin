@@ -88,6 +88,11 @@ const main = async () => {
 
   const exceeded = METRIC_KEYS.filter((key) => metrics[key] > targets[key])
   console.log(JSON.stringify(metrics, null, 2))
+  if (metrics.workspaceSearchMetrics) {
+    console.error(
+      `WORKSPACE_SEARCH_SEGMENT_METRICS ${JSON.stringify(metrics.workspaceSearchMetrics)}`,
+    )
+  }
   if (exceeded.length > 0) {
     const detail = exceeded.map((key) => `${key}=${metrics[key]}ms > 阈值 ${targets[key]}ms`).join('；')
     console.log(`性能回归未通过（超阈值）：${detail}`)

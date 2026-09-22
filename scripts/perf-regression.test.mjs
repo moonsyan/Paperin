@@ -82,6 +82,17 @@ describe('perf-regression 阈值守卫', () => {
         indexParseMs: expect.any(Number),
         searchReadMs: expect.any(Number),
         searchScanMs: expect.any(Number),
+        workspaceSearchMetrics: expect.objectContaining({
+          discoveryMs: expect.any(Number),
+          metadataMs: expect.any(Number),
+          readMs: expect.any(Number),
+          scanMs: expect.any(Number),
+          totalMs: expect.any(Number),
+          discoveredFiles: expect.any(Number),
+          scannedFiles: expect.any(Number),
+          cacheHits: expect.any(Number),
+          cacheMisses: expect.any(Number),
+        }),
       }),
     )
     expect(metrics.treeRunsMs).toHaveLength(3)

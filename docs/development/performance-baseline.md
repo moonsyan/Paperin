@@ -4,11 +4,11 @@
 
 > 2026-09-14 历史复核说明：本文保留既有夹具、历史样本与阈值。文中“超过 1 MiB 优先快照”的实现实际为 `content.length > 1_000_000`（字符串长度），不是字节数。当前执行顺序见 [产品工作流实施计划](../superpowers/plans/2026-09-22-product-workflow-implementation.md)。
 
-> 2026-09-22 新鲜红灯：`npm run perf:regression` 退出 1，tree 332.25 ms、index 11713.59 ms、search 2079.23 ms，超过 200/2000/1500 ms 阈值；`npm run perf:production` 退出 1，冷索引 6899.3 ms 通过 15000 ms 阈值，但搜索 P95 13371.8765 ms 超过 5000 ms，watcher 项通过。当前不得用 2026-09-21 空闲样本宣称大型库性能达标。先按 P0-01 分段采集 discovery/metadata/read/scan，再按 P0-02 评估 Main 内存索引语料复用；阈值保持不变。
+> 2026-09-22 新鲜红灯：`npm run perf:regression` 退出 1，tree 332.25 ms、index 11713.59 ms、search 2079.23 ms，超过 200/2000/1500 ms 阈值；`npm run perf:production` 退出 1，冷索引 6899.3 ms 通过 15000 ms 阈值，但搜索 P95 13371.8765 ms 超过 5000 ms，watcher 项通过。当前不得用 2026-09-21 空闲样本宣称大型库性能达标。**P0-01 已落地**：生产 `runWorkspaceSearch` 可选 instrumentation 输出 `WorkspaceSearchMetrics`（`discoveryMs` / `metadataMs` / `readMs` / `scanMs` / `totalMs` 与文件数、缓存命中/未命中）；JSON 不含 `path`、`query`、`preview`、`content`。合成 `perf:regression` 在 stdout JSON 中附带 `workspaceSearchMetrics`，stderr 打印 `WORKSPACE_SEARCH_SEGMENT_METRICS`；`perf:production` 的 `PRODUCTION_SEARCH_PERF_METRICS` 可附带同一结构。默认 IPC 生产路径不打印。P0-01 提交后**未重跑**性能门禁，红灯结论不变。下一步 P0-02 评估 Main 内存索引语料复用；阈值保持不变。
 
 ## 结论
 
-2026-09-22 文档同步不重新采集性能，也不修改本目录原始 JSON。当前红灯沿用同日已记录样本；下一步为 P0-01 分段测量 → P0-07 目标失效正确性 → P0-02 有界语料 → P0-03 冷/暖与 coverage 验收。历史空闲样本对 I/O 的解释仅适用于当时批次，不能据此断定当前失败根因已解决。
+2026-09-22 文档同步不重新采集性能，也不修改本目录原始 JSON。当前红灯沿用同日已记录样本。P0-01 分段指标已在代码与 perf 脚本接线，但尚未用固定环境三轮写入本节新样本；下一步为 P0-07 目标失效正确性 → P0-02 有界语料 → P0-03 冷/暖与 coverage 验收。历史空闲样本对 I/O 的解释仅适用于当时批次，不能据此断定当前失败根因已解决。
 
 P0-02 实现前冻结单根和全进程总语料预算、计量单位、驱逐/回退与同根多窗口共享；P1-08 验证释放、旧队列和缓存迟到写入。现有峰值 RSS 仅是记录项，不能当作内存硬门禁已经完成。不得让正文缓存落盘或靠少扫文件通过性能测试。
 
@@ -21,6 +21,20 @@ P0-02 实现前冻结单根和全进程总语料预算、计量单位、驱逐/�
 2026-09-10 在 Windows 开发机上完成了四项可复现基线：直接调用生产 `WorkspaceIndexService` 和真实文件系统适配器的 5000 文件索引门禁、真实主进程搜索 IPC 和 watcher 风暴门禁，以及 5000 文件、单个 5 MiB 文件的两项合成扫描。仓库随附实测基线和独立阈值。另提供真实 Electron 性能 smoke：它启动构建产物，让 5 MiB Markdown 经 Main → Preload → 文档会话 → Milkdown 打开、编辑、快捷键保存，并将编辑器真实 DOM 写入受信任的临时资源包；随后打开 20 个真实文件标签并循环切换。
 
 生产门禁验证主进程实际装配的目录枚举、编码读取、`WorkspaceIndexService` 解析与增量复用，不复制索引算法。合成脚本仍只验证 `scripts/perf-baseline.mjs` 的文件树遍历、结构解析与行级搜索口径；两者都不等同于 Electron 窗口首屏、Milkdown 渲染或真实用户知识库的端到端性能。
+
+### 工作区搜索分段指标（P0-01）
+
+| 字段 | 含义 |
+| --- | --- |
+| `discoveryMs` | `walkMarkdownTree` 发现 Markdown 路径 |
+| `metadataMs` | 逐文件 `stat` |
+| `readMs` | `readTextAutoEncoding`（含正则分支） |
+| `scanMs` | 行级匹配或 `runSharedRegexSearch` |
+| `totalMs` | 单次 `runWorkspaceSearch` 墙钟 |
+| `discoveredFiles` / `scannedFiles` | 发现与成功纳入扫描的文件数 |
+| `cacheHits` / `cacheMisses` | 行缓存命中与读盘次数（正则搜索计为 miss） |
+
+取消、读取失败、匹配上限与空查询也会在返回或抛出前写入完整指标；仅性能夹具与可选 instrumentation 消费，不含用户路径或搜索词。
 
 ## 生产搜索与 watcher 门禁
 

@@ -43,8 +43,8 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 | `npm run build` | 退出 0 | 生产构建通过，未证明安装器可用 |
 | `npm run a11y` | 退出 0；仍有 37 项对比度基线债务 | 没有新增静态违规，不能宣称全面可访问 |
 | `npm run smoke` | 退出 0；打开工作区、新建、保存、冲突、重命名、搜索、关闭、系统文件关联，以及来源查找/插入引用/保存重开/资源包导出 | 核心任务冒烟先走真实「打开文件夹」菜单绑定渲染层工作区，再打开全文搜索；步骤失败输出 `CORE_TASK_FAIL` |
-| `npm run perf:regression` | 2026-09-22 上次 Node 24.19.0 退出 1；tree 332.25ms、index 11713.59ms、search 2079.23ms；本轮未重跑 | 超过 200/2000/1500ms，最近性能证据为红灯；不得沿用历史绿灯 |
-| `npm run perf:production` | 2026-09-22 上次退出 1；冷索引 6899.3ms 通过其阈值，搜索 P95 13371.8765ms 超过 5000ms；watcher 项通过；本轮未重跑 | 生产搜索仍需拆分时延并定位根因，不能宣称大型库性能达标 |
+| `npm run perf:regression` | 2026-09-22 上次 Node 24.19.0 退出 1；tree 332.25ms、index 11713.59ms、search 2079.23ms；P0-01 后本轮未重跑 | 超过 200/2000/1500ms，最近性能证据仍为红灯；合成脚本现已可输出 `workspaceSearchMetrics` |
+| `npm run perf:production` | 2026-09-22 上次退出 1；冷索引 6899.3ms 通过其阈值，搜索 P95 13371.8765ms 超过 5000ms；watcher 项通过；P0-01 后本轮未重跑 | 分段指标已接入 `runWorkspaceSearch`，不能据此宣称大型库性能达标 |
 | `npm audit --omit=dev --audit-level=moderate` | 2026-09-22 上次 0 vulnerabilities；生产 `js-yaml@4.3.2`；本轮未重跑 | 依赖未在本轮修改；不宣称本轮重新完成供应链审计 |
 
 历史提交上的绿灯不能替代当前变更的新鲜结果。本轮复验与保留历史记录分别见上文；安装循环、真人样本、8 小时与第二设备实测仍未验证。文档覆盖及修改范围见[全量核对记录](development/documentation-maintenance.md)。
@@ -55,7 +55,7 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 | --- | --- | --- |
 | P0 | 修复工作区规范路径比较 | **已完成**：不存在目标使用最近存在父目录的真实路径比较；短路径/长路径、junction 换靶和多窗口越权有回归；`npm run smoke` 退出 0 |
 | P0 | 修正生产搜索性能夹具授权 | **已完成**：夹具调用真实 `trustDirectory` 与 `isPathTrusted`，搜索 IPC 不再因测试装配返回 `INVALID_TARGET` |
-| P0 | 诊断 5000 篇性能退化 | **进行中**：历史样本曾通过，但最近一次测量（战略审查日，文档同步未重跑）合成索引 11713.59ms、搜索 2079.23ms 超阈值；需固定环境、拆分阶段并定位根因，不能调整阈值掩盖失败 |
+| P0 | 诊断 5000 篇性能退化 | **进行中（P0-01 指标已落地）**：`WorkspaceSearchMetrics` 与 perf 脚本已接线；战略审查日合成/生产搜索仍超阈值且本轮未重跑；需固定环境采集 discovery/metadata/read/scan 并定位根因，不能调整阈值掩盖失败 |
 | P0 | 升级易受攻击的间接依赖 | **已完成**：生产依赖审计无 moderate 及以上漏洞；`js-yaml` 由 4.3.1 升至 4.3.2，锁文件门禁拒绝回退 |
 | P0 | 清理失效 `demo:soft*` 脚本 | **已完成**：`package.json` 不再引用不存在的 `design/soft-workbench` |
 | P0 | 收紧联网与外部服务凭据 | **已完成**：生产环境默认检查/下载/退出安装，设置中有可见开关，关闭后下次启动不联网也不安装已下载包。开发环境永不检查。SM.MS token 经 `safeStorage` 加密；渲染进程只有 `configured`/`credentialState`；明文迁移失败与安全存储不可用均禁用远程上传并回退本地附件 |

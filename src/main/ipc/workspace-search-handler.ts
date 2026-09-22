@@ -18,6 +18,10 @@ import {
   type TreeBudget,
 } from './file-io'
 import { cacheSearchLines, getCachedSearchLines, runSharedRegexSearch } from './search-regex'
+import {
+  createRunWorkspaceSearchMetricsState,
+  type WorkspaceSearchInstrumentation,
+} from './workspace-search-metrics'
 
 export const WORKSPACE_SEARCH_MAX_MATCHES = 200
 
@@ -100,22 +104,36 @@ export const runWorkspaceSearch = async (
   limits: WorkspaceSearchLimits = DEFAULT_WORKSPACE_SEARCH_LIMITS,
   isStale?: () => boolean,
   signal?: AbortSignal,
+  instrumentation?: WorkspaceSearchInstrumentation,
 ): Promise<WorkspaceSearchSuccess> => {
   const coverage = createInitialWorkspaceCoverage()
   const matches: WorkspaceSearchMatch[] = []
+  const metrics = createRunWorkspaceSearchMetricsState(instrumentation)
+  const recordMetrics = () => metrics?.record(coverage.scannedFiles)
+  const throwCancelled = () => {
+    recordMetrics()
+    throw Object.assign(new Error('已取消'), { code: 'CANCELLED' })
+  }
   const query = args.query.trim()
   if (!query) {
+    metrics?.setDiscoveredFiles(0)
+    recordMetrics()
     return { matches, coverage, ...workspaceCoverageLegacyFlags(coverage) }
   }
 
   const treeBudget: TreeBudget = { nodes: 0, truncated: false }
+  const discoveryStart = metrics?.now() ?? 0
   const tree = await walkMarkdownTree(args.dir, 0, treeBudget, {
     maxFiles: limits.maxFiles + 1,
   })
-  if (signal?.aborted) throw Object.assign(new Error('已取消'), { code: 'CANCELLED' })
+  if (metrics) {
+    metrics.tracker.addDiscovery(Math.max(0, metrics.now() - discoveryStart))
+  }
+  if (signal?.aborted) throwCancelled()
 
   const paths = flattenMarkdownPaths(tree)
   const discovered = paths.length
+  metrics?.setDiscoveredFiles(discovered)
   const scanPaths = paths.slice(0, limits.maxFiles)
 
   if (treeBudget.truncated) {
@@ -135,8 +153,12 @@ export const runWorkspaceSearch = async (
   let stoppedEarly = false
 
   for (const path of scanPaths) {
-    if (signal?.aborted || isStale?.()) throw Object.assign(new Error('已取消'), { code: 'CANCELLED' })
+    if (signal?.aborted || isStale?.()) throwCancelled()
+    const metadataStart = metrics?.now() ?? 0
     const fileStat = await stat(path).catch(() => null)
+    if (metrics) {
+      metrics.tracker.addMetadata(Math.max(0, metrics.now() - metadataStart))
+    }
     if (!fileStat?.isFile()) {
       markWorkspaceCoverageIncomplete(coverage)
       coverage.skipped['read-error'] += 1
@@ -151,7 +173,12 @@ export const runWorkspaceSearch = async (
     if (args.regex) {
       let content: string
       try {
+        const readStart = metrics?.now() ?? 0
         ;({ content } = await readTextAutoEncoding(path))
+        if (metrics) {
+          metrics.tracker.addRead(Math.max(0, metrics.now() - readStart))
+          metrics.tracker.noteCacheMiss()
+        }
       } catch (error) {
         if (error instanceof FileIdentityChangedError) {
           markWorkspaceCoverageIncomplete(coverage)
@@ -162,12 +189,16 @@ export const runWorkspaceSearch = async (
         coverage.skipped['read-error'] += 1
         continue
       }
+      const scanStart = metrics?.now() ?? 0
       const regexMatches = await runSharedRegexSearch(
         content,
         query,
         Boolean(args.caseSensitive),
         limits.maxMatches - matches.length,
       )
+      if (metrics) {
+        metrics.tracker.addScan(Math.max(0, metrics.now() - scanStart))
+      }
       coverage.scannedFiles += 1
       for (const match of regexMatches) matches.push({ path, ...match })
       if (matches.length >= limits.maxMatches) {
@@ -184,10 +215,16 @@ export const runWorkspaceSearch = async (
     const mtimeSettled = Date.now() - fileStat.mtimeMs > 2500
     if (cached && mtimeSettled && cached.mtimeMs === fileStat.mtimeMs && cached.size === fileStat.size) {
       lines = cached.lines
+      metrics?.tracker.noteCacheHit()
     } else {
       let content: string
       try {
+        const readStart = metrics?.now() ?? 0
         ;({ content } = await readTextAutoEncoding(path))
+        if (metrics) {
+          metrics.tracker.addRead(Math.max(0, metrics.now() - readStart))
+          metrics.tracker.noteCacheMiss()
+        }
       } catch (error) {
         if (error instanceof FileIdentityChangedError) {
           markWorkspaceCoverageIncomplete(coverage)
@@ -208,6 +245,7 @@ export const runWorkspaceSearch = async (
       }
     }
     coverage.scannedFiles += 1
+    const scanStart = metrics?.now() ?? 0
     for (let index = 0; index < lines.length; index++) {
       const candidate = args.caseSensitive ? lines[index] : lines[index].toLowerCase()
       if (!candidate.includes(needle)) continue
@@ -219,6 +257,9 @@ export const runWorkspaceSearch = async (
         break
       }
     }
+    if (metrics) {
+      metrics.tracker.addScan(Math.max(0, metrics.now() - scanStart))
+    }
     if (stoppedEarly) break
   }
 
@@ -226,6 +267,7 @@ export const runWorkspaceSearch = async (
     markWorkspaceCoverageIncomplete(coverage)
   }
 
+  recordMetrics()
   return { matches, coverage, ...workspaceCoverageLegacyFlags(coverage) }
 }
 

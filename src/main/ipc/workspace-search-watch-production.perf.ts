@@ -10,6 +10,8 @@ import { createWorkspaceIndexService } from '../indexing/workspace-index-service
 import { createWorkspaceFileWatcher } from '../indexing/workspace-file-watcher'
 import { isPathTrusted, trustDirectory } from '../trusted-paths'
 import { registerWorkspaceHandlers } from './workspace-handlers'
+import { runWorkspaceSearch } from './workspace-search-handler'
+import type { WorkspaceSearchMetrics } from './workspace-search-metrics'
 
 vi.mock('electron', () => ({
   ipcMain: { handle: vi.fn() },
@@ -113,7 +115,26 @@ describe('production workspace search and watcher performance gate', () => {
     expect(result?.data?.truncated).toBe(false)
 
     const searchP95Ms = percentile95(samples)
-    console.log(`PRODUCTION_SEARCH_PERF_METRICS ${JSON.stringify({ documents: DOCUMENTS, searchP95Ms })}`)
+    let workspaceSearchMetrics: WorkspaceSearchMetrics | undefined
+    await runWorkspaceSearch(
+      { dir: root, query: 'needle-at-the-end-of-the-workspace' },
+      undefined,
+      undefined,
+      undefined,
+      {
+        now: () => performance.now(),
+        record: (metrics) => {
+          workspaceSearchMetrics = metrics
+        },
+      },
+    )
+    console.log(
+      `PRODUCTION_SEARCH_PERF_METRICS ${JSON.stringify({
+        documents: DOCUMENTS,
+        searchP95Ms,
+        workspaceSearchMetrics,
+      })}`,
+    )
     expect(searchP95Ms).toBeLessThanOrEqual(thresholds.targets.searchP95Ms)
   }, 120_000)
 
