@@ -71,8 +71,8 @@ P3 团队与企业
 
 | 优先级 | 任务 | 进入条件 | 退出证据 |
 | --- | --- | --- | --- |
-| P0 | P0-01 至 P0-06 | 当前即可执行 | 性能、发布、安装和恢复无 P0 红灯 |
-| P1 | P1-01 至 P1-05 | P0 退出；种子研究可与 P0 并行 | 多数外部样本独立完成，至少 3 人第二次主动使用 |
+| P0 | P0-01 至 P0-07 | 当前即可执行；P0-07 先固定正确性，P0-02 再优化复用 | 性能、索引新鲜度、发布、安装和恢复无 P0 红灯 |
+| P1 | P1-01 至 P1-08 | 外部 Alpha 等待 P0 退出；种子研究及 P1-06/07/08 正确性修复可提前执行 | 来源隔离与缓存边界通过，多数外部样本独立完成，至少 3 人第二次主动使用 |
 | P2 | P2-01 至 P2-04 | P1 退出 | 两批四周队列与至少 5 位真实付款样本 |
 | P3 | P3-01 至 P3-02 | 至少 3 个团队重复同类问题 | 团队试点和企业预算分别作出进入/暂缓决定 |
 
@@ -145,6 +145,10 @@ Expected: 使用 Node 22 LTS、相同临时目录所在磁盘和相同夹具；�
 - Consumes: `WorkspaceIndexService.refresh` 已读取的 Markdown 正文、mtime、size、coverage 和 watcher 增量刷新。
 - Produces: Main-only `WorkspaceSearchSnapshot`；不进入 Shared DTO、不写磁盘缓存、不暴露给 Renderer。
 
+**前置约束（C03/C05/C06）：** 先完成 P0-07 的目标变化回归，再复用语料；索引 service 目前 408 行，新增语料前拆出缓存存储与资源依赖解析边界，旧导出兼容迁移。不得把完整工作区正文复制到 Renderer。
+
+**总内存与新鲜度验收：** 单文件 2 MiB 和 5000 文件上限不能替代总预算。实现前在性能文档冻结单根及进程总语料预算、核算方式、回收策略与 RSS 验证范围；测试用注入的小预算覆盖边界。多窗口打开同根复用语料，最后一个使用者释放后回收；不同根总量受进程预算限制。驱逐或未缓存文件必须走原有安全读盘查询，不能默默从结果中消失；fallback 因预算或读取失败未扫完时沿用 coverage 原因。只按同一 generation 发布完整快照，watcher 失效、切换、取消、读取失败期间不得把旧内容标为已核验。测试新增文件、同大小修改、删除、两根竞争预算、多个窗口关闭与 dispose 后缓存释放；保留冷/暖查询原性能阈值，同时记录 RSS，不以速度换取无界常驻内存。
+
 ```ts
 export interface WorkspaceSearchDocument {
   path: string
@@ -185,7 +189,7 @@ interface WorkspaceSearchHandlerDependencies {
 }
 ```
 
-普通文本和正则查询都从同一 snapshot 扫描；snapshot 不存在时保留当前受信任磁盘扫描。查询取消、`queryId` 陈旧、200 条上限和 coverage 语义保持不变。
+普通文本和正则查询都从同一 snapshot 扫描；snapshot 不存在、未就绪或包含因内存预算未缓存的文件时，按前述预算契约补充受信任磁盘扫描，合并结果去重并保持同一查询代次。查询取消、`queryId` 陈旧、200 条上限和 coverage 语义保持不变。
 
 - [ ] **Step 5: 验证正确性、内存和性能**
 
@@ -550,6 +554,8 @@ Expected: typed bridge 完整；取消无文件；导出 JSON 通过禁词扫描
 
 ### Task P1-05: 发布外部 Alpha 并完成 6–8 位任务对照
 
+**新增前置条件：** P0-07、P1-06、P1-07、P1-08 的正确性回归及相应门禁通过；这些是已有能力可信度任务，不受新增功能用户研究门槛限制。
+
 **Files:**
 - Create after P0 exit: `docs/development/user-research/external-alpha-study-2026-<month>.md`
 - Modify: `docs/development/user-research/_index.md`, `docs/development/release-validation.md`, `docs/PROJECT-STATUS.md`
@@ -618,7 +624,7 @@ Expected: 两台设备均运行完整时长；中断、睡眠或环境更新导�
 
 ### Task P2-02: 完成来源重新定位而不静默改正文
 
-**Entry condition:** P1 外部样本中至少 3 次出现来源移动/改名导致的维护阻塞。
+**Entry condition:** P1 外部样本中至少 3 次出现来源移动/改名导致的维护阻塞，且 P1-07 的文档归属模型已完成。已有来源串库或基线互相覆盖的修复不等待此条件。
 
 **Files:**
 - Modify: `src/shared/workspace-state.ts`, `src/shared/workspace-state.test.ts`
@@ -630,7 +636,7 @@ Expected: 两台设备均运行完整时长；中断、睡眠或环境更新导�
 
 **Interfaces:**
 - Consumes: 缺失 `SourceSnapshot`、用户从工作区搜索中明确选择的新文件。
-- Produces: 更新来源健康快照的显式动作；正文链接修改必须是另一个可预览、可撤销命令。
+- Produces: 更新所选引用文档内来源健康快照的显式动作，不覆盖其他文档基线；正文链接修改必须是另一个可预览、可撤销命令。选择模型还须携带 P1-07 定义的引用文档身份与工作区生命周期标识。
 
 ```ts
 interface SourceRelocationChoice {
@@ -783,7 +789,84 @@ Expected: 少于 3 个团队或不足两个周期时停止并记录“未达到�
 
 提交：`docs: 评审企业知识库进入条件`。
 
-## 3. 每个代码任务的统一验收
+## 3. 代码与功能补充任务（2026-09-22）
+
+依据：[代码与功能完整性审阅](../../development/reviews/2026-09-22-code-function-review.md)，基线 `7c3dd53`。以下均为未完成任务，静态发现先转为失败测试；测试若不能复现，记录证据并修订任务，不按猜测改代码。任务编号用于本计划内部引用，不进入 Git 提交摘要。
+
+依赖顺序：P0-01 测量 → P0-07 正确性 → P0-02 有界语料 → P0-03 性能与覆盖；P1-06 异步隔离 → P1-07 文档来源归属 → P2-02 有条件重定位。P1-08 与索引任务顺序提交，共用缓存拆分，不重复实现；四项补充任务完成后才进入 P1-05 外部 Alpha。发行与真人任务的原门槛继续生效。
+
+### Task P0-07: 保证链接和附件变化后的增量索引新鲜度
+
+**用户结果：** 不改引用文章正文，增删或移动来源/图片后仍能看到正确的反链、缺失提示和预检结果。
+
+**Files:**
+- Modify/Test: `src/main/indexing/workspace-index-service.ts`、`workspace-index-service.test.ts`
+- Create/Test: `src/main/indexing/workspace-index-resources.ts`、`workspace-index-resources.test.ts`
+- Modify/Test: `src/main/indexing/workspace-file-watcher.ts`、`workspace-file-watcher.test.ts`
+- Integration: `src/main/ipc/handlers.ts` 的 watcher 装配与 `src/main/ipc/workspace-search-watch-production.perf.ts`
+- Docs: `docs/compatibility-matrix.md`、`docs/graph-view-architecture.md`、`docs/development/performance-baseline.md`
+
+**契约：** 正文解析结果和资源解析结果分别失效；复用解析不能复用已失效的目标身份。复用现有真实路径/信任校验，不新增访问旁路；同一 generation 的派生关系一起发布。
+
+- [ ] **Step 1：失败测试。** A 引用 B/P，A mtime/size 不变；删除、补回、重命名 B/P 及其父目录后刷新，断言 link/image `resolvedPath`、诊断和反链变化，A 正文读取次数不增加。增加附件事件、目录事件、事件风暴、取消、符号链接换靶测试；旧索引快照不能被原地修改。
+- [ ] **Step 2：确认红灯。** Run: `npx vitest run src/main/indexing/workspace-index-service.test.ts src/main/indexing/workspace-file-watcher.test.ts src/main/indexing/workspace-index-resources.test.ts`。预期旧实现保留目标解析或忽略附件变化；记录实际失败断言。
+- [ ] **Step 3：最小实现。** 按职责提取资源解析；先保证受控重验正确，再按测量选择依赖映射优化。watcher 只合并相关资源变化并限制积压，无名/目录事件回退重扫，过期任务不能提交结果。
+- [ ] **Step 4：验收与提交。** 相关测试、统一代码门禁、smoke、两项性能门禁；桌面合成夹具复现“删图 → 提示缺图 → 补图 → 提示消失”。性能仍失败则保留红灯，不能宣称 P0 完成。提交：`fix: 修复引用目标变化后的索引失效`。
+
+### Task P1-06: 隔离来源登记的异步生命周期
+
+**用户结果：** 快速切库、清除记录、关闭界面或插入失败，都不会把旧来源登记到当前状态。
+
+**Files:**
+- Modify/Test: `src/renderer/src/lib/remember-source-snapshot.ts`、`remember-source-snapshot.test.ts`、`insert-citation.ts`、`insert-citation.test.ts`
+- Create/Test: `src/renderer/src/app/useSourceTracking.ts`、`useSourceTracking.test.ts`
+- Modify: `src/renderer/src/app/AppComposition.tsx`、`AppDialogs.tsx`、`AppWorkspace.tsx`
+- Docs: `docs/PRODUCT-WORKFLOW.md`、`docs/command-panels.md`
+
+**契约：** 请求捕获工作区 epoch 和记录版本，提交时二者都有效；比较路径本身不足以覆盖 A → B → A。所有入口只在正文插入成功后登记，失败/取消/卸载有明确结果，已成功正文插入与元数据失败分开处理。
+
+- [ ] **Step 1：失败测试。** 用 deferred `stat` 覆盖 A → B、A → B → A、清除记录、卸载、reject、连续乱序请求。断言当前设置和持久化未受旧回包影响，无未处理 rejection；编辑器未就绪时不登记来源。
+- [ ] **Step 2：确认红灯。** Run: `npx vitest run src/renderer/src/lib/remember-source-snapshot.test.ts src/renderer/src/lib/insert-citation.test.ts src/renderer/src/app/useSourceTracking.test.ts`，保留旧实现的失败断言。
+- [ ] **Step 3：最小实现。** 将异步登记移到带 cleanup 的 hook/controller，纯路径转换留在 lib；复用现有最新请求机制或增加必要 epoch。`AppComposition` 已超过 450 行，先移出来源编排；`AppDialogs` 已超过组件阈值，涉及搜索时提取搜索对话框编排并补直接测试。
+- [ ] **Step 4：验收与提交。** 相关测试、统一门禁、smoke、a11y；验证搜索/反链两个入口及失败提示。提交：`fix: 隔离来源记录的异步工作区状态`。
+
+### Task P1-07: 建立按文档归属的来源基线与复核动作
+
+**用户结果：** 文章 A 使用旧来源、文章 B 使用新来源时，A 的变化提醒不会被 B 清除；用户能明确复核当前文章的来源。
+
+**Files:**
+- Create/Test: `src/shared/source-tracking.ts`、`source-tracking.test.ts`（纯 DTO、解析与迁移）
+- Modify/Test: `src/shared/workspace-state.ts`、`workspace-state.test.ts`、`src/main/settings/workspace-state-store.ts`、`workspace-state-store.test.ts`
+- Modify/Test: `src/renderer/src/lib/source-health.ts`、`source-health.test.ts`、P1-06 的 hook
+- Modify/Test: `src/renderer/src/components/QualityPanel/index.tsx`、`index.test.tsx`、工作区重命名/移动相关测试
+- Docs: `docs/domain-model.md`、`docs/command-panels.md`、`docs/compatibility-matrix.md`、`docs/PRODUCT-WORKFLOW.md`
+
+**契约：** 来源记录至少包含引用文档相对身份、来源相对路径、引用时基线；工作区身份由可信状态存储范围承载，不落绝对路径/正文。当前文档和工作区汇总是明确的不同范围；来源 mtime 与人工复核状态不同。最多保留多少文档、每文档多少来源和总量如何裁剪，必须在 Shared 常量和文档中一致定义，不能静默把被裁剪项判为健康。
+
+- [ ] **Step 1：失败测试。** A 引用 S@10、B 引用 S@20 后 A 仍 changed；切换当前文档只看其来源。覆盖保存重开、引用文档重命名/移动、同名路径、插入撤销/重做与删除引用。没有引用的旧登记不能作为当前文章已核验的依据。
+- [ ] **Step 2：迁移失败测试。** 旧 50 条全局快照保持“旧工作区记录/归属未知”，不批量复制给文章；未知未来 schema 不覆盖保存。定义未保存文档在内存里的身份和另存为后的绑定；未保存正文不进入状态文件。定义来源移出工作区后的 unavailable 行为。
+- [ ] **Step 3：实现最小关系模型。** Main settings store 独占持久化，Shared 解析版本和配额；按当前编辑器文档中的链接核对活动关系，不能维护第二份可独立编辑的正文。复核只更新所选文档基线；清除最近导航与删除来源关系拆开。Windows 路径大小写比较沿用平台规则。原 P2-02 重定位消费此模型，不另建一套来源关系。
+- [ ] **Step 4：验证。** Run: `npx vitest run src/shared/source-tracking.test.ts src/shared/workspace-state.test.ts src/main/settings/workspace-state-store.test.ts src/renderer/src/lib/source-health.test.ts src/renderer/src/components/QualityPanel/index.test.tsx`，加 hook、移动/重命名回归；完成统一门禁、smoke、a11y，来源 Markdown hash 不变。
+- [ ] **Step 5：提交。** 用户说明标注 mtime 的证据边界，schema 迁移同提交；提交：`feat: 按文档维护来源基线与复核状态`。不包含批量正文替换。
+
+### Task P1-08: 收敛索引队列释放与磁盘缓存边界
+
+**用户结果：** 关闭/重新打开工作区后旧刷新不会覆盖新状态；损坏或过大的缓存可安全丢弃并重建。
+
+**Files:**
+- Modify/Test: `src/main/indexing/workspace-index-service.ts`、`workspace-index-service.test.ts`
+- Create/Test: `src/main/indexing/workspace-index-cache.ts`、`workspace-index-cache.test.ts`（与 P0-02 共用一次拆分）
+- Modify/Test: `src/main/ipc/workspace-index-handlers.ts`、`workspace-index-handlers.test.ts`，引用计数/释放装配按实际调用链更新
+- Docs: `docs/domain-model.md`、`docs/development/performance-baseline.md`、`docs/compatibility-matrix.md`
+
+**契约：** 生命周期 epoch 独立于刷新 generation；已释放 state 的排队任务、订阅和 cache writer 都失效。只关闭一个同根窗口不能释放另一窗口正在使用的语料。缓存可重建、不授予信任、不存正文；载入缓存不等于磁盘现状已核验。
+
+- [ ] **Step 1：失败测试。** R1 挂起、R2 排队、dispose、同根重开，再放行旧任务；新订阅/内存/cache 都不接受旧结果。补 save/clear 交错、写失败清理临时文件、同根多窗口关闭测试；正常 cancel 后的新请求仍能成功。
+- [ ] **Step 2：缓存失败测试。** 中文 UTF-8 超 8 MiB、截断 JSON、错误根、未知 schema、畸形 documents/links/coverage、加载时被替换；断言回退重建、无越界读取和崩溃。预读大小检查配合实际读取字节限制，不能只检查 JS 字符数。
+- [ ] **Step 3：最小实现。** 提取缓存存储和校验，不把 IO 放进 Shared；按根串行保存/清理或等价 epoch 隔离，所有写入前校验所属生命周期。使用有限读取、显式 schema 和根绑定，旧缓存可删除重建；暂存不含正文、完整性需重新刷新确认。
+- [ ] **Step 4：验收与提交。** Run: `npx vitest run src/main/indexing/workspace-index-service.test.ts src/main/indexing/workspace-index-cache.test.ts src/main/ipc/workspace-index-handlers.test.ts`；统一代码门禁、smoke 及性能回归。提交：`fix: 收敛索引释放与缓存校验`。
+
+## 4. 每个代码任务的统一验收
 
 - [ ] 相关测试先红后绿，保留能复现原问题的断言。
 - [ ] `npm run lint` 退出 0。
@@ -796,11 +879,11 @@ Expected: 少于 3 个团队或不足两个周期时停止并记录“未达到�
 - [ ] 受影响的 README、状态、兼容、隐私、发行和工作流文档在同一提交更新。
 - [ ] 提交信息使用 `feat|fix|docs|style|refactor|test|chore: 简体中文摘要`，不追加 PM 号。
 
-## 4. 计划完成定义
+## 5. 计划完成定义
 
 本计划不是以“所有任务都写了代码”为完成，而是按阶段退出：
 
-- P0 完成：搜索性能、GitHub 发布身份、Windows 安装循环和进程中断恢复均有新鲜绿灯。
-- P1 完成：外部 Alpha 多数用户独立完成核心任务，至少 3 人第二次主动使用，无内容损坏。
+- P0 完成：搜索性能及总语料预算、目标变化后的索引正确性、GitHub 发布身份、Windows 安装循环和进程中断恢复均有新鲜绿灯。
+- P1 完成：来源异步隔离、逐篇基线及迁移、索引释放/缓存回归通过；外部 Alpha 多数用户独立完成核心任务，至少 3 人第二次主动使用，无内容损坏。
 - P2 完成：两设备长期稳定、专业交付可验证、两批四周队列完成，并有至少 5 位真实付款样本或明确停止商业化的决定。
 - P3 完成：只代表团队/企业是否进入已由证据决定；企业代码需要新的独立规格和计划。

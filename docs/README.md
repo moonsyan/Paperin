@@ -14,6 +14,7 @@
 | P0-P3 完整执行任务 | [产品工作流实施计划](superpowers/plans/2026-09-22-product-workflow-implementation.md) |
 | 每次开发必须遵守的入口约束 | [IMPLEMENTATION-PLAN](IMPLEMENTATION-PLAN.md) 与仓库根目录 `AGENTS.md` |
 | 质量、研究和商业指标口径 | [strategy-validation](development/strategy-validation.md) |
+| 代码与功能缺口、证据及补充任务 | [代码与功能完整性审阅](development/reviews/2026-09-22-code-function-review.md) |
 
 ## 用户与产品说明
 
@@ -36,6 +37,6 @@
 
 根目录已有 `LICENSE`（MIT，版权所有者与 `package.json` `author` 一致为 ming）、`THIRD-PARTY-NOTICES.md`、`PRIVACY.md`、`SECURITY.md`、`CHANGELOG.md` 和 `CONTRIBUTING.md`。隐私说明覆盖三类联网：生产环境默认的更新检查/自动下载/退出安装；用户启用的 SM.MS；用户打开拼写检查后可能的词典下载。安全问题走 GitHub 私密公告，不要求公开用户文件。`0.7.0` 是候选版本，变更说明只记录已经发生的事实。
 
-当前不能宣称“三平台已发布”“所有设备上 5 MiB 都达标”“用户留存成立”或“商业模式已验证”。计划内的产品代码已在 `master`；Windows 两个隔离环境的安装 → 启动 → 文件关联 → 保存 → 升级 → 卸载循环，以及 8 小时和第二台设备稳定性，仍为 **UNVERIFIED**。
+当前不能宣称“三平台已发布”“所有设备上 5 MiB 都达标”“用户留存成立”或“商业模式已验证”。上一轮核心能力已有实现；当前计划中的搜索优化、来源归属、索引失效、缓存生命周期和支持摘要仍待实施或验证，不能统称“计划代码已完成”。Windows 两个隔离环境的安装 → 启动 → 文件关联 → 保存 → 升级 → 卸载循环，以及 8 小时和第二台设备稳定性，仍为 **UNVERIFIED**。
 
 常规提交至少运行 `npm run lint`、`npm run typecheck`、`npm run test` 和 `npm run build`；涉及 UI 追加 `npm run a11y`，涉及 UI、IPC、文件和打包追加 `npm run smoke`，性能变更运行相应性能门禁。历史通过记录不能替代当前提交的新鲜结果。

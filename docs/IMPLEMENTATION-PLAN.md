@@ -8,6 +8,7 @@
 - [2026-09-22 产品工作流实施计划](superpowers/plans/2026-09-22-product-workflow-implementation.md)
 - [当前项目状态](PROJECT-STATUS.md)
 - [产品战略发展报告](PRODUCT-STRATEGY-REVIEW-2026-09-22.md)
+- [代码与功能完整性审阅](development/reviews/2026-09-22-code-function-review.md)：来源归属、异步生命周期、索引失效、缓存和搜索内存预算。
 
 根目录 [AGENTS.md](../AGENTS.md) 是强制门禁。执行任何任务时：
 
@@ -21,4 +22,4 @@
 8. 使用 `git diff`、`git diff --check` 和 `git status --short` 检查无生成物、密钥、用户数据或无关改动。
 9. Paperin 不使用 PM 号；提交信息使用 `<type>: <摘要>`，每个边界完整的变更通过相应门禁后立即主动提交。
 
-实施计划中的产品代码（P0 工程项、核心任务冒烟、来源健康、发布配置与交付报告、稳定性夹具与汇总）已在 `master`。当前未完成的是安装循环、真人样本、8 小时与第二台设备，以及 GitHub Draft Release。这些不是空文档能代替的验证。P0 代码落地后仍不进入公开发布、收费系统、团队协作或企业架构实现，直到对应进入条件满足。当前事实以 [PROJECT-STATUS](PROJECT-STATUS.md) 为准。
+上一轮的路径安全、核心任务冒烟、来源健康初版、发布配置与交付报告、稳定性夹具与汇总已在 `master`。本轮计划中的搜索优化、索引依赖失效、来源异步隔离与文档归属、缓存生命周期及支持摘要仍待实现或验证；安装循环、真人样本、8 小时与第二台设备、GitHub Draft Release 也尚未完成。代码任务按主计划及其“代码与功能补充任务”执行，已有正确性缺口可以立即写失败测试，不必等待新增功能的研究门槛。公开发布、收费、团队与企业仍须满足对应进入条件。当前事实以 [PROJECT-STATUS](PROJECT-STATUS.md) 为准。
