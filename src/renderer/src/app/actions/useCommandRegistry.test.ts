@@ -30,6 +30,7 @@ const makeActionHandlers = (overrides: Partial<ActionHandlers> = {}): ActionHand
   setWsSearchOpen: vi.fn(),
   setPaletteOpen: vi.fn(),
   setSettingsOpen: vi.fn(),
+  setSupportSummaryOpen: vi.fn(),
   setHelpView: vi.fn(),
   setSidebarCollapsed: vi.fn(),
   setFocusMode: vi.fn(),

@@ -66,6 +66,7 @@ export interface UseAppActionsOptions {
   setZoom: Dispatch<SetStateAction<number>>
   centerCaret: () => void
   setSettingsOpen: Dispatch<SetStateAction<boolean>>
+  setSupportSummaryOpen: Dispatch<SetStateAction<boolean>>
   setHelpView: Dispatch<SetStateAction<HelpView>>
   setImagesOpen: Dispatch<SetStateAction<boolean>>
   setPdfOptsOpen: Dispatch<SetStateAction<boolean>>

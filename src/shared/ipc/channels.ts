@@ -53,4 +53,7 @@ export const CHANNELS = {
   /** OS file association / macOS open-file forwarded from Main to Renderer. */
   WINDOW_OPEN_FILE: 'window:open-file',
   WINDOW_SET_UNSAVED: 'window:set-unsaved',
+  SUPPORT_GET_ENV: 'support:get-env',
+  SUPPORT_SAVE_SUMMARY: 'support:save-summary',
+  SUPPORT_EXPORT_TEMP: 'support:export-temp',
 } as const

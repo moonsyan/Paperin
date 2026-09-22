@@ -16,6 +16,7 @@ import { registerExportHandlers } from './export-handlers'
 import { registerFileHandlers } from './file-handlers'
 import { registerHistoryHandlers } from './history-handlers'
 import { registerImageHostHandlers } from './image-host-handlers'
+import { registerSupportHandlers } from './support-handlers'
 import { registerSettingsHandlers } from './settings-handlers'
 import { disposeSharedRegexWorker } from './search-regex'
 import { registerWindowHandlers } from './window-handlers'
@@ -153,4 +154,6 @@ export function registerIpcHandlers(): void {
   registerSettingsHandlers()
 
   registerImageHostHandlers()
+
+  registerSupportHandlers()
 }

@@ -6,7 +6,7 @@ const HASH_EXTENSIONS = new Set(['.md', '.csv', '.png', '.jpg', '.jpeg', '.gif',
 
 const shouldHashFile = (name: string): boolean => {
   const lower = name.toLowerCase()
-  for (const ext of HASH_EXTENSIONS) {
+  for (const ext of Array.from(HASH_EXTENSIONS)) {
     if (lower.endsWith(ext)) return true
   }
   return false

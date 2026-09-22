@@ -42,7 +42,11 @@ const VersionHistoryDialog = lazy(() =>
 const WorkspaceSearchDialog = lazy(() =>
   import('../components/WorkspaceSearchDialog').then((m) => ({ default: m.WorkspaceSearchDialog })),
 )
+const SupportSummaryDialog = lazy(() =>
+  import('../components/SupportSummaryDialog').then((m) => ({ default: m.SupportSummaryDialog })),
+)
 import type { ShortcutMap } from '../data/shortcuts'
+import type { SupportSummaryV1 } from '../../../shared/support-summary'
 import type { RecentFile } from '../components/MenuBar'
 import type { AppCommandRegistry } from './commands/app-command-registry'
 import type { CommandContext } from './commands/app-command'
@@ -103,6 +107,19 @@ export interface AppDialogsProps {
   onRemoveExportCss: () => void
   autoUpdateEnabled: boolean
   onAutoUpdateEnabledChange: (v: boolean) => void
+  onOpenSupportSummary: () => void
+  supportSummaryOpen: boolean
+  onCloseSupportSummary: () => void
+  supportSummary: SupportSummaryV1 | null
+  supportSummaryLoading: boolean
+  supportSummaryError: string | null
+  onSaveSupportSummary: (json: string) => Promise<{ ok: boolean; error?: { code: string } }>
+  onExportTempSupportSummary: (json: string) => Promise<{
+    ok: boolean
+    data?: { fileName: string }
+    error?: { code: string }
+  }>
+  onCopySupportSummary: (json: string) => void
   imageHost: ImageHostStatus
   onImageHostProviderChange: (provider: 'local' | 'smms') => Promise<void>
   onImageHostTokenSave: (token: string) => Promise<boolean>
@@ -194,7 +211,9 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
     wordGoal, onWordGoalChange,
     customCssName, onImportCss, onRemoveCss,
     exportCssName, onImportExportCss, onRemoveExportCss,
-    autoUpdateEnabled, onAutoUpdateEnabledChange,
+    autoUpdateEnabled, onAutoUpdateEnabledChange, onOpenSupportSummary,
+    supportSummaryOpen, onCloseSupportSummary, supportSummary, supportSummaryLoading, supportSummaryError,
+    onSaveSupportSummary, onExportTempSupportSummary, onCopySupportSummary,
     imageHost, onImageHostProviderChange, onImageHostTokenSave,
     globalAttachmentDirectory, onGlobalAttachmentDirectoryChange,
     workspaceAttachmentDirectory, onWorkspaceAttachmentDirectoryChange,
@@ -271,6 +290,7 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
             onRemoveExportCss={onRemoveExportCss}
             autoUpdateEnabled={autoUpdateEnabled}
             onAutoUpdateEnabledChange={onAutoUpdateEnabledChange}
+            onOpenSupportSummary={onOpenSupportSummary}
             imageHost={imageHost}
             onImageHostProviderChange={onImageHostProviderChange}
             onImageHostTokenSave={onImageHostTokenSave}
@@ -297,6 +317,20 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
       {pdfOptsOpen && (
         <Suspense fallback={null}>
           <ExportPdfDialog open={pdfOptsOpen} onClose={onClosePdfOptions} onExport={onExportPdf} />
+        </Suspense>
+      )}
+      {supportSummaryOpen && (
+        <Suspense fallback={null}>
+          <SupportSummaryDialog
+            open={supportSummaryOpen}
+            summary={supportSummary}
+            loading={supportSummaryLoading}
+            errorMessage={supportSummaryError}
+            onClose={onCloseSupportSummary}
+            onSave={onSaveSupportSummary}
+            onExportTemp={onExportTempSupportSummary}
+            onCopy={onCopySupportSummary}
+          />
         </Suspense>
       )}
       {publishOpen && (

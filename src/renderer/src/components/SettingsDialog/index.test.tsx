@@ -56,6 +56,7 @@ const baseProps = {
   onRemoveExportCss: vi.fn(),
   autoUpdateEnabled: true,
   onAutoUpdateEnabledChange: vi.fn(),
+  onOpenSupportSummary: vi.fn(),
   imageHost: localHost(),
   onImageHostProviderChange: vi.fn(async () => undefined),
   onImageHostTokenSave: vi.fn(async () => true),

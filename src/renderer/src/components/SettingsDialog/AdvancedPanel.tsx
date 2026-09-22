@@ -7,6 +7,7 @@ interface AdvancedPanelProps {
   onRemoveExportCss: () => void
   autoUpdateEnabled: boolean
   onAutoUpdateEnabledChange: (value: boolean) => void
+  onOpenSupportSummary: () => void
 }
 
 export function AdvancedPanel({
@@ -15,6 +16,7 @@ export function AdvancedPanel({
   onRemoveExportCss,
   autoUpdateEnabled,
   onAutoUpdateEnabledChange,
+  onOpenSupportSummary,
 }: AdvancedPanelProps): JSX.Element {
   return (
     <>
@@ -46,6 +48,17 @@ export function AdvancedPanel({
             每次保存成功自动记录快照（每文件最近 20 份）；入口在文件菜单"版本历史…"
           </span>
         </span>
+      </div>
+      <div className="settings-row">
+        <span className="settings-label">
+          支持摘要
+          <span className="settings-hint">
+            预览脱敏 JSON（版本、平台、诊断计数与错误码），可复制或导出；不含正文、路径或搜索词。
+          </span>
+        </span>
+        <button type="button" className="sc-btn" onClick={onOpenSupportSummary}>
+          打开预览…
+        </button>
       </div>
       <div className="settings-row">
         <span className="settings-label">

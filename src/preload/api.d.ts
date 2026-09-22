@@ -167,6 +167,27 @@ export interface DesktopAPI {
       draftSessionId?: string,
     ): Promise<{ ok: boolean; error?: { code: string; message?: string } }>
   }
+  support: {
+    getEnvironment(): Promise<{
+      ok: boolean
+      data?: {
+        appVersion: string
+        platform: string
+        arch: string
+        electronVersion: string
+        autoUpdateEnabled: boolean
+        eventCounts: Record<string, number>
+        recentErrorCodes: string[]
+      }
+      error?: { code: string; message?: string }
+    }>
+    saveSummary(json: string): Promise<{ ok: boolean; error?: { code: string; message?: string } }>
+    exportTempSummary(json: string): Promise<{
+      ok: boolean
+      data?: { fileName: string }
+      error?: { code: string; message?: string }
+    }>
+  }
   history: {
     /** 记录一次保存后的快照（recorded=false = 内容未变化或超出快照限制被跳过） */
     record(path: string): Promise<{ ok: boolean; data?: { recorded: boolean }; error?: { code: string; message?: string } }>

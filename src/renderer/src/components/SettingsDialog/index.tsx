@@ -73,6 +73,7 @@ interface SettingsDialogProps {
   onRemoveExportCss: () => void
   autoUpdateEnabled: boolean
   onAutoUpdateEnabledChange: (value: boolean) => void
+  onOpenSupportSummary: () => void
   /** 图床配置 */
   imageHost: ImageHostStatus
   onImageHostProviderChange: (provider: 'local' | 'smms') => Promise<void>
@@ -135,6 +136,7 @@ export function SettingsDialog({
   onRemoveExportCss,
   autoUpdateEnabled,
   onAutoUpdateEnabledChange,
+  onOpenSupportSummary,
   imageHost,
   onImageHostProviderChange,
   onImageHostTokenSave,
@@ -294,6 +296,7 @@ export function SettingsDialog({
               onRemoveExportCss={onRemoveExportCss}
               autoUpdateEnabled={autoUpdateEnabled}
               onAutoUpdateEnabledChange={onAutoUpdateEnabledChange}
+              onOpenSupportSummary={onOpenSupportSummary}
             />
           )}
         </div>

@@ -505,6 +505,27 @@ button.sc-btn:focus-visible {
   outline-offset: 1px;
 }
 
+.support-summary-dialog .support-summary-preview {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  color: var(--text-2);
+  resize: vertical;
+}
+.support-summary-hint,
+.support-summary-status {
+  font-size: 0.85rem;
+  color: var(--text-3);
+  margin: 0 0 8px;
+}
+
 /* 字号分段选择 */
 .seg {
   display: flex;

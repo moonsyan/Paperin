@@ -47,7 +47,7 @@ export const listDocumentPathsForSource = (source: CompatibilitySource): string[
     paths.push('中文路径/标准样本.md')
   }
   paths.push('assets/compatibility-pixel.png')
-  return [...new Set(paths)]
+  return Array.from(new Set(paths))
 }
 
 export const resolveCompatibilityManifests = (): CompatibilityFixtureManifest[] =>

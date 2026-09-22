@@ -50,6 +50,7 @@ const LOW_FREQUENCY_CAPABILITIES: Array<{
   { id: 'exportPandoc', scope: 'document', note: '导出 EPUB/LaTeX：需要当前文档' },
   { id: 'versionHistory', scope: 'document', note: '版本历史：按文件路径取快照' },
   { id: 'settings', scope: 'app', note: '设置：全局可用' },
+  { id: 'supportSummary', scope: 'app', note: '支持摘要：脱敏预览后复制或导出' },
   { id: 'stats', scope: 'app', note: '写作统计：无内容时展示零值，不阻断' },
   {
     id: 'graph',

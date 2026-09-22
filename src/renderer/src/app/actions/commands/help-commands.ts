@@ -40,4 +40,12 @@ export const createHelpCommands = (handlers: ActionHandlersRef): AppCommand[] =>
     enabled: () => true,
     execute: () => handlers.current.setSettingsOpen(true),
   },
+  {
+    id: 'supportSummary',
+    title: '支持摘要…',
+    keywords: ['反馈', '诊断', 'Issue'],
+    focusEditor: 'never',
+    enabled: () => true,
+    execute: () => handlers.current.setSupportSummaryOpen(true),
+  },
 ]

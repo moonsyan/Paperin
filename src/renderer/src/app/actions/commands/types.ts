@@ -38,6 +38,7 @@ export interface ActionHandlers {
   setWsSearchOpen: Dispatch<SetStateAction<boolean>>
   setPaletteOpen: Dispatch<SetStateAction<boolean>>
   setSettingsOpen: Dispatch<SetStateAction<boolean>>
+  setSupportSummaryOpen: Dispatch<SetStateAction<boolean>>
   setHelpView: Dispatch<SetStateAction<HelpView>>
   setSidebarCollapsed: Dispatch<SetStateAction<boolean>>
   setFocusMode: Dispatch<SetStateAction<boolean>>

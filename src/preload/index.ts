@@ -278,6 +278,12 @@ const desktopAPI = {
       ipcRenderer.invoke(CHANNELS.SETTINGS_DELETE_DRAFT, { id, draftSessionId }),
   },
 
+  support: {
+    getEnvironment: () => ipcRenderer.invoke(CHANNELS.SUPPORT_GET_ENV),
+    saveSummary: (json: string) => ipcRenderer.invoke(CHANNELS.SUPPORT_SAVE_SUMMARY, json),
+    exportTempSummary: (json: string) => ipcRenderer.invoke(CHANNELS.SUPPORT_EXPORT_TEMP, json),
+  },
+
   history: {
     /** 记录一次保存后的快照（主进程读盘写入 userData/version-history） */
     record: (path: string) => ipcRenderer.invoke(CHANNELS.HISTORY_RECORD, { path }),

@@ -24,6 +24,7 @@ import {
 } from '../lib/source-health'
 import { searchQueryForRelocate } from '../lib/remember-source-snapshot'
 import { useSourceTracking } from './useSourceTracking'
+import { useSupportSummaryDialog } from './useSupportSummaryDialog'
 
 import { useDocumentSession } from './document-session/useDocumentSession'
 import { useAppActions } from './useAppActions'
@@ -108,7 +109,6 @@ export function AppComposition(): JSX.Element {
   // === 布局 ===
   const modalOpenRef = useRef(false)
   const fullscreenOpenRef = useRef(false)
-  modalOpenRef.current = settingsOpen || helpView !== null || imagesOpen || pdfOptsOpen || publishOpen || wsSearchOpen || paletteOpen || versionHistoryOpen || confirmRequest !== null
   // R11：开库时图谱不自动激活；会话恢复仍经 restoringWorkspaceRef 写入同一 ref（兼容保留）
   const graphAutoActivateRef = useRef(true)
   const draftSessionIdRef = useRef<string | undefined>(undefined)
@@ -185,6 +185,17 @@ export function AppComposition(): JSX.Element {
     linksTruncated, refreshLinks, tagIndex, tagsLoading, tagsTruncated,
     refreshIndex, cancelIndex,
   } = useWorkspaceIndexes({ workspace, setToast, fileMtime })
+
+  const {
+    supportSummaryOpen,
+    setSupportSummaryOpen,
+    supportSummary,
+    supportSummaryLoading,
+    supportSummaryError,
+    handleSaveSupportSummary,
+    handleExportTempSupportSummary,
+    handleCopySupportSummary,
+  } = useSupportSummaryDialog(workspaceIndex, diagnostics)
 
   const caseInsensitivePaths = window.desktopAPI?.platform === 'win32'
   const citingDocumentKey = resolveCitingDocumentKey(
@@ -309,11 +320,23 @@ export function AppComposition(): JSX.Element {
     handleNew, handleOpen, handleOpenFolder, handleSelectWorkspaceFile: openWorkspaceFile, handleSave, handleSaveAs, handleCloseTab, handleCloseOtherTabs, handleCloseAllTabs, handleRenameFile,
     handleExportHtml, handleExportMarkdown, handleExportPandoc, handleExportDocx,
     setSearchMode, setFocusOutlineTick, setSidebarActiveTab, setContextDockState, setSearchPref, setSearchEpoch, setSidebarCollapsed, setFocusMode, setPreviewMode, setTypewriter, setZoom, centerCaret,
-    setSettingsOpen, setHelpView, setImagesOpen, setPdfOptsOpen, setPublishOpen, handleNewFromTemplate, setWsSearchOpen, setPaletteOpen, setVersionHistoryOpen, openGraphView,
+    setSettingsOpen, setSupportSummaryOpen, setHelpView, setImagesOpen, setPdfOptsOpen, setPublishOpen, handleNewFromTemplate, setWsSearchOpen, setPaletteOpen, setVersionHistoryOpen, openGraphView,
     getHasUnsavedChanges: () => Object.values(documents).some((d) => d.dirty),
     getLayoutState: () => ({ activeView: sidebarActiveTab, sidebarWidth, typewriterMode: typewriter }),
     setSidebarWidth,
   })
+
+  modalOpenRef.current =
+    settingsOpen ||
+    helpView !== null ||
+    imagesOpen ||
+    pdfOptsOpen ||
+    publishOpen ||
+    wsSearchOpen ||
+    paletteOpen ||
+    versionHistoryOpen ||
+    supportSummaryOpen ||
+    confirmRequest !== null
 
   // === 全局快捷键 ===
   const shortcutLookupRef = useRef<Record<string, string>>({})
@@ -486,6 +509,15 @@ export function AppComposition(): JSX.Element {
         customCssName={settings.customCss?.name ?? null} onImportCss={() => void settings.handleImportCss()} onRemoveCss={settings.handleRemoveCss}
         exportCssName={settings.exportCss?.name ?? null} onImportExportCss={() => void settings.handleImportExportCss()} onRemoveExportCss={settings.handleRemoveExportCss}
         autoUpdateEnabled={settings.autoUpdateEnabled} onAutoUpdateEnabledChange={settings.setAutoUpdateEnabled}
+        onOpenSupportSummary={() => { setSettingsOpen(false); setSupportSummaryOpen(true) }}
+        supportSummaryOpen={supportSummaryOpen}
+        onCloseSupportSummary={() => setSupportSummaryOpen(false)}
+        supportSummary={supportSummary}
+        supportSummaryLoading={supportSummaryLoading}
+        supportSummaryError={supportSummaryError}
+        onSaveSupportSummary={handleSaveSupportSummary}
+        onExportTempSupportSummary={handleExportTempSupportSummary}
+        onCopySupportSummary={handleCopySupportSummary}
         imageHost={settings.imageHost} onImageHostProviderChange={settings.handleImageHostProviderChange} onImageHostTokenSave={settings.handleImageHostTokenSave}
         globalAttachmentDirectory={settings.globalAttachmentDirectory}
         onGlobalAttachmentDirectoryChange={(value) => {
