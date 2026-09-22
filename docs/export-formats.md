@@ -26,9 +26,9 @@
 - **发布配置**：工作区最多保存 20 条模板/范围配置，只存名称与选项，不含正文；重启后可应用。
 - **交付报告**：资源包含 `reports/paperin-delivery-report.json`（上限 1 MiB）。字段仅有 schemaVersion、generatedAt、documentCount、diagnosticsByCode、missingTargets、indexComplete；不含正文、绝对路径或搜索词。文件名必须是该基名，含 `../`、空内容或超限则整个资源包失败，不留半成品。
 
-核心任务闭环把「当前文档」资源包当作可交付出口：自动冒烟会在插入来源引用并保存重开后写出 HTML 资源包，接收方用浏览器打开 `index.html` 即可阅读。集合导出、打印字体和对方软件的完整矩阵仍见本页其余行与 [compatibility-matrix](compatibility-matrix.md)。
+核心任务闭环把「当前文档」资源包当作可交付出口：自动冒烟会在插入来源引用并保存重开后写出 HTML 资源包，接收方用浏览器打开 `index.html` 即可阅读。各格式在 Word/PDF 阅读器/浏览器中的打开结果与「保证/不保证」边界见 [export-recipient-matrix](development/export-recipient-matrix.md)（接收方实测默认 **UNVERIFIED**）。能力总表仍见 [compatibility-matrix](compatibility-matrix.md)。
 
-报告基于当前索引与诊断生成；`indexComplete` 表示扫描覆盖，不是来源已人工复核或接收方格式已验收。相对路径也可能透露目录/文件名称，分享前应检查。目标独立变化的索引失效（P0-07）和按文档来源基线（P1-07）尚待完善，不能将报告解释为完整、实时的逐篇来源审计。P2-03 将验证真实接收方软件，目前不承诺所有 PDF/Word/字体组合都兼容。
+报告基于当前索引与诊断生成；`indexComplete` 表示扫描覆盖，不是来源已人工复核或接收方格式已验收。相对路径也可能透露目录/文件名称，分享前应检查。目标独立变化的索引失效（P0-07）和按文档来源基线（P1-07）尚待完善，不能将报告解释为完整、实时的逐篇来源审计。P2-03 接收方矩阵骨架已建立，真实 Word/PDF/浏览器打开仍 **UNVERIFIED**，不承诺所有字体与版本组合兼容。
 
 ## 集合导出 Markdown → HTML（与单篇 DOM 导出区分）
 

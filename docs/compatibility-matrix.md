@@ -52,7 +52,7 @@
 | ~~P0-02~~ | Main 搜索语料总预算 | **已落地（2026-09-22）**：64/128 MiB 预算、语料复用与 fallback |
 | P1-06/07 | 来源生命周期和逐篇关系 | 切库/清除/卸载旧回包不登记；A/B 文章基线不互相覆盖；旧记录归属未知 |
 | ~~P1-08~~ | 索引释放与缓存 DTO | **已落地（2026-09-22）**：生命周期 epoch、有界读取、schema/根校验、损坏回退重建 |
-| ~~P1-02~~ / P2-03 | 来源工具与接收方软件矩阵 | **P1-02 合成夹具与 hash 门禁已落地**；真实导出与接收方阅读器检查仍 **UNVERIFIED** |
+| ~~P1-02~~ / P2-03 | 来源工具与接收方软件矩阵 | **P1-02** 合成夹具、Vitest 与 `--compatibility` smoke 已落地；**P2-03** [export-recipient-matrix](development/export-recipient-matrix.md) 骨架已建立 | 真实导出版本与接收方阅读器打开仍 **UNVERIFIED** |
 
 以上是计划，不改变当前 schema 或声明新增支持。详细任务见[实施计划](superpowers/plans/2026-09-22-product-workflow-implementation.md)。
 

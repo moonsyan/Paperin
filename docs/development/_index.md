@@ -8,5 +8,6 @@
 | 指标协议 | [战略验收协议](strategy-validation.md) |
 | 性能证据 | [基线与采样范围](performance-baseline.md) |
 | 发行证据 | [候选、安装与发布门禁](release-validation.md) |
+| 导出接收方 | [格式保证与阅读器矩阵（P2-03）](export-recipient-matrix.md) |
 
 性能、发行和指标协议的稳定入口继续由 [文档索引](../README.md) 维护；原始性能 JSON 与对应协议同目录保存。
