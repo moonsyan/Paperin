@@ -19,7 +19,6 @@ import { normalizeWorkspaceRelativePath } from '../../../shared/workspace-state'
 import { resolveCitingDocumentKey } from '../lib/citing-document-key'
 import {
   buildReviewInputsFromIndex,
-  evaluateCurrentDocumentSourceHealth,
   reviewCurrentDocumentInSettings,
 } from '../lib/source-health'
 import { searchQueryForRelocate } from '../lib/remember-source-snapshot'

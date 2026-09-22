@@ -50,6 +50,7 @@ function createOpts(overrides: Record<string, unknown> = {}) {
     setZoom: vi.fn(),
     centerCaret: vi.fn(),
     setSettingsOpen: vi.fn(),
+    setSupportSummaryOpen: vi.fn(),
     setHelpView: vi.fn(),
     setImagesOpen: vi.fn(),
     setPdfOptsOpen: vi.fn(),

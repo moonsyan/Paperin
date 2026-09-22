@@ -6,7 +6,7 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync, readdirSync, statSync } from 'node:fs'
-import { basename, dirname, isAbsolute, resolve } from 'node:path'
+import { basename, isAbsolute, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const NSIS_SILENT_FLAG = '/S'

@@ -276,7 +276,7 @@ export const clearDocumentSourceBaselines = (
 })
 
 export const clearAllSourceRelations = (
-  slice: SourceTrackingEditorSlice,
+  _slice: SourceTrackingEditorSlice,
 ): SourceTrackingEditorSlice => ({
   documentSourceBaselines: [],
   legacySourceSnapshots: [],
