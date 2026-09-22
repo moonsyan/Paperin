@@ -68,14 +68,14 @@ const dump = (tag: string, view: EditorView, editor: Editor) => {
 describe('复现：真实键入流', () => {
   it('A. 空文档行首键入 [^abc] + 空格 + 正文', async () => {
     const { view, editor } = await build('')
-    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1)))
+    view.dispatch(view.state.tr.setSelection(TextSelection.atStart(view.state.doc)))
     typeText(view, '[^abc] 一些正文')
     dump('A 行首', view, editor)
   })
 
   it('B. 空文档行首键入 [^abc] 后换行再输入', async () => {
     const { view, editor } = await build('')
-    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1)))
+    view.dispatch(view.state.tr.setSelection(TextSelection.atStart(view.state.doc)))
     typeText(view, '[^abc]')
     view.dispatch(view.state.tr.split(view.state.selection.from))
     typeText(view, '正文')
@@ -84,21 +84,21 @@ describe('复现：真实键入流', () => {
 
   it('C. 行中键入 [^abc]（前面有文字）', async () => {
     const { view, editor } = await build('前文')
-    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, view.state.doc.content.size - 1)))
+    view.dispatch(view.state.tr.setSelection(TextSelection.atEnd(view.state.doc)))
     typeText(view, ' [^abc]')
     dump('C 行中', view, editor)
   })
 
   it('D. 行中键入 [^abc] 后继续输入中文', async () => {
     const { view, editor } = await build('前文')
-    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, view.state.doc.content.size - 1)))
+    view.dispatch(view.state.tr.setSelection(TextSelection.atEnd(view.state.doc)))
     typeText(view, ' [^abc]后续文字')
     dump('D 行中+中文', view, editor)
   })
 
   it('E. 行首键入单字符标签 [^a] + 空格', async () => {
     const { view, editor } = await build('')
-    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1)))
+    view.dispatch(view.state.tr.setSelection(TextSelection.atStart(view.state.doc)))
     typeText(view, '[^a] 正文')
     dump('E 单字符', view, editor)
   })
@@ -106,7 +106,7 @@ describe('复现：真实键入流', () => {
   it('F. 已有脚注的文档里再键入第二个引用', async () => {
     const md = ['第一个[^one]。', '', '[^one]: 内容。'].join('\n')
     const { view, editor } = await build(md)
-    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, view.state.doc.content.size - 1)))
+    view.dispatch(view.state.tr.setSelection(TextSelection.atEnd(view.state.doc)))
     typeText(view, '第二个[^two]。')
     dump('F 第二个', view, editor)
   })
