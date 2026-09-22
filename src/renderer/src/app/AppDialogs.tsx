@@ -10,6 +10,7 @@ import type { EditorViewState } from '../components/Editor/content/editor-view-s
 import { buildSourceCitation, citationTargetsCurrentDocument } from '../lib/source-citation'
 import type { PublishOptions, PublishScope } from '../lib/export-bundle'
 import type { ImageHostStatus } from '../../../shared/image-host'
+import { clearAllSourceRelations } from '../../../shared/workspace-state'
 
 /**
  * 低频对话框懒加载：设置 / 帮助 / 图片 / PDF 选项 / 发布 / 版本历史 / 工作区全文搜索
@@ -379,12 +380,25 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
               onSelectSearchResult(absolute, '')
             }}
             onClearNavigation={() => {
+              setWorkspaceSettings((current) => ({
+                ...current,
+                editor: { ...current.editor, lastSearchQuery: '', recentCitations: [] },
+              }))
+              setToast('已清除搜索词与最近引用，正文与来源关系没有改动')
+            }}
+            onClearSourceRelations={() => {
               onClearSourceRecords?.()
               setWorkspaceSettings((current) => ({
                 ...current,
-                editor: { ...current.editor, lastSearchQuery: '', recentCitations: [], sourceSnapshots: [] },
+                editor: {
+                  ...current.editor,
+                  ...clearAllSourceRelations({
+                    documentSourceBaselines: current.editor.documentSourceBaselines,
+                    legacySourceSnapshots: current.editor.legacySourceSnapshots,
+                  }),
+                },
               }))
-              setToast('已清除搜索词、最近引用和来源快照，正文没有改动')
+              setToast('已删除工作区来源关系，正文没有改动')
             }}
             onInsertCitation={(match) => {
               if (!citationTargetsCurrentDocument(match.capturedFileId, activeFileId)) {

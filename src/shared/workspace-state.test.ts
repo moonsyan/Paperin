@@ -5,7 +5,7 @@ import {
   parseWorkspaceSettings,
   normalizeWorkspaceRelativePath,
   rememberRecentCitation,
-  rememberSourceSnapshot,
+  rememberDocumentSourceBaseline,
 } from './workspace-state'
 
 describe('工作区状态校验', () => {
@@ -161,7 +161,7 @@ describe('工作区状态校验', () => {
     })).toEqual({
       schemaVersion: 1,
       appearance: { theme: 'inherit' },
-      editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [], sourceSnapshots: [], publishProfiles: [] },
+      editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [], documentSourceBaselines: [], legacySourceSnapshots: [], publishProfiles: [] },
     })
   })
 
@@ -169,12 +169,12 @@ describe('工作区状态校验', () => {
     expect(parseWorkspaceSettings({})).toEqual({
       schemaVersion: 1,
       appearance: { theme: 'inherit' },
-      editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [], sourceSnapshots: [], publishProfiles: [] },
+      editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [], documentSourceBaselines: [], legacySourceSnapshots: [], publishProfiles: [] },
     })
     expect(parseWorkspaceSettings({ editor: { attachmentDirectory: ' media\\images/ ' } })).toEqual({
       schemaVersion: 1,
       appearance: { theme: 'inherit' },
-      editor: { attachmentDirectory: 'media/images', lastSearchQuery: '', recentCitations: [], sourceSnapshots: [], publishProfiles: [] },
+      editor: { attachmentDirectory: 'media/images', lastSearchQuery: '', recentCitations: [], documentSourceBaselines: [], legacySourceSnapshots: [], publishProfiles: [] },
     })
     expect(parseWorkspaceSettings({ editor: { lastSearchQuery: ' 研究\n笔记 ' } }).editor.lastSearchQuery).toBe('研究 笔记')
     expect(parseWorkspaceSettings({}).editor.lastSearchQuery).toBe('')
@@ -190,8 +190,9 @@ describe('工作区状态校验', () => {
     expect(parseWorkspaceSettings({}).editor.recentCitations).toEqual([])
   })
 
-  it('来源快照拒绝绝对/越界路径，去重并限制数量，旧 schema 默认为空', () => {
-    expect(parseWorkspaceSettings({}).editor.sourceSnapshots).toEqual([])
+  it('来源基线拒绝绝对/越界路径；旧 sourceSnapshots 迁移为 legacy 归属未知', () => {
+    expect(parseWorkspaceSettings({}).editor.documentSourceBaselines).toEqual([])
+    expect(parseWorkspaceSettings({}).editor.legacySourceSnapshots).toEqual([])
     expect(parseWorkspaceSettings({
       editor: {
         sourceSnapshots: [
@@ -202,17 +203,25 @@ describe('工作区状态校验', () => {
           { path: '资料/b.md', hash: 'abc' },
         ],
       },
-    }).editor.sourceSnapshots).toEqual([{ path: '资料/a.md', modifiedTime: 10 }])
-    expect(rememberSourceSnapshot([], { path: 'D:/外部.md', modifiedTime: 1 })).toEqual([])
-    expect(rememberSourceSnapshot(
-      [{ path: '资料/a.md', modifiedTime: 1 }],
-      { path: '资料/a.md', modifiedTime: 8 },
-    )).toEqual([{ path: '资料/a.md', modifiedTime: 8 }])
+    }).editor).toMatchObject({
+      documentSourceBaselines: [],
+      legacySourceSnapshots: [{ path: '资料/a.md', modifiedTime: 10 }],
+    })
+    expect(rememberDocumentSourceBaseline([], {
+      citingDocumentPath: '文章/a.md',
+      sourcePath: 'D:/外部.md',
+      modifiedTime: 1,
+    })).toEqual([])
+    expect(rememberDocumentSourceBaseline(
+      [{ citingDocumentPath: '文章/a.md', sourcePath: '资料/a.md', modifiedTime: 1 }],
+      { citingDocumentPath: '文章/a.md', sourcePath: '资料/a.md', modifiedTime: 8 },
+    )).toEqual([{ citingDocumentPath: '文章/a.md', sourcePath: '资料/a.md', modifiedTime: 8 }])
     const overflow = Array.from({ length: 55 }, (_, index) => ({
       path: `资料/${index}.md`,
       modifiedTime: index,
     }))
-    expect(parseWorkspaceSettings({ editor: { sourceSnapshots: overflow } }).editor.sourceSnapshots).toHaveLength(50)
+    expect(parseWorkspaceSettings({ editor: { sourceSnapshots: overflow } }).editor.legacySourceSnapshots)
+      .toHaveLength(50)
   })
 
   it('发布配置旧 schema 默认为空，非法项丢弃并限制 20 条', () => {

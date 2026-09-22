@@ -62,7 +62,7 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 | P0 | 补齐许可、隐私与 Windows 候选材料 | **材料已提交**：`LICENSE`、`THIRD-PARTY-NOTICES.md`、`PRIVACY.md`、`SECURITY.md` 与四类 Issue 模板；`validateReleaseMaterials` 拒绝缺文件。Windows 两套隔离环境安装/升级/卸载循环为 **UNVERIFIED** |
 | P1 | 验证 15 分钟首次核心闭环 | **自动链路已完成**：`runCoreTaskSmoke` 按真实 UI 覆盖来源查找、插入引用、保存重开、资源包导出，`npm run smoke` 退出 0。无口头帮助的真人 15 分钟样本为 **UNVERIFIED** |
 | P1 | 完成两位现有用户任务记录 | 两周内每人至少 3 次真实任务，记录阻塞、成果和再次使用理由，不计算虚假留存率 |
-| P2 | 来源健康与变化提示 | **代码已完成（工作区共享初版）**：质量面板显示来源已变化/缺失/索引未完成；全库共用最多 50 条路径/mtime，**不是**逐篇引用表；缺失只提供重新定位和打开搜索，mtime 提示不改正文。逐篇基线属 P1-07 待办。两设备 8 小时稳定性与真人验证仍为后续门槛 |
+| P2 | 来源健康与变化提示 | **P1-07 已落地**：`documentSourceBaselines` 按引用文档维护 mtime 基线；旧 `sourceSnapshots` 迁移为 `legacySourceSnapshots`（归属未知）；质量面板按当前文章展示异常并提供「复核当前文章」（mtime 一致不等于正文已人工复核）；清除导航与删除来源关系分开。缺失仍只提供重新定位/搜索。两设备 8 小时稳定性与真人验证仍为 **UNVERIFIED** |
 | P2 | 发布配置与交付报告 | **代码已完成**：工作区可保存最多 20 条发布配置；HTML 资源包含 `reports/paperin-delivery-report.json`，不含正文、绝对路径或搜索词。接收方阅读与真人专业交付验证仍为后续门槛 |
 | P2 | 长期稳定性门禁 | **代码已完成**：五结构 5 MiB 夹具与 `summarizeStability`（30 分钟基线窗口 vs 末两小时，增长须 ≤15% 且 ≤100 MiB，watcher 不得增多）。`--stability-hours 8` 可启动采样；两设备 8 小时实测为 **UNVERIFIED** |
 
@@ -70,7 +70,7 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 
 ## 已有能力与证据边界
 
-2026-09-22 代码/功能补充审阅（基线 `7c3dd53`）待办：**P0-02 Main 搜索语料（64/128 MiB 预算、语料复用与读盘 fallback）已落地**；**P1-08 索引释放与磁盘缓存边界已落地**；仍待 P1-06 来源异步生命周期、P1-07 按文档来源基线。**P0-07 引用目标变化后的索引失效**已在 Main 索引服务与 watcher 测试覆盖。具体静态证据见[审阅记录](development/reviews/2026-09-22-code-function-review.md)。
+2026-09-22 代码/功能补充审阅（基线 `7c3dd53`）待办：**P0-02 Main 搜索语料**与 **P1-08 索引释放/缓存边界**已落地；**P1-06 来源异步生命周期**与 **P1-07 按文档来源基线/复核**已落地（本提交）。**P0-07 引用目标变化后的索引失效**已在 Main 索引服务与 watcher 测试覆盖。具体静态证据见[审阅记录](development/reviews/2026-09-22-code-function-review.md)。
 
 | 能力 | 当前代码状态 | 仍未证明 |
 | --- | --- | --- |

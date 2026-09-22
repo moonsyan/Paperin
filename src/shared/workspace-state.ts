@@ -1,8 +1,38 @@
 import { isPanelId } from './panel-id'
 import { parsePublishProfiles } from './publish-profile'
+import { parseSourceTrackingFromEditor } from './source-tracking'
 
 import type { PanelId } from './panel-id'
 import type { PublishProfile } from './publish-profile'
+import type {
+  DocumentSourceBaseline,
+  LegacySourceSnapshot,
+} from './source-tracking'
+
+export {
+  MAX_LEGACY_SOURCE_SNAPSHOTS,
+  MAX_SOURCE_BASELINE_DOCUMENTS,
+  MAX_SOURCE_BASELINES_PER_DOCUMENT,
+  MAX_TOTAL_DOCUMENT_SOURCE_BASELINES,
+  clearAllSourceRelations,
+  clearDocumentSourceBaselines,
+  clearLegacySourceSnapshots,
+  rememberDocumentSourceBaseline,
+  reviewCitingDocumentBaselines,
+  rebindEphemeralCitingDocument,
+  remapSourceTrackingPath,
+  baselinesForCitingDocument,
+  ephemeralCitingDocumentKey,
+  isEphemeralCitingDocumentKey,
+  isPersistableCitingDocumentPath,
+  persistableBaselines,
+} from './source-tracking'
+export type {
+  DocumentSourceBaseline,
+  LegacySourceSnapshot,
+  ReviewSourceBaselineInput,
+  SourceTrackingEditorSlice,
+} from './source-tracking'
 
 export const WORKSPACE_STATE_SCHEMA_VERSION = 1 as const
 export const WORKSPACE_LAYOUT_SCHEMA_VERSION = 2 as const
@@ -10,6 +40,7 @@ export const MAX_WORKSPACE_TABS = 200
 export const MAX_COLLAPSED_DIRECTORIES = 2000
 export const MAX_DOCUMENT_VIEW_STATES = 500
 export const MAX_RECENT_CITATIONS = 8
+/** @deprecated 使用 MAX_LEGACY_SOURCE_SNAPSHOTS；仅兼容旧测试引用。 */
 export const MAX_SOURCE_SNAPSHOTS = 50
 export { MAX_PUBLISH_PROFILES } from './publish-profile'
 
@@ -45,13 +76,16 @@ export interface WorkspaceSettingsState {
     lastSearchQuery: string
     /** 最近插入过的来源，只存工作区相对路径，不存正文。 */
     recentCitations: string[]
-    /** 插入时的来源 mtime 快照；不存正文或哈希。 */
-    sourceSnapshots: SourceSnapshot[]
+    /** 按引用文档维护的来源 mtime 基线；不存正文或哈希。 */
+    documentSourceBaselines: DocumentSourceBaseline[]
+    /** 旧工作区全局快照，归属未知；不当作当前文章已复核。 */
+    legacySourceSnapshots: LegacySourceSnapshot[]
     /** 可复用发布配置；只存模板/范围，不存正文。 */
     publishProfiles: PublishProfile[]
   }
 }
 
+/** @deprecated 旧全局快照形状；新数据使用 LegacySourceSnapshot。 */
 export interface SourceSnapshot {
   path: string
   modifiedTime: number
@@ -97,7 +131,14 @@ export interface WorkspaceStateBundle {
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettingsState = {
   schemaVersion: WORKSPACE_STATE_SCHEMA_VERSION,
   appearance: { theme: 'inherit' },
-  editor: { attachmentDirectory: null, lastSearchQuery: '', recentCitations: [], sourceSnapshots: [], publishProfiles: [] },
+  editor: {
+    attachmentDirectory: null,
+    lastSearchQuery: '',
+    recentCitations: [],
+    documentSourceBaselines: [],
+    legacySourceSnapshots: [],
+    publishProfiles: [],
+  },
 }
 
 export const DEFAULT_WORKSPACE_LAYOUT: WorkspaceLayoutState = {
@@ -175,23 +216,19 @@ export const parseWorkspaceSettings = (value: unknown): WorkspaceSettingsState =
     recentCitations.push(path)
     if (recentCitations.length >= MAX_RECENT_CITATIONS) break
   }
-  const requestedSnapshots = Array.isArray(editor?.sourceSnapshots) ? editor.sourceSnapshots : []
-  const sourceSnapshots: SourceSnapshot[] = []
-  const seenSnapshots = new Set<string>()
-  for (const candidate of requestedSnapshots) {
-    if (!isRecord(candidate) || typeof candidate.path !== 'string') continue
-    if (typeof candidate.modifiedTime !== 'number' || !Number.isFinite(candidate.modifiedTime)) continue
-    const path = normalizeWorkspaceRelativePath(candidate.path)
-    if (!path || seenSnapshots.has(path)) continue
-    seenSnapshots.add(path)
-    sourceSnapshots.push({ path, modifiedTime: candidate.modifiedTime })
-    if (sourceSnapshots.length >= MAX_SOURCE_SNAPSHOTS) break
-  }
+  const sourceTracking = parseSourceTrackingFromEditor(editor)
   const publishProfiles = parsePublishProfiles(editor?.publishProfiles)
   return {
     schemaVersion: WORKSPACE_STATE_SCHEMA_VERSION,
     appearance: { theme },
-    editor: { attachmentDirectory, lastSearchQuery, recentCitations, sourceSnapshots, publishProfiles },
+    editor: {
+      attachmentDirectory,
+      lastSearchQuery,
+      recentCitations,
+      documentSourceBaselines: sourceTracking.documentSourceBaselines,
+      legacySourceSnapshots: sourceTracking.legacySourceSnapshots,
+      publishProfiles,
+    },
   }
 }
 
@@ -200,19 +237,6 @@ export const rememberRecentCitation = (current: readonly string[], relativePath:
   const path = normalizeWorkspaceRelativePath(relativePath)
   if (!path) return [...current]
   return [path, ...current.filter((item) => item !== path)].slice(0, MAX_RECENT_CITATIONS)
-}
-
-/** 记住一条来源 mtime。绝对路径和越界路径会被丢掉，列表不超过 50 条。 */
-export const rememberSourceSnapshot = (
-  current: readonly SourceSnapshot[],
-  snapshot: SourceSnapshot,
-): SourceSnapshot[] => {
-  const path = normalizeWorkspaceRelativePath(snapshot.path)
-  if (!path || !Number.isFinite(snapshot.modifiedTime)) return [...current]
-  return [
-    { path, modifiedTime: snapshot.modifiedTime },
-    ...current.filter((item) => item.path !== path),
-  ].slice(0, MAX_SOURCE_SNAPSHOTS)
 }
 
 /** 侧栏视图联合类型（单一来源）：新增视图时此处与 Sidebar 组件同步扩展 */

@@ -19,6 +19,9 @@ interface QualityPanelProps {
   sourceHealth?: SourceHealthRecord[]
   onRelocateSource?: (path: string) => void
   onOpenWorkspaceSearch?: () => void
+  /** 将当前文章的来源基线更新为索引中的 mtime（人工复核，不等于正文一致） */
+  onReviewCurrentDocumentSources?: () => void
+  legacySourceCount?: number
 }
 
 const SOURCE_STATUS_LABEL: Record<Exclude<SourceHealthRecord['status'], 'current'>, string> = {
@@ -46,8 +49,16 @@ export function QualityPanel({
   sourceHealth = [],
   onRelocateSource,
   onOpenWorkspaceSearch,
+  onReviewCurrentDocumentSources,
+  legacySourceCount = 0,
 }: QualityPanelProps): JSX.Element {
-  const visibleSources = sourceHealth.filter(
+  const currentDocumentSources = sourceHealth.filter((record) => record.scope === 'current-document')
+  const visibleSources = currentDocumentSources.filter(
+    (record): record is SourceHealthRecord & { status: Exclude<SourceHealthRecord['status'], 'current'> } =>
+      record.status !== 'current',
+  )
+  const legacySources = sourceHealth.filter((record) => record.scope === 'legacy-unknown')
+  const visibleLegacy = legacySources.filter(
     (record): record is SourceHealthRecord & { status: Exclude<SourceHealthRecord['status'], 'current'> } =>
       record.status !== 'current',
   )
@@ -63,19 +74,48 @@ export function QualityPanel({
       {!indexComplete && (
         <div className="quality-panel-incomplete" role="status">索引未完成，请重新扫描</div>
       )}
-      {visibleSources.length > 0 && (
+      {(visibleSources.length > 0 || (onReviewCurrentDocumentSources && currentDocumentSources.length > 0)) && (
         <div className="quality-group quality-group-source">
-          <h3>来源健康（{visibleSources.length}）</h3>
-          {visibleSources.map((record) => (
-            <div key={`${record.status}:${record.path}`} className="quality-source" role="status">
+          <h3 className="quality-group-title-row">
+            当前文章来源（{visibleSources.length}）
+            <button
+              type="button"
+              className="quality-fix-btn"
+              onClick={onReviewCurrentDocumentSources}
+              disabled={!onReviewCurrentDocumentSources || !indexComplete}
+              title="把当前文章的来源基线更新为索引中的修改时间；mtime 一致不等于正文已人工复核"
+            >
+              复核当前文章
+            </button>
+          </h3>
+          {visibleSources.length === 0 ? (
+            <div className="quality-panel-empty">当前文章未发现来源异常</div>
+          ) : (
+            visibleSources.map((record) => (
+              <div key={`${record.status}:${record.path}`} className="quality-source" role="status">
+                <span className="quality-item-message">{SOURCE_STATUS_LABEL[record.status]}</span>
+                <span className="quality-item-location">{record.path}</span>
+                {record.status === 'missing' && (
+                  <div className="quality-source-actions">
+                    <button type="button" onClick={() => onRelocateSource?.(record.path)}>重新定位</button>
+                    <button type="button" onClick={() => onOpenWorkspaceSearch?.()}>打开搜索</button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+      {(visibleLegacy.length > 0 || legacySourceCount > 0) && (
+        <div className="quality-group quality-group-source">
+          <h3>旧工作区记录 / 归属未知（{visibleLegacy.length || legacySourceCount}）</h3>
+          <p className="quality-panel-note" role="note">
+            这些记录来自旧版全局快照，不能当作当前文章已复核；mtime 相同只表示与记录时间一致。
+          </p>
+          {visibleLegacy.map((record) => (
+            <div key={`legacy:${record.status}:${record.path}`} className="quality-source" role="status">
               <span className="quality-item-message">{SOURCE_STATUS_LABEL[record.status]}</span>
               <span className="quality-item-location">{record.path}</span>
-              {record.status === 'missing' && (
-                <div className="quality-source-actions">
-                  <button type="button" onClick={() => onRelocateSource?.(record.path)}>重新定位</button>
-                  <button type="button" onClick={() => onOpenWorkspaceSearch?.()}>打开搜索</button>
-                </div>
-              )}
             </div>
           ))}
         </div>
@@ -131,7 +171,7 @@ export function QualityPanel({
           </div>
         )
       })}
-      {diagnostics.length === 0 && indexComplete && typographyIssues.length === 0 && visibleSources.length === 0 && (
+      {diagnostics.length === 0 && indexComplete && typographyIssues.length === 0 && visibleSources.length === 0 && visibleLegacy.length === 0 && (
         <div className="quality-panel-empty">未发现问题</div>
       )}
     </section>

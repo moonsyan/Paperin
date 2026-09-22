@@ -44,6 +44,8 @@ export interface ContextDockContentProps {
   onOpenTypographyIssue?: (issue: TypographyIssue) => void
   onFixTypography?: () => void
   sourceHealth?: SourceHealthRecord[]
+  legacySourceCount?: number
+  onReviewCurrentDocumentSources?: () => void
   onRelocateSource?: (path: string) => void
   onOpenWorkspaceSearch?: () => void
   properties: Record<string, string> | null
@@ -110,6 +112,8 @@ export function ContextDockPanelContent({
   onOpenTypographyIssue,
   onFixTypography,
   sourceHealth = [],
+  legacySourceCount = 0,
+  onReviewCurrentDocumentSources,
   onRelocateSource,
   onOpenWorkspaceSearch,
   properties,
@@ -142,7 +146,7 @@ export function ContextDockPanelContent({
         <FrontmatterProperties properties={properties} show={showProperties} onToggle={onToggleProperties} onUpdateProperty={onUpdateProperty} onDeleteProperty={onDeleteProperty} onAddProperty={onAddProperty} />
       )}
       {!panel.render && panel.id === 'quality' && (
-        <QualityPanel diagnostics={diagnostics} indexComplete={workspaceIndex?.complete ?? false} indexing={indexLoading} onRefresh={onRefreshIndex} onCancel={onCancelIndex} onOpenDiagnostic={onOpenDiagnostic} typographyIssues={typographyIssues} onOpenTypographyIssue={onOpenTypographyIssue} onFixTypography={onFixTypography} sourceHealth={sourceHealth} onRelocateSource={onRelocateSource} onOpenWorkspaceSearch={onOpenWorkspaceSearch} />
+        <QualityPanel diagnostics={diagnostics} indexComplete={workspaceIndex?.complete ?? false} indexing={indexLoading} onRefresh={onRefreshIndex} onCancel={onCancelIndex} onOpenDiagnostic={onOpenDiagnostic} typographyIssues={typographyIssues} onOpenTypographyIssue={onOpenTypographyIssue} onFixTypography={onFixTypography} sourceHealth={sourceHealth} legacySourceCount={legacySourceCount} onReviewCurrentDocumentSources={onReviewCurrentDocumentSources} onRelocateSource={onRelocateSource} onOpenWorkspaceSearch={onOpenWorkspaceSearch} />
       )}
     </section>
   )

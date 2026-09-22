@@ -100,6 +100,32 @@ describe('工作区状态存储', () => {
     })
   })
 
+  it('旧 sourceSnapshots 载入后迁移为 legacySourceSnapshots 并持久化新字段', async () => {
+    await writeFile(
+      join(statePath, 'settings.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        appearance: { theme: 'inherit' },
+        editor: {
+          sourceSnapshots: [{ path: '资料/old.md', modifiedTime: 12 }],
+        },
+      }),
+      'utf-8',
+    )
+
+    const store = new WorkspaceStateStore()
+    const loaded = await store.load(rootPath)
+    expect(loaded.settings.editor.documentSourceBaselines).toEqual([])
+    expect(loaded.settings.editor.legacySourceSnapshots).toEqual([{ path: '资料/old.md', modifiedTime: 12 }])
+
+    await store.writeSettings(rootPath, loaded.settings)
+    const persisted = JSON.parse(await readFile(join(statePath, 'settings.json'), 'utf-8')) as {
+      editor: Record<string, unknown>
+    }
+    expect(persisted.editor.sourceSnapshots).toBeUndefined()
+    expect(persisted.editor.legacySourceSnapshots).toEqual([{ path: '资料/old.md', modifiedTime: 12 }])
+  })
+
   it('并发的原子更新按序合并，互不覆盖对方字段', async () => {
     const store = new WorkspaceStateStore()
     // 模拟两个窗口各自"读-改-写"不同字段：updater 内制造 await 交错点

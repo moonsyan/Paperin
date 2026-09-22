@@ -16,6 +16,12 @@ import { useDocumentSessionPersistence } from '../hooks/useDocumentSessionPersis
 import type { PublishOptions, PublishScope } from '../lib/export-bundle'
 import { buildDeliveryReport } from '../lib/delivery-report'
 import { normalizeWorkspaceRelativePath } from '../../../shared/workspace-state'
+import { resolveCitingDocumentKey } from '../lib/citing-document-key'
+import {
+  buildReviewInputsFromIndex,
+  evaluateCurrentDocumentSourceHealth,
+  reviewCurrentDocumentInSettings,
+} from '../lib/source-health'
 import { searchQueryForRelocate } from '../lib/remember-source-snapshot'
 import { useSourceTracking } from './useSourceTracking'
 
@@ -95,11 +101,6 @@ export function AppComposition(): JSX.Element {
     handleWorkspaceThemeEnabledChange, handleCollapsedKeysChange,
     toast, setToast,
   } = useWorkspaceState({ theme, setTheme, settingsReady: persistReady })
-
-  const { rememberSourceAfterInsert, notifySourceRecordsCleared } = useSourceTracking({
-    workspacePath: workspace?.path,
-    setWorkspaceSettings,
-  })
 
   // === 搜索 ===
   const { searchMode, setSearchMode, searchCount, setSearchCount, searchCurrent, setSearchCurrent, searchPref, setSearchPref, searchEpoch, setSearchEpoch, closeSearch: resetSearchState, handlers: searchHandlers } = useEditorSearch({ editorRef })
@@ -184,6 +185,48 @@ export function AppComposition(): JSX.Element {
     linksTruncated, refreshLinks, tagIndex, tagsLoading, tagsTruncated,
     refreshIndex, cancelIndex,
   } = useWorkspaceIndexes({ workspace, setToast, fileMtime })
+
+  const caseInsensitivePaths = window.desktopAPI?.platform === 'win32'
+  const citingDocumentKey = resolveCitingDocumentKey(
+    activeFileId,
+    activeFile?.path,
+    workspace?.path,
+    caseInsensitivePaths,
+  )
+  const { rememberSourceAfterInsert, notifySourceRecordsCleared, ephemeralBaselines } = useSourceTracking({
+    workspacePath: workspace?.path,
+    citingDocumentKey,
+    activeDocumentId: activeFileId,
+    setWorkspaceSettings,
+  })
+  const mergedDocumentBaselines = useMemo(
+    () => [...workspaceSettings.editor.documentSourceBaselines, ...ephemeralBaselines],
+    [ephemeralBaselines, workspaceSettings.editor.documentSourceBaselines],
+  )
+  const handleReviewCurrentDocumentSources = useCallback(() => {
+    if (!citingDocumentKey || !workspaceIndex?.complete) return
+    const reviews = buildReviewInputsFromIndex(
+      mergedDocumentBaselines,
+      citingDocumentKey,
+      caseInsensitivePaths,
+      workspaceIndex,
+    )
+    if (reviews.length === 0) {
+      setToast('当前文章没有可复核的来源基线')
+      return
+    }
+    setWorkspaceSettings((current) =>
+      reviewCurrentDocumentInSettings(current, citingDocumentKey, reviews, caseInsensitivePaths),
+    )
+    setToast('已更新当前文章的来源基线（mtime 一致不等于正文已人工复核）')
+  }, [
+    caseInsensitivePaths,
+    citingDocumentKey,
+    mergedDocumentBaselines,
+    setToast,
+    setWorkspaceSettings,
+    workspaceIndex,
+  ])
 
   // === 图谱 ===
   const { graphTabOpen, graphTabActive, setGraphTabActive, openGraphView, closeGraphView } = useGraphView({ workspace, refreshLinks, setToast, autoOpenActivateRef: graphAutoActivateRef })
@@ -391,7 +434,11 @@ export function AppComposition(): JSX.Element {
           tagIndex={tagIndex} tagsLoading={tagsLoading} tagsTruncated={tagsTruncated}
           tagFilter={tagFilter} onToggleTagFilter={handleToggleTagFilter}
           typographyIssues={typographyIssues} onOpenTypographyIssue={handleOpenTypographyIssue} onFixTypography={handleFixTypography}
-          sourceSnapshots={workspaceSettings.editor.sourceSnapshots}
+          documentSourceBaselines={mergedDocumentBaselines}
+          legacySourceSnapshots={workspaceSettings.editor.legacySourceSnapshots}
+          citingDocumentKey={citingDocumentKey}
+          caseInsensitivePaths={caseInsensitivePaths}
+          onReviewCurrentDocumentSources={handleReviewCurrentDocumentSources}
           onRelocateSource={(path) => {
             setWorkspaceSettings((current) => ({
               ...current,

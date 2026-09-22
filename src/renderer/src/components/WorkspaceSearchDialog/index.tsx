@@ -29,6 +29,8 @@ interface WorkspaceSearchDialogProps {
   recentCitations?: readonly string[]
   onOpenRecent?: (relativePath: string) => void
   onClearNavigation?: () => void
+  /** 删除持久来源关系，与清除导航分开。 */
+  onClearSourceRelations?: () => void
 }
 
 /**
@@ -48,6 +50,7 @@ export function WorkspaceSearchDialog({
   recentCitations = [],
   onOpenRecent,
   onClearNavigation,
+  onClearSourceRelations,
 }: WorkspaceSearchDialogProps): JSX.Element | null {
   const capturedFileId = useRef(activeFileId).current
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -145,6 +148,7 @@ export function WorkspaceSearchDialog({
                 search.setQuery('')
                 onClearNavigation()
               }}
+              onClearSourceRelations={onClearSourceRelations}
             />
           )}
           {search.error && <div className="ws-error">{search.error}</div>}

@@ -20,8 +20,8 @@ import type { SearchBarHandlers } from './useEditorSearch'
 import { SKIP_LINK_TARGET_ID } from './SkipLink'
 import { workspaceCompatibilityNotes } from '../lib/workspace-compatibility'
 import { insertCitationFromPanel } from '../lib/insert-citation'
-import { evaluateSourceHealth } from '../lib/source-health'
-import type { SourceSnapshot } from '../../../shared/workspace-state'
+import { evaluateCurrentDocumentSourceHealth } from '../lib/source-health'
+import type { DocumentSourceBaseline, LegacySourceSnapshot } from '../../../shared/workspace-state'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -130,7 +130,11 @@ export interface AppWorkspaceProps {
   typographyIssues: TypographyIssue[]
   onOpenTypographyIssue: (issue: TypographyIssue) => void
   onFixTypography: () => void
-  sourceSnapshots?: SourceSnapshot[]
+  documentSourceBaselines?: DocumentSourceBaseline[]
+  legacySourceSnapshots?: LegacySourceSnapshot[]
+  citingDocumentKey?: string | null
+  caseInsensitivePaths?: boolean
+  onReviewCurrentDocumentSources?: () => void
   onRelocateSource?: (path: string) => void
   onOpenWorkspaceSearch?: () => void
   onSourceInserted?: (absolutePath: string) => void
@@ -179,7 +183,14 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
     onRefreshIndex, onCancelIndex, onOpenDiagnostic, sidebarViewModel, linksLoading,
     onOpenLink, onOpenGraphView, tagIndex, tagsLoading, tagsTruncated, tagFilter, onToggleTagFilter,
     typographyIssues, onOpenTypographyIssue, onFixTypography,
-    sourceSnapshots = [], onRelocateSource, onOpenWorkspaceSearch, onSourceInserted,
+    documentSourceBaselines = [],
+    legacySourceSnapshots = [],
+    citingDocumentKey = null,
+    caseInsensitivePaths = false,
+    onReviewCurrentDocumentSources,
+    onRelocateSource,
+    onOpenWorkspaceSearch,
+    onSourceInserted,
     activeProperties, showFrontmatterProps, onToggleProperties, onUpdateProperty, onDeleteProperty, onAddProperty,
     activeOutlineIndex, onOutlineClick, focusEditorSoon,
   } = props
@@ -348,7 +359,17 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
         typographyIssues={typographyIssues}
         onOpenTypographyIssue={onOpenTypographyIssue}
         onFixTypography={onFixTypography}
-        sourceHealth={evaluateSourceHealth(sourceSnapshots, workspaceIndex)}
+        sourceHealth={evaluateCurrentDocumentSourceHealth(
+          documentSourceBaselines,
+          citingDocumentKey,
+          caseInsensitivePaths,
+          workspaceIndex,
+          { legacySnapshots: legacySourceSnapshots },
+        )}
+        legacySourceCount={legacySourceSnapshots.length}
+        onReviewCurrentDocumentSources={
+          citingDocumentKey ? onReviewCurrentDocumentSources : undefined
+        }
         onRelocateSource={onRelocateSource}
         onOpenWorkspaceSearch={onOpenWorkspaceSearch}
         properties={activeProperties as never}

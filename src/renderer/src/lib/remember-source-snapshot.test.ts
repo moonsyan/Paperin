@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_WORKSPACE_SETTINGS } from '../../../shared/workspace-state'
 import {
-  mergeSourceSnapshotIntoSettings,
+  mergeDocumentSourceBaselineIntoSettings,
   searchQueryForRelocate,
   sourceRegistrationTicketMatches,
 } from './remember-source-snapshot'
@@ -28,9 +28,16 @@ describe('sourceRegistrationTicketMatches', () => {
   })
 })
 
-describe('mergeSourceSnapshotIntoSettings', () => {
-  it('把相对路径与 mtime 写入 sourceSnapshots', () => {
-    const next = mergeSourceSnapshotIntoSettings(DEFAULT_WORKSPACE_SETTINGS, '资料/a.md', 42)
-    expect(next.editor.sourceSnapshots).toEqual([{ path: '资料/a.md', modifiedTime: 42 }])
+describe('mergeDocumentSourceBaselineIntoSettings', () => {
+  it('把引用文档、来源路径与 mtime 写入 documentSourceBaselines', () => {
+    const next = mergeDocumentSourceBaselineIntoSettings(
+      DEFAULT_WORKSPACE_SETTINGS,
+      '文章/a.md',
+      '资料/a.md',
+      42,
+    )
+    expect(next.editor.documentSourceBaselines).toEqual([
+      { citingDocumentPath: '文章/a.md', sourcePath: '资料/a.md', modifiedTime: 42 },
+    ])
   })
 })
