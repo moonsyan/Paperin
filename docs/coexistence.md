@@ -21,4 +21,4 @@ Paperin 打开的是普通文件夹里的 Markdown，不要求迁成私有格式
 - 导出里缺掉的图片、断掉的链接和不完整的脚注会在打开时说明，原文段落不会被删掉或自动改写。
 - 对不上的语法按普通文本留下。Paperin 不承诺还原数据库、同步块或私有嵌入。
 
-兼容夹具 **P1-02** 已在仓库内提供五类**合成**导出样本（`src/main/testing/fixtures/compatibility/generated/`），用于只读打开与 hash 不变验证；**不**宣称已取得的真实导出格式兼容。正式验证仍须记录来源版本/导出方法，真实导出样本不得被合成夹具替代；正常无恢复记录的试开前后比较 Markdown 与附件 hash，`.paperin` 元数据单列。自动门禁见 `compatibility-fixtures.test.ts` 与[兼容矩阵](compatibility-matrix.md)。
+兼容夹具 **P1-02** 已在仓库内提供五类**合成**导出样本（`src/main/testing/fixtures/compatibility/generated/`），用于只读打开与 hash 不变验证；**不**宣称已取得的真实导出格式兼容。正式验证仍须记录来源版本/导出方法，真实导出样本不得被合成夹具替代；正常无恢复记录的试开前后比较 Markdown 与附件 hash，`.paperin` 元数据单列。自动门禁见 `compatibility-fixtures.test.ts`、`node scripts/smoke-electron.mjs --compatibility`（物化到临时目录后只读打开/索引）与[兼容矩阵](compatibility-matrix.md)。

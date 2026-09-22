@@ -8,6 +8,7 @@ import { trustDirectory } from '../trusted-paths'
 import { buildAssociationProbeScript, buildTabCountProbeScript, buildUnpersistedStatusProbeScript } from './smoke-probes'
 import { runElectronPerformanceSmoke, parseStabilityHours, summarizeStability, type EvaluateSmokeStep } from './electron-performance-smoke'
 import { runCoreTaskSmoke } from './core-task-smoke'
+import { runElectronCompatibilitySmoke } from './electron-compatibility-smoke'
 
 /**
  * Electron 级端到端冒烟（`--smoke <工作区>` 启动参数触发）。
@@ -86,6 +87,7 @@ export const runElectronSmoke = async (
   associatedFilePath?: string,
 ): Promise<void> => {
   const performanceScenario = process.argv.includes('--perf-electron')
+  const compatibilityScenario = process.argv.includes('--compat-electron')
   const stabilityHours = parseStabilityHours(process.argv)
   const results: string[] = []
   const finish = async (code: 0 | 1, message: string): Promise<never> => {
@@ -101,12 +103,21 @@ export const runElectronSmoke = async (
     app.exit(1)
   }, performanceScenario || stabilityHours > 0
     ? Math.max(390_000, stabilityHours * 3_600_000 + 420_000)
-    : SMOKE_WATCHDOG_MS)
+    : compatibilityScenario
+      ? SMOKE_WATCHDOG_MS
+      : SMOKE_WATCHDOG_MS)
   watchdog.unref()
   try {
     // 冒烟工作区登记为信任根（等价于用户经对话框打开的授权路径）
     trustDirectory(workspacePath, { essential: true })
     const win = await waitForReadyWindow()
+
+    if (compatibilityScenario) {
+      results.push(...await runElectronCompatibilitySmoke(workspacePath, evalStep, win))
+      console.log('SMOKE_PASS')
+      return await finish(0, results.join('\n'))
+    }
+
     const wsArg = JSON.stringify(workspacePath)
 
     // 0. 启动 argv → Main 授权 → preload 窄事件 → Renderer 现有标签路径。

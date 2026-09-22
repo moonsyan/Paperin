@@ -7,13 +7,14 @@
 //   npm run build && npm run smoke   # 等价入口
 //   npm run build && npm run perf:electron  # 5 MiB / 20 标签真实 Electron 性能门禁
 //   node scripts/smoke-electron.mjs --performance --stability-hours 8  # 8 小时稳定性（人工/设备门禁）
+//   node scripts/smoke-electron.mjs --compatibility  # 合成来源夹具只读打开与 hash 不变
 //
 // 场景：打开临时工作区 → 新建文档 → 保存并校验磁盘 → 外部修改 + 过期
 // mtime 保存必须 CONFLICT → 重读 → 重命名 → 工作区搜索 → 状态读取。
 // 任一步失败以非零退出并打印 SMOKE_FAIL 详情；成功打印 SMOKE_PASS。
 
 import { spawn } from 'node:child_process'
-import { access, mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises'
+import { access, cp, mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises'
 import { join, dirname, normalize } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -32,6 +33,16 @@ const electronBinary =
     : join(projectRoot, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
 const mainEntry = join(projectRoot, 'out', 'main', 'index.js')
 const performanceScenario = process.argv.includes('--performance')
+const compatibilityScenario = process.argv.includes('--compatibility')
+const compatibilityFixtureRoot = join(
+  projectRoot,
+  'src',
+  'main',
+  'testing',
+  'fixtures',
+  'compatibility',
+  'generated',
+)
 const stabilityHoursIndex = process.argv.indexOf('--stability-hours')
 const stabilityHoursFlag = process.argv.find((item) => item.startsWith('--stability-hours='))
 const stabilityHours = stabilityHoursIndex >= 0
@@ -57,19 +68,37 @@ const main = async () => {
     process.exit(1)
   }
 
-  // 一次性冒烟工作区：中文目录名 + 一个既有文档，验证中文路径全链路
+  if (compatibilityScenario && performanceScenario) {
+    console.error('SMOKE_FAIL --compatibility 与 --performance 不能同时使用')
+    process.exit(1)
+  }
+
   const smokeRoot = await mkdtemp(join(tmpdir(), 'paperin-smoke-ws-'))
-  const workspace = join(smokeRoot, '冒烟工作区')
-  await mkdir(workspace, { recursive: true })
-  await writeFile(
-    join(workspace, '既有文档.md'),
-    '# 既有文档\n\n冒烟预置内容。\n',
-    'utf-8',
-  )
-  // 位于工作区之外：作为系统文件关联启动参数，验证它进入现有窗口的
-  // 临时标签而不是被加入知识库索引。
-  const associatedFile = join(smokeRoot, '系统关联临时文档.md')
-  await writeFile(associatedFile, '# 系统关联\n\n外部临时内容。\n', 'utf-8')
+  let workspace
+  let associatedFile
+  if (compatibilityScenario) {
+    try {
+      await access(compatibilityFixtureRoot)
+    } catch {
+      console.error(`未找到兼容夹具目录：${compatibilityFixtureRoot}`)
+      process.exit(1)
+    }
+    workspace = smokeRoot
+    await cp(compatibilityFixtureRoot, workspace, { recursive: true })
+  } else {
+    // 一次性冒烟工作区：中文目录名 + 一个既有文档，验证中文路径全链路
+    workspace = join(smokeRoot, '冒烟工作区')
+    await mkdir(workspace, { recursive: true })
+    await writeFile(
+      join(workspace, '既有文档.md'),
+      '# 既有文档\n\n冒烟预置内容。\n',
+      'utf-8',
+    )
+    // 位于工作区之外：作为系统文件关联启动参数，验证它进入现有窗口的
+    // 临时标签而不是被加入知识库索引。
+    associatedFile = join(smokeRoot, '系统关联临时文档.md')
+    await writeFile(associatedFile, '# 系统关联\n\n外部临时内容。\n', 'utf-8')
+  }
   if (performanceScenario) {
     await writeFile(join(workspace, FIXTURE_FILENAMES.largeParagraph5Mib), createLargeMarkdown(), 'utf-8')
     await Promise.all(
@@ -94,8 +123,9 @@ const main = async () => {
       '--smoke',
       workspace,
       ...(performanceScenario ? ['--perf-electron'] : []),
+      ...(compatibilityScenario ? ['--compat-electron'] : []),
       ...(stabilityHoursSafe > 0 ? ['--stability-hours', String(stabilityHoursSafe)] : []),
-      associatedFile,
+      ...(associatedFile ? [associatedFile] : []),
     ],
     {
       cwd: projectRoot,
@@ -120,7 +150,9 @@ const main = async () => {
 
   const scriptTimeoutMs = performanceScenario || stabilityHoursSafe > 0
     ? Math.max(420_000, stabilityHoursSafe * 3_600_000 + 420_000)
-    : 150_000
+    : compatibilityScenario
+      ? 240_000
+      : 150_000
   const timeout = setTimeout(() => {
     console.error(`SMOKE_FAIL 冒烟脚本总超时（${Math.round(scriptTimeoutMs / 1000)}s）`)
     child.kill()
