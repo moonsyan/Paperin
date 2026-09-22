@@ -14,7 +14,7 @@
 | 工作区文件树、最近文件、收藏 | workspace hooks/components | workspace tests、收藏行为测试 | 文件树、最近编辑、星标收藏/取消、右键入口和按工作区恢复已实现 | 跨库路径迁移、5000 文件 UI 性能 |
 | 工作区壳层、当前文件来源与 dirty 上下文 | `WorkspaceShell` + `CurrentFileBanner` | 组件 Testing Library 契约测试 | 已迁移 | 多窗口、窄窗口与外部文件冒烟 |
 | 保存状态文案 | 顶栏、路径条、状态栏共用 `document-save-status.ts` | 保存回执与状态组件测试 | 已有：已保存/未保存、示例、未命名、保存中、冲突、编码、失败 | 九主题与缩放人工看 |
-| 工作区全文搜索 | `WorkspaceSearchDialog`、`workspace-search-handler` | `workspace-search-coverage.test.ts`、`useWorkspaceSearch.test.ts`、`search-rank` | 已有：共享 `WorkspaceCoverage`；200 条命中上限与扫描跳过分开；未扫完时不把空列表当确定无结果；关闭/新查询通过 `queryId`+`cancel` 中止 Main 扫描 | 2026-09-22 生产搜索 P95 13371.8765 ms 超过 5000 ms，当前红灯；60 题 Hit@5 与用户侧时延未测 |
+| 工作区全文搜索 | `WorkspaceSearchDialog`、`workspace-search-handler`、`WorkspaceIndexService` 语料 | `workspace-search-coverage.test.ts`、`workspace-index-service.test.ts`（语料复用）、`useWorkspaceSearch.test.ts` | 已有：共享 `WorkspaceCoverage`；暖搜索优先 Main 内存语料（`getSearchSnapshot`），未缓存/超预算读盘 fallback；结构索引缓存不含正文 `lines` | 2026-09-22 P0-02 后本机搜索 P95 约 17 ms（暖语料）；watcher 稳定 P95 仍偶发超 5000 ms；60 题 Hit@5 未测 |
 | 插入来源引用 | 搜索结果与反链；`source-citation.ts` | `source-citation`、`insert-citation` 测试 | 已有：片段快照、相对链接、标题锚点、切文档拒绝、回到打开搜索时的位置 | 用户任务耗时未测 |
 | 来源健康 | 工作区设置 `sourceSnapshots` + `evaluateSourceHealth` | `workspace-state`、`source-health`、QualityPanel 测试 | 全工作区共享最多 50 条路径/mtime；重复来源更新共享基线；重新定位目前仅打开搜索 | P1-06 异步隔离、P1-07 逐篇基线和迁移未完成；mtime 不代表人工复核 |
 | 重启后的搜索词与阅读位置 | 工作区设置 `lastSearchQuery` / `recentCitations`；文档视图状态 | `workspace-state` 测试 | 已有：缺字段默认为空，可清除且不删正文；选区与滚动随文档视图保存 | 真实重启、改名后回访未测 |
@@ -48,7 +48,7 @@
 
 | 任务 | 未完成的边界 | 验收重点 |
 | --- | --- | --- |
-| P0-02 | Main 搜索语料总预算 | 单根与全进程预算、未缓存文件安全回退、完整 coverage |
+| ~~P0-02~~ | Main 搜索语料总预算 | **已落地（2026-09-22）**：64/128 MiB 预算、语料复用与 fallback；P1-08 仍补释放/缓存迟到写入 |
 | P1-06/07 | 来源生命周期和逐篇关系 | 切库/清除/卸载旧回包不登记；A/B 文章基线不互相覆盖；旧记录归属未知 |
 | P1-08 | 索引释放与缓存 DTO | 排队任务/迟到写入不污染新根生命周期；有界读取、损坏回退重建 |
 | P1-02 / P2-03 | 来源工具与接收方软件矩阵 | 合成实际导出、正常试开 hash 不变、真实阅读器检查，未运行继续 UNVERIFIED |

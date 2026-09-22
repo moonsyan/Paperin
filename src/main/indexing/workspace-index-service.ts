@@ -14,32 +14,24 @@
  * 污染 Obsidian 等共用笔记目录与网盘同步。缓存可删除、可直接重建。
  */
 
-import { createHash } from 'crypto'
-import { mkdir, readFile, rename, unlink, writeFile } from 'fs/promises'
-import { dirname, join } from 'path'
-import { parseDocumentIndex } from './document-index-parser'
-import {
-  buildResourceDependencyIndex,
-  collectDocumentsAffectedByChanges,
-  refreshDocumentResources,
-  type WorkspaceIndexInvalidation,
-} from './workspace-index-resources'
-import {
-  collectAssetReferences,
-  collectTagRecords,
-  createEmptyWorkspaceIndex,
-} from '../../shared/workspace-index'
+import type { WorkspaceIndexInvalidation } from './workspace-index-resources'
 import {
   createInitialWorkspaceCoverage,
   markWorkspaceCoverageIncomplete,
   WORKSPACE_SCAN_MAX_FILE_BYTES,
 } from '../../shared/workspace-coverage'
-import type {
-  DiagnosticRecord,
-  IndexedDocument,
-  WorkspaceIndex,
-  WorkspaceIndexEvent as SharedWorkspaceIndexEvent,
-} from '../../shared/workspace-index'
+import type { WorkspaceIndex, WorkspaceIndexEvent as SharedWorkspaceIndexEvent } from '../../shared/workspace-index'
+import {
+  DEFAULT_WORKSPACE_SEARCH_CORPUS_PER_ROOT_BYTES,
+  DEFAULT_WORKSPACE_SEARCH_CORPUS_PROCESS_BYTES,
+  WorkspaceSearchCorpusBudget,
+  type WorkspaceSearchDocument,
+  type WorkspaceSearchSnapshot,
+} from './workspace-search-corpus'
+import { runWorkspaceIndexRefresh, type WorkspaceIndexRefreshState } from './workspace-index-refresh'
+
+export type { WorkspaceSearchDocument, WorkspaceSearchSnapshot } from './workspace-search-corpus'
+export { createFileWorkspaceIndexCache } from './workspace-index-cache'
 
 export interface WorkspaceIndexResult {
   index: WorkspaceIndex
@@ -56,11 +48,9 @@ export interface WorkspaceFileMeta {
   mtimeMs: number
 }
 
-export interface WorkspaceIndexCacheStore {
-  load(root: string): Promise<WorkspaceIndex | null>
-  save(root: string, index: WorkspaceIndex): Promise<void>
-  clear(root: string): Promise<void>
-}
+import type { WorkspaceIndexCacheStore } from './workspace-index-cache'
+
+export type { WorkspaceIndexCacheStore } from './workspace-index-cache'
 
 export interface WorkspaceIndexServiceDeps {
   listMarkdownFiles(root: string, limit?: number): Promise<WorkspaceFileMeta[]>
@@ -81,48 +71,52 @@ export interface WorkspaceIndexService {
   ): Promise<WorkspaceIndexResult>
   cancel(root: string): void
   subscribe(root: string, listener: (event: WorkspaceIndexEvent) => void): () => void
+  /** 同根多窗口共享语料；打开工作区时 retain，关闭时 release */
+  retain(root: string): void
+  release(root: string): void
+  /** 当前 generation 的 Main-only 搜索语料；未就绪或已 dispose 时为 null */
+  getSearchSnapshot(root: string): WorkspaceSearchSnapshot | null
   dispose(root?: string): void
 }
 
-interface WorkspaceIndexState {
-  documents: Record<string, IndexedDocument>
-  index: WorkspaceIndex | null
-  generation: number
-  refreshSeq: number
+interface WorkspaceIndexState extends WorkspaceIndexRefreshState {
   running: Promise<void>
-  controller: AbortController | null
+  refCount: number
 }
-
-const SUPERSEDED = 'SUPERSEDED'
-const CANCELLED = 'CANCELLED'
 
 /** 产品预算覆盖阶段 5 的 5000 文件验收场景；第 5001 个文件触发截断。 */
 export const DEFAULT_WORKSPACE_INDEX_MAX_FILES = 5000
 
-const isAbortErrorLike = (error: unknown): boolean =>
-  error instanceof Error && error.name === 'AbortError'
-
-const readErrorDiagnostic = (path: string, error: unknown): DiagnosticRecord => {
-  const message = error instanceof Error ? error.message : '读取失败'
-  return {
-    id: `READ_ERROR:${path}:0:`,
-    code: 'READ_ERROR',
-    severity: 'error',
-    path,
-    message,
-  }
-}
-
 export const createWorkspaceIndexService = (
   deps: WorkspaceIndexServiceDeps,
-  options?: { maxFiles?: number; maxFileSize?: number },
+  options?: {
+    maxFiles?: number
+    maxFileSize?: number
+    searchCorpusPerRootBytes?: number
+    searchCorpusProcessBytes?: number
+  },
 ): WorkspaceIndexService => {
   const MAX_FILES = options?.maxFiles ?? DEFAULT_WORKSPACE_INDEX_MAX_FILES
   const MAX_FILE_SIZE = options?.maxFileSize ?? WORKSPACE_SCAN_MAX_FILE_BYTES
+  const CORPUS_PER_ROOT = options?.searchCorpusPerRootBytes ?? DEFAULT_WORKSPACE_SEARCH_CORPUS_PER_ROOT_BYTES
+  const CORPUS_PROCESS = options?.searchCorpusProcessBytes ?? DEFAULT_WORKSPACE_SEARCH_CORPUS_PROCESS_BYTES
   const PROGRESS_INTERVAL = 50
 
   const states = new Map<string, WorkspaceIndexState>()
   const listeners = new Map<string, Set<(event: WorkspaceIndexEvent) => void>>()
+  const corpusBudget = new WorkspaceSearchCorpusBudget(CORPUS_PER_ROOT, CORPUS_PROCESS)
+
+  const releaseSearchCorpusForState = (state: WorkspaceIndexRefreshState): void => {
+    if (state.searchCorpusBytes <= 0) {
+      state.searchDocuments.clear()
+      state.searchSnapshot = null
+      return
+    }
+    corpusBudget.releaseRoot(state.searchCorpusBytes)
+    state.searchCorpusBytes = 0
+    state.searchDocuments.clear()
+    state.searchSnapshot = null
+  }
 
   const stateOf = (root: string): WorkspaceIndexState => {
     let state = states.get(root)
@@ -134,6 +128,10 @@ export const createWorkspaceIndexService = (
         refreshSeq: 0,
         running: Promise.resolve(),
         controller: null,
+        refCount: 0,
+        searchDocuments: new Map(),
+        searchCorpusBytes: 0,
+        searchSnapshot: null,
       }
       states.set(root, state)
     }
@@ -152,159 +150,25 @@ export const createWorkspaceIndexService = (
     })
   }
 
-  const refreshOne = async (
+  const refreshOne = (
     root: string,
     state: WorkspaceIndexState,
     signal?: AbortSignal,
     invalidation?: WorkspaceIndexInvalidation,
-  ): Promise<WorkspaceIndexResult> => {
-    const generation = state.generation + 1
-    const token = ++state.refreshSeq
-    state.generation = generation
-    const controller = new AbortController()
-    state.controller = controller
-    // 外部 signal 与内部 cancel 双向联动；外部在 refresh 开始前已 abort 时
-    // addEventListener 不再触发，必须立即同步传播
-    const onOuterAbort = () => controller.abort()
-    if (signal?.aborted) controller.abort()
-    else signal?.addEventListener('abort', onOuterAbort, { once: true })
-
-    const check = (): void => {
-      if (token !== state.refreshSeq) throw Object.assign(new Error('过期任务'), { code: SUPERSEDED })
-      if (controller.signal.aborted) throw Object.assign(new Error('已取消'), { code: CANCELLED })
-    }
-
-    try {
-      const files = await deps.listMarkdownFiles(root, MAX_FILES + 1)
-      check()
-      const withinBudget = files.slice(0, MAX_FILES)
-      let truncated = files.length > MAX_FILES
-      const coverage = createInitialWorkspaceCoverage()
-      if (truncated) {
-        markWorkspaceCoverageIncomplete(coverage)
-        coverage.skipped['file-budget'] += files.length - MAX_FILES
-      }
-      const dependencyIndex = buildResourceDependencyIndex(state.documents)
-      const resourceRevalidate = collectDocumentsAffectedByChanges(
-        root,
-        state.documents,
-        dependencyIndex,
-        invalidation,
-      )
-      const documents: Record<string, IndexedDocument> = {}
-      const diagnostics: DiagnosticRecord[] = []
-      // 未变化文件直接迁移旧解析结果（保留对象引用，供增量断言与省 IO）
-      let scanned = 0
-      for (const meta of withinBudget) {
-        if (meta.size > MAX_FILE_SIZE) {
-          truncated = true
-          markWorkspaceCoverageIncomplete(coverage)
-          coverage.skipped['file-size'] += 1
-          continue
-        }
-        const previous = state.documents[meta.path]
-        if (
-          previous &&
-          previous.modifiedTime === meta.mtimeMs &&
-          previous.size === meta.size
-        ) {
-          if (resourceRevalidate.has(meta.path)) {
-            check()
-            documents[meta.path] = await refreshDocumentResources(
-              previous,
-              root,
-              deps.resolveResourcePath,
-            )
-          } else {
-            documents[meta.path] = previous
-          }
-        } else {
-          let content: string
-          try {
-            content = await deps.readFileText(meta.path)
-          } catch (error) {
-            // 单篇读取/解码失败：计入覆盖与本地诊断，不阻断其余文档索引。
-            truncated = true
-            markWorkspaceCoverageIncomplete(coverage)
-            coverage.skipped['read-error'] += 1
-            diagnostics.push(readErrorDiagnostic(meta.path, error))
-            continue
-          }
-          check()
-          const parsed = parseDocumentIndex({
-            path: meta.path,
-            relativePath: relativeTo(root, meta.path),
-            name: meta.path.split(/[\\/]/).pop() ?? meta.path,
-            size: meta.size,
-            modifiedTime: meta.mtimeMs,
-            content,
-          })
-          for (const ref of parsed.imageRefs) {
-            const resolved = await deps.resolveResourcePath(root, ref.target, parsed.path)
-            if (resolved) ref.resolvedPath = resolved
-            else delete ref.resolvedPath
-          }
-          for (const link of parsed.outgoingLinks) {
-            const resolved = await deps.resolveResourcePath(root, link.target, parsed.path)
-            if (resolved) link.resolvedPath = resolved
-            else delete link.resolvedPath
-          }
-          documents[meta.path] = parsed
-        }
-        coverage.scannedFiles += 1
-        scanned++
-        if (scanned % PROGRESS_INTERVAL === 0 || scanned === withinBudget.length) {
-          emit(root, { type: 'progress', generation, scanned, total: withinBudget.length })
-        }
-      }
-      check()
-
-      const index: WorkspaceIndex = {
-        ...createEmptyWorkspaceIndex(root),
-        generatedAt: new Date().toISOString(),
-        generation,
-        complete: !truncated,
-        truncated,
-        coverage: { ...coverage, complete: !truncated },
-        documents,
-        links: Object.values(documents).flatMap((doc) =>
-          doc.outgoingLinks.map((link) => ({
-            sourcePath: doc.path,
-            target: link.target,
-            line: link.line,
-            resolvedPath: link.resolvedPath,
-            kind: link.kind,
-          })),
-        ),
-        tags: collectTagRecords(documents),
-        assets: collectAssetReferences(documents),
-        diagnostics,
-      }
-
-      state.documents = documents
-      state.index = index
-      emit(root, { type: 'updated', index })
-      void deps.cacheStore?.save(root, index).catch(() => undefined)
-
-      return {
-        index,
-        generation,
-        complete: !truncated,
-        truncated,
-      }
-    } catch (error) {
-      const code = (error as { code?: string })?.code
-      if (code === SUPERSEDED) throw error
-      const failedCode = code === CANCELLED || isAbortErrorLike(error) ? CANCELLED : 'INDEX_FAILED'
-      emit(root, { type: 'failed', generation, code: failedCode })
-      throw Object.assign(error instanceof Error ? error : new Error(String(error)), {
-        code: failedCode,
-      })
-    } finally {
-      signal?.removeEventListener('abort', onOuterAbort)
-      if (state.controller === controller) state.controller = null
-    }
-  }
+  ) =>
+    runWorkspaceIndexRefresh({
+      root,
+      state,
+      signal,
+      invalidation,
+      deps,
+      maxFiles: MAX_FILES,
+      maxFileSize: MAX_FILE_SIZE,
+      progressInterval: PROGRESS_INTERVAL,
+      corpusBudget,
+      releaseSearchCorpus: releaseSearchCorpusForState,
+      emit,
+    })
 
   return {
     async load(root) {
@@ -357,6 +221,26 @@ export const createWorkspaceIndexService = (
       }
     },
 
+    retain(root) {
+      stateOf(root).refCount += 1
+    },
+
+    release(root) {
+      const state = states.get(root)
+      if (!state) return
+      state.refCount = Math.max(0, state.refCount - 1)
+      if (state.refCount > 0) return
+      state.controller?.abort()
+      releaseSearchCorpusForState(state)
+      states.delete(root)
+      listeners.delete(root)
+      void deps.cacheStore?.clear(root).catch(() => undefined)
+    },
+
+    getSearchSnapshot(root) {
+      return states.get(root)?.searchSnapshot ?? null
+    },
+
     dispose(root) {
       if (root === undefined) {
         for (const key of Array.from(states.keys())) this.dispose(key)
@@ -364,73 +248,12 @@ export const createWorkspaceIndexService = (
       }
       const state = states.get(root)
       if (!state) return
+      state.refCount = 0
       state.controller?.abort()
+      releaseSearchCorpusForState(state)
       states.delete(root)
       listeners.delete(root)
       void deps.cacheStore?.clear(root).catch(() => undefined)
-    },
-  }
-}
-
-/** 相对路径计算（POSIX 风格分隔符），供解析器 relativePath 字段使用 */
-const relativeTo = (root: string, path: string): string => {
-  const normalizedRoot = root.replace(/[\\/]+$/, '')
-  if (path.startsWith(normalizedRoot)) {
-    const rest = path.slice(normalizedRoot.length)
-    return rest.startsWith('/') || rest.startsWith('\\') ? rest.slice(1) : rest
-  }
-  return path
-}
-
-/* ==================== 磁盘缓存（Electron 用户数据目录） ==================== */
-
-/** 缓存文件体积上限：超出时拒绝写入（删除即可重建，索引不承载持久事实） */
-const MAX_CACHE_FILE_BYTES = 8 * 1024 * 1024
-
-/**
- * 文件缓存实现：`<cacheDir>/<sha1(root)>.json`，原子写入（tmp+rename）。
- * getCacheDir 由装配方注入 Electron `app.getPath('userData')` 下的子目录，
- * 本文件自身不导入 Electron，可在单测中用临时目录验证。
- */
-export const createFileWorkspaceIndexCache = (
-  getCacheDir: () => string,
-): WorkspaceIndexCacheStore => {
-  const cacheFile = (root: string): string =>
-    join(getCacheDir(), `${createHash('sha1').update(root).digest('hex')}.json`)
-
-  return {
-    async load(root) {
-      try {
-        const raw = await readFile(cacheFile(root), 'utf-8')
-        if (raw.length > MAX_CACHE_FILE_BYTES) return null
-        const parsed = JSON.parse(raw) as WorkspaceIndex | null
-        if (!parsed || typeof parsed !== 'object' || !parsed.documents) return null
-        return parsed
-      } catch {
-        return null
-      }
-    },
-
-    async save(root, index) {
-      const file = cacheFile(root)
-      const payload = JSON.stringify({ ...index, diagnostics: index.diagnostics })
-      if (payload.length > MAX_CACHE_FILE_BYTES) return
-      try {
-        await mkdir(dirname(file), { recursive: true })
-        const tmp = `${file}.${process.pid}.tmp`
-        await writeFile(tmp, payload, 'utf-8')
-        await rename(tmp, file)
-      } catch {
-        // 缓存写失败不影响索引可用性（内存快照仍在）
-      }
-    },
-
-    async clear(root) {
-      try {
-        await unlink(cacheFile(root))
-      } catch {
-        // 文件不存在视为已清理
-      }
     },
   }
 }

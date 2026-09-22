@@ -59,6 +59,9 @@ const createService = (): WorkspaceIndexService & {
       return () => { listener = null }
     }),
     dispose: vi.fn(),
+    retain: vi.fn(),
+    release: vi.fn(),
+    getSearchSnapshot: vi.fn(() => null),
     emit: (event) => listener?.(event),
   }
 }

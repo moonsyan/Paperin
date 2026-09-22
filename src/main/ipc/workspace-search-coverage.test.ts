@@ -8,6 +8,8 @@ import {
   runWorkspaceSearch,
   WORKSPACE_SEARCH_MAX_MATCHES,
 } from './workspace-search-handler'
+import { createWorkspaceIndexService } from '../indexing/workspace-index-service'
+import { readFile } from 'fs/promises'
 import { WORKSPACE_SCAN_MAX_FILE_BYTES } from '../../shared/workspace-coverage'
 import { workspaceCoverageLegacyFlags } from '../../shared/workspace-coverage'
 
@@ -150,6 +152,40 @@ describe('workspace search coverage', () => {
     await expect(
       runWorkspaceSearch({ dir: root, query: UNIQUE }, DEFAULT_WORKSPACE_SEARCH_LIMITS, stale),
     ).rejects.toMatchObject({ code: 'CANCELLED' })
+  })
+
+  it('索引语料可用时文本搜索不读盘且仍命中', async () => {
+    const target = join(root, 'indexed.md')
+    await writeFile(target, `# note\n${UNIQUE}`, 'utf-8')
+    const deps = {
+      async listMarkdownFiles() {
+        return [{ path: target, size: (await readFile(target)).length, mtimeMs: 100 }]
+      },
+      async readFileText(path: string) {
+        return readFile(path, 'utf-8')
+      },
+      async resolveResourcePath() {
+        return null
+      },
+    }
+    const service = createWorkspaceIndexService(deps)
+    await service.refresh(root)
+    const { matches, coverage } = await runWorkspaceSearch(
+      { dir: root, query: UNIQUE },
+      DEFAULT_WORKSPACE_SEARCH_LIMITS,
+      undefined,
+      undefined,
+      {
+        now: () => 0,
+        record: (metrics) => {
+          expect(metrics.cacheHits).toBeGreaterThan(0)
+          expect(metrics.cacheMisses).toBe(0)
+        },
+      },
+      { getSearchSnapshot: (dir) => service.getSearchSnapshot(dir) },
+    )
+    expect(matches.length).toBeGreaterThan(0)
+    expect(coverage.complete).toBe(true)
   })
 
   it('5000 篇规模下仍能命中尾部精确词（预算内）', async () => {

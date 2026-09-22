@@ -100,17 +100,19 @@ export function registerIpcHandlers(): void {
       if (current) {
         watchers.get(webContentsId)?.watcher.stop()
         watchers.delete(webContentsId)
-        workspaceIndexService.dispose(current)
+        workspaceIndexService.release(current)
       }
       return workspaceRootsByWebContents.delete(webContentsId)
     },
+    getSearchSnapshot: (root) => workspaceIndexService.getSearchSnapshot(root),
     isTrustedPath: ensureTrusted,
     onWorkspaceClosed: (webContentsId, rootPath) => {
       watchers.get(webContentsId)?.watcher.stop()
       watchers.delete(webContentsId)
-      workspaceIndexService.dispose(rootPath)
+      if (rootPath) workspaceIndexService.release(rootPath)
     },
     onWorkspaceOpened: (webContentsId, rootPath) => {
+      workspaceIndexService.retain(rootPath)
       watchers.get(webContentsId)?.watcher.stop()
       const watcher = createWorkspaceFileWatcher({ watch: createFsWatchAdapter() })
       watcher.start(rootPath, (change) => {

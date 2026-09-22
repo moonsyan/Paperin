@@ -4,13 +4,25 @@
 
 > 2026-09-14 历史复核说明：本文保留既有夹具、历史样本与阈值。文中“超过 1 MiB 优先快照”的实现实际为 `content.length > 1_000_000`（字符串长度），不是字节数。当前执行顺序见 [产品工作流实施计划](../superpowers/plans/2026-09-22-product-workflow-implementation.md)。
 
-> 2026-09-22 新鲜红灯：`npm run perf:regression` 退出 1，tree 332.25 ms、index 11713.59 ms、search 2079.23 ms，超过 200/2000/1500 ms 阈值；`npm run perf:production` 退出 1，冷索引 6899.3 ms 通过 15000 ms 阈值，但搜索 P95 13371.8765 ms 超过 5000 ms，watcher 项通过。当前不得用 2026-09-21 空闲样本宣称大型库性能达标。**P0-01 已落地**：生产 `runWorkspaceSearch` 可选 instrumentation 输出 `WorkspaceSearchMetrics`（`discoveryMs` / `metadataMs` / `readMs` / `scanMs` / `totalMs` 与文件数、缓存命中/未命中）；JSON 不含 `path`、`query`、`preview`、`content`。合成 `perf:regression` 在 stdout JSON 中附带 `workspaceSearchMetrics`，stderr 打印 `WORKSPACE_SEARCH_SEGMENT_METRICS`；`perf:production` 的 `PRODUCTION_SEARCH_PERF_METRICS` 可附带同一结构。默认 IPC 生产路径不打印。P0-01 提交后**未重跑**性能门禁，红灯结论不变。下一步 P0-02 评估 Main 内存索引语料复用；阈值保持不变。
+> 2026-09-22（P0-02 后本机重跑，Node 24.19.0）：`npm run perf:regression` 退出 0（tree 11.69 ms、index 417.14 ms、search 275.45 ms）；`npm run perf:production` **仍退出 1**——冷索引与搜索 P95（约 16–24 ms，`cacheHits=5000`）通过 5000 ms 搜索阈值，但 **watcher 稳定 P95 约 5225–5306 ms 超过 5000 ms**（语料重建与全量增量刷新叠加，阈值未放宽）。历史 2026-09-22 审查样本（search 2079 ms / 搜索 P95 13371 ms）不能代表当前实现。**P0-02 已落地**：Main-only `WorkspaceSearchSnapshot`（`generation` / `complete` / 拆行 `lines`）由 `WorkspaceIndexService.refresh` 从已读正文构建，磁盘结构索引缓存仍不含 `lines`；搜索 handler 经 `getSearchSnapshot` 优先扫语料，未缓存/未就绪时安全读盘 fallback，`WorkspaceCoverage` 语义不变。
 
 ## 结论
 
 2026-09-22 文档同步不重新采集性能，也不修改本目录原始 JSON。当前红灯沿用同日已记录样本。P0-01 分段指标已在代码与 perf 脚本接线，但尚未用固定环境三轮写入本节新样本。P0-07 目标失效正确性已在 `workspace-index-resources` / `workspace-index-service` / `workspace-file-watcher` 测试落地（引用者不重读正文、附件事件触发重验）；下一步为 P0-02 有界语料 → P0-03 冷/暖与 coverage 验收。历史空闲样本对 I/O 的解释仅适用于当时批次，不能据此断定当前失败根因已解决。
 
-P0-02 实现前冻结单根和全进程总语料预算、计量单位、驱逐/回退与同根多窗口共享；P1-08 验证释放、旧队列和缓存迟到写入。现有峰值 RSS 仅是记录项，不能当作内存硬门禁已经完成。不得让正文缓存落盘或靠少扫文件通过性能测试。
+### Main 搜索语料内存预算（P0-02，2026-09-22 冻结）
+
+| 项 | 值 | 说明 |
+| --- | ---: | --- |
+| 计量单位 | UTF-8 字节 | `estimateSearchDocumentBytes`：路径 + 各行 + 换行，不含 V8 对象开销 |
+| 单根上限 | **64 MiB** | `DEFAULT_WORKSPACE_SEARCH_CORPUS_PER_ROOT_BYTES` |
+| 全进程上限 | **128 MiB** | `DEFAULT_WORKSPACE_SEARCH_CORPUS_PROCESS_BYTES`，多工作区共享 |
+| 单篇上限 | 2 MiB | 与 `WORKSPACE_SCAN_MAX_FILE_BYTES` 一致，超限不进语料 |
+| 驱逐/回退 | 超预算跳过语料项 | 索引结构仍可用；搜索对该路径走读盘 fallback，`snapshot.complete=false` |
+| 生命周期 | `retain`/`release` 引用计数 | 同根多窗口共享语料；`release` 至 0 或 `dispose` 清空语料与 `getSearchSnapshot` |
+| RSS | 记录项 | 5000×2048 B 夹具峰值约 145 MiB；**不设硬门禁** |
+
+P1-08 仍负责缓存 DTO 校验、迟到写入与释放边界回归。不得让正文语料落盘或靠少扫文件通过性能测试。
 
 > 2026-09-21 合成回归诊断：`measureWorkspacePerformance` 增加 `fixtureWriteMs`、三次 `treeRunsMs`、`indexReadMs`/`indexParseMs`、`searchReadMs`/`searchScanMs`，**不修改** `treeMs/indexMs/searchMs` 与 200/2000/1500 ms 阈值，也未运行 `--update-baseline`。本机空闲连跑 Node 24.19.0 与 Node 22.23.2 各三轮均退出 0，墙钟与 2026-09-09 基线同量级；索引/搜索墙钟中读盘约占 85%–95%，解析/扫描约 50–61 / 11–13 ms。同日审查记录的索引 3482 ms、搜索 1672 ms 与空闲样本相差约 7–10 倍，且生产 `WorkspaceIndexService` 冷索引 1558 ms 仍低于其 15000 ms 阈值，故判定为临时目录 I/O / 杀软扫描波动，而不是生产解析逻辑退化。未覆盖：CI 主机、同时段高负载对照、真实用户库。高波动时门禁仍应失败，不得放宽阈值。
 

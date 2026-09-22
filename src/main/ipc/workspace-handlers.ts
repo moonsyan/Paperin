@@ -16,7 +16,7 @@ import { forgetTagIndexCache } from './workspace-tag-index'
 import { safeWorkspaceFileName } from './workspace-file-name'
 import { forgetSnapshots, moveSnapshots } from '../history/version-store'
 import { historyRoot } from './history-handlers'
-import { registerWorkspaceSearchHandler } from './workspace-search-handler'
+import { registerWorkspaceSearchHandler, type WorkspaceSearchHandlerDependencies } from './workspace-search-handler'
 
 export interface WorkspaceHandlerDependencies {
   hasWorkspaceRoot(webContentsId: number): boolean
@@ -26,6 +26,7 @@ export interface WorkspaceHandlerDependencies {
   isTrustedPath(candidate: unknown): boolean
   onWorkspaceOpened?(webContentsId: number, rootPath: string): void
   onWorkspaceClosed?(webContentsId: number, rootPath?: string): void
+  getSearchSnapshot?: WorkspaceSearchHandlerDependencies['getSearchSnapshot']
 }
 
 export const registerWorkspaceHandlers = ({
@@ -36,13 +37,17 @@ export const registerWorkspaceHandlers = ({
   workspaceRootFor,
   onWorkspaceOpened,
   onWorkspaceClosed,
+  getSearchSnapshot,
 }: WorkspaceHandlerDependencies): void => {
   const scope = { workspaceRootFor, isTrustedPath }
   /** 便捷封装：目标路径必须属于调用窗口当前工作区（详见 workspace-scope.ts） */
   const withinWindow = (event: IpcMainInvokeEvent, candidate: string): Promise<boolean> =>
     withinCallerWorkspace(scope, event, candidate)
 
-  registerWorkspaceSearchHandler(withinWindow)
+  registerWorkspaceSearchHandler({
+    withinWindow,
+    getSearchSnapshot: getSearchSnapshot ?? (() => null),
+  })
 
   ipcMain.handle(CHANNELS.FILE_OPEN_FOLDER, async (event, args?: { path?: string }) => {
     const window = BrowserWindow.fromWebContents(event.sender)
@@ -77,9 +82,10 @@ export const registerWorkspaceHandlers = ({
       const children = await walkMarkdownTree(folderPath, 0, budget)
       trustDirectory(folderPath, { essential: true })
       const previousRoot = workspaceRootFor?.(webContentsId)
+      const rootChanged = previousRoot !== folderPath
       setWorkspaceRoot(webContentsId, folderPath)
-      if (previousRoot && previousRoot !== folderPath) onWorkspaceClosed?.(webContentsId, previousRoot)
-      onWorkspaceOpened?.(webContentsId, folderPath)
+      if (previousRoot && rootChanged) onWorkspaceClosed?.(webContentsId, previousRoot)
+      if (rootChanged) onWorkspaceOpened?.(webContentsId, folderPath)
       schedulePersistTrust(true)
       return {
         ok: true,

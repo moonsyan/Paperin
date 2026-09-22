@@ -374,3 +374,111 @@ describe('workspace-index-service：dispose', () => {
     expect(loaded).toBeNull()
   })
 })
+
+describe('workspace-index-service：搜索语料复用', () => {
+  it('首次 refresh 构建语料；未改文件再次 refresh 不重读正文', async () => {
+    const deps = createDeps({
+      'D:/notes/a.md': { content: '# A\n词Alpha', mtimeMs: 10, size: 20 },
+      'D:/notes/b.md': { content: '# B\n词Beta', mtimeMs: 20, size: 20 },
+    })
+    const service = createWorkspaceIndexService(deps)
+    await service.refresh('D:/notes')
+    expect(deps.readCount('D:/notes/a.md')).toBe(1)
+    expect(deps.readCount('D:/notes/b.md')).toBe(1)
+    const first = service.getSearchSnapshot('D:/notes')
+    expect(first?.complete).toBe(true)
+    expect(first?.documents).toHaveLength(2)
+    expect(first?.documents.find((d) => d.path.endsWith('a.md'))?.lines.join('\n')).toContain('词Alpha')
+
+    await service.refresh('D:/notes')
+    expect(deps.readCount('D:/notes/a.md')).toBe(1)
+    expect(deps.readCount('D:/notes/b.md')).toBe(1)
+    const second = service.getSearchSnapshot('D:/notes')
+    expect(second?.generation).toBeGreaterThan(first!.generation)
+    expect(second?.documents.find((d) => d.path.endsWith('a.md'))).toBe(
+      first?.documents.find((d) => d.path.endsWith('a.md')),
+    )
+  })
+
+  it('修改一篇后 refresh 只重读该文件语料', async () => {
+    const deps = createDeps({
+      'D:/notes/a.md': { content: '# A\none', mtimeMs: 10, size: 10 },
+      'D:/notes/b.md': { content: '# B\ntwo', mtimeMs: 20, size: 10 },
+    })
+    const service = createWorkspaceIndexService(deps)
+    const first = await service.refresh('D:/notes')
+    const docA = first.index.documents['D:/notes/a.md']
+    deps.files['D:/notes/b.md'] = { content: '# B\nthree', mtimeMs: 30, size: 12 }
+    await service.refresh('D:/notes')
+    expect(deps.readCount('D:/notes/a.md')).toBe(1)
+    expect(deps.readCount('D:/notes/b.md')).toBe(2)
+    const snap = service.getSearchSnapshot('D:/notes')
+    expect(snap?.documents.find((d) => d.path.endsWith('b.md'))?.lines.join('\n')).toContain('three')
+    expect((await service.load('D:/notes'))!.documents['D:/notes/a.md']).toBe(docA)
+  })
+
+  it('dispose 后 getSearchSnapshot 返回 null', async () => {
+    const deps = createDeps({
+      'D:/notes/a.md': { content: MD('A'), mtimeMs: 10, size: 10 },
+    })
+    const service = createWorkspaceIndexService(deps)
+    service.retain('D:/notes')
+    await service.refresh('D:/notes')
+    expect(service.getSearchSnapshot('D:/notes')).not.toBeNull()
+    service.release('D:/notes')
+    expect(service.getSearchSnapshot('D:/notes')).toBeNull()
+  })
+
+  it('同根多窗口引用计数：最后一个 release 才释放语料', async () => {
+    const deps = createDeps({
+      'D:/notes/a.md': { content: MD('A'), mtimeMs: 10, size: 10 },
+    })
+    const service = createWorkspaceIndexService(deps)
+    service.retain('D:/notes')
+    service.retain('D:/notes')
+    await service.refresh('D:/notes')
+    service.release('D:/notes')
+    expect(service.getSearchSnapshot('D:/notes')).not.toBeNull()
+    service.release('D:/notes')
+    expect(service.getSearchSnapshot('D:/notes')).toBeNull()
+  })
+
+  it('磁盘索引缓存 JSON 不含 lines 或正文 marker', async () => {
+    const marker = 'paperin_body_must_not_persist'
+    const saved: string[] = []
+    const deps = createDeps({
+      'D:/notes/a.md': { content: `# A\n${marker}`, mtimeMs: 10, size: 40 },
+    })
+    deps.cacheStore = {
+      async load() {
+        return null
+      },
+      async save(_root, index) {
+        saved.push(JSON.stringify({ ...index, diagnostics: index.diagnostics }))
+      },
+      async clear() {},
+    }
+    const service = createWorkspaceIndexService(deps)
+    await service.refresh('D:/notes')
+    expect(saved.length).toBeGreaterThan(0)
+    expect(saved.join('')).not.toContain('"lines"')
+    expect(saved.join('')).not.toContain(marker)
+  })
+
+  it('语料总预算超限时 complete=false 且未缓存文件可经搜索回退读盘', async () => {
+    const unique = 'corpus_budget_fallback_token'
+    const deps = createDeps({
+      'D:/notes/small.md': { content: `# s\n${unique}`, mtimeMs: 10, size: 30 },
+      'D:/notes/big.md': { content: `# b\n${'z'.repeat(200)}`, mtimeMs: 20, size: 210 },
+    })
+    const service = createWorkspaceIndexService(deps, {
+      searchCorpusPerRootBytes: 50,
+      searchCorpusProcessBytes: 50,
+    })
+    await service.refresh('D:/notes')
+    const snap = service.getSearchSnapshot('D:/notes')
+    expect(snap?.complete).toBe(false)
+    expect(snap!.documents.length).toBeLessThan(2)
+    expect(snap?.documents.some((doc) => doc.lines.join('\n').includes(unique))).toBe(true)
+  })
+})

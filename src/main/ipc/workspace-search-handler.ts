@@ -22,6 +22,7 @@ import {
   createRunWorkspaceSearchMetricsState,
   type WorkspaceSearchInstrumentation,
 } from './workspace-search-metrics'
+import type { WorkspaceSearchSnapshot } from '../indexing/workspace-search-corpus'
 
 export const WORKSPACE_SEARCH_MAX_MATCHES = 200
 
@@ -58,6 +59,15 @@ export interface WorkspaceSearchArgs {
   regex?: boolean
   queryId?: number
   cancel?: boolean
+}
+
+export interface WorkspaceSearchHandlerDependencies {
+  withinWindow(event: IpcMainInvokeEvent, candidate: string): Promise<boolean>
+  getSearchSnapshot(root: string): WorkspaceSearchSnapshot | null
+}
+
+export interface WorkspaceSearchRuntimeDeps {
+  getSearchSnapshot?: (root: string) => WorkspaceSearchSnapshot | null
 }
 
 interface ActiveSearch {
@@ -105,6 +115,7 @@ export const runWorkspaceSearch = async (
   isStale?: () => boolean,
   signal?: AbortSignal,
   instrumentation?: WorkspaceSearchInstrumentation,
+  runtime?: WorkspaceSearchRuntimeDeps,
 ): Promise<WorkspaceSearchSuccess> => {
   const coverage = createInitialWorkspaceCoverage()
   const matches: WorkspaceSearchMatch[] = []
@@ -151,27 +162,48 @@ export const runWorkspaceSearch = async (
 
   const needle = args.caseSensitive ? query : query.toLowerCase()
   let stoppedEarly = false
+  const searchSnapshot = runtime?.getSearchSnapshot?.(args.dir) ?? null
+  const corpusByPath = searchSnapshot
+    ? new Map(searchSnapshot.documents.map((document) => [document.path, document]))
+    : null
+  if (searchSnapshot && !searchSnapshot.complete) {
+    markWorkspaceCoverageIncomplete(coverage)
+  }
 
   for (const path of scanPaths) {
     if (signal?.aborted || isStale?.()) throwCancelled()
-    const metadataStart = metrics?.now() ?? 0
-    const fileStat = await stat(path).catch(() => null)
-    if (metrics) {
-      metrics.tracker.addMetadata(Math.max(0, metrics.now() - metadataStart))
-    }
-    if (!fileStat?.isFile()) {
-      markWorkspaceCoverageIncomplete(coverage)
-      coverage.skipped['read-error'] += 1
-      continue
-    }
-    if (fileStat.size > limits.maxFileBytes) {
-      markWorkspaceCoverageIncomplete(coverage)
-      coverage.skipped['file-size'] += 1
-      continue
+    const corpusDoc = corpusByPath?.get(path)
+    let fileStat: Awaited<ReturnType<typeof stat>> | null = null
+    if (corpusDoc) {
+      if (corpusDoc.size > limits.maxFileBytes) {
+        markWorkspaceCoverageIncomplete(coverage)
+        coverage.skipped['file-size'] += 1
+        continue
+      }
+    } else {
+      const metadataStart = metrics?.now() ?? 0
+      fileStat = await stat(path).catch(() => null)
+      if (metrics) {
+        metrics.tracker.addMetadata(Math.max(0, metrics.now() - metadataStart))
+      }
+      if (!fileStat?.isFile()) {
+        markWorkspaceCoverageIncomplete(coverage)
+        coverage.skipped['read-error'] += 1
+        continue
+      }
+      if (fileStat.size > limits.maxFileBytes) {
+        markWorkspaceCoverageIncomplete(coverage)
+        coverage.skipped['file-size'] += 1
+        continue
+      }
     }
 
     if (args.regex) {
       let content: string
+      if (corpusDoc) {
+        content = corpusDoc.lines.join('\n')
+        metrics?.tracker.noteCacheHit()
+      } else {
       try {
         const readStart = metrics?.now() ?? 0
         ;({ content } = await readTextAutoEncoding(path))
@@ -188,6 +220,7 @@ export const runWorkspaceSearch = async (
         markWorkspaceCoverageIncomplete(coverage)
         coverage.skipped['read-error'] += 1
         continue
+      }
       }
       const scanStart = metrics?.now() ?? 0
       const regexMatches = await runSharedRegexSearch(
@@ -211,9 +244,13 @@ export const runWorkspaceSearch = async (
     }
 
     let lines: string[]
+    if (corpusDoc) {
+      lines = [...corpusDoc.lines]
+      metrics?.tracker.noteCacheHit()
+    } else {
     const cached = getCachedSearchLines(path)
-    const mtimeSettled = Date.now() - fileStat.mtimeMs > 2500
-    if (cached && mtimeSettled && cached.mtimeMs === fileStat.mtimeMs && cached.size === fileStat.size) {
+    const mtimeSettled = fileStat ? Date.now() - fileStat.mtimeMs > 2500 : false
+    if (cached && mtimeSettled && fileStat && cached.mtimeMs === fileStat.mtimeMs && cached.size === fileStat.size) {
       lines = cached.lines
       metrics?.tracker.noteCacheHit()
     } else {
@@ -236,13 +273,14 @@ export const runWorkspaceSearch = async (
         continue
       }
       lines = content.split(/\r?\n/)
-      if (mtimeSettled) {
+      if (mtimeSettled && fileStat) {
         cacheSearchLines(path, {
           mtimeMs: fileStat.mtimeMs,
           size: fileStat.size,
           lines,
         })
       }
+    }
     }
     coverage.scannedFiles += 1
     const scanStart = metrics?.now() ?? 0
@@ -271,9 +309,10 @@ export const runWorkspaceSearch = async (
   return { matches, coverage, ...workspaceCoverageLegacyFlags(coverage) }
 }
 
-export const registerWorkspaceSearchHandler = (
-  withinWindow: (event: IpcMainInvokeEvent, candidate: string) => Promise<boolean>,
-): void => {
+export const registerWorkspaceSearchHandler = ({
+  withinWindow,
+  getSearchSnapshot,
+}: WorkspaceSearchHandlerDependencies): void => {
   ipcMain.handle(CHANNELS.FILE_SEARCH_WORKSPACE, async (event, args: WorkspaceSearchArgs) => {
     try {
       const senderId = event.sender.id
@@ -317,7 +356,14 @@ export const registerWorkspaceSearchHandler = (
 
       const { signal, isStale } = beginSearch(senderId, args.queryId)
       try {
-        const data = await runWorkspaceSearch(args, DEFAULT_WORKSPACE_SEARCH_LIMITS, isStale, signal)
+        const data = await runWorkspaceSearch(
+          args,
+          DEFAULT_WORKSPACE_SEARCH_LIMITS,
+          isStale,
+          signal,
+          undefined,
+          { getSearchSnapshot },
+        )
         if (isStale()) {
           return { ok: false, error: { code: 'CANCELLED', message: '搜索已取消' } }
         }

@@ -1,7 +1,7 @@
 # Paperin 项目状态
 
 更新时间：2026-09-22（Asia/Shanghai）
-代码核对基线：待本任务提交后更新（P0-07 索引资源失效）；此前文档同步基线为 `60cc417`。
+代码核对基线：`待提交`（P0-02 Main 搜索语料复用）；P0-07 索引资源失效见 `7ace0f1`。
 
 产品版本：`0.7.0`
 
@@ -43,8 +43,8 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 | `npm run build` | 退出 0 | 生产构建通过，未证明安装器可用 |
 | `npm run a11y` | 退出 0；仍有 37 项对比度基线债务 | 没有新增静态违规，不能宣称全面可访问 |
 | `npm run smoke` | 退出 0；打开工作区、新建、保存、冲突、重命名、搜索、关闭、系统文件关联，以及来源查找/插入引用/保存重开/资源包导出 | 核心任务冒烟先走真实「打开文件夹」菜单绑定渲染层工作区，再打开全文搜索；步骤失败输出 `CORE_TASK_FAIL` |
-| `npm run perf:regression` | 2026-09-22 上次 Node 24.19.0 退出 1；tree 332.25ms、index 11713.59ms、search 2079.23ms；P0-01 后本轮未重跑 | 超过 200/2000/1500ms，最近性能证据仍为红灯；合成脚本现已可输出 `workspaceSearchMetrics` |
-| `npm run perf:production` | 2026-09-22 上次退出 1；冷索引 6899.3ms 通过其阈值，搜索 P95 13371.8765ms 超过 5000ms；watcher 项通过；P0-01 后本轮未重跑 | 分段指标已接入 `runWorkspaceSearch`，不能据此宣称大型库性能达标 |
+| `npm run perf:regression` | 2026-09-22 P0-02 后 Node 24.19.0 退出 0；tree 11.69ms、index 417.14ms、search 275.45ms | 合成回归通过；与历史审查红灯样本不同环境/负载 |
+| `npm run perf:production` | 2026-09-22 P0-02 后退出 1；搜索 P95 约 17ms（语料 5000 cacheHits）；**watcher 稳定 P95 5225–5306ms 超 5000ms** | 暖搜索显著改善；watcher 项仍为红灯，阈值未改 |
 | `npm audit --omit=dev --audit-level=moderate` | 2026-09-22 上次 0 vulnerabilities；生产 `js-yaml@4.3.2`；本轮未重跑 | 依赖未在本轮修改；不宣称本轮重新完成供应链审计 |
 
 历史提交上的绿灯不能替代当前变更的新鲜结果。本轮复验与保留历史记录分别见上文；安装循环、真人样本、8 小时与第二设备实测仍未验证。文档覆盖及修改范围见[全量核对记录](development/documentation-maintenance.md)。
@@ -70,7 +70,7 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 
 ## 已有能力与证据边界
 
-2026-09-22 代码/功能补充审阅（基线 `7c3dd53`）新增下列待办，**尚未实现或完成故障复现**：P0-02 总语料预算、P1-06 来源异步生命周期、P1-07 按文档来源基线、P1-08 索引释放与缓存校验。**P0-07 引用目标变化后的索引失效**已在 Main 索引服务与 watcher 测试覆盖（`workspace-index-resources` / `workspace-index-service` / `workspace-file-watcher`）。具体静态证据见[审阅记录](development/reviews/2026-09-22-code-function-review.md)。它们补充已有能力的正确性门禁，不代表新增公开发布资格；上表历史门禁结果不证明这些场景已覆盖。
+2026-09-22 代码/功能补充审阅（基线 `7c3dd53`）待办：**P0-02 Main 搜索语料（64/128 MiB 预算、语料复用与读盘 fallback）已落地**；仍待 P1-06 来源异步生命周期、P1-07 按文档来源基线、P1-08 索引释放与缓存校验。**P0-07 引用目标变化后的索引失效**已在 Main 索引服务与 watcher 测试覆盖。具体静态证据见[审阅记录](development/reviews/2026-09-22-code-function-review.md)。
 
 | 能力 | 当前代码状态 | 仍未证明 |
 | --- | --- | --- |

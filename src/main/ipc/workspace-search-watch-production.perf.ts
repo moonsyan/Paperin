@@ -88,12 +88,15 @@ beforeEach(() => {
 
 describe('production workspace search and watcher performance gate', () => {
   it('search IPC traverses a 5000-file workspace and finds a marker in the final file', async () => {
+    const workspaceIndexService = createWorkspaceIndexService(createWorkspaceIndexFilesystemDependencies())
+    await workspaceIndexService.refresh(root)
     registerWorkspaceHandlers({
       hasWorkspaceRoot: () => true,
       setWorkspaceRoot: () => undefined,
       clearWorkspaceRoot: () => undefined,
       workspaceRootFor: () => root,
       isTrustedPath: (candidate) => typeof candidate === 'string' && isPathTrusted(candidate),
+      getSearchSnapshot: (dir) => workspaceIndexService.getSearchSnapshot(dir),
     })
     const search = getSearchHandler()
     const samples: number[] = []
@@ -127,6 +130,7 @@ describe('production workspace search and watcher performance gate', () => {
           workspaceSearchMetrics = metrics
         },
       },
+      { getSearchSnapshot: (dir) => workspaceIndexService.getSearchSnapshot(dir) },
     )
     console.log(
       `PRODUCTION_SEARCH_PERF_METRICS ${JSON.stringify({
