@@ -1,10 +1,11 @@
 # Paperin 开发执行入口
 
-更新时间：2026-09-21（Asia/Shanghai）
+更新时间：2026-09-22（Asia/Shanghai）
 
 完整优先级、任务依赖、精确文件、失败测试、验证命令和提交格式见：
 
-- [2026-09-21 产品战略实施计划](superpowers/plans/2026-09-21-product-strategy-implementation.md)
+- [产品整体工作流](PRODUCT-WORKFLOW.md)
+- [2026-09-22 产品工作流实施计划](superpowers/plans/2026-09-22-product-workflow-implementation.md)
 - [当前项目状态](PROJECT-STATUS.md)
 - [产品战略发展报告](PRODUCT-STRATEGY-REVIEW-2026-09-22.md)
 

@@ -1,10 +1,10 @@
 # 候选包与发行门禁验证记录
 
-更新时间：2026-09-21（Asia/Shanghai）
+更新时间：2026-09-22（Asia/Shanghai）
 当前执行分支：`master`
 用途：记录候选包先验收、再进入正式发行的工程门禁和安装证据。
 
-> 当前状态不是“已发布”：`0.7.0` 候选 tag 只应生成 GitHub Draft Release。工作区路径授权、核心任务冒烟（来源查找、插入引用、保存重开、资源包导出）、许可/隐私/安全材料和生产依赖审计已经落地。`build:win` 的本机安装/升级/卸载循环仍未完成。当前未验证项见 [PROJECT-STATUS](../PROJECT-STATUS.md)。
+> 当前状态不是“已发布”：`0.7.0` 候选 tag 只应生成 GitHub Draft Release。工作区路径授权、核心任务冒烟（来源查找、插入引用、保存重开、资源包导出）、许可/隐私/安全材料和生产依赖审计已经落地。当前 Git `origin` 指向 Gitee `MingProject/FileHome`，而 `package.json` 和 GitHub Actions 发布目标是 GitHub `moonsyan/Paperin`；`scripts/sync-gitee.js` 仍指向旧的 `MingProject/mk-editormkEditor`。发布身份未对齐，`build:win` 的本机安装/升级/卸载循环也未完成。当前未验证项见 [PROJECT-STATUS](../PROJECT-STATUS.md)。
 
 ## 本任务已验证（工程门禁）
 
@@ -15,7 +15,8 @@
 | 正式发行显式门禁 | 仅 `workflow_dispatch` + `action=publish-formal` + `confirm_publish=PUBLISH` + `candidate_sha` 与 Draft Release commit 一致 → `gh release edit --draft=false` | **已配置** |
 | tag 推送自动正式发布 | 已移除：`push tags v*` 只走候选 draft，不 `draft: false` | **已阻断** |
 | 配置回归测试 | `release.yml` 缺 smoke 或 `draft: true` 被改成无条件正式发布时，`validateReleaseWorkflowGates` 失败（见单测） | **已通过** |
-| 生产依赖审计 | 2026-09-21 `npm audit --omit=dev --audit-level=moderate` 为 0；`electron-updater` 间接依赖 `js-yaml` 由 4.3.1 升至 4.3.2。`validateProductionJsYaml` 拒绝生产树回退到 4.3.2 以下。dev 依赖漏洞未纳入本门禁 | **已处理生产 high** |
+| 生产依赖审计 | 2026-09-22 `npm audit --omit=dev --audit-level=moderate` 为 0；`electron-updater` 间接依赖 `js-yaml` 由 4.3.1 升至 4.3.2。`validateProductionJsYaml` 拒绝生产树回退到 4.3.2 以下。dev 依赖漏洞未纳入本门禁 | **已处理生产 high** |
+| 仓库与发布身份 | `origin` 为 Gitee，构建/发布配置为 GitHub，Gitee 同步脚本仍含旧仓库名 | **阻断**：先执行实施计划 P0-04，不推送 tag、不触发正式发布 |
 
 未在本任务执行：`git push`、打 tag、`gh release publish`、上传安装包二进制到仓库。
 
@@ -68,9 +69,9 @@
 ## Windows 候选记录
 
 ```text
-候选 commit: 28e72ce（P0-06；本材料提交后以 HEAD 为准）
+候选 commit: 本地 `v0.7.0` 当前指向 `d15bdd1`；发布前必须以完成 P0 门禁后的新候选 commit 重建
 支持平台: Windows 候选链可配置；macOS 签名/公证 UNVERIFIED；Linux 桌面集成 UNVERIFIED
-smoke 结果: 2026-09-21 `npm run smoke` 退出 0（打开工作区、新建、保存、冲突、重命名、搜索、关闭、系统文件关联）
+smoke 结果: 2026-09-22 `npm run smoke` 退出 0（打开工作区、新建、保存、冲突、重命名、搜索、关闭、系统文件关联）
 安装/升级/卸载环境: UNVERIFIED（未执行 `npm run build:win` 后的两套隔离安装循环）
 用户文件保留: UNVERIFIED
 未验证项: 安装器签名、.md 文件关联、升级回退、卸载后知识库文件夹是否仍在
@@ -84,6 +85,7 @@ smoke 结果: 2026-09-21 `npm run smoke` 退出 0（打开工作区、新建、�
 
 ## 操作备忘（维护者）
 
-1. **产候选**：推送 `v*` tag，或 Actions → release → `action=candidate`（可选 tag）。
-2. **验候选**：在 Draft Release 核对 `candidate-record.txt` 与 commit；人工安装试用（本记录未做）。
-3. **正式发行**：Actions → release → `action=publish-formal`，填写 tag、`candidate_sha`（与 draft 相同 commit）、`confirm_publish=PUBLISH`。
+1. **先对齐仓库**：完成 P0-04，确认 GitHub 主仓可用、`origin`/镜像命名和发布目标一致，删除或修正旧 Gitee 同步目标。
+2. **产候选**：推送新的 `v*` tag，或 Actions → release → `action=candidate`（可选 tag）。不得复用当前未完成 P0 门禁的 `v0.7.0` 本地 tag 作为正式候选。
+3. **验候选**：在 Draft Release 核对 `candidate-record.txt` 与 commit；人工安装试用（本记录未做）。
+4. **正式发行**：Actions → release → `action=publish-formal`，填写 tag、`candidate_sha`（与 draft 相同 commit）、`confirm_publish=PUBLISH`。

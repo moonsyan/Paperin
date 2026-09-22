@@ -1,6 +1,6 @@
 # 兼容矩阵
 
-> 2026-09-21 更新：表内“已有”表示当前代码和自动测试里有这条行为，不代表三平台、安装态或用户验收已通过。未验证项见 [PROJECT-STATUS](PROJECT-STATUS.md)。
+> 2026-09-22 更新：表内“已有”表示当前代码和自动测试里有这条行为，不代表三平台、安装态、性能或用户验收已通过。端到端顺序见 [PRODUCT-WORKFLOW](PRODUCT-WORKFLOW.md)，未验证项见 [PROJECT-STATUS](PROJECT-STATUS.md)。
 
 | 能力 | 旧实现 | 现有测试/依据 | 第一批状态 | 后续验证 |
 |---|---|---|---|---|
@@ -14,7 +14,7 @@
 | 工作区文件树、最近文件、收藏 | workspace hooks/components | workspace tests、收藏行为测试 | 文件树、最近编辑、星标收藏/取消、右键入口和按工作区恢复已实现 | 跨库路径迁移、5000 文件 UI 性能 |
 | 工作区壳层、当前文件来源与 dirty 上下文 | `WorkspaceShell` + `CurrentFileBanner` | 组件 Testing Library 契约测试 | 已迁移 | 多窗口、窄窗口与外部文件冒烟 |
 | 保存状态文案 | 顶栏、路径条、状态栏共用 `document-save-status.ts` | 保存回执与状态组件测试 | 已有：已保存/未保存、示例、未命名、保存中、冲突、编码、失败 | 九主题与缩放人工看 |
-| 工作区全文搜索 | `WorkspaceSearchDialog`、`workspace-search-handler` | `workspace-search-coverage.test.ts`、`useWorkspaceSearch.test.ts`、`search-rank` | 已有：共享 `WorkspaceCoverage`；200 条命中上限与扫描跳过分开；未扫完时不把空列表当确定无结果；关闭/新查询通过 `queryId`+`cancel` 中止 Main 扫描 | 60 题 Hit@5 与用户侧时延未测 |
+| 工作区全文搜索 | `WorkspaceSearchDialog`、`workspace-search-handler` | `workspace-search-coverage.test.ts`、`useWorkspaceSearch.test.ts`、`search-rank` | 已有：共享 `WorkspaceCoverage`；200 条命中上限与扫描跳过分开；未扫完时不把空列表当确定无结果；关闭/新查询通过 `queryId`+`cancel` 中止 Main 扫描 | 2026-09-22 生产搜索 P95 13371.8765 ms 超过 5000 ms，当前红灯；60 题 Hit@5 与用户侧时延未测 |
 | 插入来源引用 | 搜索结果与反链；`source-citation.ts` | `source-citation`、`insert-citation` 测试 | 已有：片段快照、相对链接、标题锚点、切文档拒绝、回到打开搜索时的位置 | 用户任务耗时未测 |
 | 来源健康 | 工作区设置 `sourceSnapshots` + `evaluateSourceHealth` | `workspace-state`、`source-health`、QualityPanel 测试 | 已有：mtime 一致/变化/缺失/索引未完成；缺失只提供重新定位和打开搜索，不猜测新路径、不改正文 | 真实移动文件后的人工跟踪未测 |
 | 重启后的搜索词与阅读位置 | 工作区设置 `lastSearchQuery` / `recentCitations`；文档视图状态 | `workspace-state` 测试 | 已有：缺字段默认为空，可清除且不删正文；选区与滚动随文档视图保存 | 真实重启、改名后回访未测 |
@@ -47,7 +47,11 @@
 ## 基线命令
 
 ```bash
+npm run lint
 npm run typecheck
 npm run test
 npm run build
+npm run smoke
 ```
+
+涉及性能、UI、发行或安装的变更还必须按 [2026-09-22 实施计划](superpowers/plans/2026-09-22-product-workflow-implementation.md)运行对应专项门禁，以上命令不能替代性能和安装证据。

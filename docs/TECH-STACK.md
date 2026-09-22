@@ -1,6 +1,6 @@
 # Paperin 技术栈评估
 
-更新时间：2026-09-20（Asia/Shanghai）。当前实际版本以 `package.json` 为准：Electron 43、React 18.3、Vite 5.4、electron-vite 2.3、TypeScript 5.7、Vitest 2.1。下方升级建议仍是候选，不是已经完成的迁移。
+更新时间：2026-09-22（Asia/Shanghai）。当前实际版本以 `package.json` 为准：Electron 43、React 18.3、Vite 5.4、electron-vite 2.3、TypeScript 5.7、Vitest 2.1；本地与 CI 验证基线为 Node.js 22 LTS。下方升级建议仍是候选，不是已经完成的迁移。
 
 ## 结论
 
@@ -73,6 +73,6 @@ Shared
 
 ## 版本策略
 
-- Node.js 20 LTS 作为 CI 基线，确认 Electron 兼容后再评估 Node.js 22。
+- Node.js 22 LTS 作为本地与 CI 验证基线；Node 24 样本只作诊断对照，不作为发布基线。Node 主版本升级必须单独跑完整门禁和目标平台安装态验证。
 - Electron、Milkdown、electron-builder 分开升级，不能和功能迁移放在同一个变更中。
 - 所有升级先跑 `npm run typecheck`、`npm run test`、`npm run build`，再进行目标平台安装包冒烟。

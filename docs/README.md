@@ -1,6 +1,6 @@
 # Paperin 文档索引
 
-更新时间：2026-09-21（Asia/Shanghai）
+更新时间：2026-09-22（Asia/Shanghai）
 
 `docs/` 只保留当前说明、稳定规范和有日期的审计证据。当前战略、状态和执行计划各自只有一个入口；被替代的战略与空占位计划由 Git 历史承担，不在当前树重复归档。
 
@@ -9,11 +9,11 @@
 | 目的 | 文档 |
 | --- | --- |
 | 产品定位、竞品、路线和商业/团队进入条件 | [2026-09-22 产品战略发展报告](PRODUCT-STRATEGY-REVIEW-2026-09-22.md) |
+| 从安装到持续维护的产品与代码工作流 | [PRODUCT-WORKFLOW](PRODUCT-WORKFLOW.md) |
 | 当前代码、门禁、阻断和未验证项 | [PROJECT-STATUS](PROJECT-STATUS.md) |
-| P0–P3 完整执行任务 | [产品战略实施计划](superpowers/plans/2026-09-21-product-strategy-implementation.md) |
+| P0-P3 完整执行任务 | [产品工作流实施计划](superpowers/plans/2026-09-22-product-workflow-implementation.md) |
 | 每次开发必须遵守的入口约束 | [IMPLEMENTATION-PLAN](IMPLEMENTATION-PLAN.md) 与仓库根目录 `AGENTS.md` |
 | 质量、研究和商业指标口径 | [strategy-validation](development/strategy-validation.md) |
-| 上一轮代码与验证证据 | [product-audit-2026-09-20](development/product-audit-2026-09-20.md)，仅作历史快照 |
 
 ## 用户与产品说明
 

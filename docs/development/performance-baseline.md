@@ -2,7 +2,9 @@
 
 > 2026-09-19：下文保留当时的夹具和阈值。历史 Electron 记录只作为日期快照；当前实测以 [PROJECT-STATUS](../PROJECT-STATUS.md) 为准，不要把不同日期、设备和 Node 版本拼成同一次结果。
 
-> 2026-09-14 历史复核说明：本文保留既有夹具、历史样本与阈值。文中“超过 1 MiB 优先快照”的实现实际为 `content.length > 1_000_000`（字符串长度），不是字节数。当前执行顺序见 [产品战略实施计划](../superpowers/plans/2026-09-21-product-strategy-implementation.md)。
+> 2026-09-14 历史复核说明：本文保留既有夹具、历史样本与阈值。文中“超过 1 MiB 优先快照”的实现实际为 `content.length > 1_000_000`（字符串长度），不是字节数。当前执行顺序见 [产品工作流实施计划](../superpowers/plans/2026-09-22-product-workflow-implementation.md)。
+
+> 2026-09-22 新鲜红灯：`npm run perf:regression` 退出 1，tree 332.25 ms、index 11713.59 ms、search 2079.23 ms，超过 200/2000/1500 ms 阈值；`npm run perf:production` 退出 1，冷索引 6899.3 ms 通过 15000 ms 阈值，但搜索 P95 13371.8765 ms 超过 5000 ms，watcher 项通过。当前不得用 2026-09-21 空闲样本宣称大型库性能达标。先按 P0-01 分段采集 discovery/metadata/read/scan，再按 P0-02 评估 Main 内存索引语料复用；阈值保持不变。
 
 ## 结论
 
