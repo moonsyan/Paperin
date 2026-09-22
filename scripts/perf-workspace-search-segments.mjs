@@ -1,5 +1,5 @@
-#!/usr/bin/env node
 // 使用生产 runWorkspaceSearch 采集分段指标；仅输出 JSON，不含路径或正文。
+// 由 vite-node 加载，勿加 shebang（会触发 Invalid or unexpected token）。
 import { performance } from 'node:perf_hooks'
 import { runWorkspaceSearch } from '../src/main/ipc/workspace-search-handler.ts'
 
