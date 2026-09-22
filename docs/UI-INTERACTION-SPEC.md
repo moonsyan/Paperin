@@ -4,7 +4,7 @@
 
 状态：当前生产界面规范与验收基线；已实现部分以 [PROJECT-STATUS](PROJECT-STATUS.md) 为准，不改变现有快捷键和用户设置。
 
-依据：[2026-09-21 全量战略发展报告](PRODUCT-STRATEGY-REVIEW-2026-09-21.md)、生产组件与 quiet-workspace 已有设计；具体完成度以 [PROJECT-STATUS](PROJECT-STATUS.md) 为准。
+依据：[2026-09-22 产品战略发展报告](PRODUCT-STRATEGY-REVIEW-2026-09-22.md)、生产组件与 quiet-workspace 已有设计；具体完成度以 [PROJECT-STATUS](PROJECT-STATUS.md) 为准。
 
 ## 1. 设计目标
 

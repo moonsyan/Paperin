@@ -1,10 +1,10 @@
 # Paperin 项目状态
 
-更新时间：2026-09-21（Asia/Shanghai）  
+更新时间：2026-09-22（Asia/Shanghai）
 代码基线：`d7b4a5c` 之后的 `0.7.0` 发行提交（`master`）  
 产品版本：`0.7.0`
 
-> 本文只记录当前状态，不保存逐批实施日志。历史任务、提交与当时的验证结果由 Git 历史和 [2026-09-20 代码审计快照](development/product-audit-2026-09-20.md)承担。当前战略见[全量战略发展报告](PRODUCT-STRATEGY-REVIEW-2026-09-21.md)，执行顺序见[产品战略实施计划](superpowers/plans/2026-09-21-product-strategy-implementation.md)。
+> 本文只记录当前状态，不保存逐批实施日志。历史任务、提交与当时的验证结果由 Git 历史和 [2026-09-20 代码审计快照](development/product-audit-2026-09-20.md)承担。当前战略见[产品战略发展报告](PRODUCT-STRATEGY-REVIEW-2026-09-22.md)，执行顺序见[产品战略实施计划](superpowers/plans/2026-09-21-product-strategy-implementation.md)。
 
 ## 当前结论
 
@@ -36,15 +36,15 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 | --- | --- | --- |
 | `npm run lint` | 退出 0 | 当前 lint 基线通过 |
 | `npm run typecheck` | 退出 0 | Renderer 与 Node 严格类型检查通过 |
-| `npm run test` | 222 个文件、1602 项测试通过 | 自动测试基线通过，不代表桌面链路通过 |
+| `npm run test` | 223 个文件、1603 项测试通过 | 自动测试基线通过，不代表安装态和用户价值通过 |
 | `npm run build` | 退出 0 | 生产构建通过，未证明安装器可用 |
 | `npm run a11y` | 退出 0；仍有 37 项对比度基线债务 | 没有新增静态违规，不能宣称全面可访问 |
 | `npm run smoke` | 退出 0；打开工作区、新建、保存、冲突、重命名、搜索、关闭、系统文件关联，以及来源查找/插入引用/保存重开/资源包导出 | 核心任务冒烟先走真实「打开文件夹」菜单绑定渲染层工作区，再打开全文搜索；步骤失败输出 `CORE_TASK_FAIL` |
-| `npm run perf:regression` | Node 22.23.2 与 Node 24.19.0 空闲各三轮退出 0；索引/搜索读盘占墙钟约 85%–95% | 与 2026-09-09 基线同量级。同日审查的 3482/1672 ms 判定为 I/O 波动；阈值未改 |
-| `npm run perf:production` | 2 个性能文件、3 项测试全部通过；搜索 P95 1350.59 ms，冷索引 1558.02 ms | 夹具已调用真实 `trustDirectory`；搜索 IPC 进入性能测量。与合成 `perf:regression` 的 2000/1500 ms 阈值是不同口径 |
+| `npm run perf:regression` | 本轮 Node 24.19.0 退出 1；tree 332.25ms、index 11713.59ms、search 2079.23ms | 超过 200/2000/1500ms，当前新鲜性能证据为红灯；不得沿用历史绿灯 |
+| `npm run perf:production` | 本轮退出 1；冷索引 6899.3ms 通过其阈值，搜索 P95 13371.8765ms 超过 5000ms；watcher 项通过 | 生产搜索仍需拆分时延并定位根因，不能宣称大型库性能达标 |
 | `npm audit --omit=dev --audit-level=moderate` | 0 vulnerabilities；生产 `js-yaml@4.3.2` | 已消除 GHSA-2883-xcg3-v3hh；dev 依赖审计仍独立 |
 
-历史提交上的绿灯不能替代当前 `HEAD` 的新鲜结果。上表里的 lint、a11y、smoke、性能和审计是同日工程提交上的记录；`npm run typecheck`、`npm run test`（222 个文件、1602 项）和 `npm run build` 在入门说明提交前重跑通过。工作区路径授权、依赖升级和发行材料的代码与文档已经落地；安装循环、真人样本和 8 小时实测仍未验证。
+历史提交上的绿灯不能替代当前 `HEAD` 的新鲜结果。当前 lint、typecheck、test、build、smoke、a11y 和审计已重跑通过；两项性能命令本轮失败，原因和阶段性处理见[2026-09-22 产品战略发展报告](PRODUCT-STRATEGY-REVIEW-2026-09-22.md)。安装循环、真人样本和 8 小时实测仍未验证。
 
 ## 当前阻断和优先级
 
@@ -52,7 +52,7 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 | --- | --- | --- |
 | P0 | 修复工作区规范路径比较 | **已完成**：不存在目标使用最近存在父目录的真实路径比较；短路径/长路径、junction 换靶和多窗口越权有回归；`npm run smoke` 退出 0 |
 | P0 | 修正生产搜索性能夹具授权 | **已完成**：夹具调用真实 `trustDirectory` 与 `isPathTrusted`，搜索 IPC 不再因测试装配返回 `INVALID_TARGET` |
-| P0 | 诊断 5000 篇性能退化 | **已完成**：分段指标证明空闲样本通过且为读盘主导；保留 200/2000/1500 ms 阈值，未覆盖基线 |
+| P0 | 诊断 5000 篇性能退化 | **进行中**：历史样本曾通过，但本轮合成索引 11713.59ms、搜索 2079.23ms 超阈值；需固定环境、拆分阶段并定位根因，不能调整阈值掩盖失败 |
 | P0 | 升级易受攻击的间接依赖 | **已完成**：生产依赖审计无 moderate 及以上漏洞；`js-yaml` 由 4.3.1 升至 4.3.2，锁文件门禁拒绝回退 |
 | P0 | 清理失效 `demo:soft*` 脚本 | **已完成**：`package.json` 不再引用不存在的 `design/soft-workbench` |
 | P0 | 收紧联网与外部服务凭据 | **已完成**：生产环境默认检查/下载/退出安装，设置中有可见开关，关闭后下次启动不联网也不安装已下载包。开发环境永不检查。SM.MS token 经 `safeStorage` 加密；渲染进程只有 `configured`/`credentialState`；明文迁移失败与安全存储不可用均禁用远程上传并回退本地附件 |
@@ -61,7 +61,7 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 | P1 | 完成两位现有用户任务记录 | 两周内每人至少 3 次真实任务，记录阻塞、成果和再次使用理由，不计算虚假留存率 |
 | P2 | 来源健康与变化提示 | **代码已完成**：质量面板显示来源已变化/缺失/索引未完成；缺失只提供重新定位和打开搜索，mtime 提示不改正文。两设备 8 小时稳定性与真人验证仍为后续门槛 |
 | P2 | 发布配置与交付报告 | **代码已完成**：工作区可保存最多 20 条发布配置；HTML 资源包含 `reports/paperin-delivery-report.json`，不含正文、绝对路径或搜索词。接收方阅读与真人专业交付验证仍为后续门槛 |
-| P2 | 长期稳定性门禁 | **代码已完成**：五结构 5 MiB 夹具与 `summarizeStability`（30 分钟基线窗口 vs 末两小时，增长须 ≤15% 且 ≤100 MiB，watcher 不得增多）。`--stability-hours 8` 可启动采样。两设备 8 小时实测为 **UNVERIFIED** |
+| P2 | 长期稳定性门禁 | **代码已完成**：五结构 5 MiB 夹具与 `summarizeStability`（30 分钟基线窗口 vs 末两小时，增长须 ≤15% 且 ≤100 MiB，watcher 不得增多）。`--stability-hours 8` 可启动采样；两设备 8 小时实测为 **UNVERIFIED** |
 
 完整依赖、文件、失败测试和验证命令见[产品战略实施计划](superpowers/plans/2026-09-21-product-strategy-implementation.md)。
 

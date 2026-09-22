@@ -6,7 +6,7 @@
 
 - [2026-09-21 产品战略实施计划](superpowers/plans/2026-09-21-product-strategy-implementation.md)
 - [当前项目状态](PROJECT-STATUS.md)
-- [全量战略发展报告](PRODUCT-STRATEGY-REVIEW-2026-09-21.md)
+- [产品战略发展报告](PRODUCT-STRATEGY-REVIEW-2026-09-22.md)
 
 根目录 [AGENTS.md](../AGENTS.md) 是强制门禁。执行任何任务时：
 

@@ -1,6 +1,6 @@
 # Paperin 战略验收协议与指标字典
 
-> 版本：2.0｜2026-09-21。适用[全量战略发展报告](../PRODUCT-STRATEGY-REVIEW-2026-09-21.md)及[产品战略实施计划](../superpowers/plans/2026-09-21-product-strategy-implementation.md)。
+> 版本：2.0｜2026-09-21。适用[产品战略发展报告](../PRODUCT-STRATEGY-REVIEW-2026-09-22.md)及[产品战略实施计划](../superpowers/plans/2026-09-21-product-strategy-implementation.md)。
 > 本文定义验收口径，不把目标写成已达标结果。当前实测见 [PROJECT-STATUS](../PROJECT-STATUS.md)。
 
 ## 1. 使用规则

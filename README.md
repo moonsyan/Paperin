@@ -107,7 +107,7 @@ npm run perf:regression
 
 本轮战略审查与后续执行入口：
 
-- [2026-09-21 全量战略发展报告](docs/PRODUCT-STRATEGY-REVIEW-2026-09-21.md)：基于当前代码与新鲜门禁结果的产品现状、竞品定位、阶段路线、商业化和团队/企业进入条件。
+- [2026-09-22 产品战略发展报告](docs/PRODUCT-STRATEGY-REVIEW-2026-09-22.md)：基于当前代码与本轮新鲜门禁结果的产品现状、竞品定位、阶段路线、商业化和团队/企业进入条件。
 - [按优先级排列的完整实施计划](docs/superpowers/plans/2026-09-21-product-strategy-implementation.md)：P0 发行阻断、P1 外部 Alpha、P2 个人专业版和 P3 团队/企业进入条件。
 - [当前项目状态](docs/PROJECT-STATUS.md)：当前代码能力、新鲜门禁结果、红灯、未验证范围和执行顺序。
 - [2026-09-20 代码与验证证据](docs/development/product-audit-2026-09-20.md)：上一轮审查的历史快照；不作为当前绿灯依据。
@@ -131,7 +131,7 @@ npm run perf:regression
 - [`docs/ACCESSIBILITY-SMOKE.md`](./docs/ACCESSIBILITY-SMOKE.md)：主题可读性、焦点和人工冒烟范围。
 - [`docs/development/`](./docs/development/)：性能基线、主题基线和回归脚本数据。
 
-`docs/IMPLEMENTATION-PLAN.md` 是稳定开发入口，详细任务以 2026-09-21 实施计划为准。旧战略和旧任务计划已从当前文档树移除，历史事实由 Git 与带日期的审计快照承担。
+`docs/IMPLEMENTATION-PLAN.md` 是稳定开发入口，详细任务以 2026-09-21 实施计划为准。旧战略报告保留为带日期的历史快照，当前战略以 2026-09-22 报告为准。
 
 ## 当前边界与后续方向
 

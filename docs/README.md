@@ -8,7 +8,7 @@
 
 | 目的 | 文档 |
 | --- | --- |
-| 产品定位、竞品、路线和商业/团队进入条件 | [2026-09-21 全量战略发展报告](PRODUCT-STRATEGY-REVIEW-2026-09-21.md) |
+| 产品定位、竞品、路线和商业/团队进入条件 | [2026-09-22 产品战略发展报告](PRODUCT-STRATEGY-REVIEW-2026-09-22.md) |
 | 当前代码、门禁、阻断和未验证项 | [PROJECT-STATUS](PROJECT-STATUS.md) |
 | P0–P3 完整执行任务 | [产品战略实施计划](superpowers/plans/2026-09-21-product-strategy-implementation.md) |
 | 每次开发必须遵守的入口约束 | [IMPLEMENTATION-PLAN](IMPLEMENTATION-PLAN.md) 与仓库根目录 `AGENTS.md` |
