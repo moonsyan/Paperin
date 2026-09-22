@@ -320,7 +320,7 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
         linksTruncated={linksTruncated}
         onOpenLink={onOpenLink}
         onInsertCitation={(sourcePath, preview) => {
-          insertCitationFromPanel({
+          const inserted = insertCitationFromPanel({
             editor: editorRef.current,
             activeFileId,
             fromFile: activeFilePath ?? null,
@@ -328,7 +328,9 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
             preview,
             notify: onNotify,
           })
-          onSourceInserted?.(sourcePath)
+          if (inserted) {
+            onSourceInserted?.(sourcePath)
+          }
         }}
         onUnresolvedLinkClick={(target) => onNotify(`链接目标未创建：${target}`)}
         onOpenGraphView={onOpenGraphView}

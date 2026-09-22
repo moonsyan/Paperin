@@ -16,7 +16,8 @@ import { useDocumentSessionPersistence } from '../hooks/useDocumentSessionPersis
 import type { PublishOptions, PublishScope } from '../lib/export-bundle'
 import { buildDeliveryReport } from '../lib/delivery-report'
 import { normalizeWorkspaceRelativePath } from '../../../shared/workspace-state'
-import { rememberSourceSnapshotFromDisk, searchQueryForRelocate } from '../lib/remember-source-snapshot'
+import { searchQueryForRelocate } from '../lib/remember-source-snapshot'
+import { useSourceTracking } from './useSourceTracking'
 
 import { useDocumentSession } from './document-session/useDocumentSession'
 import { useAppActions } from './useAppActions'
@@ -94,6 +95,11 @@ export function AppComposition(): JSX.Element {
     handleWorkspaceThemeEnabledChange, handleCollapsedKeysChange,
     toast, setToast,
   } = useWorkspaceState({ theme, setTheme, settingsReady: persistReady })
+
+  const { rememberSourceAfterInsert, notifySourceRecordsCleared } = useSourceTracking({
+    workspacePath: workspace?.path,
+    setWorkspaceSettings,
+  })
 
   // === 搜索 ===
   const { searchMode, setSearchMode, searchCount, setSearchCount, searchCurrent, setSearchCurrent, searchPref, setSearchPref, searchEpoch, setSearchEpoch, closeSearch: resetSearchState, handlers: searchHandlers } = useEditorSearch({ editorRef })
@@ -394,7 +400,7 @@ export function AppComposition(): JSX.Element {
             setWsSearchOpen(true)
           }}
           onOpenWorkspaceSearch={() => setWsSearchOpen(true)}
-          onSourceInserted={(absolutePath) => rememberSourceSnapshotFromDisk(absolutePath, workspace?.path, setWorkspaceSettings)}
+          onSourceInserted={rememberSourceAfterInsert}
           activeProperties={activeProperties} showFrontmatterProps={settings.showFrontmatterProps}
           onToggleProperties={() => settings.setShowFrontmatterProps((v) => !v)}
           onUpdateProperty={handleUpdateProperty} onDeleteProperty={handleDeleteProperty} onAddProperty={handleAddProperty}
@@ -464,6 +470,7 @@ export function AppComposition(): JSX.Element {
         currentContent={liveContentOf(activeFileId)}
         onRestoreVersion={(content) => { setVersionHistoryOpen(false); replaceEditorContent(activeFileId, content, 'update'); setToast('已恢复历史版本到编辑器（未保存），确认后按 Ctrl+S 写入磁盘') }}
         wsSearchOpen={wsSearchOpen} onCloseWorkspaceSearch={closeWorkspaceSearch} workspaceIndex={workspaceIndex} activeFileId={activeFileId} editorRef={editorRef} onRememberSearchQuery={(query) => setWorkspaceSettings((current) => ({ ...current, editor: { ...current.editor, lastSearchQuery: query } }))}
+        rememberSourceAfterInsert={rememberSourceAfterInsert} onClearSourceRecords={notifySourceRecordsCleared}
         onSelectSearchResult={(path, query, opts) => {
           setWsSearchOpen(false)
           void reveal({ path, search: { query, useRegex: opts?.useRegex, caseSensitive: opts?.caseSensitive } })

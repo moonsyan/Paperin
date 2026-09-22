@@ -1,38 +1,34 @@
-import type { Dispatch, SetStateAction } from 'react'
-import {
-  rememberSourceSnapshot,
-  type WorkspaceSettingsState,
-} from '../../../shared/workspace-state'
-import { toWorkspaceRelativePath } from './workspace-state'
+import type { WorkspaceSettingsState } from '../../../shared/workspace-state'
+import { rememberSourceSnapshot } from '../../../shared/workspace-state'
 
-/** 插入引用成功后异步记下 mtime；失败静默跳过，不改正文。 */
-export const rememberSourceSnapshotFromDisk = (
-  absolutePath: string,
-  workspacePath: string | undefined,
-  setWorkspaceSettings: Dispatch<SetStateAction<WorkspaceSettingsState>>,
-): void => {
-  if (!workspacePath || !window.desktopAPI) return
-  const relative = toWorkspaceRelativePath(
-    workspacePath,
-    absolutePath,
-    window.desktopAPI.platform === 'win32',
-  )
-  if (!relative) return
-  void window.desktopAPI.document.stat(absolutePath).then((result) => {
-    const modifiedTime = result.ok ? result.data?.modifiedTime : undefined
-    if (typeof modifiedTime !== 'number') return
-    setWorkspaceSettings((current) => ({
-      ...current,
-      editor: {
-        ...current.editor,
-        sourceSnapshots: rememberSourceSnapshot(current.editor.sourceSnapshots, {
-          path: relative,
-          modifiedTime,
-        }),
-      },
-    }))
-  })
+/** 异步登记提交时必须与当前一致的工作区生命周期票据。 */
+export interface SourceRegistrationTicket {
+  workspaceEpoch: number
+  recordVersion: number
 }
+
+export const sourceRegistrationTicketMatches = (
+  captured: SourceRegistrationTicket,
+  current: SourceRegistrationTicket,
+): boolean =>
+  captured.workspaceEpoch === current.workspaceEpoch &&
+  captured.recordVersion === current.recordVersion
+
+/** 将 stat 结果合并进工作区设置（纯函数，不含 I/O）。 */
+export const mergeSourceSnapshotIntoSettings = (
+  settings: WorkspaceSettingsState,
+  relativePath: string,
+  modifiedTime: number,
+): WorkspaceSettingsState => ({
+  ...settings,
+  editor: {
+    ...settings.editor,
+    sourceSnapshots: rememberSourceSnapshot(settings.editor.sourceSnapshots, {
+      path: relativePath,
+      modifiedTime,
+    }),
+  },
+})
 
 export const searchQueryForRelocate = (relativePath: string): string => {
   const slash = relativePath.replace(/\\/g, '/')

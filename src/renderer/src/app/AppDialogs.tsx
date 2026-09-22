@@ -50,7 +50,6 @@ import type { WorkspaceInfo } from '../components/Sidebar'
 import type { WorkspaceSettingsState } from '../../../shared/workspace-state'
 import { rememberRecentCitation } from '../../../shared/workspace-state'
 import { createPublishProfile, rememberPublishProfile, removePublishProfile } from '../../../shared/publish-profile'
-import { rememberSourceSnapshotFromDisk } from '../lib/remember-source-snapshot'
 import { resolveWorkspacePath, toWorkspaceRelativePath } from '../lib/workspace-state'
 
 // ---------------------------------------------------------------------------
@@ -160,6 +159,10 @@ export interface AppDialogsProps {
   onConfirmResolve: (id: string) => void
   /** 记住本次工作区搜索词，供下次打开同一知识库时填回。不保存正文。 */
   onRememberSearchQuery?: (query: string) => void
+  /** 搜索/反链插入正文成功后登记来源（异步 stat 由 hook 隔离）。 */
+  rememberSourceAfterInsert?: (absolutePath: string) => void
+  /** 清除来源记录前调用，使挂起 stat 失效。 */
+  onClearSourceRecords?: () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -208,6 +211,8 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
     activeFileId, editorRef,
     confirmRequest, onConfirmResolve,
     onRememberSearchQuery,
+    rememberSourceAfterInsert,
+    onClearSourceRecords,
   } = props
   const writingPlaceRef = useRef<EditorViewState | null>(null)
   const searchOpenRef = useRef(false)
@@ -374,6 +379,7 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
               onSelectSearchResult(absolute, '')
             }}
             onClearNavigation={() => {
+              onClearSourceRecords?.()
               setWorkspaceSettings((current) => ({
                 ...current,
                 editor: { ...current.editor, lastSearchQuery: '', recentCitations: [], sourceSnapshots: [] },
@@ -399,7 +405,7 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
                   ...current,
                   editor: { ...current.editor, recentCitations: rememberRecentCitation(current.editor.recentCitations, relative) },
                 }))
-                rememberSourceSnapshotFromDisk(match.path, workspace.path, setWorkspaceSettings)
+                rememberSourceAfterInsert?.(match.path)
               }
               onCloseWorkspaceSearch()
               setToast('已插入来源引用，已回到原位置，可用撤销收回')
