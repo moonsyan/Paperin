@@ -8,7 +8,7 @@ Paperin 的菜单、快捷键和命令面板共享 `app/commands/app-command-reg
 
 发布对话框保存的是模板、目录选项和发布范围，最多 20 条，写在工作区设置里，不含正文。导出 HTML 资源包时会在 `reports/paperin-delivery-report.json` 写入诊断计数和相对路径；报告失败则整个资源包失败。复制富文本只适用于当前文档。
 
-**当前来源边界：** `documentSourceBaselines` 按引用文档维护来源 mtime；旧全局 `sourceSnapshots` 迁移为最多 50 条 `legacySourceSnapshots`（归属未知，不当作当前文章已复核）。质量面板只展示当前文章来源异常，并提供「复核当前文章」（更新该文基线为索引 mtime，不等于正文已人工复核）。「重新定位」仍只打开来源文件名搜索。清除导航与删除来源关系分开：前者清搜索词/最近引用，后者清持久基线与 legacy 记录，均不改正文。P2-02 显式重定位迁移仍待办。支持摘要命令 `supportSummary`（设置 → 高级 →「打开预览…」同源）：先预览脱敏 JSON（含本地事件计数与近期错误码），再复制或导出；不自动上传。
+**当前来源边界：** `documentSourceBaselines` 按引用文档维护来源 mtime；旧全局 `sourceSnapshots` 迁移为最多 50 条 `legacySourceSnapshots`（归属未知，不当作当前文章已复核）。质量面板只展示当前文章来源异常，并提供「复核当前文章」（更新该文基线为索引 mtime，不等于正文已人工复核）。「重新定位」绑定缺失的 `previousPath`：索引中同名多候选时先弹出选择，否则打开工作区搜索；选中新文件后确认对话框默认只更新当前引用文档的 `documentSourceBaselines`（携带 citing 文档与工作区生命周期票据，切库/换文档则拒绝提交）。勾选「更新链接」时展示普通 Markdown 链接的替换前后预览，确认后走 `updateContentPreservingHistory`（可撤销），不改 Wiki 链接与其他文章基线。取消或关闭搜索不改正文与基线。清除导航与删除来源关系分开：前者清搜索词/最近引用，后者清持久基线与 legacy 记录，均不改正文。支持摘要命令 `supportSummary`（设置 → 高级 →「打开预览…」同源）：先预览脱敏 JSON（含本地事件计数与近期错误码），再复制或导出；不自动上传。
 
 默认键：快速打开 `Ctrl+P`，输入 `>` 切命令模式；`Ctrl+K` 是插入链接；`Ctrl+J` 切侧栏；`Ctrl+Shift+L` 切大纲。用户改键后以实际映射为准。新增复核/支持摘要命令前必须登记 scope、可访问名称、冲突处理及无上下文提示，不预占默认键。
 

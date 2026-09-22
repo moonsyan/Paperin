@@ -1,0 +1,111 @@
+.source-relocation-dialog {
+  max-width: 32rem;
+}
+
+.source-relocation-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.source-relocation-lead {
+  margin: 0 0 0.75rem;
+  color: var(--text-muted, #666);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.source-relocation-paths {
+  margin: 0 0 0.75rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.source-relocation-paths dt {
+  font-size: 0.75rem;
+  color: var(--text-muted, #666);
+}
+
+.source-relocation-paths dd {
+  margin: 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+.source-relocation-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.source-relocation-previews {
+  max-height: 10rem;
+  overflow: auto;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border-subtle, #ddd);
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.source-relocation-preview-count {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+.source-relocation-preview-empty {
+  margin: 0;
+  color: var(--text-muted, #666);
+}
+
+.source-relocation-preview-row {
+  display: grid;
+  gap: 0.15rem;
+  margin-bottom: 0.5rem;
+}
+
+.source-relocation-preview-row code {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.source-relocation-preview-label {
+  font-size: 0.7rem;
+  color: var(--text-muted, #666);
+}
+
+.source-relocation-candidate-list {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.source-relocation-candidate-btn {
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-subtle, #ddd);
+  border-radius: 4px;
+  background: var(--surface-elevated, #fff);
+  cursor: pointer;
+}
+
+.source-relocation-candidate-btn:hover {
+  border-color: var(--accent, #2563eb);
+}
+
+.source-relocation-candidate-path {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.85rem;
+}
+
+.source-relocation-actions {
+  justify-content: flex-end;
+}

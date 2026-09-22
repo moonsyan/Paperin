@@ -22,6 +22,21 @@ import {
   reviewCurrentDocumentInSettings,
 } from '../lib/source-health'
 import { searchQueryForRelocate } from '../lib/remember-source-snapshot'
+import {
+  applyPlainMarkdownLinkUpdates,
+  listSameBasenameRelocationCandidates,
+  planPlainMarkdownLinkUpdates,
+  requiresExplicitCandidateSelection,
+  type SourceRelocationBinding,
+  type SourceRelocationChoice,
+  type SourceRelocationCandidate,
+} from '../lib/source-relocation'
+import { toWorkspaceRelativePath } from '../lib/workspace-state'
+import { isPersistableCitingDocumentPath } from '../../../shared/workspace-state'
+import {
+  SourceRelocationCandidateDialog,
+  SourceRelocationDialog,
+} from '../components/SourceRelocationDialog'
 import { useSourceTracking } from './useSourceTracking'
 import { useSupportSummaryDialog } from './useSupportSummaryDialog'
 
@@ -85,6 +100,17 @@ export function AppComposition(): JSX.Element {
   const [publishOpen, setPublishOpen] = useState(false)
   const [publishBusy, setPublishBusy] = useState(false)
   const [wsSearchOpen, setWsSearchOpen] = useState(false)
+  const [sourceRelocatePreviousPath, setSourceRelocatePreviousPath] = useState<string | null>(null)
+  const [sourceRelocateConfirm, setSourceRelocateConfirm] = useState<{
+    previousPath: string
+    selectedPath: string
+    selectedModifiedTime: number
+  } | null>(null)
+  const [sourceRelocateCandidates, setSourceRelocateCandidates] = useState<{
+    previousPath: string
+    candidates: SourceRelocationCandidate[]
+  } | null>(null)
+  const sourceRelocateBindingRef = useRef<SourceRelocationBinding | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false)
   const [confirmRequest, setConfirmRequest] = useState<ActiveConfirmRequest | null>(null)
@@ -203,7 +229,13 @@ export function AppComposition(): JSX.Element {
     workspace?.path,
     caseInsensitivePaths,
   )
-  const { rememberSourceAfterInsert, notifySourceRecordsCleared, ephemeralBaselines } = useSourceTracking({
+  const {
+    rememberSourceAfterInsert,
+    notifySourceRecordsCleared,
+    ephemeralBaselines,
+    readSourceRegistrationTicket,
+    applySourceRelocation,
+  } = useSourceTracking({
     workspacePath: workspace?.path,
     citingDocumentKey,
     activeDocumentId: activeFileId,
@@ -213,6 +245,128 @@ export function AppComposition(): JSX.Element {
     () => [...workspaceSettings.editor.documentSourceBaselines, ...ephemeralBaselines],
     [ephemeralBaselines, workspaceSettings.editor.documentSourceBaselines],
   )
+  const clearSourceRelocationFlow = useCallback(() => {
+    setSourceRelocatePreviousPath(null)
+    setSourceRelocateConfirm(null)
+    setSourceRelocateCandidates(null)
+    sourceRelocateBindingRef.current = null
+  }, [])
+
+  const citingPathForSourceLinks = useMemo(() => {
+    if (!citingDocumentKey) return null
+    if (isPersistableCitingDocumentPath(citingDocumentKey)) return citingDocumentKey
+    if (!workspace?.path || !activeFile?.path || !window.desktopAPI) return null
+    return toWorkspaceRelativePath(workspace.path, activeFile.path, caseInsensitivePaths)
+  }, [activeFile?.path, caseInsensitivePaths, citingDocumentKey, workspace?.path])
+
+  const resolveIndexedModifiedTime = useCallback(
+    (relativePath: string): number => {
+      if (!workspaceIndex) return 0
+      const normalized = normalizeWorkspaceRelativePath(relativePath.replace(/\\/g, '/'))
+      if (!normalized) return 0
+      for (const document of Object.values(workspaceIndex.documents)) {
+        const docRelative = normalizeWorkspaceRelativePath(document.relativePath.replace(/\\/g, '/'))
+        if (docRelative === normalized) return document.modifiedTime
+      }
+      return 0
+    },
+    [workspaceIndex],
+  )
+
+  const openSourceRelocateConfirm = useCallback(
+    (previousPath: string, selectedPath: string, selectedModifiedTime: number) => {
+      setSourceRelocateConfirm({ previousPath, selectedPath, selectedModifiedTime })
+      setSourceRelocatePreviousPath(null)
+      setSourceRelocateCandidates(null)
+    },
+    [],
+  )
+
+  const beginSourceRelocate = useCallback(
+    (previousPath: string) => {
+      if (!citingDocumentKey) {
+        setToast('请先打开要维护来源的文章')
+        return
+      }
+      sourceRelocateBindingRef.current = {
+        citingDocumentKey,
+        ticket: readSourceRegistrationTicket(),
+      }
+      const candidates = listSameBasenameRelocationCandidates(workspaceIndex, previousPath)
+      if (requiresExplicitCandidateSelection(candidates)) {
+        setSourceRelocateCandidates({ previousPath, candidates })
+        return
+      }
+      setSourceRelocatePreviousPath(previousPath)
+      setWorkspaceSettings((current) => ({
+        ...current,
+        editor: { ...current.editor, lastSearchQuery: searchQueryForRelocate(previousPath) },
+      }))
+      setWsSearchOpen(true)
+    },
+    [citingDocumentKey, readSourceRegistrationTicket, setToast, setWorkspaceSettings, workspaceIndex],
+  )
+
+  const handleConfirmSourceRelocation = useCallback(
+    (choice: SourceRelocationChoice) => {
+      const binding = sourceRelocateBindingRef.current
+      if (!binding) {
+        clearSourceRelocationFlow()
+        return
+      }
+      const applied = applySourceRelocation(binding, choice, caseInsensitivePaths)
+      if (!applied) {
+        setToast('工作区或文档已切换，已取消重定位')
+        clearSourceRelocationFlow()
+        return
+      }
+      if (choice.updateMarkdownLink && citingPathForSourceLinks) {
+        const editor = editorRef.current
+        const markdown = editor?.isReady() ? editor.getMarkdown() : liveContentOf(activeFileId)
+        if (markdown != null && editor?.isReady()) {
+          const replacements = planPlainMarkdownLinkUpdates(
+            markdown,
+            citingPathForSourceLinks,
+            choice.previousPath,
+            choice.selectedPath,
+            caseInsensitivePaths,
+          )
+          if (replacements.length > 0) {
+            editor.updateContentPreservingHistory(
+              applyPlainMarkdownLinkUpdates(markdown, replacements),
+            )
+          }
+        }
+      }
+      clearSourceRelocationFlow()
+      setToast(
+        choice.updateMarkdownLink
+          ? '已更新来源基线；若勾选了更新链接，改动可在编辑器中撤销'
+          : '已更新当前文章的来源基线，正文未改动',
+      )
+    },
+    [
+      activeFileId,
+      applySourceRelocation,
+      caseInsensitivePaths,
+      citingPathForSourceLinks,
+      clearSourceRelocationFlow,
+      liveContentOf,
+      setToast,
+    ],
+  )
+
+  const sourceRelocateLinkPreviews = useMemo(() => {
+    if (!sourceRelocateConfirm || !citingPathForSourceLinks) return []
+    return planPlainMarkdownLinkUpdates(
+      liveContentOf(activeFileId),
+      citingPathForSourceLinks,
+      sourceRelocateConfirm.previousPath,
+      sourceRelocateConfirm.selectedPath,
+      caseInsensitivePaths,
+    )
+  }, [activeFileId, caseInsensitivePaths, citingPathForSourceLinks, liveContentOf, sourceRelocateConfirm])
+
   const handleReviewCurrentDocumentSources = useCallback(() => {
     if (!citingDocumentKey || !workspaceIndex?.complete) return
     const reviews = buildReviewInputsFromIndex(
@@ -335,6 +489,8 @@ export function AppComposition(): JSX.Element {
     paletteOpen ||
     versionHistoryOpen ||
     supportSummaryOpen ||
+    sourceRelocateConfirm !== null ||
+    sourceRelocateCandidates !== null ||
     confirmRequest !== null
 
   // === 全局快捷键 ===
@@ -461,13 +617,7 @@ export function AppComposition(): JSX.Element {
           citingDocumentKey={citingDocumentKey}
           caseInsensitivePaths={caseInsensitivePaths}
           onReviewCurrentDocumentSources={handleReviewCurrentDocumentSources}
-          onRelocateSource={(path) => {
-            setWorkspaceSettings((current) => ({
-              ...current,
-              editor: { ...current.editor, lastSearchQuery: searchQueryForRelocate(path) },
-            }))
-            setWsSearchOpen(true)
-          }}
+          onRelocateSource={beginSourceRelocate}
           onOpenWorkspaceSearch={() => setWsSearchOpen(true)}
           onSourceInserted={rememberSourceAfterInsert}
           activeProperties={activeProperties} showFrontmatterProps={settings.showFrontmatterProps}
@@ -547,14 +697,72 @@ export function AppComposition(): JSX.Element {
         activeFilePath={activeFile?.path ?? null} activeFileName={activeFile?.name ?? ''}
         currentContent={liveContentOf(activeFileId)}
         onRestoreVersion={(content) => { setVersionHistoryOpen(false); replaceEditorContent(activeFileId, content, 'update'); setToast('已恢复历史版本到编辑器（未保存），确认后按 Ctrl+S 写入磁盘') }}
-        wsSearchOpen={wsSearchOpen} onCloseWorkspaceSearch={closeWorkspaceSearch} workspaceIndex={workspaceIndex} activeFileId={activeFileId} editorRef={editorRef} onRememberSearchQuery={(query) => setWorkspaceSettings((current) => ({ ...current, editor: { ...current.editor, lastSearchQuery: query } }))}
+        wsSearchOpen={wsSearchOpen} workspaceIndex={workspaceIndex} activeFileId={activeFileId} editorRef={editorRef} onRememberSearchQuery={(query) => setWorkspaceSettings((current) => ({ ...current, editor: { ...current.editor, lastSearchQuery: query } }))}
         rememberSourceAfterInsert={rememberSourceAfterInsert} onClearSourceRecords={notifySourceRecordsCleared}
         onSelectSearchResult={(path, query, opts) => {
+          if (sourceRelocatePreviousPath && workspace && window.desktopAPI) {
+            const relative = toWorkspaceRelativePath(
+              workspace.path,
+              path,
+              window.desktopAPI.platform === 'win32',
+            )
+            setWsSearchOpen(false)
+            if (!relative) {
+              setToast('所选文件不在当前知识库内')
+              clearSourceRelocationFlow()
+              return
+            }
+            openSourceRelocateConfirm(
+              sourceRelocatePreviousPath,
+              relative,
+              resolveIndexedModifiedTime(relative),
+            )
+            return
+          }
           setWsSearchOpen(false)
           void reveal({ path, search: { query, useRegex: opts?.useRegex, caseSensitive: opts?.caseSensitive } })
         }}
+        onCloseWorkspaceSearch={() => {
+          if (sourceRelocatePreviousPath) clearSourceRelocationFlow()
+          closeWorkspaceSearch()
+        }}
         confirmRequest={confirmRequest}
         onConfirmResolve={(id) => { confirmRequest?.resolve(id); setConfirmRequest(null) }}
+      />
+
+      <SourceRelocationCandidateDialog
+        open={sourceRelocateCandidates !== null}
+        previousPath={sourceRelocateCandidates?.previousPath ?? ''}
+        candidates={sourceRelocateCandidates?.candidates ?? []}
+        onSelect={(candidate) => {
+          if (!sourceRelocateCandidates) return
+          openSourceRelocateConfirm(
+            sourceRelocateCandidates.previousPath,
+            candidate.relativePath,
+            candidate.modifiedTime,
+          )
+        }}
+        onSearchInstead={() => {
+          if (!sourceRelocateCandidates) return
+          const previousPath = sourceRelocateCandidates.previousPath
+          setSourceRelocateCandidates(null)
+          setSourceRelocatePreviousPath(previousPath)
+          setWorkspaceSettings((current) => ({
+            ...current,
+            editor: { ...current.editor, lastSearchQuery: searchQueryForRelocate(previousPath) },
+          }))
+          setWsSearchOpen(true)
+        }}
+        onCancel={clearSourceRelocationFlow}
+      />
+      <SourceRelocationDialog
+        open={sourceRelocateConfirm !== null}
+        previousPath={sourceRelocateConfirm?.previousPath ?? ''}
+        selectedPath={sourceRelocateConfirm?.selectedPath ?? ''}
+        selectedModifiedTime={sourceRelocateConfirm?.selectedModifiedTime ?? 0}
+        linkPreviews={sourceRelocateLinkPreviews}
+        onConfirm={handleConfirmSourceRelocation}
+        onCancel={clearSourceRelocationFlow}
       />
 
       {toast && <div className="toast">{toast}</div>}

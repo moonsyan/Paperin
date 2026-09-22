@@ -26,6 +26,7 @@ export {
   isEphemeralCitingDocumentKey,
   isPersistableCitingDocumentPath,
   persistableBaselines,
+  relocateCitingDocumentSourceBaseline,
 } from './source-tracking'
 export type {
   DocumentSourceBaseline,

@@ -281,3 +281,32 @@ export const clearAllSourceRelations = (
   documentSourceBaselines: [],
   legacySourceSnapshots: [],
 })
+
+/** 显式重定位：只更新所选引用文档内的一条来源基线，不改正文、不覆盖其他文章。 */
+export const relocateCitingDocumentSourceBaseline = (
+  current: readonly DocumentSourceBaseline[],
+  citingDocumentPath: string,
+  previousSourcePath: string,
+  newSourcePath: string,
+  newModifiedTime: number,
+  caseInsensitive: boolean,
+): DocumentSourceBaseline[] => {
+  const previousPath = normalizeSourcePath(previousSourcePath)
+  const selectedPath = normalizeSourcePath(newSourcePath)
+  if (!previousPath || !selectedPath || !Number.isFinite(newModifiedTime)) return [...current]
+
+  const filtered = current.filter((item) => {
+    if (!workspaceRelativePathsEqual(item.citingDocumentPath, citingDocumentPath, caseInsensitive)) {
+      return true
+    }
+    if (workspaceRelativePathsEqual(item.sourcePath, previousPath, caseInsensitive)) return false
+    if (workspaceRelativePathsEqual(item.sourcePath, selectedPath, caseInsensitive)) return false
+    return true
+  })
+
+  return rememberDocumentSourceBaseline(filtered, {
+    citingDocumentPath,
+    sourcePath: selectedPath,
+    modifiedTime: newModifiedTime,
+  })
+}

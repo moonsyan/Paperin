@@ -11,6 +11,7 @@ import {
   rememberDocumentSourceBaseline,
   remapSourceTrackingPath,
   reviewCitingDocumentBaselines,
+  relocateCitingDocumentSourceBaseline,
 } from './source-tracking'
 
 describe('parseSourceTrackingFromEditor', () => {
@@ -51,6 +52,29 @@ describe('parseSourceTrackingFromEditor', () => {
     })
     expect(parsed.documentSourceBaselines).toEqual([
       { citingDocumentPath: '文章/a.md', sourcePath: '资料/s.md', modifiedTime: 3 },
+    ])
+  })
+})
+
+describe('relocateCitingDocumentSourceBaseline', () => {
+  it('只更新所选引用文档的来源路径，不影响其他文章', () => {
+    const current = [
+      { citingDocumentPath: '文章/a.md', sourcePath: '资料/旧.md', modifiedTime: 1 },
+      { citingDocumentPath: '文章/b.md', sourcePath: '资料/旧.md', modifiedTime: 9 },
+    ]
+    const next = relocateCitingDocumentSourceBaseline(
+      current,
+      '文章/a.md',
+      '资料/旧.md',
+      '资料/新.md',
+      50,
+      false,
+    )
+    expect(baselinesForCitingDocument(next, '文章/b.md', false)).toEqual([
+      { citingDocumentPath: '文章/b.md', sourcePath: '资料/旧.md', modifiedTime: 9 },
+    ])
+    expect(baselinesForCitingDocument(next, '文章/a.md', false)).toEqual([
+      { citingDocumentPath: '文章/a.md', sourcePath: '资料/新.md', modifiedTime: 50 },
     ])
   })
 })
