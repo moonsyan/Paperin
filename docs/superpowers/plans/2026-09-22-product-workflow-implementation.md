@@ -825,9 +825,9 @@ Expected: 少于 3 个团队或不足两个周期时停止并记录“未达到�
 
 **契约：** 正文解析结果和资源解析结果分别失效；复用解析不能复用已失效的目标身份。复用现有真实路径/信任校验，不新增访问旁路；同一 generation 的派生关系一起发布。
 
-- [ ] **Step 1：失败测试。** A 引用 B/P，A mtime/size 不变；删除、补回、重命名 B/P 及其父目录后刷新，断言 link/image `resolvedPath`、诊断和反链变化，A 正文读取次数不增加。增加附件事件、目录事件、事件风暴、取消、符号链接换靶测试；旧索引快照不能被原地修改。
-- [ ] **Step 2：确认红灯。** Run: `npx vitest run src/main/indexing/workspace-index-service.test.ts src/main/indexing/workspace-file-watcher.test.ts src/main/indexing/workspace-index-resources.test.ts`。预期旧实现保留目标解析或忽略附件变化；记录实际失败断言。
-- [ ] **Step 3：最小实现。** 按职责提取资源解析；先保证受控重验正确，再按测量选择依赖映射优化。watcher 只合并相关资源变化并限制积压，无名/目录事件回退重扫，过期任务不能提交结果。
+- [x] **Step 1：失败测试。** A 引用 B/P，A mtime/size 不变；删除、补回、重命名 B/P 及其父目录后刷新，断言 link/image `resolvedPath`、诊断和反链变化，A 正文读取次数不增加。增加附件事件、目录事件、事件风暴、取消、符号链接换靶测试；旧索引快照不能被原地修改。
+- [x] **Step 2：确认红灯。** Run: `npx vitest run src/main/indexing/workspace-index-service.test.ts src/main/indexing/workspace-file-watcher.test.ts src/main/indexing/workspace-index-resources.test.ts`。预期旧实现保留目标解析或忽略附件变化；记录实际失败断言。
+- [x] **Step 3：最小实现。** 按职责提取资源解析；先保证受控重验正确，再按测量选择依赖映射优化。watcher 只合并相关资源变化并限制积压，无名/目录事件回退重扫，过期任务不能提交结果。
 - [ ] **Step 4：验收与提交。** 相关测试、统一代码门禁、smoke、两项性能门禁；桌面合成夹具复现“删图 → 提示缺图 → 补图 → 提示消失”。性能仍失败则保留红灯，不能宣称 P0 完成。提交：`fix: 修复引用目标变化后的索引失效`。
 
 ### Task P1-06: 隔离来源登记的异步生命周期

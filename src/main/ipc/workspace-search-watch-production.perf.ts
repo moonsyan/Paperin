@@ -153,8 +153,17 @@ describe('production workspace search and watcher performance gate', () => {
     const batches: number[] = []
     let settle: (() => void) | undefined
     watcher.start(root, (change) => {
-      if (change.kind === 'files') batches.push(change.paths.length)
-      void service.refresh(root).then(() => settle?.())
+      if (change.kind === 'changes') batches.push(change.markdownPaths.length)
+      void service.refresh(root, {
+        invalidation:
+          change.kind === 'rescan'
+            ? change
+            : {
+                kind: 'changes',
+                markdownPaths: change.markdownPaths,
+                resourcePaths: change.resourcePaths,
+              },
+      }).then(() => settle?.())
     })
 
     for (let run = 0; run < WATCH_SAMPLES; run++) {

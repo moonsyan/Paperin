@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import { dirname, isAbsolute, relative, resolve } from 'path'
 import { createWorkspaceIndexService } from './workspace-index-service'
 import type { WorkspaceIndexServiceDeps } from './workspace-index-service'
 
@@ -8,13 +9,18 @@ interface FakeFile {
   size: number
 }
 
-const createDeps = (files: Record<string, FakeFile> = {}): WorkspaceIndexServiceDeps & {
+const createDeps = (
+  files: Record<string, FakeFile> = {},
+  resources: Record<string, true> = {},
+): WorkspaceIndexServiceDeps & {
   files: Record<string, FakeFile>
+  resources: Record<string, true>
   readCount: (path: string) => number
 } => {
   const reads = new Map<string, number>()
   return {
     files,
+    resources,
     async listMarkdownFiles(_root) {
       return Object.entries(files).map(([path, f]) => ({
         path,
@@ -28,8 +34,16 @@ const createDeps = (files: Record<string, FakeFile> = {}): WorkspaceIndexService
       if (!file) throw new Error('not found')
       return file.content
     },
-    async resolveResourcePath(_root, target) {
-      return `D:/notes/${target}`
+    async resolveResourcePath(root, target, sourcePath) {
+      if (/^(?:[a-z]+:|\\\\)/i.test(target)) return null
+      const resolvedRoot = resolve(root)
+      const candidate = resolve(sourcePath ? dirname(sourcePath) : resolvedRoot, target)
+      const fromRoot = relative(resolvedRoot, candidate)
+      if (fromRoot === '..' || fromRoot.startsWith('../') || fromRoot.startsWith('..\\') || isAbsolute(fromRoot)) {
+        return null
+      }
+      const key = candidate.replace(/\\/g, '/')
+      return resources[key] ? key : null
     },
     readCount(path) {
       return reads.get(path) ?? 0
@@ -262,6 +276,89 @@ describe('workspace-index-service：预算与进度', () => {
     const result = await service.refresh('D:/notes')
     expect(result.truncated).toBe(true)
     expect(Object.keys(result.index.documents)).toEqual(['D:/notes/a.md'])
+  })
+})
+
+describe('workspace-index-service：引用目标变化后的资源失效', () => {
+  it('A 引用 B/图片且正文未变：删除或补回目标后只重验资源，不增加 A 正文读取', async () => {
+    const deps = createDeps(
+      {
+        'D:/notes/a.md': {
+          content: '# A\n\n![图](./pic.png)\n\n见 [B](./b.md)',
+          mtimeMs: 10,
+          size: 40,
+        },
+        'D:/notes/b.md': { content: '# B', mtimeMs: 20, size: 10 },
+      },
+      {
+        'D:/notes/pic.png': true,
+        'D:/notes/b.md': true,
+      },
+    )
+    const service = createWorkspaceIndexService(deps)
+    const first = await service.refresh('D:/notes')
+    const link = first.index.documents['D:/notes/a.md'].outgoingLinks[0]
+    expect(link.resolvedPath).toBe('D:/notes/b.md')
+    expect(first.index.documents['D:/notes/a.md'].imageRefs[0].resolvedPath).toBe('D:/notes/pic.png')
+    const firstIndex = first.index
+
+    delete deps.resources['D:/notes/b.md']
+    delete deps.resources['D:/notes/pic.png']
+    const afterDelete = await service.refresh('D:/notes', {
+      invalidation: {
+        kind: 'changes',
+        markdownPaths: ['D:/notes/b.md'],
+        resourcePaths: ['D:/notes/pic.png'],
+      },
+    })
+    expect(deps.readCount('D:/notes/a.md')).toBe(1)
+    expect(afterDelete.index.documents['D:/notes/a.md'].outgoingLinks[0].resolvedPath).toBeUndefined()
+    expect(afterDelete.index.documents['D:/notes/a.md'].imageRefs[0].resolvedPath).toBeUndefined()
+    expect(afterDelete.index.links.find((l) => l.sourcePath === 'D:/notes/a.md')?.resolvedPath).toBeUndefined()
+    expect(firstIndex.documents['D:/notes/a.md'].outgoingLinks[0].resolvedPath).toBe('D:/notes/b.md')
+
+    deps.resources['D:/notes/b.md'] = true
+    deps.resources['D:/notes/pic.png'] = true
+    const afterRestore = await service.refresh('D:/notes', {
+      invalidation: {
+        kind: 'changes',
+        markdownPaths: ['D:/notes/b.md'],
+        resourcePaths: ['D:/notes/pic.png'],
+      },
+    })
+    expect(deps.readCount('D:/notes/a.md')).toBe(1)
+    expect(afterRestore.index.documents['D:/notes/a.md'].outgoingLinks[0].resolvedPath).toBe('D:/notes/b.md')
+    expect(afterRestore.index.documents['D:/notes/a.md'].imageRefs[0].resolvedPath).toBe('D:/notes/pic.png')
+  })
+
+  it('重命名链接目标后反链随 resolvedPath 更新', async () => {
+    const deps = createDeps(
+      {
+        'D:/notes/a.md': { content: '# A\n\n[b](./b.md)', mtimeMs: 10, size: 20 },
+        'D:/notes/b.md': { content: '# B', mtimeMs: 20, size: 10 },
+      },
+      { 'D:/notes/b.md': true },
+    )
+    const service = createWorkspaceIndexService(deps)
+    await service.refresh('D:/notes')
+    delete deps.files['D:/notes/b.md']
+    delete deps.resources['D:/notes/b.md']
+    deps.files['D:/notes/c.md'] = { content: '# C', mtimeMs: 30, size: 10 }
+    deps.resources['D:/notes/c.md'] = true
+    deps.files['D:/notes/a.md'].content = '# A\n\n[c](./c.md)'
+    deps.files['D:/notes/a.md'].mtimeMs = 11
+    deps.files['D:/notes/a.md'].size = 21
+
+    await service.refresh('D:/notes', {
+      invalidation: {
+        kind: 'changes',
+        markdownPaths: ['D:/notes/b.md', 'D:/notes/c.md', 'D:/notes/a.md'],
+        resourcePaths: [],
+      },
+    })
+    const index = (await service.load('D:/notes'))!
+    expect(index.documents['D:/notes/a.md'].outgoingLinks[0].resolvedPath).toBe('D:/notes/c.md')
+    expect(index.links.find((l) => l.sourcePath === 'D:/notes/a.md')?.resolvedPath).toBe('D:/notes/c.md')
   })
 })
 

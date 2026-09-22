@@ -1,7 +1,7 @@
 /**
  * 工作区文件监听（Track C / Task 9，R06 目录失效）。
  *
- * 仅监听当前工作区根目录：过滤 hidden 目录、node_modules 与非 Markdown 文件。
+ * 仅监听当前工作区根目录：过滤 hidden 目录与 node_modules；Markdown 与附件变更去抖合并后回调。
  * 变更去抖合并后回调；根路径/目录级/无名事件触发 rescan，不能用伪造 .md 路径冒充。
  * 工作区关闭/切换时取消 timer 与底层 watch。
  */
@@ -10,7 +10,7 @@ import { watch as fsWatch } from 'fs'
 import { join } from 'path'
 
 export type WorkspaceChange =
-  | { kind: 'files'; paths: string[] }
+  | { kind: 'changes'; markdownPaths: string[]; resourcePaths: string[] }
   | { kind: 'rescan'; reason: 'directory' | 'unknown' }
 
 export interface WorkspaceFileWatcherDeps {
@@ -36,7 +36,7 @@ const isFilteredPath = (path: string): boolean => {
 const normalizeComparable = (path: string): string =>
   path.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
 
-type PathKind = 'ignore' | 'markdown' | 'rescan-directory' | 'rescan-unknown'
+type PathKind = 'ignore' | 'markdown' | 'resource' | 'rescan-directory' | 'rescan-unknown'
 
 const looksLikeFilePath = (path: string): boolean => {
   const name = path.split(/[\\/]/).pop() ?? path
@@ -50,8 +50,8 @@ const classifyRawPath = (root: string, raw: string): PathKind => {
   if (normPath === normRoot) return 'rescan-directory'
   if (isFilteredPath(raw)) return 'ignore'
   if (isMarkdownPath(raw)) return 'markdown'
-  // 非 Markdown 但带扩展名：资源/杂项文件，不触发目录级 rescan
-  if (looksLikeFilePath(raw)) return 'ignore'
+  // 非 Markdown 但带扩展名：附件/资源变化，合并后触发依赖重验（不整库重扫正文）
+  if (looksLikeFilePath(raw)) return 'resource'
   if (normPath.startsWith(`${normRoot}/`)) return 'rescan-directory'
   return 'rescan-unknown'
 }
@@ -68,7 +68,8 @@ export const createWorkspaceFileWatcher = (
   const maxPendingFilePaths = deps.maxPendingFilePaths ?? DEFAULT_MAX_PENDING_FILE_PATHS
   let stopCurrent: (() => void) | null = null
   let timer: ReturnType<typeof setTimeout> | null = null
-  let pendingFiles = new Set<string>()
+  let pendingMarkdown = new Set<string>()
+  let pendingResources = new Set<string>()
   let pendingRescan: 'directory' | 'unknown' | null = null
   let watchRoot = ''
 
@@ -79,19 +80,23 @@ export const createWorkspaceFileWatcher = (
     if (pendingRescan) {
       const reason = pendingRescan
       pendingRescan = null
-      pendingFiles = new Set<string>()
+      pendingMarkdown = new Set<string>()
+      pendingResources = new Set<string>()
       onChangeRef.current?.({ kind: 'rescan', reason })
       return
     }
-    const paths = Array.from(pendingFiles)
-    pendingFiles = new Set<string>()
-    if (paths.length === 0) return
-    onChangeRef.current?.({ kind: 'files', paths })
+    const markdownPaths = Array.from(pendingMarkdown)
+    const resourcePaths = Array.from(pendingResources)
+    pendingMarkdown = new Set<string>()
+    pendingResources = new Set<string>()
+    if (markdownPaths.length === 0 && resourcePaths.length === 0) return
+    onChangeRef.current?.({ kind: 'changes', markdownPaths, resourcePaths })
   }
 
   const scheduleRescan = (reason: 'directory' | 'unknown'): void => {
     pendingRescan = pendingRescan === 'unknown' || reason === 'unknown' ? 'unknown' : reason
-    pendingFiles.clear()
+    pendingMarkdown.clear()
+    pendingResources.clear()
   }
 
   const handleRawChange = (paths: string[]): void => {
@@ -100,15 +105,23 @@ export const createWorkspaceFileWatcher = (
       if (kind === 'ignore') continue
       if (kind === 'markdown') {
         if (pendingRescan) continue
-        pendingFiles.add(raw)
-        if (pendingFiles.size > maxPendingFilePaths) {
+        pendingMarkdown.add(raw)
+        if (pendingMarkdown.size > maxPendingFilePaths) {
+          scheduleRescan('unknown')
+        }
+        continue
+      }
+      if (kind === 'resource') {
+        if (pendingRescan) continue
+        pendingResources.add(raw)
+        if (pendingResources.size > maxPendingFilePaths) {
           scheduleRescan('unknown')
         }
         continue
       }
       scheduleRescan(kind === 'rescan-unknown' ? 'unknown' : 'directory')
     }
-    if (!pendingRescan && pendingFiles.size === 0) return
+    if (!pendingRescan && pendingMarkdown.size === 0 && pendingResources.size === 0) return
     if (timer) clearTimeout(timer)
     timer = setTimeout(flush, debounceMs)
   }
@@ -130,7 +143,8 @@ export const createWorkspaceFileWatcher = (
         clearTimeout(timer)
         timer = null
       }
-      pendingFiles = new Set<string>()
+      pendingMarkdown = new Set<string>()
+      pendingResources = new Set<string>()
       pendingRescan = null
     },
   }

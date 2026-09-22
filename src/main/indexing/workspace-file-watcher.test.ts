@@ -52,8 +52,9 @@ describe('workspace-file-watcher', () => {
     await vi.advanceTimersByTimeAsync(1)
     expect(onChange).toHaveBeenCalledTimes(1)
     expect(onChange).toHaveBeenCalledWith({
-      kind: 'files',
-      paths: ['D:/notes/a.md', 'D:/notes/b.md', 'D:/notes/c.md'],
+      kind: 'changes',
+      markdownPaths: ['D:/notes/a.md', 'D:/notes/b.md', 'D:/notes/c.md'],
+      resourcePaths: [],
     })
   })
 
@@ -64,8 +65,9 @@ describe('workspace-file-watcher', () => {
     await vi.advanceTimersByTimeAsync(250)
     expect(onChange).toHaveBeenCalledOnce()
     expect(onChange).toHaveBeenCalledWith({
-      kind: 'files',
-      paths: ['D:/notes/a.md', 'D:/notes/b.md'],
+      kind: 'changes',
+      markdownPaths: ['D:/notes/a.md', 'D:/notes/b.md'],
+      resourcePaths: [],
     })
   })
 
@@ -79,14 +81,29 @@ describe('workspace-file-watcher', () => {
     ])
     await vi.advanceTimersByTimeAsync(250)
     expect(onChange).toHaveBeenCalledTimes(1)
-    expect(onChange).toHaveBeenCalledWith({ kind: 'files', paths: ['D:/notes/正文.md'] })
+    expect(onChange).toHaveBeenCalledWith({
+      kind: 'changes',
+      markdownPaths: ['D:/notes/正文.md'],
+      resourcePaths: ['D:/notes/图片.png'],
+    })
   })
 
-  it('删除事件仍作为 Markdown files 转发', async () => {
+  it('附件变更去抖后合并为 resourcePaths', async () => {
+    const { fire, onChange } = setup()
+    fire(['D:/notes/a.png', 'D:/notes/b.png'])
+    await vi.advanceTimersByTimeAsync(250)
+    expect(onChange).toHaveBeenCalledWith({
+      kind: 'changes',
+      markdownPaths: [],
+      resourcePaths: ['D:/notes/a.png', 'D:/notes/b.png'],
+    })
+  })
+
+  it('删除事件仍作为 Markdown changes 转发', async () => {
     const { fire, onChange } = setup()
     fire(['D:/notes/gone.md'])
     await vi.advanceTimersByTimeAsync(250)
-    expect(onChange).toHaveBeenCalledWith({ kind: 'files', paths: ['D:/notes/gone.md'] })
+    expect(onChange).toHaveBeenCalledWith({ kind: 'changes', markdownPaths: ['D:/notes/gone.md'], resourcePaths: [] })
   })
 
   it('POSIX 根路径与目录移动触发 rescan', async () => {
@@ -127,9 +144,9 @@ describe('workspace-file-watcher', () => {
     await vi.advanceTimersByTimeAsync(5)
     expect(onChange).toHaveBeenCalledTimes(1)
     const payload = onChange.mock.calls[0][0]
-    expect(payload.kind).toBe('files')
-    if (payload.kind === 'files') {
-      expect(payload.paths).toHaveLength(100)
+    expect(payload.kind).toBe('changes')
+    if (payload.kind === 'changes') {
+      expect(payload.markdownPaths).toHaveLength(100)
     }
   })
 
@@ -157,7 +174,11 @@ describe('workspace-file-watcher', () => {
     expect(first).not.toHaveBeenCalled()
     callbacks.forEach((cb) => cb(['D:/notes/two/b.md']))
     await vi.advanceTimersByTimeAsync(250)
-    expect(second).toHaveBeenCalledWith({ kind: 'files', paths: ['D:/notes/two/b.md'] })
+    expect(second).toHaveBeenCalledWith({
+      kind: 'changes',
+      markdownPaths: ['D:/notes/two/b.md'],
+      resourcePaths: [],
+    })
   })
 
   it('stop 后关闭底层 watch 且重复 stop 幂等', async () => {

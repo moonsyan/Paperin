@@ -19,6 +19,12 @@ import { mkdir, readFile, rename, unlink, writeFile } from 'fs/promises'
 import { dirname, join } from 'path'
 import { parseDocumentIndex } from './document-index-parser'
 import {
+  buildResourceDependencyIndex,
+  collectDocumentsAffectedByChanges,
+  refreshDocumentResources,
+  type WorkspaceIndexInvalidation,
+} from './workspace-index-resources'
+import {
   collectAssetReferences,
   collectTagRecords,
   createEmptyWorkspaceIndex,
@@ -69,7 +75,10 @@ export interface WorkspaceIndexServiceDeps {
 export interface WorkspaceIndexService {
   /** 从缓存或内存恢复索引；无任何记录时返回 null */
   load(root: string): Promise<WorkspaceIndex | null>
-  refresh(root: string, options?: { signal?: AbortSignal }): Promise<WorkspaceIndexResult>
+  refresh(
+    root: string,
+    options?: { signal?: AbortSignal; invalidation?: WorkspaceIndexInvalidation },
+  ): Promise<WorkspaceIndexResult>
   cancel(root: string): void
   subscribe(root: string, listener: (event: WorkspaceIndexEvent) => void): () => void
   dispose(root?: string): void
@@ -147,6 +156,7 @@ export const createWorkspaceIndexService = (
     root: string,
     state: WorkspaceIndexState,
     signal?: AbortSignal,
+    invalidation?: WorkspaceIndexInvalidation,
   ): Promise<WorkspaceIndexResult> => {
     const generation = state.generation + 1
     const token = ++state.refreshSeq
@@ -174,6 +184,13 @@ export const createWorkspaceIndexService = (
         markWorkspaceCoverageIncomplete(coverage)
         coverage.skipped['file-budget'] += files.length - MAX_FILES
       }
+      const dependencyIndex = buildResourceDependencyIndex(state.documents)
+      const resourceRevalidate = collectDocumentsAffectedByChanges(
+        root,
+        state.documents,
+        dependencyIndex,
+        invalidation,
+      )
       const documents: Record<string, IndexedDocument> = {}
       const diagnostics: DiagnosticRecord[] = []
       // 未变化文件直接迁移旧解析结果（保留对象引用，供增量断言与省 IO）
@@ -191,7 +208,16 @@ export const createWorkspaceIndexService = (
           previous.modifiedTime === meta.mtimeMs &&
           previous.size === meta.size
         ) {
-          documents[meta.path] = previous
+          if (resourceRevalidate.has(meta.path)) {
+            check()
+            documents[meta.path] = await refreshDocumentResources(
+              previous,
+              root,
+              deps.resolveResourcePath,
+            )
+          } else {
+            documents[meta.path] = previous
+          }
         } else {
           let content: string
           try {
@@ -216,10 +242,12 @@ export const createWorkspaceIndexService = (
           for (const ref of parsed.imageRefs) {
             const resolved = await deps.resolveResourcePath(root, ref.target, parsed.path)
             if (resolved) ref.resolvedPath = resolved
+            else delete ref.resolvedPath
           }
           for (const link of parsed.outgoingLinks) {
             const resolved = await deps.resolveResourcePath(root, link.target, parsed.path)
             if (resolved) link.resolvedPath = resolved
+            else delete link.resolvedPath
           }
           documents[meta.path] = parsed
         }
@@ -303,7 +331,7 @@ export const createWorkspaceIndexService = (
       const state = stateOf(root)
       // 串行队列：并发 refresh 依次执行，配合 token 丢弃过期结果
       const run = state.running.then(() =>
-        refreshOne(root, state, requestOptions?.signal),
+        refreshOne(root, state, requestOptions?.signal, requestOptions?.invalidation),
       )
       state.running = run.then(
         () => undefined,

@@ -113,8 +113,16 @@ export function registerIpcHandlers(): void {
     onWorkspaceOpened: (webContentsId, rootPath) => {
       watchers.get(webContentsId)?.watcher.stop()
       const watcher = createWorkspaceFileWatcher({ watch: createFsWatchAdapter() })
-      watcher.start(rootPath, () => {
-        void workspaceIndexService.refresh(rootPath).catch(() => undefined)
+      watcher.start(rootPath, (change) => {
+        const invalidation =
+          change.kind === 'rescan'
+            ? change
+            : {
+                kind: 'changes' as const,
+                markdownPaths: change.markdownPaths,
+                resourcePaths: change.resourcePaths,
+              }
+        void workspaceIndexService.refresh(rootPath, { invalidation }).catch(() => undefined)
       })
       watchers.set(webContentsId, { root: rootPath, watcher })
     },

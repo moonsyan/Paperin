@@ -26,9 +26,9 @@
 | 性能/兼容夹具 | `src/main/testing/fixtures/`、`shared/testing/r09-fixture-contract.ts` | `fixtures.test.ts`、`document-collection.test.ts`（多结构导出）、`summarizeStability` | 已有：普通、2 MiB±1、长段落/短节点/超长行/中文 emoji/混合语法 5 MiB；稳定性汇总函数 | 8 小时采样与第二台 16 GB 设备为 **UNVERIFIED** |
 | Renderer CSP | `src/renderer/index.html` | Electron smoke | 保留 | `data:` 仅在 `font-src`/`img-src` 按已知内嵌资源放行；脚本与连接仍只允许显式来源 |
 | 图片、附件、图片协议 | `image-file-handlers.ts`、attachment IPC + `mdimg://` | attachment/protocol tests；协议和导出内联都按普通文件句柄读取，图片目录钉住结果会跨重启保留；自定义 CSS 导入不跟随符号链接 | 保留 | 外部文件附件 |
-| 标签、Wiki 链接、反向链接、图谱 | shared indexes + panels | tag/link/graph tests | 已有；反链可插入引用 | 大库往返与图谱规模仍按现有上限 |
+| 标签、Wiki 链接、反向链接、图谱 | shared indexes + panels | tag/link/graph tests；`workspace-index-resources.test.ts`、`workspace-index-service.test.ts`（P0-07 目标失效） | 已有；引用者正文不变时附件/链接目标变化会重验 `resolvedPath`；反链可插入引用 | 大库往返与图谱规模仍按现有上限 |
 | 九套主题、字体、Typewriter、快捷键 | renderer settings/styles | theme/menu/shortcut tests | 雾白/夜松已加入；提示由 `formatShortcutHint` 同源渲染 | 真机缩放、弱色文本实际对比度 |
-| 质量检查与写作统计 | renderer panels/libs | diagnostics/stats tests | 已有诊断与本机统计 | 目标变化后的诊断新鲜度与大库性能 |
+| 质量检查与写作统计 | renderer panels/libs | diagnostics/stats tests | 已有诊断与本机统计；缺图/断链随索引 `resolvedPath` 更新（P0-07） | 大库性能 |
 | 安全边界 | preload narrow bridge、trusted paths | trusted-paths、IPC guard tests | 保留 typed API 与真实路径校验 | 打包启动和故障矩阵 |
 | 命令中心与面板插槽 | command registry、MenuBar、CommandPalette、ContextDock | registry / Testing Library tests | ContextDock 由注册表驱动 | 插槽、快捷键冲突与跨窗口焦点 |
 | 低频能力作用域登记 | `app/actions/commands/`、`useCommandRegistry` | low-frequency-capabilities、菜单及应用动作测试 | scope、菜单灰显与快捷键/右键提示同源 | 三平台菜单实机冒烟 |
@@ -48,7 +48,6 @@
 
 | 任务 | 未完成的边界 | 验收重点 |
 | --- | --- | --- |
-| P0-07 | 引用目标/附件变化后的增量失效 | 不改引用者正文，增删/补回/移动目标也更新关系与缺图诊断 |
 | P0-02 | Main 搜索语料总预算 | 单根与全进程预算、未缓存文件安全回退、完整 coverage |
 | P1-06/07 | 来源生命周期和逐篇关系 | 切库/清除/卸载旧回包不登记；A/B 文章基线不互相覆盖；旧记录归属未知 |
 | P1-08 | 索引释放与缓存 DTO | 排队任务/迟到写入不污染新根生命周期；有界读取、损坏回退重建 |
