@@ -1,4 +1,26 @@
-import { workspaceCoverageLegacyFlags, type WorkspaceCoverage } from '../../../shared/workspace-coverage'
+import {
+  workspaceCoverageLegacyFlags,
+  type CoverageSkipReason,
+  type WorkspaceCoverage,
+} from '../../../shared/workspace-coverage'
+
+const COVERAGE_SKIP_LABELS: Record<CoverageSkipReason, string> = {
+  'file-size': '超过大小上限',
+  depth: '目录过深',
+  'file-budget': '文件数量预算',
+  'read-error': '读取失败',
+}
+
+export function workspaceCoverageSkipNotes(coverage: WorkspaceCoverage): string[] {
+  const notes: string[] = []
+  for (const reason of Object.keys(COVERAGE_SKIP_LABELS) as CoverageSkipReason[]) {
+    const count = coverage.skipped[reason]
+    if (count > 0) {
+      notes.push(`有 ${count} 个文件因${COVERAGE_SKIP_LABELS[reason]}未纳入本次扫描。`)
+    }
+  }
+  return notes
+}
 
 export interface RankableSearchMatch {
   path: string
@@ -65,7 +87,10 @@ export function searchCoverageNotes(input: {
     || (legacy.scanTruncated === undefined && legacy.truncated && !matchCapped)
   const notes: string[] = []
   if (matchCapped) notes.push('匹配达到 200 条上限，更后面的命中这次没有显示。')
-  if (scanTruncated) notes.push('这次没有扫完整个知识库。列表里没有，不等于库里没有。')
+  if (scanTruncated) {
+    notes.push('这次没有扫完整个知识库。列表里没有，不等于库里没有。')
+    if (input.coverage) notes.push(...workspaceCoverageSkipNotes(input.coverage))
+  }
   return notes
 }
 

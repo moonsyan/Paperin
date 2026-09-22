@@ -1,7 +1,7 @@
 # Paperin 项目状态
 
 更新时间：2026-09-22（Asia/Shanghai）
-代码核对基线：`b3dd056`（P0-02 Main 搜索语料复用）；P0-07 索引资源失效见 `7ace0f1`。
+代码核对基线：P0-03 搜索覆盖 UI 与冷/暖性能门禁（待提交）；P0-02 `b3dd056`；P0-07 `7ace0f1`。
 
 产品版本：`0.7.0`
 
@@ -44,7 +44,8 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 | `npm run a11y` | 退出 0；仍有 37 项对比度基线债务 | 没有新增静态违规，不能宣称全面可访问 |
 | `npm run smoke` | 退出 0；打开工作区、新建、保存、冲突、重命名、搜索、关闭、系统文件关联，以及来源查找/插入引用/保存重开/资源包导出 | 核心任务冒烟先走真实「打开文件夹」菜单绑定渲染层工作区，再打开全文搜索；步骤失败输出 `CORE_TASK_FAIL` |
 | `npm run perf:regression` | 2026-09-22 P0-02 后 Node 24.19.0 退出 0；tree 11.69ms、index 417.14ms、search 275.45ms | 合成回归通过；与历史审查红灯样本不同环境/负载 |
-| `npm run perf:production` | 2026-09-22 P0-02 后退出 1；搜索 P95 约 17ms（语料 5000 cacheHits）；**watcher 稳定 P95 5225–5306ms 超 5000ms** | 暖搜索显著改善；watcher 项仍为红灯，阈值未改 |
+| `npm run perf:production` | 2026-09-22 P0-03 本机 Node 24.19.0 **连续三轮退出 0**；coldIndex ~1.6s、cold/warm 搜索 ~15–21ms、watcher P95 ~4122–4292ms（均 ≤5000ms） | 同日较早样本 watcher 5225–5306ms 仍曾红灯；以当次连续跑结果为准，不挑最好一轮冒充历史失败已修复 |
+| `npm run perf:workspace-search-watch` | 2026-09-22 P0-03 拆分 coldIndexMs / coldSearch / warmSearchP95Ms；当次退出 0 | 与 perf:production 中搜索+watcher 夹具一致 |
 | `npm audit --omit=dev --audit-level=moderate` | 2026-09-22 上次 0 vulnerabilities；生产 `js-yaml@4.3.2`；本轮未重跑 | 依赖未在本轮修改；不宣称本轮重新完成供应链审计 |
 
 历史提交上的绿灯不能替代当前变更的新鲜结果。本轮复验与保留历史记录分别见上文；安装循环、真人样本、8 小时与第二设备实测仍未验证。文档覆盖及修改范围见[全量核对记录](development/documentation-maintenance.md)。

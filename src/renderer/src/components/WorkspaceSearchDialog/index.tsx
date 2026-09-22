@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { isImeComposing } from '../../lib/keyboard'
 import { useModalDialogKeyboard } from '../../hooks/useModalDialogKeyboard'
 import type { WorkspaceIndex } from '../../../../shared/workspace-index'
+import { isWorkspaceScanIncomplete } from '../../../../shared/workspace-coverage'
 import { SEARCH_SCOPE_LABEL, searchCoverageNotes } from '../../lib/search-rank'
 import { SearchResultList } from './SearchResultList'
 import { RecentCitations } from './RecentCitations'
@@ -71,7 +72,13 @@ export function WorkspaceSearchDialog({
 
   if (!open) return null
   const dialogTitleId = 'workspace-search-dialog-title'
-  const coverageNotes = searchCoverageNotes({ ...search.coverage, matchCount: search.matches.length })
+  const indexCoverage = workspaceIndex?.coverage
+  const indexScanIncomplete = indexCoverage ? isWorkspaceScanIncomplete(indexCoverage) : false
+  const coverageNotes = searchCoverageNotes({
+    ...search.coverage,
+    coverage: search.coverage.coverage ?? (indexScanIncomplete ? indexCoverage : undefined),
+    matchCount: search.matches.length,
+  })
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
@@ -137,6 +144,11 @@ export function WorkspaceSearchDialog({
             </button>
           </div>
           <p className="ws-scope">{SEARCH_SCOPE_LABEL}</p>
+          {workspaceIndex && !workspaceIndex.complete && (
+            <p className="ws-scope" role="status">
+              正在建立索引…完成前搜索结果可能不完整。
+            </p>
+          )}
           {onInsertCitation && (
             <p className="ws-citation-hint">命中右侧可「插入引用」；侧栏「关系」里的反链也有同样操作，可用撤销收回。</p>
           )}

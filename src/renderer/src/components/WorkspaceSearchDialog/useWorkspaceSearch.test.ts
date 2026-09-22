@@ -100,6 +100,67 @@ describe('useWorkspaceSearch', () => {
     expect(result.current.matches).toHaveLength(0)
   })
 
+  it('新搜索会对上一请求发送 cancel', async () => {
+    const searchMock = vi.mocked(window.desktopAPI!.workspace.search)
+    searchMock.mockImplementation((_dir, query, _cs, _rx, options) => {
+      if (options?.cancel) {
+        return Promise.resolve({
+          ok: true,
+          data: { matches: [], coverage: createInitialWorkspaceCoverage(), truncated: false },
+        })
+      }
+      return new Promise(() => undefined)
+    })
+
+    const { result } = renderHook(() =>
+      useWorkspaceSearch({
+        open: true,
+        workspacePath: 'D:/vault',
+        workspaceIndex: null,
+        initialQuery: '',
+      }),
+    )
+
+    await act(async () => {
+      result.current.setQuery('first')
+      void result.current.doSearch()
+    })
+    await act(async () => {
+      result.current.setQuery('second')
+      void result.current.doSearch()
+    })
+
+    expect(searchMock).toHaveBeenCalledWith(
+      'D:/vault',
+      '',
+      false,
+      false,
+      expect.objectContaining({ cancel: true }),
+    )
+  })
+
+  it('CANCELLED 响应不写入 error', async () => {
+    vi.mocked(window.desktopAPI!.workspace.search).mockResolvedValue({
+      ok: false,
+      error: { code: 'CANCELLED', message: '搜索已取消' },
+    })
+
+    const { result } = renderHook(() =>
+      useWorkspaceSearch({
+        open: true,
+        workspacePath: 'D:/vault',
+        workspaceIndex: null,
+        initialQuery: 'needle',
+      }),
+    )
+
+    await act(async () => {
+      await result.current.doSearch()
+    })
+
+    expect(result.current.error).toBe('')
+  })
+
   it('结构化搜索沿用索引 coverage', async () => {
     const index = createEmptyWorkspaceIndex('D:/vault')
     index.complete = true

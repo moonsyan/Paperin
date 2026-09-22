@@ -4,7 +4,7 @@
 
 > 2026-09-14 历史复核说明：本文保留既有夹具、历史样本与阈值。文中“超过 1 MiB 优先快照”的实现实际为 `content.length > 1_000_000`（字符串长度），不是字节数。当前执行顺序见 [产品工作流实施计划](../superpowers/plans/2026-09-22-product-workflow-implementation.md)。
 
-> 2026-09-22（P0-02 后本机重跑，Node 24.19.0）：`npm run perf:regression` 退出 0（tree 11.69 ms、index 417.14 ms、search 275.45 ms）；`npm run perf:production` **仍退出 1**——冷索引与搜索 P95（约 16–24 ms，`cacheHits=5000`）通过 5000 ms 搜索阈值，但 **watcher 稳定 P95 约 5225–5306 ms 超过 5000 ms**（语料重建与全量增量刷新叠加，阈值未放宽）。历史 2026-09-22 审查样本（search 2079 ms / 搜索 P95 13371 ms）不能代表当前实现。**P0-02 已落地**：Main-only `WorkspaceSearchSnapshot`（`generation` / `complete` / 拆行 `lines`）由 `WorkspaceIndexService.refresh` 从已读正文构建，磁盘结构索引缓存仍不含 `lines`；搜索 handler 经 `getSearchSnapshot` 优先扫语料，未缓存/未就绪时安全读盘 fallback，`WorkspaceCoverage` 语义不变。
+> 2026-09-22（P0-03 后本机重跑，Node 24.19.0）：`workspace-search-watch` 门禁拆分 **coldIndexMs / coldSearchP95Ms（首次 IPC）/ warmSearchP95Ms（第 2–3 次 P95）**，阈值见 `workspace-search-watch-performance-baseline.json`（冷索引 15000 ms、冷/暖搜索与合计 searchP95 均为 5000 ms）。`npm run perf:regression` 与冷/暖搜索项以当次命令退出码为准；**watcher 稳定 P95 若仍超 5000 ms 则 perf:production 保持红灯**，不放宽阈值。P0-02：`WorkspaceSearchSnapshot` 与 `WorkspaceCoverage` 单一完整性来源；Renderer 未扫完时不显示确定性「无匹配」，200 条上限与扫描未完成分开展示。
 
 ## 结论
 
@@ -65,9 +65,10 @@ npm run perf:workspace-search-watch
 同一 fixture 还会先经生产 `WorkspaceIndexService` 和真实文件系统依赖建立暖索引，
 再连续五次注入 20,000 个 watcher 事件。每轮必须合并为一个、恰有 5,000 条唯一路径
 的批次，并在随后暖刷新完成时记录端到端稳定时间；报告重复样本的 P95。基线及阈值
-保存在 `workspace-search-watch-performance-baseline.json`：本机搜索 P95 为 452.72 ms、
-watcher 稳定 P95 为 189.43 ms，两个回归阈值均为 5,000 ms。输出仅含聚合指标，不含
-用户文件路径或正文。
+保存在 `workspace-search-watch-performance-baseline.json`：本机 coldIndexMs 约 1075 ms、
+cold/warm 搜索 P95 约 452 ms、watcher 稳定 P95 为 189.43 ms；失败阈值见 JSON
+`targets`（冷索引 15000 ms，冷/暖搜索与 legacy searchP95 均为 5000 ms）。输出仅含
+聚合指标，不含用户文件路径或正文。
 
 ## 采集环境
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { createInitialWorkspaceCoverage, markWorkspaceCoverageIncomplete } from '../../../shared/workspace-coverage'
 import {
   formatSearchResultPath,
   rankSearchMatches,
@@ -50,6 +51,14 @@ describe('searchCoverageNotes', () => {
     expect(searchCoverageNotes({ truncated: true, matchCount: 3 })[0]).toContain('没有扫完')
     expect(searchCoverageNotes({ truncated: true, matchCount: 200 })[0]).toContain('200')
     expect(searchCoverageNotes({ truncated: false, matchCount: 1 })).toEqual([])
+  })
+
+  it('未扫完时附带跳过原因', () => {
+    const coverage = createInitialWorkspaceCoverage()
+    markWorkspaceCoverageIncomplete(coverage)
+    coverage.skipped['file-size'] = 2
+    const notes = searchCoverageNotes({ coverage, matchCount: 0, scanTruncated: true })
+    expect(notes.some((note) => note.includes('大小上限'))).toBe(true)
   })
 
   it('未扫完时不把空列表说成确定无结果', () => {

@@ -88,15 +88,17 @@ export function useWorkspaceSearch({
       setError('搜索关键词不能超过 256 个字符')
       return
     }
-    const seq = ++searchSeqRef.current
     onQueryCommit?.(q)
     setMatches([])
     setCoverage({ truncated: false })
     setLoading(true)
     setSearched(true)
     setError('')
+    let seq = 0
     try {
       const isStructured = /(?:^|\s)(?:tag|path|link|is|has):/.test(q)
+      const previousSeq = searchSeqRef.current
+      seq = ++searchSeqRef.current
       if (isStructured) {
         if (!workspaceIndex) {
           setError('索引未完成，请先重新扫描')
@@ -114,6 +116,12 @@ export function useWorkspaceSearch({
           ...workspaceCoverageLegacyFlags(indexCoverage),
         })
         return
+      }
+      if (previousSeq > 0) {
+        void window.desktopAPI.workspace.search(workspacePath, '', false, false, {
+          cancel: true,
+          queryId: previousSeq,
+        })
       }
       const res = await window.desktopAPI.workspace.search(workspacePath, q, caseSensitive, useRegex, {
         queryId: seq,

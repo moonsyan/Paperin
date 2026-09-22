@@ -7,11 +7,17 @@
   },
   "baseline": {
     "generatedAt": "2026-09-10T13:30:22.439Z",
+    "coldIndexMs": 1075.25,
+    "coldSearchP95Ms": 452.72,
+    "warmSearchP95Ms": 452.72,
     "searchP95Ms": 452.72,
     "watcherStableP95Ms": 189.43,
     "nodeVersion": "v24.19.0"
   },
   "targets": {
+    "coldIndexMs": 15000,
+    "coldSearchP95Ms": 5000,
+    "warmSearchP95Ms": 5000,
     "searchP95Ms": 5000,
     "watcherStableP95Ms": 5000
   }

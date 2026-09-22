@@ -34,7 +34,13 @@ const thresholdPath = resolve('docs/development/workspace-search-watch-performan
 
 interface PerformanceThresholds {
   scenario: { documents: number; watcherEvents: number; watcherSamples: number }
-  targets: { searchP95Ms: number; watcherStableP95Ms: number }
+  targets: {
+    coldIndexMs: number
+    coldSearchP95Ms: number
+    warmSearchP95Ms: number
+    searchP95Ms: number
+    watcherStableP95Ms: number
+  }
 }
 
 let root = ''
@@ -89,7 +95,9 @@ beforeEach(() => {
 describe('production workspace search and watcher performance gate', () => {
   it('search IPC traverses a 5000-file workspace and finds a marker in the final file', async () => {
     const workspaceIndexService = createWorkspaceIndexService(createWorkspaceIndexFilesystemDependencies())
+    const coldIndexStartedAt = performance.now()
     await workspaceIndexService.refresh(root)
+    const coldIndexMs = performance.now() - coldIndexStartedAt
     registerWorkspaceHandlers({
       hasWorkspaceRoot: () => true,
       setWorkspaceRoot: () => undefined,
@@ -117,6 +125,8 @@ describe('production workspace search and watcher performance gate', () => {
     ])
     expect(result?.data?.truncated).toBe(false)
 
+    const coldSearchMs = samples[0] ?? 0
+    const warmSearchP95Ms = percentile95(samples.slice(1))
     const searchP95Ms = percentile95(samples)
     let workspaceSearchMetrics: WorkspaceSearchMetrics | undefined
     await runWorkspaceSearch(
@@ -135,10 +145,16 @@ describe('production workspace search and watcher performance gate', () => {
     console.log(
       `PRODUCTION_SEARCH_PERF_METRICS ${JSON.stringify({
         documents: DOCUMENTS,
-        searchP95Ms,
+        coldIndexMs: Math.round(coldIndexMs * 100) / 100,
+        coldSearchMs: Math.round(coldSearchMs * 100) / 100,
+        warmSearchP95Ms: Math.round(warmSearchP95Ms * 100) / 100,
+        searchP95Ms: Math.round(searchP95Ms * 100) / 100,
         workspaceSearchMetrics,
       })}`,
     )
+    expect(coldIndexMs).toBeLessThanOrEqual(thresholds.targets.coldIndexMs)
+    expect(coldSearchMs).toBeLessThanOrEqual(thresholds.targets.coldSearchP95Ms)
+    expect(warmSearchP95Ms).toBeLessThanOrEqual(thresholds.targets.warmSearchP95Ms)
     expect(searchP95Ms).toBeLessThanOrEqual(thresholds.targets.searchP95Ms)
   }, 120_000)
 
