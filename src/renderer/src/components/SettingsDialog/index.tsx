@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import type { ShortcutMap } from '../../data/shortcuts'
-import { isImeComposing } from '../../lib/keyboard'
+import { useModalDialogKeyboard } from '../../hooks/useModalDialogKeyboard'
 import { NAV_ITEMS, SETTINGS_SEARCH_INDEX } from './constants'
 import { AppearancePanel } from './AppearancePanel'
 import { EditorPanel } from './EditorPanel'
@@ -147,6 +147,8 @@ export function SettingsDialog({
   shortcuts,
   onShortcutsChange,
 }: SettingsDialogProps): JSX.Element | null {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
   const [nav, setNav] = useState('appearance')
   /** 设置搜索：非空时导航区替换为匹配结果列表 */
   const [searchQuery, setSearchQuery] = useState('')
@@ -159,25 +161,28 @@ export function SettingsDialog({
     )
   }, [searchQuery])
 
-  // Esc 关闭
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: KeyboardEvent) => {
-      if (isImeComposing(e)) return
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [open, onClose])
+  useModalDialogKeyboard({
+    open,
+    onClose,
+    dialogRef,
+    initialFocusRef: closeButtonRef,
+  })
 
   if (!open) return null
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog settings-dialog" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        className="dialog settings-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-dialog-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* 左侧导航 */}
         <div className="dialog-nav">
-          <div className="dialog-nav-title">设置</div>
+          <div className="dialog-nav-title" id="settings-dialog-title">设置</div>
           <input
             type="search"
             className="settings-search-input"
@@ -224,7 +229,14 @@ export function SettingsDialog({
 
         {/* 右侧面板 */}
         <div className="dialog-body">
-          <button type="button" className="dialog-close" onClick={onClose} aria-label="关闭" title="关闭">
+          <button
+            type="button"
+            ref={closeButtonRef}
+            className="dialog-close"
+            onClick={onClose}
+            aria-label="关闭"
+            title="关闭"
+          >
             <svg viewBox="0 0 24 24">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />

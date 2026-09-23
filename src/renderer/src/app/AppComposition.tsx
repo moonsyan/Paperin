@@ -665,6 +665,7 @@ export function AppComposition(): JSX.Element {
           linkGraph={linkGraph} linksTruncated={linksTruncated} graphSettings={settings.graphSettings} onGraphSettingsChange={settings.setGraphSettings}
           editorRef={editorRef} onEditorChange={handleEditorChange} onCursorChange={handleCursorChange}
           onRichRender={handleRichRender} blankClickToEnd={settings.blankClickToEnd} codeLineNumbers={settings.codeLineNumbers}
+          spellcheck={spellcheck}
           onNotify={setToast} wikiLinkFiles={wikiLinkFileList} onWikiLinkClick={handleWikiLinkClick}
           wikiResolveTest={wikiResolveTest} onFullscreenChange={handleFullscreenChange}
           imageHints={{ documentId: activeFileId, docPath: activeFile?.path, workspacePath: workspace?.path, workspaceAttachmentDirectory: workspace ? workspaceSettings.editor.attachmentDirectory : null, globalAttachmentDirectory: settings.globalAttachmentDirectory, imageHost: settings.imageHost }}

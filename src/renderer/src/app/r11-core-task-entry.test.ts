@@ -30,7 +30,9 @@ describe('R11 核心任务入口', () => {
     expect(taskFolder?.fileIds).toContain(R11_DEMO_FILE_IDS.techNote)
     expect(taskFolder?.fileIds).toContain(R11_DEMO_FILE_IDS.oldNote)
     expect(sourceFolder?.fileIds).toEqual([R11_DEMO_FILE_IDS.sourceA, R11_DEMO_FILE_IDS.sourceB])
-    expect(DEMO_FILES[R11_DEMO_FILE_IDS.sourceA].content).toContain('R11_SYNTH_SOURCE_A')
+    expect(DEMO_FILES[R11_DEMO_FILE_IDS.sourceA].content).toContain('缓存失效')
+    expect(DEMO_FILES[R11_DEMO_FILE_IDS.sourceA].content).not.toContain('R11_SYNTH_')
+    expect(DEMO_FILES[R11_DEMO_FILE_IDS.techNote].content).not.toContain('R11_SYNTH_')
   })
 
   it('README 与 package 描述与核心任务 headline 一致', () => {

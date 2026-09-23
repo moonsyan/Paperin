@@ -69,6 +69,13 @@ const baseProps = {
 }
 
 describe('SettingsDialog 更新开关与图床凭据状态', () => {
+  it('以 dialog 角色打开，关闭按钮可聚焦', () => {
+    render(<SettingsDialog {...baseProps} />)
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.getAttribute('aria-modal')).toBe('true')
+    expect(screen.getByRole('button', { name: '关闭' })).toBeTruthy()
+  })
+
   it('高级面板的自动检查更新开关有可访问名称，并说明关闭后不会下载或退出安装', () => {
     render(<SettingsDialog {...baseProps} />)
     fireEvent.click(screen.getByRole('button', { name: '高级' }))

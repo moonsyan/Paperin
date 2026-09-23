@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
-import { isImeComposing } from '../../lib/keyboard'
+import { useModalDialogKeyboard } from '../../hooks/useModalDialogKeyboard'
 import { diffLines } from '../../lib/diff'
 
 /* ==================== 版本历史对话框（本地保存快照） ==================== */
@@ -95,16 +95,14 @@ export function VersionHistoryDialog({
       })
   }, [open, filePath])
 
-  // Esc 关闭
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: KeyboardEvent) => {
-      if (isImeComposing(e)) return
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [open, onClose])
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  useModalDialogKeyboard({
+    open,
+    onClose,
+    dialogRef,
+    initialFocusRef: closeButtonRef,
+  })
 
   if (!open) return null
 
@@ -192,10 +190,24 @@ export function VersionHistoryDialog({
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
-      <div className="dialog version-dialog" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        className="dialog version-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="version-history-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="help-header">
-          <span className="help-title">版本历史 · {docName}</span>
-          <button type="button" className="dialog-close" onClick={onClose} aria-label="关闭" title="关闭">
+          <span className="help-title" id="version-history-title">版本历史 · {docName}</span>
+          <button
+            type="button"
+            ref={closeButtonRef}
+            className="dialog-close"
+            onClick={onClose}
+            aria-label="关闭"
+            title="关闭"
+          >
             <svg viewBox="0 0 24 24">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />

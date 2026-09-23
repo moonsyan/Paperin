@@ -53,6 +53,8 @@ export interface EditorProps {
   onRichRender?: () => void
   blankClickToEnd?: boolean
   codeLineNumbers?: boolean
+  /** 正文编辑根是否启用拼写检查（默认 false；代码块仍排除） */
+  spellcheck?: boolean
   onNotify?: (message: string) => void
   wikiLinkFiles?: WikiSuggestion[]
   onWikiLinkClick?: (target: string) => void

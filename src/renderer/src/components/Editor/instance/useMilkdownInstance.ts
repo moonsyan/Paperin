@@ -73,6 +73,8 @@ export interface MilkdownInstanceOptions {
   dirtyRef: MutableRefObject<boolean>
   streamingRef: MutableRefObject<boolean>
   abortStreamRef: MutableRefObject<boolean>
+  /** 初始 spellcheck；后续由 Editor useEffect 同步 DOM */
+  spellcheckRef: MutableRefObject<boolean>
 }
 
 export const useMilkdownInstance = ({
@@ -83,6 +85,7 @@ export const useMilkdownInstance = ({
   dirtyRef,
   streamingRef,
   abortStreamRef,
+  spellcheckRef,
 }: MilkdownInstanceOptions): void => {
     useEditor((root) => {
       const editor = MilkdownCore.make()
@@ -92,10 +95,9 @@ export const useMilkdownInstance = ({
           // （gfm 仅在有定义时才解析引用节点）。基线取自编辑器实际输出，
           // 不会因此误标未保存；仅当用户编辑并保存时才把定义写入文件。
           ctx.set(defaultValueCtx, ensureFootnoteDefinitions(initialRef.current))
-          // 关闭拼写检查：避免代码/中文内容出现红色波浪线
           ctx.update(editorViewOptionsCtx, (prev) => ({
             ...prev,
-            spellcheck: false,
+            spellcheck: spellcheckRef.current,
           }))
           // 注册 YAML frontmatter 解析（文档头部 --- 元数据块）。
           // 插件为 unified 风格（this: UnifiedLike），与 Milkdown 的 RemarkPlugin

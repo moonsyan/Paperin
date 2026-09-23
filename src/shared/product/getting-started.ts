@@ -1,5 +1,4 @@
 import { CORE_TASK_HEADLINE, CORE_TASK_TAGLINE } from './core-task'
-import { R11_FIXTURE_MARKERS } from './r11-demo-markers'
 
 /**
  * 首次打开时展示的入门正文。菜单名、快捷键和能力边界与当前产品一致。
@@ -17,7 +16,7 @@ ${CORE_TASK_TAGLINE}
 
 ## 先试一个小任务
 
-1. 在左侧打开 **资料来源** 里的两篇合成资料，或搜索 \`${R11_FIXTURE_MARKERS.sourceAAnchor}\`。
+1. 在左侧打开 **资料来源** 里的两篇合成资料，或搜索 \`缓存失效\`。
 2. 打开 **API 网关技术说明（草稿）**（或命令面板新建「技术文章模板」），用 **插入引用** 写一段带依据的说明。
 3. 保存后关闭再打开，确认正文与来源仍在。
 

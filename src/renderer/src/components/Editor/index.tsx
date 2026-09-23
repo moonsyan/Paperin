@@ -33,6 +33,7 @@ const MilkdownInner = forwardRef<EditorHandle, EditorProps>(
       onRichRender,
       blankClickToEnd = true,
       codeLineNumbers = false,
+      spellcheck = false,
       onNotify,
       wikiLinkFiles,
       onWikiLinkClick,
@@ -102,6 +103,17 @@ const MilkdownInner = forwardRef<EditorHandle, EditorProps>(
       }
     }, [codeLineNumbers])
 
+    // 拼写检查：仅同步正文编辑根；默认关闭，设置开启后生效（代码块插件仍强制排除）
+    useEffect(() => {
+      const ed = editorRef.current
+      if (ed?.status !== EditorStatus.Created) return
+      const view = ed.ctx.get(editorViewCtx)
+      view.dom.setAttribute('spellcheck', spellcheck ? 'true' : 'false')
+      view.dispatch(
+        view.state.tr.setMeta('paperin-spellcheck', spellcheck),
+      )
+    }, [spellcheck])
+
     // Wiki 链接点击：传递 onWikiLinkClick 到插件
     const wikiClickRef = useRef(onWikiLinkClick)
     wikiClickRef.current = onWikiLinkClick
@@ -133,6 +145,9 @@ const MilkdownInner = forwardRef<EditorHandle, EditorProps>(
       return () => setWikiTargetResolver(null)
     }, [wikiResolveTest])
 
+    const spellcheckRef = useRef(spellcheck)
+    spellcheckRef.current = spellcheck
+
     useMilkdownInstance({
       editorRef,
       initialRef,
@@ -141,6 +156,7 @@ const MilkdownInner = forwardRef<EditorHandle, EditorProps>(
       dirtyRef,
       streamingRef,
       abortStreamRef,
+      spellcheckRef,
     })
 
     const { handleKeyDown, handleBlankClick } = useEditorNavigation({
