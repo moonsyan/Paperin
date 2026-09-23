@@ -150,19 +150,28 @@ export const createWorkspaceFileWatcher = (
   }
 }
 
-/** 默认 fs.watch 封装：recursive 监听根目录，无名事件触发 rescan unknown */
-export const createFsWatchAdapter = (): WorkspaceFileWatcherDeps['watch'] => {
+/** 默认 fs.watch 封装：recursive 监听根目录，无名事件触发 rescan unknown。
+ *  启动失败或运行时 error 必须通知上层（空路径批次 → rescan unknown），禁止静默空清理。 */
+export const createFsWatchAdapter = (
+  watchImpl: typeof fsWatch = fsWatch,
+): WorkspaceFileWatcherDeps['watch'] => {
   return (root, onRawChange) => {
     let watcher: ReturnType<typeof fsWatch> | null = null
     try {
-      watcher = fsWatch(root, { recursive: true }, (_event, fileName) => {
+      watcher = watchImpl(root, { recursive: true }, (_event, fileName) => {
         if (fileName == null || fileName === '') {
           onRawChange([''])
           return
         }
         onRawChange([join(root, fileName)])
       })
+      watcher.on('error', () => {
+        onRawChange([''])
+      })
     } catch {
+      queueMicrotask(() => {
+        onRawChange([''])
+      })
       return () => undefined
     }
     return () => {

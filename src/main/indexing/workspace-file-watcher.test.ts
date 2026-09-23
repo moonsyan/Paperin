@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createWorkspaceFileWatcher } from './workspace-file-watcher'
+import { EventEmitter } from 'events'
+import { createFsWatchAdapter, createWorkspaceFileWatcher } from './workspace-file-watcher'
 
 describe('workspace-file-watcher', () => {
   beforeEach(() => {
@@ -191,5 +192,31 @@ describe('workspace-file-watcher', () => {
     expect(stopped).toHaveBeenCalledOnce()
     watcher.stop()
     expect(stopped).toHaveBeenCalledOnce()
+  })
+})
+
+describe('createFsWatchAdapter', () => {
+  it('启动失败时通知空路径批次，禁止静默空清理', async () => {
+    const onRaw = vi.fn()
+    const failingWatch = (() => {
+      throw new Error('EMFILE')
+    }) as unknown as typeof import('fs').watch
+    const stop = createFsWatchAdapter(failingWatch)('D:/notes', onRaw)
+    await vi.waitFor(() => {
+      expect(onRaw).toHaveBeenCalledWith([''])
+    })
+    expect(() => stop()).not.toThrow()
+  })
+
+  it('运行时 error 事件触发空路径批次', () => {
+    const onRaw = vi.fn()
+    const emitter = new EventEmitter() as EventEmitter & {
+      close: () => void
+    }
+    emitter.close = vi.fn()
+    const watchImpl = vi.fn(() => emitter) as unknown as typeof import('fs').watch
+    createFsWatchAdapter(watchImpl)('D:/notes', onRaw)
+    emitter.emit('error', new Error('watch failed'))
+    expect(onRaw).toHaveBeenCalledWith([''])
   })
 })
