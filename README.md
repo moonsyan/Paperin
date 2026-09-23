@@ -85,6 +85,8 @@ npm ci
 npm run dev
 ```
 
+若 Windows 上窗口只有系统按钮、内容全白，而终端仍有渲染日志：多半是 GPU 合成失败（常见 `GPU process exited … exit_code=34`）。可设 `PAPERIN_DISABLE_GPU=1` 后重启；应用也会在 GPU 崩溃后自动记下软栅标记并 relaunch。
+
 常用命令：
 
 ```bash

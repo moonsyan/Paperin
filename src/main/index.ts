@@ -19,6 +19,7 @@ import {
   normalizeSystemOpenFile,
 } from './window/system-file-open'
 import { formatErrorForLog } from './log-redact'
+import { applyGpuFallbackEarly, armGpuCrashFallback } from './gpu-fallback'
 
 // 冒烟模式（--smoke <工作区>，供 scripts/smoke-electron.mjs 调用）：
 // 必须在下方任何 userData 读取之前切换到一次性临时目录
@@ -27,6 +28,9 @@ if (smokeWorkspace) applySmokeUserData()
 // Electron smoke runs in headless/CI environments where Chromium's GPU DLL
 // may be unavailable; disable hardware acceleration before app readiness.
 if (smokeWorkspace) app.disableHardwareAcceleration()
+// 普通启动：上次 GPU 崩溃或 PAPERIN_DISABLE_GPU=1 时提前切软栅，避免白屏
+const gpuFallbackActive = smokeWorkspace ? false : applyGpuFallbackEarly()
+armGpuCrashFallback(gpuFallbackActive)
 
 /* ==================== 主进程兜底日志 ==================== */
 
