@@ -15,7 +15,7 @@ import { useSystemFileOpen } from '../hooks/useSystemFileOpen'
 import { useDocumentSessionPersistence } from '../hooks/useDocumentSessionPersistence'
 import type { PublishOptions, PublishScope } from '../lib/export-bundle'
 import { buildDeliveryReport } from '../lib/delivery-report'
-import { normalizeWorkspaceRelativePath, isEphemeralCitingDocumentKey, isPersistableCitingDocumentPath, remapSourceTrackingPath } from '../../../shared/workspace-state'
+import { normalizeWorkspaceRelativePath, isEphemeralCitingDocumentKey, isPersistableCitingDocumentPath } from '../../../shared/workspace-state'
 import { resolveCitingDocumentKey } from '../lib/citing-document-key'
 import {
   buildReviewInputsFromIndex,
@@ -37,6 +37,7 @@ import {
   SourceRelocationDialog,
 } from '../components/SourceRelocationDialog'
 import { useSourceTracking } from './useSourceTracking'
+import { useWorkspaceSourcePathRemap } from './useWorkspaceSourcePathRemap'
 import { useSupportSummaryDialog } from './useSupportSummaryDialog'
 
 import { useDocumentSession } from './document-session/useDocumentSession'
@@ -485,37 +486,11 @@ export function AppComposition(): JSX.Element {
     setSavedMap, setFileMtime, setEncodingMap, setActiveFileId, setDocTitle,
   }), [INITIAL_OR_SAVED, activeFileIdRef, clearDraft, contentsRef, draftPendingRef, fileMtimeRef, flushEditorContent, handleOpenFolder, leaveCurrentDocument, openWorkspaceFile, liveContentOf, openFilesRef, replaceEditorContent, saveWithEncodingFallback, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, switchFile])
 
-  const handleWorkspacePathRemapped = useCallback(
-    (oldAbsolutePath: string, newAbsolutePath: string) => {
-      const root = workspace?.path
-      if (!root) return
-      const caseInsensitive = window.desktopAPI?.platform === 'win32'
-      const oldRelative = toWorkspaceRelativePath(root, oldAbsolutePath, caseInsensitive)
-      const newRelative = toWorkspaceRelativePath(root, newAbsolutePath, caseInsensitive)
-      if (!oldRelative || !newRelative || oldRelative === newRelative) return
-      remapEphemeralSourcePaths(oldRelative, newRelative, caseInsensitive)
-      setWorkspaceSettings((current) => {
-        const remapped = remapSourceTrackingPath(
-          {
-            documentSourceBaselines: current.editor.documentSourceBaselines,
-            legacySourceSnapshots: current.editor.legacySourceSnapshots,
-          },
-          oldRelative,
-          newRelative,
-          caseInsensitive,
-        )
-        return {
-          ...current,
-          editor: {
-            ...current.editor,
-            documentSourceBaselines: remapped.documentSourceBaselines,
-            legacySourceSnapshots: remapped.legacySourceSnapshots,
-          },
-        }
-      })
-    },
-    [remapEphemeralSourcePaths, setWorkspaceSettings, workspace?.path],
-  )
+  const handleWorkspacePathRemapped = useWorkspaceSourcePathRemap({
+    workspacePath: workspace?.path,
+    setWorkspaceSettings,
+    remapEphemeralSourcePaths,
+  })
 
   const { createFile: handleCreateFile, renameFile: handleRenameFile, moveFile: handleMoveFile, deleteFile: handleDeleteFile, openInNewWindow: handleOpenInNewWindow } = useWorkspaceController({
     workspace, openFiles, savedMap, fileMtime, bridge: workspaceFilesBridge, setToast, closeAllTabs: handleCloseAllTabs,

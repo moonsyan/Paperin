@@ -64,7 +64,7 @@ describe('reviewExportMarkdown', () => {
 
 describe('reviewExportMarkdownDocuments', () => {
   it('多篇缺图只弹一次确认，取消则整批不通过', async () => {
-    const confirm = vi.fn(() => false)
+    const confirm = vi.fn((_message: string) => false)
     const notify = vi.fn()
     const result = await reviewExportMarkdownDocuments({
       documents: [
@@ -77,8 +77,9 @@ describe('reviewExportMarkdownDocuments', () => {
     })
     expect(result.ok).toBe(false)
     expect(confirm).toHaveBeenCalledTimes(1)
-    expect(confirm.mock.calls[0]?.[0]).toContain('甲')
-    expect(confirm.mock.calls[0]?.[0]).toContain('乙')
+    const message = confirm.mock.calls[0]?.[0] ?? ''
+    expect(message).toContain('甲')
+    expect(message).toContain('乙')
   })
 
   it('mdimg 目标不参与缺附件 stat（需先 toStoredImages）', async () => {
