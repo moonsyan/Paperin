@@ -112,6 +112,8 @@ export interface AppWorkspaceProps {
   onNew: () => void
   onOpen: () => void
   onOpenFolder: () => void
+  /** 当前生效主题：开始页产品图标随明/暗切换 */
+  effectiveTheme: string
   // ContextDock
   contextDockState: ContextDockState
   onContextDockStateChange: Dispatch<SetStateAction<ContextDockState>>
@@ -182,7 +184,7 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
     spellcheck,
     onNotify, wikiLinkFiles, onWikiLinkClick, wikiResolveTest, onFullscreenChange, imageHints,
     previewMode, previewPaneRef, previewContentRef,
-    onNew, onOpen, onOpenFolder,
+    onNew, onOpen, onOpenFolder, effectiveTheme,
     contextDockState, onContextDockStateChange, workspaceIndex, indexLoading, diagnostics,
     onRefreshIndex, onCancelIndex, onOpenDiagnostic, sidebarViewModel, linksLoading,
     onOpenLink, onOpenGraphView, tagIndex, tagsLoading, tagsTruncated, tagFilter, onToggleTagFilter,
@@ -338,6 +340,7 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
                   ? () => onSelectWorkspaceFile(continueRecent.path, false)
                   : undefined
               }
+              theme={effectiveTheme}
             />
           )}
         </div>

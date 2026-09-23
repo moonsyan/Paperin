@@ -652,6 +652,7 @@ export function AppComposition(): JSX.Element {
           imageHints={{ documentId: activeFileId, docPath: activeFile?.path, workspacePath: workspace?.path, workspaceAttachmentDirectory: workspace ? workspaceSettings.editor.attachmentDirectory : null, globalAttachmentDirectory: settings.globalAttachmentDirectory, imageHost: settings.imageHost }}
           previewMode={previewMode} previewPaneRef={previewPaneRef} previewContentRef={previewContentRef}
           onNew={handleNew} onOpen={() => void handleOpen()} onOpenFolder={() => void handleOpenFolder()}
+          effectiveTheme={effectiveTheme}
           contextDockState={contextDockState} onContextDockStateChange={handleDockStateChange}
           workspaceIndex={workspaceIndex} indexLoading={indexLoading} diagnostics={diagnostics}
           onRefreshIndex={refreshIndex} onCancelIndex={cancelIndex}

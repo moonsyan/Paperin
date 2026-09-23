@@ -306,7 +306,7 @@ export function AppDialogs(props: AppDialogsProps): JSX.Element {
       )}
       {helpView && (
         <Suspense fallback={null}>
-          <HelpDialog view={helpView} onClose={onCloseHelp} stats={writingStats} shortcuts={shortcuts} />
+          <HelpDialog view={helpView} onClose={onCloseHelp} stats={writingStats} shortcuts={shortcuts} theme={effectiveTheme} />
         </Suspense>
       )}
       {imagesOpen && (

@@ -1,4 +1,5 @@
 import { CORE_TASK_DISCOVER, CORE_TASK_HEADLINE, CORE_TASK_TAGLINE } from '../../../../shared/product/core-task'
+import { ProductIcon } from '../ProductIcon'
 
 interface StartScreenProps {
   /** 新建空白文档 */
@@ -19,6 +20,8 @@ interface StartScreenProps {
   continueRecentLabel?: string
   /** 打开本库最近编辑中的一篇 */
   onContinueRecent?: () => void
+  /** 当前生效主题：切换开始页产品图标明/暗 */
+  theme?: string
 }
 
 /**
@@ -34,13 +37,14 @@ export function StartScreen({
   notices = [],
   continueRecentLabel,
   onContinueRecent,
+  theme = 'default',
 }: StartScreenProps): JSX.Element {
   const canContinueRecent = Boolean(hasWorkspace && continueRecentLabel && onContinueRecent)
 
   return (
     <div className="start-screen">
       <div className="start-inner">
-        <img className="start-logo" src="./icon.png" alt="" />
+        <ProductIcon className="start-logo" theme={theme} />
         <h1 className="start-title">Paperin</h1>
         <p className="start-sub">{CORE_TASK_HEADLINE}</p>
         <p className="start-tagline">{CORE_TASK_TAGLINE}</p>

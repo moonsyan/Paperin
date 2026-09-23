@@ -89,4 +89,16 @@ describe('AppTopBar（三区收缩）', () => {
     expect(context?.getAttribute('data-workspace-state')).toBe('empty')
     expect(context?.querySelector('.workspace-context-label')?.textContent).toBe('未打开')
   })
+
+  it('左区品牌图标随明亮主题使用 light 资源', () => {
+    render(<AppTopBar {...createProps({ effectiveTheme: 'default' })} />)
+    const icon = document.querySelector('.brand-icon') as HTMLImageElement | null
+    expect(icon?.getAttribute('src')).toBe('./icon-light.png')
+  })
+
+  it('左区品牌图标随暗色主题使用 dark 资源', () => {
+    render(<AppTopBar {...createProps({ effectiveTheme: 'dark' })} />)
+    const icon = document.querySelector('.brand-icon') as HTMLImageElement | null
+    expect(icon?.getAttribute('src')).toBe('./icon-dark.png')
+  })
 })

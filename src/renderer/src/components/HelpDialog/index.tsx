@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { version } from '../../../../../package.json'
 import type { ShortcutMap } from '../../data/shortcuts'
 import { isImeComposing } from '../../lib/keyboard'
+import { ProductIcon } from '../ProductIcon'
 
 export type HelpView = 'shortcuts' | 'syntax' | 'about' | 'stats' | null
 
@@ -24,6 +25,8 @@ interface HelpDialogProps {
   stats?: WritingStats
   /** 当前快捷键配置（动态显示可自定义项） */
   shortcuts?: ShortcutMap
+  /** 当前生效主题：关于页产品图标随明/暗切换 */
+  theme?: string
 }
 
 /** 快捷键分组数据 */
@@ -193,7 +196,7 @@ function levelOf(words: number): number {
 /**
  * 帮助弹窗：快捷键一览 / Markdown 语法 / 关于
  */
-export function HelpDialog({ view, onClose, stats, shortcuts }: HelpDialogProps): JSX.Element | null {
+export function HelpDialog({ view, onClose, stats, shortcuts, theme = 'default' }: HelpDialogProps): JSX.Element | null {
   const closeButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -284,7 +287,7 @@ export function HelpDialog({ view, onClose, stats, shortcuts }: HelpDialogProps)
 
           {view === 'about' && (
             <div className="about-box">
-              <img className="about-icon" src="./icon.png" alt="" />
+              <ProductIcon className="about-icon" theme={theme} />
               <div className="about-name">Paperin</div>
               <div className="about-version">版本 {version}</div>
               <p className="about-desc">

@@ -20,7 +20,7 @@ export function createWindow(fresh = false, openFile?: string): BrowserWindow {
     ...getMainWindowPlacement(),
     show: false,
     title: 'Paperin',
-    // 窗口/任务栏图标：Windows 用多尺寸 ico，其余平台用 png（与 resources/icons 同源）
+    // 窗口/任务栏/Dock 图标：一律使用明亮产品图（Windows 多尺寸 ico，其余平台 png）
     icon: join(
       __dirname,
       '../../resources/icons',

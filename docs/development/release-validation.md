@@ -62,7 +62,7 @@
 
 | 材料 | 当前状态 | 外部 Alpha 前门槛 |
 | --- | --- | --- |
-| 根许可证与第三方声明 | **已提供** | `LICENSE`（MIT，Copyright 2026 ming）与 `THIRD-PARTY-NOTICES.md`（含 Electron/Chromium、生产依赖、打包进渲染进程的库；`resources/icons/` 产品图标来源未单独核证） |
+| 根许可证与第三方声明 | **已提供** | `LICENSE`（MIT，Copyright 2026 ming）与 `THIRD-PARTY-NOTICES.md`（含 Electron/Chromium、生产依赖、打包进渲染进程的库；`resources/icons/` 明亮系统图标与 `public/icon-light|dark.png` 应用内品牌图来源未单独核证） |
 | 独立隐私说明 | **已提供** | `PRIVACY.md`：默认更新全流程、可选 SM.MS、可选拼写词典；写明发送内容、关闭方式和第三方责任 |
 | 安全响应渠道 | **已提供** | `SECURITY.md`：GitHub 私密安全公告；不要求公开用户文件、路径或 token。无另行公布的安全邮箱 |
 | 更新日志与贡献说明 | **0.7.0 已写入** | `CHANGELOG.md`、`CONTRIBUTING.md` 记录候选版本事实和当前贡献方式。安装循环仍为 UNVERIFIED，因此这不是正式公开发布 |

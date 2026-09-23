@@ -68,4 +68,13 @@ describe('StartScreen（NEXT-UI-SPEC §7 空状态主动作）', () => {
     expect(document.body.textContent).not.toContain('导览')
     expect(document.body.textContent).not.toContain('打卡')
   })
+
+  it('产品图标随主题明暗切换', () => {
+    const { rerender } = render(
+      <StartScreen onNew={vi.fn()} onOpen={vi.fn()} onOpenFolder={vi.fn()} theme="default" />,
+    )
+    expect(document.querySelector('.start-logo')?.getAttribute('src')).toBe('./icon-light.png')
+    rerender(<StartScreen onNew={vi.fn()} onOpen={vi.fn()} onOpenFolder={vi.fn()} theme="github" />)
+    expect(document.querySelector('.start-logo')?.getAttribute('src')).toBe('./icon-dark.png')
+  })
 })

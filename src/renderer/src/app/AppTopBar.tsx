@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { MenuBar } from '../components/MenuBar'
 import type { RecentFile } from '../components/MenuBar'
+import { ProductIcon } from '../components/ProductIcon'
 import { ThemeSwitcher } from '../components/ThemeSwitcher'
 import { WorkspaceContext } from '../components/WorkspaceShell'
 import type { ShortcutMap } from '../data/shortcuts'
@@ -78,7 +79,7 @@ export function AppTopBar({
       <div className="topbar-zone-left">
         {!sidebarCollapsed && (
           <div className="brand" title="Paperin">
-            <img className="brand-icon" src="./icon.png" alt="" />
+            <ProductIcon className="brand-icon" theme={effectiveTheme} />
             <span className="brand-name">Paperin</span>
           </div>
         )}

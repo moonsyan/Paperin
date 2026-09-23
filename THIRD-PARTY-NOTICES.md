@@ -41,7 +41,8 @@
 
 | 资源 | 来源 | 说明 |
 | --- | --- | --- |
-| `resources/icons/icon.ico` / `icon.png` | 仓库自带产品图标 | 用作窗口、任务栏、安装器与应用内品牌图。第三方原始作者**未经单独核证**；若后续确认权利限制，将替换该目录文件 |
+| `resources/icons/icon.ico` / `icon.png` | 仓库自带明亮产品图标 | 用作窗口、macOS Dock、Windows/Linux 任务栏、安装器与 favicon。第三方原始作者**未经单独核证**；若后续确认权利限制，将替换该目录文件 |
+| `src/renderer/public/icon-light.png` / `icon-dark.png` | 与上同源的明/暗品牌图 | 应用内顶栏、开始页、关于页随主题切换；暗色主题（墨夜 / 星夜 / 原子 / 夜松）用 dark，其余用 light |
 
 ## 可选第三方服务（不随安装包分发代码）
 
