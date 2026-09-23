@@ -42,7 +42,58 @@ const relativeCandidateKey = (root: string, sourcePath: string, target: string):
   return normalizeResourceKey(candidate)
 }
 
-/** 目标路径变化时，找出需重新解析资源引用的文档（不重读正文） */
+/** Wiki 茎（小写）→ 引用该茎的文档路径 */
+const buildWikiStemIndex = (
+  documents: Record<string, IndexedDocument>,
+): Map<string, Set<string>> => {
+  const index = new Map<string, Set<string>>()
+  for (const document of Object.values(documents)) {
+    for (const link of document.outgoingLinks) {
+      if (link.kind !== 'wiki') continue
+      const stem = link.target.trim().toLowerCase()
+      if (!stem) continue
+      const set = index.get(stem)
+      if (set) set.add(document.path)
+      else index.set(stem, new Set([document.path]))
+    }
+  }
+  return index
+}
+
+/**
+ * 未解析相对目标键 → 引用文档（已 resolved 的已在 dependencyIndex）。
+ * 变更路径命中候选键时需重解析。
+ */
+const buildRelativeTargetIndex = (
+  root: string,
+  documents: Record<string, IndexedDocument>,
+): Map<string, Set<string>> => {
+  const index = new Map<string, Set<string>>()
+  const add = (key: string | null, sourcePath: string): void => {
+    if (!key) return
+    const set = index.get(key)
+    if (set) set.add(sourcePath)
+    else index.set(key, new Set([sourcePath]))
+  }
+  for (const document of Object.values(documents)) {
+    for (const link of document.outgoingLinks) {
+      if (link.resolvedPath) continue
+      add(relativeCandidateKey(root, document.path, link.target), document.path)
+    }
+    for (const ref of document.imageRefs) {
+      if (ref.resolvedPath) continue
+      add(relativeCandidateKey(root, document.path, ref.target), document.path)
+    }
+  }
+  return index
+}
+
+const addAll = (target: Set<string>, sources: Set<string> | undefined): void => {
+  if (!sources) return
+  for (const source of sources) target.add(source)
+}
+
+/** 目标路径变化时，找出需重新解析资源引用的文档（不重读正文）；O(变更 + 命中)，禁止按变更全表扫文档 */
 export const collectDocumentsAffectedByChanges = (
   root: string,
   documents: Record<string, IndexedDocument>,
@@ -53,30 +104,16 @@ export const collectDocumentsAffectedByChanges = (
     return new Set(Object.keys(documents))
   }
 
+  const wikiStemIndex = buildWikiStemIndex(documents)
+  const relativeTargetIndex = buildRelativeTargetIndex(root, documents)
   const affected = new Set<string>()
+
   const considerPath = (changedPath: string): void => {
     const key = normalizeResourceKey(changedPath)
-    dependencyIndex.get(key)?.forEach((source) => affected.add(source))
-    for (const [docPath, document] of Object.entries(documents)) {
-      for (const link of document.outgoingLinks) {
-        if (link.resolvedPath && normalizeResourceKey(link.resolvedPath) === key) {
-          affected.add(docPath)
-        }
-        const targetKey = relativeCandidateKey(root, document.path, link.target)
-        if (targetKey === key) affected.add(docPath)
-        if (link.kind === 'wiki') {
-          const stem = basename(changedPath).replace(/\.(?:md|markdown)$/i, '')
-          if (stem && link.target.toLowerCase() === stem.toLowerCase()) affected.add(docPath)
-        }
-      }
-      for (const ref of document.imageRefs) {
-        if (ref.resolvedPath && normalizeResourceKey(ref.resolvedPath) === key) {
-          affected.add(docPath)
-        }
-        const targetKey = relativeCandidateKey(root, document.path, ref.target)
-        if (targetKey === key) affected.add(docPath)
-      }
-    }
+    addAll(affected, dependencyIndex.get(key))
+    addAll(affected, relativeTargetIndex.get(key))
+    const stem = basename(changedPath).replace(/\.(?:md|markdown)$/i, '').toLowerCase()
+    if (stem) addAll(affected, wikiStemIndex.get(stem))
   }
 
   for (const path of invalidation.markdownPaths) considerPath(path)
