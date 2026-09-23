@@ -46,7 +46,7 @@
     },
     "files": [
       "out/**/*",
-      "resources/icon.png",
+      "resources/icons/**/*",
       "!out/**/*.tsbuildinfo",
       "!**/*.map"
     ],
@@ -57,7 +57,7 @@
     ],
     "compression": "maximum",
     "win": {
-      "icon": "resources/icon.png",
+      "icon": "resources/icons/icon.ico",
       "target": [
         "nsis"
       ],
@@ -75,10 +75,12 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "Paperin-Setup-${version}.${ext}"
+      "artifactName": "Paperin-Setup-${version}.${ext}",
+      "installerIcon": "resources/icons/icon.ico",
+      "uninstallerIcon": "resources/icons/icon.ico"
     },
     "mac": {
-      "icon": "resources/icon.png",
+      "icon": "resources/icons/icon.png",
       "target": [
         "dmg"
       ],
@@ -95,7 +97,7 @@
       ]
     },
     "linux": {
-      "icon": "resources/icon.png",
+      "icon": "resources/icons/icon.png",
       "target": [
         "AppImage"
       ],

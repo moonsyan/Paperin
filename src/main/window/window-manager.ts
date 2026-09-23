@@ -20,8 +20,12 @@ export function createWindow(fresh = false, openFile?: string): BrowserWindow {
     ...getMainWindowPlacement(),
     show: false,
     title: 'Paperin',
-    // 窗口/任务栏图标（与打包图标同源）
-    icon: join(__dirname, '../../resources/icon.png'),
+    // 窗口/任务栏图标：Windows 用多尺寸 ico，其余平台用 png（与 resources/icons 同源）
+    icon: join(
+      __dirname,
+      '../../resources/icons',
+      process.platform === 'win32' ? 'icon.ico' : 'icon.png',
+    ),
     // 去掉系统标题栏，与渲染进程的顶栏菜单栏合为一体：
     // - macOS：hiddenInset 保留红绿灯（交通灯）
     // - Windows：hidden + titleBarOverlay 由系统绘制最小化/最大化/关闭按钮
