@@ -529,13 +529,13 @@ settings.set(key: string, value: unknown): Promise<void>
 
 - [x] 完成所见即所得编辑器
 - [x] 文件树与大纲联动
-- [ ] 导出 PDF
-- [ ] 拼写检查
+- [x] 导出 PDF
+- [x] 拼写检查
 
 ## 后续
 
 - [ ] 插件市场
-- [ ] 多窗口支持
+- [x] 多窗口支持
 - [ ] 国际化
 `,
   },
