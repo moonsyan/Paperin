@@ -18,6 +18,7 @@ import {
   collectSystemOpenFiles,
   normalizeSystemOpenFile,
 } from './window/system-file-open'
+import { formatErrorForLog } from './log-redact'
 
 // 冒烟模式（--smoke <工作区>，供 scripts/smoke-electron.mjs 调用）：
 // 必须在下方任何 userData 读取之前切换到一次性临时目录
@@ -239,7 +240,7 @@ async function initApp(): Promise<void> {
 }
 
 app.whenReady().then(initApp).catch((err) => {
-  console.error('App initialization failed:', err)
+  console.error('App initialization failed:', formatErrorForLog(err))
   app.exit(1)
 })
 

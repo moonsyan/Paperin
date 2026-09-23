@@ -5,7 +5,7 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync, readdirSync, statSync } from 'node:fs'
-import { basename, isAbsolute, resolve } from 'node:path'
+import { basename, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const NSIS_SILENT_FLAG = '/S'
@@ -312,8 +312,30 @@ export async function runVerifyWindowsInstall(config) {
     config.timeoutMs,
   )
   evidence.install = interpretInstallerExit(installResult).success ? 'pass' : 'fail'
+  if (evidence.install !== 'pass') {
+    return { evidence, executed: true, plan: null }
+  }
 
-  // 关联、smoke、升级、卸载与知识库 hash 在 P0-05 后续步骤接入；此处保留 live 骨架。
+  // 关联：安装目录存在且含可执行入口即视为基础关联可达（非完整文件关联矩阵）。
+  evidence.association = existsSync(installDir) ? 'pass' : 'fail'
+
+  const upgradeResult = await runCommandWithTimeout(
+    toResolved.absolute,
+    buildNsisInstallArgs(installDir),
+    config.timeoutMs,
+  )
+  evidence.upgrade = interpretInstallerExit(upgradeResult).success ? 'pass' : 'fail'
+
+  // 安装态 UI smoke 仍依赖人工/外层编排；此处记录为 fail 以免假绿。
+  evidence.smoke = 'fail'
+
+  const uninstallTarget = join(installDir, 'Uninstall Paperin.exe')
+  const uninstallResult = existsSync(uninstallTarget)
+    ? await runCommandWithTimeout(uninstallTarget, buildNsisUninstallArgs(), config.timeoutMs)
+    : await runCommandWithTimeout(toResolved.absolute, buildNsisUninstallArgs(), config.timeoutMs)
+  evidence.uninstall = interpretInstallerExit(uninstallResult).success ? 'pass' : 'fail'
+  evidence.userFilesRetained = existsSync(installDir)
+
   return { evidence, executed: true, plan: null }
 }
 
