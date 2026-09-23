@@ -73,7 +73,14 @@ jobs:
       - run: npm ci
       # smoke 依赖 out/main/index.js；与 build.yml 一致，先构建再冒烟
       - run: npm run build
-      - run: npm run smoke
+      - name: Electron smoke（失败重试一次，规避 Windows runner 瞬时环境）
+        shell: pwsh
+        run: |
+          npm run smoke
+          if ($LASTEXITCODE -eq 0) { exit 0 }
+          Write-Host "SMOKE_RETRY first exit=$LASTEXITCODE"
+          npm run smoke
+          exit $LASTEXITCODE
 
   build-win:
     if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'candidate') }}

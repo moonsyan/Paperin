@@ -15,6 +15,7 @@
 
 import { spawn } from 'node:child_process'
 import { access, cp, mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { join, dirname, normalize } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -25,12 +26,9 @@ import {
 
 const scriptDir = dirname(fileURLToPath(import.meta.url))
 const projectRoot = join(scriptDir, '..')
-// Electron 可执行文件路径因平台而异（win: electron.exe；linux: electron；
-// mac: Electron.app/Contents/MacOS/Electron）
-const electronBinary =
-  process.platform === 'darwin'
-    ? join(projectRoot, 'node_modules', 'electron', 'dist', 'Electron.app', 'Contents', 'MacOS', 'Electron')
-    : join(projectRoot, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron')
+const requireFromScript = createRequire(import.meta.url)
+/** 官方导出为二进制路径；勿手拼 dist/，避免 CI 安装布局差异 */
+const electronBinary = String(requireFromScript('electron'))
 const mainEntry = join(projectRoot, 'out', 'main', 'index.js')
 const performanceScenario = process.argv.includes('--performance')
 const compatibilityScenario = process.argv.includes('--compatibility')
@@ -116,6 +114,9 @@ const main = async () => {
   // CI/无桌面环境的 GPU 兼容由主进程冒烟模式自处理（app.disableHardwareAcceleration，
   // 见 src/main/index.ts）；Electron CLI 不接受应用路径前的 Chromium 开关，
   // 在这里传 --disable-gpu 会直接报 "bad option" 而非进入测试场景。
+  const childEnv = { ...process.env, ELECTRON_ENABLE_LOGGING: '0' }
+  // 宿主（IDE / 部分 CI）可能导出 ELECTRON_RUN_AS_NODE=1；赋 undefined 不会删键。
+  delete childEnv.ELECTRON_RUN_AS_NODE
   const child = spawn(
     electronBinary,
     [
@@ -130,13 +131,7 @@ const main = async () => {
     {
       cwd: projectRoot,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: {
-        ...process.env,
-        ELECTRON_ENABLE_LOGGING: '0',
-        // Electron 宿主的终端（VSCode/WorkBuddy 等）会导出 ELECTRON_RUN_AS_NODE=1，
-        // 继承它会让 electron.exe 降级为纯 Node 运行主包（electron.app 为 undefined）。
-        ELECTRON_RUN_AS_NODE: undefined,
-      },
+      env: childEnv,
     },
   )
 

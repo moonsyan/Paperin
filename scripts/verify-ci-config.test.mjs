@@ -34,7 +34,8 @@ describe('verify-ci-config', () => {
     const release = readWorkflowOrThrow(releasePath)
     expect(validateReleaseWorkflowGates(release)).toEqual([])
 
-    const noSmoke = release.replace('- run: npm run smoke', '- run: npm run smoke-disabled')
+    const noSmoke = release
+      .replace(/npm run smoke/g, 'npm run smoke-disabled')
     expect(validateReleaseWorkflowGates(noSmoke).some((e) => e.includes('candidate-acceptance'))).toBe(
       true,
     )

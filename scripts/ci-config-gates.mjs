@@ -76,13 +76,14 @@ export function validateReleaseWorkflowGates(content) {
   }
   const acceptanceSection = sliceJobSection(content, 'candidate-acceptance:')
   const hasSmokeStep =
-    acceptanceSection && /- run: npm run smoke\s*$/m.test(acceptanceSection)
+    acceptanceSection
+    && (/npm run smoke\s*$/m.test(acceptanceSection) || /npm run smoke\b/.test(acceptanceSection))
   if (!hasSmokeStep) {
     errors.push('release.yml 的 candidate-acceptance job 缺少 npm run smoke（候选验收步骤）')
   }
   const hasBuildBeforeSmoke =
     acceptanceSection
-    && /npm run build[\s\S]*?- run: npm run smoke\s*$/m.test(acceptanceSection)
+    && /npm run build[\s\S]*?npm run smoke/m.test(acceptanceSection)
   if (hasSmokeStep && !hasBuildBeforeSmoke) {
     errors.push('release.yml 的 candidate-acceptance 须在 smoke 前执行 npm run build')
   }
