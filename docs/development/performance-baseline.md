@@ -8,7 +8,7 @@
 
 ## 结论
 
-2026-09-23 复审再次执行 `npm run perf:production` 与 `npm run perf:regression`，均保持红灯；watcher 稳定 P95 两次约 9.7–9.9 秒，合成 tree/index/search 三项超阈值。详细数字见[审查证据 A10](reviews/2026-09-23-product-state-audit.md)。**本节原始 JSON 仍不改写**；当前判断以 PROJECT-STATUS 与该审查为准。
+2026-09-23 审查当日 `perf:production` / `perf:regression` 均为红灯（watcher 稳定 P95 约 9.7–9.9 秒等），详见[审查证据 A10](reviews/2026-09-23-product-state-audit.md)。同日后续修复将监听失效收集改为索引查找后，本机 `npm run perf:production` 退出 0（watcherStableP95Ms ≈ 625 ms）；`npm run perf:regression` 仍可能因临时目录读盘波动失败（近次 indexMs 贴线或超 2000 ms）。**本节原始 JSON 仍不改写**；当前判断以 PROJECT-STATUS 为准，不得放宽阈值或把审查当日红灯改写成当时已通过。
 
 2026-09-22 文档同步未重新采集性能，也不修改本目录原始 JSON。P0-01 分段指标、P0-02 有界语料、P0-03 冷/暖与 coverage、P0-07 目标失效正确性与 P1-08 缓存边界均已在代码与测试落地；下一步是对重复红灯做 profiling 与修复，**不得放宽阈值或用历史空闲绿灯替代**。历史空闲样本对 I/O 的解释仅适用于当时批次，不能据此断定当前失败根因。
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import type { ShortcutMap } from '../../data/shortcuts'
 import { useModalDialogKeyboard } from '../../hooks/useModalDialogKeyboard'
 import { NAV_ITEMS, SETTINGS_SEARCH_INDEX } from './constants'

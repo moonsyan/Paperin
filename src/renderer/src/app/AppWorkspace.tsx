@@ -95,6 +95,8 @@ export interface AppWorkspaceProps {
   onRichRender: () => void
   blankClickToEnd: boolean
   codeLineNumbers: boolean
+  /** 正文拼写检查（代码块仍排除） */
+  spellcheck: boolean
   onNotify: (message: string) => void
   wikiLinkFiles: Array<{ name: string; path: string }>
   onWikiLinkClick: (target: string) => void
@@ -176,6 +178,7 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
     graphTabOpen, graphTabActive, onGraphTabClose, onGraphOpenNode,
     linkGraph, linksTruncated, graphSettings, onGraphSettingsChange,
     editorRef, onEditorChange, onCursorChange, onRichRender, blankClickToEnd, codeLineNumbers,
+    spellcheck,
     onNotify, wikiLinkFiles, onWikiLinkClick, wikiResolveTest, onFullscreenChange, imageHints,
     previewMode, previewPaneRef, previewContentRef,
     onNew, onOpen, onOpenFolder,
@@ -281,6 +284,7 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
             onRichRender={onRichRender}
             blankClickToEnd={blankClickToEnd}
             codeLineNumbers={codeLineNumbers}
+            spellcheck={spellcheck}
             onNotify={onNotify}
             wikiLinkFiles={wikiLinkFiles}
             onWikiLinkClick={onWikiLinkClick}

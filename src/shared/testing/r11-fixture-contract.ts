@@ -23,7 +23,7 @@ export function buildR11SourceAMarkdown(): string {
   return withFixtureAnchor(
     buildProductSourceAMarkdown(),
     R11_FIXTURE_MARKERS.sourceAAnchor,
-    true,
+    'note',
   )
 }
 

@@ -90,7 +90,9 @@ const buildRelativeTargetIndex = (
 
 const addAll = (target: Set<string>, sources: Set<string> | undefined): void => {
   if (!sources) return
-  for (const source of sources) target.add(source)
+  sources.forEach((source) => {
+    target.add(source)
+  })
 }
 
 /** 目标路径变化时，找出需重新解析资源引用的文档（不重读正文）；O(变更 + 命中)，禁止按变更全表扫文档 */
