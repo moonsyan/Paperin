@@ -109,9 +109,6 @@ const MilkdownInner = forwardRef<EditorHandle, EditorProps>(
       if (ed?.status !== EditorStatus.Created) return
       const view = ed.ctx.get(editorViewCtx)
       view.dom.setAttribute('spellcheck', spellcheck ? 'true' : 'false')
-      view.dispatch(
-        view.state.tr.setMeta('paperin-spellcheck', spellcheck),
-      )
     }, [spellcheck])
 
     // Wiki 链接点击：传递 onWikiLinkClick 到插件

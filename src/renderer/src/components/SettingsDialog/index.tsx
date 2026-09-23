@@ -149,6 +149,7 @@ export function SettingsDialog({
 }: SettingsDialogProps): JSX.Element | null {
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [nav, setNav] = useState('appearance')
   /** 设置搜索：非空时导航区替换为匹配结果列表 */
   const [searchQuery, setSearchQuery] = useState('')
@@ -165,7 +166,7 @@ export function SettingsDialog({
     open,
     onClose,
     dialogRef,
-    initialFocusRef: closeButtonRef,
+    initialFocusRef: searchInputRef,
   })
 
   if (!open) return null
@@ -184,6 +185,7 @@ export function SettingsDialog({
         <div className="dialog-nav">
           <div className="dialog-nav-title" id="settings-dialog-title">设置</div>
           <input
+            ref={searchInputRef}
             type="search"
             className="settings-search-input"
             placeholder="搜索设置…"

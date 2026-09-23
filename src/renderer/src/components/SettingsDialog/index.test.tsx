@@ -69,10 +69,11 @@ const baseProps = {
 }
 
 describe('SettingsDialog 更新开关与图床凭据状态', () => {
-  it('以 dialog 角色打开，关闭按钮可聚焦', () => {
+  it('以 dialog 角色打开，初始焦点在搜索框', () => {
     render(<SettingsDialog {...baseProps} />)
     const dialog = screen.getByRole('dialog')
     expect(dialog.getAttribute('aria-modal')).toBe('true')
+    expect(screen.getByRole('searchbox', { name: '搜索设置' })).toBe(document.activeElement)
     expect(screen.getByRole('button', { name: '关闭' })).toBeTruthy()
   })
 
