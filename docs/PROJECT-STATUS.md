@@ -1,7 +1,7 @@
-# Paperin 项目状态
+﻿# Paperin 项目状态
 
 更新时间：2026-09-23（Asia/Shanghai）
-代码核对基线：`ee80add`。A01–A10 可编码项已落地；合成 `perf:regression` 仍可能因临时目录 I/O 波动红灯，生产 `perf:production` 已恢复通过。真人安装循环、种子用户、真机 IME/缩放、8 小时双设备与接收方软件仍为 **UNVERIFIED**。
+代码核对基线：`0e4d443`。A01–A10 可编码项已落地；合成 `perf:regression` 仍可能因临时目录 I/O 波动红灯，生产 `perf:production` 已恢复通过。真人安装循环、种子用户、真机 IME/缩放、8 小时双设备与接收方软件仍为 **UNVERIFIED**。
 
 产品版本：`0.7.0`
 
@@ -33,7 +33,7 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 
 ## 新鲜门禁结果
 
-本轮可编码修复后复核（2026-09-23，Windows / Node 24.19.0，基线 `ee80add`）：`perf:production` 退出 0（watcher 稳定 P95 约 **625 ms**，阈值 5000 ms）；`perf:regression` 仍 exit 1（近次 indexMs 约 2003–5565 ms，读盘主导，**未放宽阈值**）。默认 `npm run test` 装配已修复。安装循环真人实测、种子用户、8 小时与第二设备、真机 IME/缩放仍为 **UNVERIFIED**。审查当日原始红灯数字见[审查证据](development/reviews/2026-09-23-product-state-audit.md)，不回写为当时已通过。
+本轮可编码修复后复核（2026-09-23，Windows / Node 24.19.0，基线 `0e4d443`）：`perf:production` 退出 0（watcher 稳定 P95 约 **625 ms**，阈值 5000 ms）；`perf:regression` 仍 exit 1（近次 indexMs 约 2003–5565 ms，读盘主导，**未放宽阈值**）。默认 `npm run test` 装配已修复。安装循环真人实测、种子用户、8 小时与第二设备、真机 IME/缩放仍为 **UNVERIFIED**。审查当日原始红灯数字见[审查证据](development/reviews/2026-09-23-product-state-audit.md)，不回写为当时已通过。
 
 | 检查 | 当前判断 |
 | --- | --- |
