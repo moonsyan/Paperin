@@ -19,7 +19,7 @@ import {
   runCommandWithTimeout,
   runVerifyWindowsInstall,
   serializeWindowsInstallEvidence,
-} from './verify-windows-install.mjs'
+} from './windows-install-verify.mjs'
 
 const scriptRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const CONFIRM_ISOLATED_ENVIRONMENT = '--confirm-isolated-environment'
