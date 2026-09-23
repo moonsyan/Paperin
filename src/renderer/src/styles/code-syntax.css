@@ -1,66 +1,67 @@
 /**
  * Prism token → 语义 --code-*（禁止在此写死主题 hex）。
  * 新增角色：先加主题变量，再加一行映射。
+ * 选择器带 .editor-inner，压过 typography 里 pre code 的默认前景色。
  */
 
-.milkdown pre code {
+.editor-inner .milkdown pre code {
   color: var(--code-fg, var(--text-1));
 }
 
-.milkdown pre code .token.comment,
-.milkdown pre code .token.prolog,
-.milkdown pre code .token.doctype,
-.milkdown pre code .token.cdata {
+.editor-inner .milkdown pre code .token.comment,
+.editor-inner .milkdown pre code .token.prolog,
+.editor-inner .milkdown pre code .token.doctype,
+.editor-inner .milkdown pre code .token.cdata {
   color: var(--code-comment, var(--text-3));
   font-style: italic;
 }
 
-.milkdown pre code .token.keyword,
-.milkdown pre code .token.builtin,
-.milkdown pre code .token.important {
+.editor-inner .milkdown pre code .token.keyword,
+.editor-inner .milkdown pre code .token.builtin,
+.editor-inner .milkdown pre code .token.important {
   color: var(--code-keyword, var(--accent-h));
   font-weight: 500;
 }
 
-.milkdown pre code .token.operator,
-.milkdown pre code .token.entity,
-.milkdown pre code .token.url {
+.editor-inner .milkdown pre code .token.operator,
+.editor-inner .milkdown pre code .token.entity,
+.editor-inner .milkdown pre code .token.url {
   color: var(--code-punctuation, var(--text-2));
 }
 
-.milkdown pre code .token.string,
-.milkdown pre code .token.char,
-.milkdown pre code .token.attr-value,
-.milkdown pre code .token.inserted {
+.editor-inner .milkdown pre code .token.string,
+.editor-inner .milkdown pre code .token.char,
+.editor-inner .milkdown pre code .token.attr-value,
+.editor-inner .milkdown pre code .token.inserted {
   color: var(--code-string, var(--text-2));
 }
 
-.milkdown pre code .token.number,
-.milkdown pre code .token.boolean,
-.milkdown pre code .token.constant {
+.editor-inner .milkdown pre code .token.number,
+.editor-inner .milkdown pre code .token.boolean,
+.editor-inner .milkdown pre code .token.constant {
   color: var(--code-number, var(--text-2));
 }
 
-.milkdown pre code .token.function,
-.milkdown pre code .token.function-name {
+.editor-inner .milkdown pre code .token.function,
+.editor-inner .milkdown pre code .token.function-name {
   color: var(--code-function, var(--text-2));
 }
 
-.milkdown pre code .token.class-name,
-.milkdown pre code .token.type,
-.milkdown pre code .token.tag,
-.milkdown pre code .token.property,
-.milkdown pre code .token.attr-name,
-.milkdown pre code .token.variable,
-.milkdown pre code .token.parameter {
+.editor-inner .milkdown pre code .token.class-name,
+.editor-inner .milkdown pre code .token.type,
+.editor-inner .milkdown pre code .token.tag,
+.editor-inner .milkdown pre code .token.property,
+.editor-inner .milkdown pre code .token.attr-name,
+.editor-inner .milkdown pre code .token.variable,
+.editor-inner .milkdown pre code .token.parameter {
   color: var(--code-property, var(--text-2));
 }
 
-.milkdown pre code .token.punctuation,
-.milkdown pre code .token.bracket {
+.editor-inner .milkdown pre code .token.punctuation,
+.editor-inner .milkdown pre code .token.bracket {
   color: var(--code-punctuation, var(--text-3));
 }
 
-.milkdown pre code .token.deleted {
+.editor-inner .milkdown pre code .token.deleted {
   color: var(--code-deleted, var(--danger));
 }

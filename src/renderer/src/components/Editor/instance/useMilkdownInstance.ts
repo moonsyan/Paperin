@@ -52,6 +52,10 @@ import { linkClickPlugin } from '../plugins/linkClick'
 import { mermaidPreviewPlugin } from '../plugins/mermaidCodeBlock'
 import { structuredCodePlugin } from '../plugins/structuredCodeBlock'
 import { configureCodeBlockRefractor } from '../plugins/syntaxHighlighting'
+import {
+  normalizeCodeLanguagePlugin,
+  remarkNormalizeCodeLanguage,
+} from '../plugins/normalizeCodeLanguage'
 import { mathEditablePlugin } from '../plugins/mathEditable'
 import { imagePlaceholderPlugin } from '../plugins/imagePlaceholder'
 import { markdownPastePlugin } from '../plugins/markdownPaste'
@@ -108,6 +112,10 @@ export const useMilkdownInstance = ({
             plugin: frontmatterRemarkPlugin,
             options: {},
           } as never)
+          ctx.get(remarkPluginsCtx).push({
+            plugin: remarkNormalizeCodeLanguage,
+            options: {},
+          } as never)
           ctx.set(prismConfig.key, {
             configureRefractor: configureCodeBlockRefractor,
           })
@@ -133,6 +141,8 @@ export const useMilkdownInstance = ({
         .use(listener)
         // 代码块语法高亮（保持轻量 pre>code 渲染）
         .use(prism)
+        // 围栏语言大小写/别名归一，确保 Prism includes 能命中
+        .use($prose(() => normalizeCodeLanguagePlugin))
         // KaTeX 必须在编辑器创建前注册；运行期 use() 不会执行插件初始化。
         .use(math)
         // 公式可编辑 NodeView：接管 math_inline / math_block 渲染，
