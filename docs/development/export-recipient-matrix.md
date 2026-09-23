@@ -1,6 +1,6 @@
 # 导出接收方兼容矩阵（P2-03 骨架）
 
-> 更新时间：2026-09-22。本文记录 Paperin **写出侧**已有预检/转换边界与**接收方软件**实测状态；不宣称 Word/PDF 阅读器/浏览器组合已全部验收。导出行为细节见 [export-formats](../export-formats.md)，能力总表见 [compatibility-matrix](../compatibility-matrix.md)。
+> 更新时间：2026-09-23。本文记录 Paperin **写出侧**已有预检/转换边界与**接收方软件**实测状态；不宣称 Word/PDF 阅读器/浏览器组合已全部验收。写出侧普通格式与资源包预检入口仍未完全对齐（审查 A07）。导出行为细节见 [export-formats](../export-formats.md)，能力总表见 [compatibility-matrix](../compatibility-matrix.md)，新鲜未验证项见 [PROJECT-STATUS](../PROJECT-STATUS.md)。
 
 ## 固定交付夹具（计划）
 

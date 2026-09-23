@@ -1,6 +1,6 @@
 # 文档会话与工作区领域模型
 
-核对日期：2026-09-22。以下记录当前实现；末节明确区分待实施迁移。行为入口见[文档标签生命周期](document-tab-lifecycle.md)。
+核对日期：2026-09-23。以下记录当前实现；末节标明已落地能力与仍存缺口。行为入口见[文档标签生命周期](document-tab-lifecycle.md)。
 
 ## 当前正文与保存模型
 
@@ -37,16 +37,17 @@ Main `WorkspaceStateStore` 是工作区状态文件的读写出口；Renderer �
 
 应用全局设置、草稿、版本历史、索引缓存位于应用私有数据目录，详见[隐私说明](../PRIVACY.md)。清除导航只清除查询与最近引用；删除来源关系为单独动作，不删除 Markdown。
 
-## 来源与索引的待实施边界
+## 来源与索引边界（2026-09-23）
 
 `documentSourceBaselines` 按引用文档维护来源 mtime；`legacySourceSnapshots` 为旧全局快照，归属未知。质量面板对当前文章评估基线，并提供「复核当前文章」（只更新该文基线；mtime 一致不等于人工复核正文）。`evaluateSourceHealth` 仍只依据 mtime 派生 current/changed/missing/unverified。
 
-| 任务 | 目标契约 | 迁移要求 |
+| 任务 | 目标契约 | 当前状态 |
 | --- | --- | --- |
-| P1-06 | 请求绑定工作区 epoch/记录版本，切库/清除/卸载使旧回包失效 | 两个入口仅凭实际插入成功登记；失败不回滚正文 |
-| P1-07 | 每篇引用文档独立来源基线与明确复核 | **已落地**：旧 `sourceSnapshots` → `legacySourceSnapshots`；未保存 citing 键不落盘 |
-| P0-07 | 正文解析与引用目标存在性分别失效 | 不改正文也反映目标变化；不原地修改已发布索引 |
-| P0-02 | Main-only 有界搜索语料 | 结构索引可缓存，正文语料不落盘；驱逐后安全回退并保留 coverage |
-| ~~P1-08~~ | 队列、订阅、cache writer 共用生命周期约束 | **已落地（2026-09-22）**：`lifecycleEpoch`、有界读取、schema/根校验、损坏重建 |
+| ~~P1-06~~ | 请求绑定工作区 epoch/记录版本，切库/清除/卸载使旧回包失效 | **能力已落地**；2026-09-23 另复现草稿/库外身份与异步 stat 归属缺陷（A02/A03） |
+| ~~P1-07~~ | 每篇引用文档独立来源基线与明确复核 | **已落地**：旧 `sourceSnapshots` → `legacySourceSnapshots`；未保存 citing 键不落盘 |
+| ~~P0-07~~ | 正文解析与引用目标存在性分别失效 | **已落地**（索引服务与 watcher 测试） |
+| ~~P0-02~~ | Main-only 有界搜索语料 | **已落地**：64/128 MiB 预算、fallback 与 coverage |
+| ~~P1-08~~ | 队列、订阅、cache writer 共用生命周期约束 | **已落地**：`lifecycleEpoch`、有界读取、schema/根校验、损坏重建 |
+| 路径迁移 | 改名/移动时重映射引用与来源路径 | **未接线**：`remapSourceTrackingPath` 无生产调用者（A08） |
 
-P1-07 已在 Shared DTO、Main store 与 Renderer 质量面板落地；P1-08 已在 Main 索引释放与磁盘缓存边界落地；P1-06/P0-07 等待实施计划中的其余条目。未来 schema 不能被旧代码静默覆写。详细文件与验收见[实施计划](superpowers/plans/2026-09-22-product-workflow-implementation.md)。
+已落地不等于可信闭环：身份模型与路径迁移须先收敛 A02/A03/A08。未来 schema 不能被旧代码静默覆写。详细文件见[实施计划](superpowers/plans/2026-09-22-product-workflow-implementation.md)；新鲜阻断见[项目状态](PROJECT-STATUS.md)。

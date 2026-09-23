@@ -1,12 +1,12 @@
 # 候选包与发行门禁验证记录
 
-更新时间：2026-09-22（Asia/Shanghai）
+更新时间：2026-09-23（Asia/Shanghai）
 当前执行分支：`master`
 用途：记录候选包先验收、再进入正式发行的工程门禁和安装证据。
 
-本轮全量文档核对不创建 tag、推送、上传安装器或触发发布。下文安装/发行记录保留原状态；来源异步隔离、逐篇基线、索引目标失效与缓存边界仍待 P0-07/P1-06/07/08 完成，自动门禁通过不能代替这些新增行为回归。
+本轮全量文档同步不创建 tag、推送、上传安装器或触发发布。P0-07/P1-06/07/08 与搜索语料能力已落地；当前阻塞为 A01–A10（含安装脚本骨架、默认测试装配失败、性能红灯）。自动门禁通过不能代替安装循环与真人验收。新鲜结果见 [PROJECT-STATUS](../PROJECT-STATUS.md) 与[审查证据](reviews/2026-09-23-product-state-audit.md)。
 
-> 当前状态不是“已发布”：`0.7.0` 候选 tag 只应生成 GitHub Draft Release。工作区路径授权、核心任务冒烟（来源查找、插入引用、保存重开、资源包导出）、许可/隐私/安全材料和生产依赖审计已经落地。Git `origin` 仍指向 Gitee `MingProject/FileHome`（日常推送镜像），另有 `github` 远端指向 `moonsyan/Paperin`；`package.json` 的 `repository`/`homepage`/`bugs` 与 `build.publish`、GitHub Actions 发布目标已对齐为 GitHub `moonsyan/Paperin`；已删除指向旧 `mk-editormkEditor` 的 `scripts/sync-gitee.js`，`validateReleaseIdentity` 门禁拒绝旧 Gitee 仓库名回流。**Draft/Release 在 GitHub 上的可达性仍为 UNVERIFIED**（本轮未 push tag、未跑 `gh release view`）；`build:win` 的本机安装/升级/卸载循环也未完成。当前未验证项见 [PROJECT-STATUS](../PROJECT-STATUS.md)。
+> 当前状态不是“已发布”：`0.7.0` 候选 tag 只应生成 GitHub Draft Release。工作区路径授权、核心任务冒烟、许可/隐私/安全材料已落地。GitHub 公开 [v0.6.0](https://github.com/moonsyan/Paperin/releases/tag/v0.6.0) 可核验；当前 0.7.0 Draft/安装循环仍为 **UNVERIFIED**。`origin` 仍可为 Gitee 镜像，另有 `github` 远端；`package.json` 发布目标对齐 `moonsyan/Paperin`。`release.yml` 中安装验收 job 仍为 `if: false`，正式发布不以安装证据为必要条件（A05）。
 
 ## 本任务已验证（工程门禁）
 
@@ -17,7 +17,7 @@
 | 正式发行显式门禁 | 仅 `workflow_dispatch` + `action=publish-formal` + `confirm_publish=PUBLISH` + `candidate_sha` 与 Draft Release commit 一致 → `gh release edit --draft=false` | **已配置** |
 | tag 推送自动正式发布 | 已移除：`push tags v*` 只走候选 draft，不 `draft: false` | **已阻断** |
 | 配置回归测试 | `release.yml` 缺 smoke 或 `draft: true` 被改成无条件正式发布时，`validateReleaseWorkflowGates` 失败（见单测） | **已通过** |
-| Windows 安装态脚本 | `scripts/verify-windows-install.mjs` + `scripts/verify-windows-install.test.mjs`；无 `--confirm-isolated-environment` 时仅 dry-run；`release.yml` 中 `installed-acceptance-win` 暂 `if: false` | **UNVERIFIED**（两隔离环境安装循环未实测） |
+| Windows 安装态脚本 | `scripts/verify-windows-install.mjs` + `scripts/verify-windows-install.test.mjs`；无 `--confirm-isolated-environment` 时仅 dry-run；`release.yml` 中 `installed-acceptance-win` 暂 `if: false` | **UNVERIFIED**（两隔离环境安装循环未实测；默认全量 `npm run test` 因 A10 shebang/Vite SSR 收集失败，不能用「安装单测绿」概括） |
 | 生产依赖审计 | 2026-09-22 `npm audit --omit=dev --audit-level=moderate` 为 0；`electron-updater` 间接依赖 `js-yaml` 由 4.3.1 升至 4.3.2。`validateProductionJsYaml` 拒绝生产树回退到 4.3.2 以下。dev 依赖漏洞未纳入本门禁 | **已处理生产 high** |
 | 仓库与发布身份 | 本地元数据与 `build.publish` 已对齐 GitHub `moonsyan/Paperin`；`origin` 仍为 Gitee + `github` 远端；旧 Gitee Release 同步脚本已移除 | **部分完成（P0-04 本地）**：Draft/Release 可达性 **UNVERIFIED**；未推送 tag、不触发正式发布 |
 
@@ -35,7 +35,7 @@
 
 | 项 | 状态 |
 | --- | --- |
-| 两个独立环境 × 每环境 3 次「安装 → 启动 → 文件关联 → 保存 → 卸载」 | **UNVERIFIED**（验收脚本与单测已就绪；`npx vitest run scripts/verify-windows-install.test.mjs` 通过不等于已安装） |
+| 两个独立环境 × 每环境 3 次「安装 → 启动 → 文件关联 → 保存 → 卸载」 | **UNVERIFIED**（验收脚本骨架已建立；默认全量测试收集该单测时因 A10 失败；通过也不等于已安装） |
 | 安装成功宣称 | **禁止** — 自动化仅覆盖 NSIS 参数、候选 exe 发现、超时/退出码与证据脱敏；真实循环须 `--confirm-isolated-environment` + 隔离环境 |
 
 ## 更新与数据保留场景
@@ -67,7 +67,7 @@
 | 安全响应渠道 | **已提供** | `SECURITY.md`：GitHub 私密安全公告；不要求公开用户文件、路径或 token。无另行公布的安全邮箱 |
 | 更新日志与贡献说明 | **0.7.0 已写入** | `CHANGELOG.md`、`CONTRIBUTING.md` 记录候选版本事实和当前贡献方式。安装循环仍为 UNVERIFIED，因此这不是正式公开发布 |
 
-当前代码事实：生产环境默认检查更新、自动下载并在退出时安装；`autoDownload` 与 `autoInstallOnAppQuit` 由 `shouldCheckForUpdates` / `shouldInstallUpdateOnQuit` 显式赋值，开发环境恒为 `false`。设置「自动检查更新」关闭后下次启动不调用更新服务器，也不在退出时安装已下载包。默认图片模式为本地附件；SM.MS token 经主进程 `safeStorage` 加密，渲染进程拿不到明文。拼写检查默认关闭，用户打开后 Electron 可能下载词典，不上传正文。正式隐私说明见仓库根目录 `PRIVACY.md`。
+当前代码事实：生产环境默认检查更新、自动下载并在退出时安装；`autoDownload` 与 `autoInstallOnAppQuit` 由 `shouldCheckForUpdates` / `shouldInstallUpdateOnQuit` 显式赋值，开发环境恒为 `false`。设置「自动检查更新」关闭后下次启动不调用更新服务器，也不在退出时安装已下载包。默认图片模式为本地附件；SM.MS token 经主进程 `safeStorage` 加密，渲染进程拿不到明文。拼写检查开关默认关闭；当前正文硬编码关闭，打开开关暂不产生正文效果，也尚未触发词典下载（A09）。正式隐私说明见仓库根目录 `PRIVACY.md`。
 
 ## Windows 候选记录
 

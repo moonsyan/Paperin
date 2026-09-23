@@ -1,17 +1,17 @@
 # Paperin 技术栈评估
 
-更新时间：2026-09-22（Asia/Shanghai）。当前实际版本以 `package.json` 为准：Electron 43、React 18.3、Vite 5.4、electron-vite 2.3、TypeScript 5.7、Vitest 2.1；本地与 CI 验证基线为 Node.js 22 LTS。下方升级建议仍是候选，不是已经完成的迁移。
+更新时间：2026-09-23（Asia/Shanghai）。当前实际版本以 `package.json` 为准：Electron 43、React 18.3、Vite 5.4、electron-vite 2.3、TypeScript 5.7、Vitest 2.1；**发行验证基线**为 Node.js 22 LTS，本机审查常用 Node 24.x 须分报，不得混称。下方升级建议仍是候选，不是已经完成的迁移。P0 文件安全、性能与 Windows 安装门禁仍有红灯/UNVERIFIED（见 [PROJECT-STATUS](PROJECT-STATUS.md)），完成前不把大版本升级写进主线。
 
 ## 结论
 
-建议继续使用 Electron + React + TypeScript。当前版本先冻结到已验证组合，待 P0 文件安全、性能、供应链和 Windows 候选发布门禁完成后，再单独评估 Electron、Node、Vite 或 React 的升级。不要为了追逐 Web 框架趋势而改用 Next.js、Tauri 或 React Native：这是本地优先桌面编辑器，文件系统、窗口、协议、原生对话框和跨平台打包是核心能力，Electron 的生态和现有代码资产更匹配。
+建议继续使用 Electron + React + TypeScript。当前版本先冻结到已验证组合，待路径/来源正确性、默认测试与性能门禁、Windows 候选安装证据收敛后，再单独评估 Electron、Node、Vite 或 React 的升级。不要为了追逐 Web 框架趋势而改用 Next.js、Tauri 或 React Native：这是本地优先桌面编辑器，文件系统、窗口、协议、原生对话框和跨平台打包是核心能力，Electron 的生态和现有代码资产更匹配。
 
 当前保留的组合（不是升级清单）：
 
 | 层 | 推荐 | 原因 |
 | --- | --- | --- |
 | 桌面容器 | 锁文件中的 Electron 43.x | 保留现有窗口、协议、更新和打包边界；升级另行验证 |
-| UI | React 18.3 | 不以 React 19 升级为本轮来源/索引修复前置条件 |
+| UI | React 18.3 | 不以 React 19 升级为本轮安全/来源/门禁修复前置条件 |
 | 语言 | TypeScript 5.x，strict | 已有类型基础，适合 IPC DTO、文档模型和编辑器扩展 |
 | 构建 | electron-vite + Vite | 与当前项目一致，开发反馈快，三进程配置清晰 |
 | 编辑器 | Milkdown 7 + ProseMirror | 已经覆盖 Markdown、GFM、数学、代码和 Mermaid。代码块整理使用 yaml 2.9；图表使用 Mermaid 11。保留 Markdown 往返能力 |

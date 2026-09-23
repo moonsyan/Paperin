@@ -2,6 +2,8 @@
 
 > 按任务逐项执行，使用复选框记录实际结果。遵守根目录 AGENTS.md；本计划不要求安装额外插件或启动子代理，不能把工具可用性当作已完成证据。
 
+> 2026-09-23 复审与全量文档同步：本文件保留原任务契约与复选框，**计划勾选不等于当前完成状态**；实际完成/红灯以 [PROJECT-STATUS](../../PROJECT-STATUS.md) 为准。P0-02/P0-07/P1-06/07/08 等能力已落地；新发现 A01–A10（含 A08 路径迁移、A09 可见契约、A10 测试/性能门禁）见[审查证据](../../development/reviews/2026-09-23-product-state-audit.md)，优先于新增功能。资料复用研究门槛不概括全部通用写作/知识整理用户，扩展路线以[最新战略](../../PRODUCT-STRATEGY-REVIEW-2026-09-23.md)为准。
+
 **Goal:** 把 Paperin 从工程化个人产品候选推进为可在 Windows 上可信安装、能让陌生用户独立完成“资料到可维护交付文档”的外部 Alpha，并为个人专业版、团队交付和企业评审建立证据门槛。
 
 **Architecture:** 保持 Renderer -> typed Preload -> Main -> Shared 边界，正文仍由 Milkdown/ProseMirror 和用户 Markdown 文件持有。近期代码集中在 Main 的搜索/索引复用、发行与安装验证、真实故障恢复、兼容夹具和脱敏支持摘要；用户研究结果决定产品增量，团队和企业能力不提前进入单机架构。
@@ -704,7 +706,7 @@ Expected: 取消不写文件，预检分支按文档执行；所有失败记录�
 **Files:**
 - Create after P1 exit: `docs/development/user-research/retention-cohort-2026-<month>.md`
 - Create after retention exit: `docs/development/user-research/paid-value-study-2026-<month>.md`
-- Modify: `docs/development/user-research/_index.md`, `docs/PROJECT-STATUS.md`, `docs/PRODUCT-STRATEGY-REVIEW-2026-09-22.md`
+- Modify: `docs/development/user-research/_index.md`, `docs/PROJECT-STATUS.md`, `docs/PRODUCT-STRATEGY-REVIEW-2026-09-23.md`
 
 **Interfaces:**
 - Consumes: 两批各至少 20 位激活用户；固定 day 7–13（W2）与 day 21–27（W4）窗口、有效成果和资料复用定义。

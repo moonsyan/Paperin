@@ -8,7 +8,9 @@
 
 ## 结论
 
-2026-09-22 文档同步不重新采集性能，也不修改本目录原始 JSON。当前红灯沿用同日已记录样本。P0-01 分段指标已在代码与 perf 脚本接线，但尚未用固定环境三轮写入本节新样本。P0-07 目标失效正确性已在 `workspace-index-resources` / `workspace-index-service` / `workspace-file-watcher` 测试落地（引用者不重读正文、附件事件触发重验）；下一步为 P0-02 有界语料 → P0-03 冷/暖与 coverage 验收。历史空闲样本对 I/O 的解释仅适用于当时批次，不能据此断定当前失败根因已解决。
+2026-09-23 复审再次执行 `npm run perf:production` 与 `npm run perf:regression`，均保持红灯；watcher 稳定 P95 两次约 9.7–9.9 秒，合成 tree/index/search 三项超阈值。详细数字见[审查证据 A10](reviews/2026-09-23-product-state-audit.md)。**本节原始 JSON 仍不改写**；当前判断以 PROJECT-STATUS 与该审查为准。
+
+2026-09-22 文档同步未重新采集性能，也不修改本目录原始 JSON。P0-01 分段指标、P0-02 有界语料、P0-03 冷/暖与 coverage、P0-07 目标失效正确性与 P1-08 缓存边界均已在代码与测试落地；下一步是对重复红灯做 profiling 与修复，**不得放宽阈值或用历史空闲绿灯替代**。历史空闲样本对 I/O 的解释仅适用于当时批次，不能据此断定当前失败根因。
 
 ### Main 搜索语料内存预算（P0-02，2026-09-22 冻结）
 

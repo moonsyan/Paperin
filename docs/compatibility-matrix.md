@@ -45,16 +45,16 @@
 
 总文件数未知时不展示百分比；跳过计数仅本地诊断，不进遥测。
 
-### 待实施的正确性与兼容门禁
+### 正确性与兼容门禁（含已落地与 UNVERIFIED）
 
-| 任务 | 未完成的边界 | 验收重点 |
+| 任务 | 边界 | 验收重点 |
 | --- | --- | --- |
 | ~~P0-02~~ | Main 搜索语料总预算 | **已落地（2026-09-22）**：64/128 MiB 预算、语料复用与 fallback |
-| P1-06/07 | 来源生命周期和逐篇关系 | 切库/清除/卸载旧回包不登记；A/B 文章基线不互相覆盖；旧记录归属未知 |
+| ~~P1-06/07~~ | 来源生命周期和逐篇关系 | **已落地（2026-09-22）**；2026-09-23 另见 A02/A03/A08 身份与路径缺口 |
 | ~~P1-08~~ | 索引释放与缓存 DTO | **已落地（2026-09-22）**：生命周期 epoch、有界读取、schema/根校验、损坏回退重建 |
-| ~~P1-02~~ / P2-03 | 来源工具与接收方软件矩阵 | **P1-02** 合成夹具、Vitest 与 `--compatibility` smoke 已落地；**P2-03** [export-recipient-matrix](development/export-recipient-matrix.md) 骨架已建立 | 真实导出版本与接收方阅读器打开仍 **UNVERIFIED** |
+| ~~P1-02~~ / P2-03 | 来源工具与接收方软件矩阵 | **P1-02** 合成夹具与 `--compatibility` smoke 已落地；**P2-03** [export-recipient-matrix](development/export-recipient-matrix.md) 骨架已建立；真实导出版本与接收方阅读器打开仍 **UNVERIFIED** |
 
-以上是计划，不改变当前 schema 或声明新增支持。详细任务见[实施计划](superpowers/plans/2026-09-22-product-workflow-implementation.md)。
+以上不改变当前 schema。计划勾选见[实施计划](superpowers/plans/2026-09-22-product-workflow-implementation.md)；新鲜红灯以 [PROJECT-STATUS](PROJECT-STATUS.md) 为准（默认 `npm run test` 当前 exit 1，性能门禁为红）。
 
 ## 基线命令
 
@@ -66,4 +66,4 @@ npm run build
 npm run smoke
 ```
 
-涉及性能、UI、发行或安装的变更还必须按 [2026-09-22 实施计划](superpowers/plans/2026-09-22-product-workflow-implementation.md)运行对应专项门禁，以上命令不能替代性能和安装证据。
+涉及性能、UI、发行或安装的变更还必须按实施计划运行专项门禁。以上命令清单是常规最小集，**不代表当前全部退出 0**；新鲜结果见 [PROJECT-STATUS](PROJECT-STATUS.md)。
