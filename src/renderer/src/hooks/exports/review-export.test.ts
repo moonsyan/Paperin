@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
-import { appendExportReminder, readExportSource, reviewExportMarkdown } from './review-export'
+import {
+  appendExportReminder,
+  directoryOfAbsolutePath,
+  readExportSource,
+  reviewExportMarkdown,
+  reviewExportMarkdownDocuments,
+} from './review-export'
 
 describe('reviewExportMarkdown', () => {
   it('空图片会阻止，且不调用确认', async () => {
@@ -53,6 +59,51 @@ describe('reviewExportMarkdown', () => {
     })
     expect(result).toEqual({ ok: true, reminder: null })
     expect(stat).not.toHaveBeenCalled()
+  })
+})
+
+describe('reviewExportMarkdownDocuments', () => {
+  it('多篇缺图只弹一次确认，取消则整批不通过', async () => {
+    const confirm = vi.fn(() => false)
+    const notify = vi.fn()
+    const result = await reviewExportMarkdownDocuments({
+      documents: [
+        { content: '![a](a.png)', directory: 'D:/notes/sub', label: '甲' },
+        { content: '![b](b.png)', directory: 'D:/notes/other', label: '乙' },
+      ],
+      stat: async () => ({ ok: false }),
+      notify,
+      confirm,
+    })
+    expect(result.ok).toBe(false)
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(confirm.mock.calls[0]?.[0]).toContain('甲')
+    expect(confirm.mock.calls[0]?.[0]).toContain('乙')
+  })
+
+  it('mdimg 目标不参与缺附件 stat（需先 toStoredImages）', async () => {
+    const stat = vi.fn(async () => ({ ok: false }))
+    const result = await reviewExportMarkdownDocuments({
+      documents: [
+        {
+          content: '![图](mdimg://D%3A%2Fnotes%2Fassets%2Fa.png)',
+          directory: 'D:/notes',
+          label: '演示',
+        },
+      ],
+      stat,
+      notify: () => {},
+      confirm: () => false,
+    })
+    expect(result.ok).toBe(true)
+    expect(stat).not.toHaveBeenCalled()
+  })
+})
+
+describe('directoryOfAbsolutePath', () => {
+  it('从绝对路径取文档目录', () => {
+    expect(directoryOfAbsolutePath('D:/notes/sub/a.md')).toBe('D:/notes/sub')
+    expect(directoryOfAbsolutePath('a.md')).toBeUndefined()
   })
 })
 

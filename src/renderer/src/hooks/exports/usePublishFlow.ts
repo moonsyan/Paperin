@@ -20,12 +20,18 @@ import {
   renderMarkdownToHtml,
   type CollectionEntry,
 } from '../../lib/document-collection'
+import { toStoredImages } from '../../lib/image-path'
 import type { createExportSession } from '../../lib/export-session'
 import {
   awaitRichContentForExport,
   runExclusiveExport,
 } from './useExportSession'
-import { readExportSource, reviewExportMarkdown } from './review-export'
+import {
+  directoryOfAbsolutePath,
+  readExportSource,
+  reviewExportMarkdown,
+  reviewExportMarkdownDocuments,
+} from './review-export'
 
 type ExportSession = ReturnType<typeof createExportSession>
 
@@ -39,6 +45,8 @@ type ExportSession = ReturnType<typeof createExportSession>
  * - 富文本复制不写文件，只走剪贴板，失败时回退 Markdown 纯文本。
  *
  * 写出前与 Markdown/HTML 共用 reviewExportMarkdown（空图、危险 URL、缺附件确认）。
+ * 单文档：富内容就绪后再预检，避免等待期间改链导致预检与写出不一致。
+ * 集合：按条目绝对路径取目录，预检用 toStoredImages（跳过 mdimg），缺附件一次确认。
  */
 export function usePublishFlow({
   editorRef,
@@ -71,19 +79,6 @@ export function usePublishFlow({
   const getDeliveryReportRef = useRef(getDeliveryReport)
   getDeliveryReportRef.current = getDeliveryReport
 
-  const reviewMarkdownContent = useCallback(
-    async (content: string, directory: string | undefined) => {
-      return reviewExportMarkdown({
-        content,
-        directory,
-        stat: window.desktopAPI ? (path) => window.desktopAPI!.document.stat(path) : null,
-        notify: setToast,
-        confirm: (message) => window.confirm(message),
-      })
-    },
-    [setToast],
-  )
-
   const reviewActiveDocument = useCallback(async () => {
     const fileId = activeFileIdRef.current
     const directory = dirOfFile(fileId)
@@ -92,8 +87,33 @@ export function usePublishFlow({
       fallback: contents[fileId] ?? '',
       directory,
     })
-    return reviewMarkdownContent(content, directory)
-  }, [activeFileIdRef, contents, dirOfFile, editorRef, reviewMarkdownContent])
+    return reviewExportMarkdown({
+      content,
+      directory,
+      stat: window.desktopAPI ? (path) => window.desktopAPI!.document.stat(path) : null,
+      notify: setToast,
+      confirm: (message) => window.confirm(message),
+    })
+  }, [activeFileIdRef, contents, dirOfFile, editorRef, setToast])
+
+  const reviewCollectionEntries = useCallback(
+    async (entries: CollectionEntry[]) => {
+      return reviewExportMarkdownDocuments({
+        documents: entries.map((entry) => {
+          const directory = directoryOfAbsolutePath(entry.path)
+          return {
+            content: toStoredImages(entry.content, directory),
+            directory,
+            label: entry.title,
+          }
+        }),
+        stat: window.desktopAPI ? (path) => window.desktopAPI!.document.stat(path) : null,
+        notify: setToast,
+        confirm: (message) => window.confirm(message),
+      })
+    },
+    [setToast],
+  )
 
   /** 发布：导出 HTML 资源包。目录选择独立进行——用户取消不产生任何写入。
    *  范围为目录/标签集合时由 resolveCollectionEntries 读盘收集并合并为单文档 */
@@ -106,7 +126,6 @@ export function usePublishFlow({
         try {
           let html: string
           if (scope.kind !== 'document') {
-            // 集合模式：不用编辑器 DOM 快照，直接按文档内容渲染合并
             if (!resolveCollectionEntries) {
               setToast('当前模式不支持集合导出')
               return
@@ -124,11 +143,8 @@ export function usePublishFlow({
               setToast('集合范围内没有可发布的文档')
               return
             }
-            for (const entry of entries) {
-              const directory = dirOfFile(entry.path)
-              const review = await reviewMarkdownContent(entry.content, directory)
-              if (!review.ok) return
-            }
+            const review = await reviewCollectionEntries(entries)
+            if (!review.ok) return
             const body = buildCollectionHtml(
               entries.map((entry) => ({ ...entry, content: renderMarkdownToHtml(entry.content) })),
             )
@@ -136,19 +152,18 @@ export function usePublishFlow({
               scope.kind === 'tag' ? `标签「${scope.tag}」合集` : '目录合集'
             html = await buildPublishedHtml(options, { body, title })
           } else {
-            const review = await reviewActiveDocument()
-            if (!review.ok) return
             setToast('导出中：等待公式/图表渲染…')
             if (!(await awaitRichContentForExport(editorRef, activeFileIdRef))) {
               setToast('导出期间切换了文档，已取消，请重新导出')
               return
             }
+            const review = await reviewActiveDocument()
+            if (!review.ok) return
             html = await buildPublishedHtml(options)
           }
           let finalHtml = html
           let assets: ExportAsset[] = []
           if (options.inlineImages) {
-            // 内联模式：单文件自包含，不写 assets/
             const { html: inlined, failed } = await inlineImagesInHtml(html)
             if (failed > 0) {
               setToast(`${failed} 张本地图片无法读取，已取消导出`)
@@ -160,7 +175,6 @@ export function usePublishFlow({
               const res = await window.desktopAPI!.document.readImageInline(src)
               return res?.ok ? res.data?.dataUrl ?? null : null
             })
-            // 缺失图片显式失败：不静默丢图，让用户修复后重试
             if (bundle.failedSources.length > 0) {
               setToast(`${bundle.failedSources.length} 张本地图片无法读取，已取消导出`)
               return
@@ -180,7 +194,6 @@ export function usePublishFlow({
           const sizeMb = (result.bytes / 1024 / 1024).toFixed(1)
           setToast(`资源包已导出（${result.assetCount} 张图片，共 ${sizeMb} MB）`)
         } catch (error) {
-          // ExportBundleError 携带体积/写入等具体信息，比兜底文案更有用
           if (error instanceof ExportBundleError) setToast(`导出失败：${error.message}`)
           else throw error
         }
@@ -189,13 +202,12 @@ export function usePublishFlow({
     [
       activeFileIdRef,
       buildPublishedHtml,
-      dirOfFile,
       editorRef,
       exportSessionRef,
       inlineImagesInHtml,
       resolveCollectionEntries,
       reviewActiveDocument,
-      reviewMarkdownContent,
+      reviewCollectionEntries,
       setToast,
     ],
   )
@@ -207,15 +219,14 @@ export function usePublishFlow({
       const session = exportSessionRef.current
       if (!session) return
       await runExclusiveExport(session, editorRef, setToast, '复制失败，请稍后重试', async () => {
-        const review = await reviewActiveDocument()
-        if (!review.ok) return
         setToast('复制中：等待公式/图表渲染…')
         if (!(await awaitRichContentForExport(editorRef, activeFileIdRef))) {
           setToast('复制期间切换了文档，已取消，请重新操作')
           return
         }
+        const review = await reviewActiveDocument()
+        if (!review.ok) return
         const html = await buildPublishedHtml(options)
-        // 粘贴环境通常会剥离外链样式：富文本始终内联图片
         const { html: inlined, failed } = await inlineImagesInHtml(html)
         if (failed > 0) {
           setToast(`${failed} 张本地图片无法读取，已取消复制`)
