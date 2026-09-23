@@ -1,4 +1,4 @@
-import type { CSSProperties, RefObject, Dispatch, SetStateAction } from 'react'
+import { useMemo, type CSSProperties, type RefObject, type Dispatch, type SetStateAction } from 'react'
 import { Sidebar } from '../components/Sidebar'
 import type { WorkspaceInfo, OpenFile } from '../components/Sidebar'
 import { ContextDock } from '../components/ContextDock'
@@ -14,6 +14,7 @@ import { DocumentPathbar } from '../components/DocumentPathbar'
 import type { DocumentPathKind } from '../components/DocumentPathbar'
 import { StartScreen } from '../components/StartScreen'
 import { DEMO_FILES, DEMO_TREE, DEFAULT_FILE_ID } from '../data/demo-files'
+import { toWorkspaceRelativePath } from '../lib/workspace-state'
 import type { WorkspaceIndex, DiagnosticRecord } from '../../../shared/workspace-index'
 import type { TypographyIssue } from '../lib/chinese-typography'
 import type { SearchBarHandlers } from './useEditorSearch'
@@ -204,6 +205,17 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
     hasWorkspace: workspace !== null,
   }
 
+  const continueRecent = useMemo(() => {
+    if (!workspace) return null
+    for (const file of recentFiles) {
+      const relative = toWorkspaceRelativePath(workspace.path, file.path, caseInsensitivePaths)
+      if (relative) {
+        return { path: file.path, label: relative.replace(/\\/g, '/') }
+      }
+    }
+    return null
+  }, [workspace, recentFiles, caseInsensitivePaths])
+
   // ContextDock 瞬时隐藏（窄窗口互斥）：副本改 visibility，不写回持久化状态
   const dockRenderState = contextDockVisible === false && contextDockState.visibility !== 'hidden'
     ? { ...contextDockState, visibility: 'hidden' as const }
@@ -314,7 +326,19 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
           )}
           <EditorMargin context={editorMarginContext} />
           {openFiles.length === 0 && (
-            <StartScreen onNew={onNew} onOpen={onOpen} onOpenFolder={onOpenFolder} hasWorkspace={workspace !== null} notices={workspaceCompatibilityNotes(workspaceIndex)} />
+            <StartScreen
+              onNew={onNew}
+              onOpen={onOpen}
+              onOpenFolder={onOpenFolder}
+              hasWorkspace={workspace !== null}
+              notices={workspaceCompatibilityNotes(workspaceIndex)}
+              continueRecentLabel={continueRecent?.label}
+              onContinueRecent={
+                continueRecent
+                  ? () => onSelectWorkspaceFile(continueRecent.path, false)
+                  : undefined
+              }
+            />
           )}
         </div>
       </div>
