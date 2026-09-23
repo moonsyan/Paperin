@@ -43,11 +43,11 @@ Main `WorkspaceStateStore` 是工作区状态文件的读写出口；Renderer �
 
 | 任务 | 目标契约 | 当前状态 |
 | --- | --- | --- |
-| ~~P1-06~~ | 请求绑定工作区 epoch/记录版本，切库/清除/卸载使旧回包失效 | **能力已落地**；2026-09-23 另复现草稿/库外身份与异步 stat 归属缺陷（A02/A03） |
-| ~~P1-07~~ | 每篇引用文档独立来源基线与明确复核 | **已落地**：旧 `sourceSnapshots` → `legacySourceSnapshots`；未保存 citing 键不落盘 |
+| ~~P1-06~~ | 请求绑定工作区 epoch/记录版本，切库/清除/卸载使旧回包失效 | **能力已落地**；A02/A03：显式保存映射，禁止切标签猜测迁移；晚到 stat 经映射归属 |
+| ~~P1-07~~ | 每篇引用文档独立来源基线与明确复核 | **已落地**：旧 `sourceSnapshots` → `legacySourceSnapshots`；未保存 citing 键不落盘；仅库内相对路径可持久 |
 | ~~P0-07~~ | 正文解析与引用目标存在性分别失效 | **已落地**（索引服务与 watcher 测试） |
 | ~~P0-02~~ | Main-only 有界搜索语料 | **已落地**：64/128 MiB 预算、fallback 与 coverage |
 | ~~P1-08~~ | 队列、订阅、cache writer 共用生命周期约束 | **已落地**：`lifecycleEpoch`、有界读取、schema/根校验、损坏重建 |
-| 路径迁移 | 改名/移动时重映射引用与来源路径 | **未接线**：`remapSourceTrackingPath` 无生产调用者（A08） |
+| 路径迁移 | 改名/移动时重映射引用与来源路径 | **已接线**：rename/move 调用 `remapSourceTrackingPath`（含目录前缀） |
 
-已落地不等于可信闭环：身份模型与路径迁移须先收敛 A02/A03/A08。未来 schema 不能被旧代码静默覆写。详细文件见[实施计划](superpowers/plans/2026-09-22-product-workflow-implementation.md)；新鲜阻断见[项目状态](PROJECT-STATUS.md)。
+A02/A03/A08 代码修复与永久回归已落地；来源健康在真人重定位与两设备观察前仍标 UNVERIFIED。未来 schema 不能被旧代码静默覆写。详细文件见[实施计划](superpowers/plans/2026-09-22-product-workflow-implementation.md)；新鲜阻断见[项目状态](PROJECT-STATUS.md)。

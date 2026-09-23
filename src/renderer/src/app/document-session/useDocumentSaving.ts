@@ -30,6 +30,12 @@ export interface UseDocumentSavingOptions {
   draftPendingRef: MutableRefObject<PendingDraft | null>
   /** 快照落账等待上限（T05）；仅测试注入以缩短等待，生产用默认 5s */
   snapshotSettleTimeoutMs?: number
+  /** 另存为/首次保存成功后通知来源身份迁移（previous → 新绝对路径）。 */
+  onDocumentPathCommitted?: (info: {
+    previousDocumentId: string
+    previousPath: string | undefined
+    nextPath: string
+  }) => void
 }
 
 export interface DocumentSavingApi {
@@ -54,6 +60,7 @@ export function useDocumentSaving({
   saveDraft,
   draftPendingRef,
   snapshotSettleTimeoutMs,
+  onDocumentPathCommitted,
 }: UseDocumentSavingOptions): DocumentSavingApi {
   const {
     activeFileId,
@@ -270,10 +277,20 @@ export function useDocumentSaving({
     if (retainUnsavedTarget) {
       void saveDraft(retainedTargetId, retainedTargetContent).catch(() => {})
       setToast('已覆盖目标文件，原未保存内容已保留为副本')
+      onDocumentPathCommitted?.({
+        previousDocumentId: oldId,
+        previousPath: targetPath,
+        nextPath: path,
+      })
       return
     }
     if (targetAlreadyOpen) setToast('已覆盖并切换到已打开的同名文件')
-  }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, activeSessionRef, beginSave, clearDraft, contents, contentsRef, contentHashRef, dirOfFile, draftPendingRef, editorRef, finishSave, mounted, openFilesRef, recordHistory, recordRecent, replaceEditorContent, saveDraft, savedMap, setActiveFileId, setContents, setContentHashMap, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, setToast, snapshotSettleTimeoutMs])
+    onDocumentPathCommitted?.({
+      previousDocumentId: oldId,
+      previousPath: targetPath,
+      nextPath: path,
+    })
+  }, [INITIAL_OR_SAVED, activeFileId, activeFileIdRef, activeSessionRef, beginSave, clearDraft, contents, contentsRef, contentHashRef, dirOfFile, draftPendingRef, editorRef, finishSave, mounted, onDocumentPathCommitted, openFilesRef, recordHistory, recordRecent, replaceEditorContent, saveDraft, savedMap, setActiveFileId, setContents, setContentHashMap, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, setToast, snapshotSettleTimeoutMs])
 
   const handleSave = useCallback(async () => {
     const file = openFiles.find((f) => f.id === activeFileId)

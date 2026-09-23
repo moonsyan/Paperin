@@ -25,6 +25,8 @@ export interface UseWorkspaceFilesOptions {
   /** 会话能力窄桥接（App 以 useMemo 从 useDocumentSession 公共 API 组装） */
   bridge: DocumentWorkspaceBridge
   setToast: Dispatch<SetStateAction<string>>
+  /** 改名/移动成功后同步来源基线路径 */
+  onWorkspacePathRemapped?: (oldAbsolutePath: string, newAbsolutePath: string) => void
 }
 
 /**
@@ -39,6 +41,7 @@ export function useWorkspaceFiles({
   openFiles,
   bridge,
   setToast,
+  onWorkspacePathRemapped,
 }: UseWorkspaceFilesOptions): {
   /** 文件操作返回是否真正完成（false = 冲突/失败已提示并中止），供控制器聚合结果 */
   handleCreateFile: (dirPath: string, name?: string) => Promise<boolean>
@@ -215,6 +218,7 @@ export function useWorkspaceFiles({
       }
       if (draftPendingRef.current?.id === srcId) draftPendingRef.current = null
       void clearDraft(srcId)
+      onWorkspacePathRemapped?.(path, newPath)
       await refreshWorkspace()
       return true
     },
@@ -239,6 +243,7 @@ export function useWorkspaceFiles({
       setEncodingMap,
       setActiveFileId,
       setDocTitle,
+      onWorkspacePathRemapped,
     ],
   )
 
@@ -344,8 +349,14 @@ export function useWorkspaceFiles({
 
   const handleMoveFile = useCallback(
     async (path: string, targetDir: string): Promise<boolean> =>
-      runWorkspaceMoveFile(path, targetDir, { openFiles, bridge, setToast, refreshWorkspace }),
-    [openFiles, bridge, setToast, refreshWorkspace],
+      runWorkspaceMoveFile(path, targetDir, {
+        openFiles,
+        bridge,
+        setToast,
+        refreshWorkspace,
+        onWorkspacePathRemapped,
+      }),
+    [openFiles, bridge, setToast, refreshWorkspace, onWorkspacePathRemapped],
   )
 
   /** 右键在新窗口打开文件（U7） */

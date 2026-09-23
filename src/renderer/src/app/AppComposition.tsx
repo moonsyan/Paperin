@@ -15,7 +15,7 @@ import { useSystemFileOpen } from '../hooks/useSystemFileOpen'
 import { useDocumentSessionPersistence } from '../hooks/useDocumentSessionPersistence'
 import type { PublishOptions, PublishScope } from '../lib/export-bundle'
 import { buildDeliveryReport } from '../lib/delivery-report'
-import { normalizeWorkspaceRelativePath } from '../../../shared/workspace-state'
+import { normalizeWorkspaceRelativePath, isEphemeralCitingDocumentKey, isPersistableCitingDocumentPath, remapSourceTrackingPath } from '../../../shared/workspace-state'
 import { resolveCitingDocumentKey } from '../lib/citing-document-key'
 import {
   buildReviewInputsFromIndex,
@@ -32,7 +32,6 @@ import {
   type SourceRelocationCandidate,
 } from '../lib/source-relocation'
 import { toWorkspaceRelativePath } from '../lib/workspace-state'
-import { isPersistableCitingDocumentPath } from '../../../shared/workspace-state'
 import {
   SourceRelocationCandidateDialog,
   SourceRelocationDialog,
@@ -144,6 +143,39 @@ export function AppComposition(): JSX.Element {
 
   // === 文档会话 ===
   const { recentFiles, setRecentFiles, recordRecent } = useRecentFiles(persistReady)
+  const commitCitingIdentityMigrationRef = useRef<(fromKey: string, toPath: string) => void>(() => {})
+  const handleDocumentPathCommitted = useCallback(
+    (info: {
+      previousDocumentId: string
+      previousPath: string | undefined
+      nextPath: string
+    }) => {
+      const workspacePath = workspacePathRef.current
+      if (!workspacePath) return
+      const caseInsensitive = window.desktopAPI?.platform === 'win32'
+      const fromKey = resolveCitingDocumentKey(
+        info.previousDocumentId,
+        info.previousPath,
+        workspacePath,
+        caseInsensitive,
+      )
+      const toKey = resolveCitingDocumentKey(
+        `file-${info.nextPath}`,
+        info.nextPath,
+        workspacePath,
+        caseInsensitive,
+      )
+      if (
+        fromKey
+        && toKey
+        && isEphemeralCitingDocumentKey(fromKey)
+        && isPersistableCitingDocumentPath(toKey)
+      ) {
+        commitCitingIdentityMigrationRef.current(fromKey, toKey)
+      }
+    },
+    [workspacePathRef],
+  )
   const {
     activeContent, activeFile, activeFileId, activeFileIdRef, clearDraft,
     contents, contentsRef, dirOfFile, docTitle, draftPendingRef, documents,
@@ -164,6 +196,7 @@ export function AppComposition(): JSX.Element {
     setContextDockState, setSearchCount, setSearchCurrent, setSearchMode,
     restoringWorkspaceRef: graphAutoActivateRef,
     draftSessionIdRef,
+    onDocumentPathCommitted: handleDocumentPathCommitted,
   })
 
   // === 设置 ===
@@ -232,6 +265,7 @@ export function AppComposition(): JSX.Element {
   const {
     rememberSourceAfterInsert,
     notifySourceRecordsCleared,
+    commitCitingIdentityMigration,
     ephemeralBaselines,
     readSourceRegistrationTicket,
     applySourceRelocation,
@@ -241,6 +275,7 @@ export function AppComposition(): JSX.Element {
     activeDocumentId: activeFileId,
     setWorkspaceSettings,
   })
+  commitCitingIdentityMigrationRef.current = commitCitingIdentityMigration
   const mergedDocumentBaselines = useMemo(
     () => [...workspaceSettings.editor.documentSourceBaselines, ...ephemeralBaselines],
     [ephemeralBaselines, workspaceSettings.editor.documentSourceBaselines],
@@ -449,8 +484,40 @@ export function AppComposition(): JSX.Element {
     setSavedMap, setFileMtime, setEncodingMap, setActiveFileId, setDocTitle,
   }), [INITIAL_OR_SAVED, activeFileIdRef, clearDraft, contentsRef, draftPendingRef, fileMtimeRef, flushEditorContent, handleOpenFolder, leaveCurrentDocument, openWorkspaceFile, liveContentOf, openFilesRef, replaceEditorContent, saveWithEncodingFallback, setActiveFileId, setContents, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap, switchFile])
 
+  const handleWorkspacePathRemapped = useCallback(
+    (oldAbsolutePath: string, newAbsolutePath: string) => {
+      const root = workspace?.path
+      if (!root) return
+      const caseInsensitive = window.desktopAPI?.platform === 'win32'
+      const oldRelative = toWorkspaceRelativePath(root, oldAbsolutePath, caseInsensitive)
+      const newRelative = toWorkspaceRelativePath(root, newAbsolutePath, caseInsensitive)
+      if (!oldRelative || !newRelative || oldRelative === newRelative) return
+      setWorkspaceSettings((current) => {
+        const remapped = remapSourceTrackingPath(
+          {
+            documentSourceBaselines: current.editor.documentSourceBaselines,
+            legacySourceSnapshots: current.editor.legacySourceSnapshots,
+          },
+          oldRelative,
+          newRelative,
+          caseInsensitive,
+        )
+        return {
+          ...current,
+          editor: {
+            ...current.editor,
+            documentSourceBaselines: remapped.documentSourceBaselines,
+            legacySourceSnapshots: remapped.legacySourceSnapshots,
+          },
+        }
+      })
+    },
+    [setWorkspaceSettings, workspace?.path],
+  )
+
   const { createFile: handleCreateFile, renameFile: handleRenameFile, moveFile: handleMoveFile, deleteFile: handleDeleteFile, openInNewWindow: handleOpenInNewWindow } = useWorkspaceController({
     workspace, openFiles, savedMap, fileMtime, bridge: workspaceFilesBridge, setToast, closeAllTabs: handleCloseAllTabs,
+    onWorkspacePathRemapped: handleWorkspacePathRemapped,
   })
 
   // === 导出 ===

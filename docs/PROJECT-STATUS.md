@@ -57,7 +57,7 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 | P0 | 补齐许可、隐私与 Windows 候选材料 | **材料已提交**：`LICENSE`、`THIRD-PARTY-NOTICES.md`、`PRIVACY.md`、`SECURITY.md` 与四类 Issue 模板；`validateReleaseMaterials` 拒绝缺文件。`scripts/verify-windows-install.mjs` 与单测已建立（dry-run/脱敏门禁）；Windows 两套隔离环境真实安装/升级/卸载循环仍为 **UNVERIFIED** |
 | P1 | 验证 15 分钟首次核心闭环 | **自动链路已完成**：`runCoreTaskSmoke` 按真实 UI 覆盖来源查找、插入引用、保存重开、资源包导出，`npm run smoke` 退出 0。无口头帮助的真人 15 分钟样本为 **UNVERIFIED** |
 | P1 | 完成两位现有用户任务记录 | 两周内每人至少 3 次真实任务，记录阻塞、成果和再次使用理由，不计算虚假留存率 |
-| P1 | 修复来源身份与路径迁移 A02/A03/A08 | 草稿/库外文件切换和异步 stat 已复现错误归属；应用内改名/移动未迁移来源元数据。统一身份模型并覆盖保存、切换、改名、移动、重开与导出 |
+| P1 | 修复来源身份与路径迁移 A02/A03/A08 | **已完成**：显式保存身份映射（禁止切标签猜测迁移）；晚到 stat 经映射归属；rename/move 接线 `remapSourceTrackingPath`（含目录前缀）；永久回归覆盖 |
 | P1 | 恢复默认测试门禁 A10 | 安装验收测试的可执行 `.mjs` 经 Vite SSR 转换后 shebang 落在模块中间；修复测试装配并执行全量回归 |
 | P1 | 日志脱敏与安装验收闭环 A05 | 主进程异常日志可能含路径；安装脚本 live 分支仍为骨架，正式发布未绑定安装证据 |
 | P1 | 监听故障可见降级 A04 | watcher 启动失败静默、语料命中分支缺新鲜度校验；需故障注入后再定用户可见行为 |

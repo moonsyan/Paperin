@@ -210,6 +210,12 @@ export const remapSourceTrackingPath = (
 
   const mapPath = (path: string): string => {
     if (workspaceRelativePathsEqual(path, oldPath, caseInsensitive)) return nextPath
+    const pathNorm = caseInsensitive ? path.toLowerCase() : path
+    const oldNorm = caseInsensitive ? oldPath.toLowerCase() : oldPath
+    const prefix = `${oldNorm}/`
+    if (pathNorm.startsWith(prefix)) {
+      return `${nextPath}${path.slice(oldPath.length)}`
+    }
     return path
   }
 

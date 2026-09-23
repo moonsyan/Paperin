@@ -40,4 +40,10 @@ export interface DocumentSessionOptions {
   restoringWorkspaceRef?: MutableRefObject<boolean>
   /** 启动加载后由 useAppSettings 写入本窗口草稿会话 id */
   draftSessionIdRef?: MutableRefObject<string | undefined>
+  /** 另存为/首次落盘后通知来源身份迁移 */
+  onDocumentPathCommitted?: (info: {
+    previousDocumentId: string
+    previousPath: string | undefined
+    nextPath: string
+  }) => void
 }

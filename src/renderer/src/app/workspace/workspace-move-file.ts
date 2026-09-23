@@ -8,6 +8,7 @@ export interface WorkspaceMoveFileDeps {
   bridge: DocumentWorkspaceBridge
   setToast: Dispatch<SetStateAction<string>>
   refreshWorkspace: () => Promise<void>
+  onWorkspacePathRemapped?: (oldAbsolutePath: string, newAbsolutePath: string) => void
 }
 
 /**
@@ -17,7 +18,7 @@ export interface WorkspaceMoveFileDeps {
 export async function runWorkspaceMoveFile(
   path: string,
   targetDir: string,
-  { openFiles, bridge, setToast, refreshWorkspace }: WorkspaceMoveFileDeps,
+  { openFiles, bridge, setToast, refreshWorkspace, onWorkspacePathRemapped }: WorkspaceMoveFileDeps,
 ): Promise<boolean> {
   if (!window.desktopAPI) return false
   const {
@@ -190,6 +191,7 @@ export async function runWorkspaceMoveFile(
     replaceEditorContent(nid, live, 'update')
   }
   setToast('已移动')
+  onWorkspacePathRemapped?.(path, newPath)
   await refreshWorkspace()
   return true
 }

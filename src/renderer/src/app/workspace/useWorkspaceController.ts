@@ -39,6 +39,8 @@ export interface UseWorkspaceControllerOptions {
   setToast: Dispatch<SetStateAction<string>>
   /** 关闭全部标签的会话编排（含未保存确认），close 使用 */
   closeAllTabs: () => void
+  /** 工作区内路径改名/移动成功后同步来源基线 */
+  onWorkspacePathRemapped?: (oldAbsolutePath: string, newAbsolutePath: string) => void
 }
 
 export function useWorkspaceController({
@@ -49,8 +51,17 @@ export function useWorkspaceController({
   bridge,
   setToast,
   closeAllTabs,
+  onWorkspacePathRemapped,
 }: UseWorkspaceControllerOptions): WorkspaceController {
-  const files = useWorkspaceFiles({ workspace, openFiles, savedMap, fileMtime, bridge, setToast })
+  const files = useWorkspaceFiles({
+    workspace,
+    openFiles,
+    savedMap,
+    fileMtime,
+    bridge,
+    setToast,
+    onWorkspacePathRemapped,
+  })
 
   // silent/preserveActiveTab 均为 false：open 是显式的"打开工作区"入口，
   // 允许按布局记录重放活动标签（首次打开场景），与增删改后的刷新路径区分

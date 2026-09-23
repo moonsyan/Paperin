@@ -155,6 +155,18 @@ describe('remapSourceTrackingPath', () => {
     expect(remapped.documentSourceBaselines[0]?.sourcePath).toBe('归档/s.md')
     expect(remapped.legacySourceSnapshots[0]?.path).toBe('归档/s.md')
   })
+
+  it('移动目录时同步更新前缀子路径', () => {
+    const slice = {
+      documentSourceBaselines: [
+        { citingDocumentPath: '文章/a.md', sourcePath: '资料/子/s.md', modifiedTime: 1 },
+      ],
+      legacySourceSnapshots: [{ path: '资料/子/s.md', modifiedTime: 2 }],
+    }
+    const remapped = remapSourceTrackingPath(slice, '资料', '归档', true)
+    expect(remapped.documentSourceBaselines[0]?.sourcePath).toBe('归档/子/s.md')
+    expect(remapped.legacySourceSnapshots[0]?.path).toBe('归档/子/s.md')
+  })
 })
 
 describe('clearAllSourceRelations', () => {

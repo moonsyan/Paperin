@@ -52,6 +52,7 @@ export function useDocumentSession({
   setSearchMode,
   restoringWorkspaceRef,
   draftSessionIdRef,
+  onDocumentPathCommitted,
 }: DocumentSessionOptions) {
   const documentState = useDocumentState()
   const {
@@ -191,6 +192,7 @@ export function useDocumentSession({
     clearDraft,
     saveDraft,
     draftPendingRef,
+    onDocumentPathCommitted,
   })
 
   /* ==================== 标签生命周期 ==================== */

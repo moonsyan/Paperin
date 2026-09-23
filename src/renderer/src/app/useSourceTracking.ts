@@ -4,7 +4,6 @@ import type { DocumentSourceBaseline, WorkspaceSettingsState } from '../../../sh
 import {
   isEphemeralCitingDocumentKey,
   isPersistableCitingDocumentPath,
-  rebindEphemeralCitingDocument,
   rememberDocumentSourceBaseline,
   relocateCitingDocumentSourceBaseline,
 } from '../../../shared/workspace-state'
@@ -32,6 +31,11 @@ export interface UseSourceTrackingReturn {
   rememberSourceAfterInsert: (absolutePath: string) => void
   /** 清除来源记录等操作后调用，使挂起的 stat 回包失效。 */
   notifySourceRecordsCleared: () => void
+  /**
+   * 首次保存/另存为到库内相对路径时显式登记身份迁移。
+   * 禁止用「临时→持久」切标签猜测（A02）；晚到的 stat 经此映射归属（A03）。
+   */
+  commitCitingIdentityMigration: (fromEphemeralKey: string, toRelativePath: string) => void
   /** 未保存文档在内存中的来源基线。 */
   ephemeralBaselines: DocumentSourceBaseline[]
   readSourceRegistrationTicket: () => SourceRegistrationTicket
@@ -45,18 +49,18 @@ export interface UseSourceTrackingReturn {
 export function useSourceTracking({
   workspacePath,
   citingDocumentKey,
-  activeDocumentId,
+  activeDocumentId: _activeDocumentId,
   setWorkspaceSettings,
 }: UseSourceTrackingOptions): UseSourceTrackingReturn {
   const workspaceEpochRef = useRef(0)
   const recordVersionRef = useRef(0)
-  const previousCitingKeyRef = useRef<string | null>(null)
+  const identityMigrationsRef = useRef(new Map<string, string>())
   const [ephemeralBaselines, setEphemeralBaselines] = useState<DocumentSourceBaseline[]>([])
 
   useEffect(() => {
     workspaceEpochRef.current += 1
     setEphemeralBaselines([])
-    previousCitingKeyRef.current = null
+    identityMigrationsRef.current = new Map()
   }, [workspacePath])
 
   useEffect(
@@ -65,49 +69,6 @@ export function useSourceTracking({
     },
     [],
   )
-
-  useEffect(() => {
-    const previous = previousCitingKeyRef.current
-    previousCitingKeyRef.current = citingDocumentKey
-    if (
-      !previous
-      || !citingDocumentKey
-      || !isEphemeralCitingDocumentKey(previous)
-      || !isPersistableCitingDocumentPath(citingDocumentKey)
-    ) {
-      return
-    }
-    setEphemeralBaselines((current) => {
-      const migrating = current.filter((item) => item.citingDocumentPath === previous)
-      if (migrating.length > 0) {
-        setWorkspaceSettings((settings) => ({
-          ...settings,
-          editor: {
-            ...settings.editor,
-            documentSourceBaselines: migrating.reduce(
-              (baselines, item) => rememberDocumentSourceBaseline(baselines, {
-                ...item,
-                citingDocumentPath: citingDocumentKey,
-              }),
-              settings.editor.documentSourceBaselines,
-            ),
-          },
-        }))
-      }
-      return current.filter((item) => item.citingDocumentPath !== previous)
-    })
-    setWorkspaceSettings((settings) => ({
-      ...settings,
-      editor: {
-        ...settings.editor,
-        documentSourceBaselines: rebindEphemeralCitingDocument(
-          settings.editor.documentSourceBaselines,
-          activeDocumentId,
-          citingDocumentKey,
-        ),
-      },
-    }))
-  }, [activeDocumentId, citingDocumentKey, setWorkspaceSettings])
 
   const readTicket = (): SourceRegistrationTicket => ({
     workspaceEpoch: workspaceEpochRef.current,
@@ -118,10 +79,48 @@ export function useSourceTracking({
     recordVersionRef.current += 1
   }, [])
 
+  const resolveCitingKeyForCallback = useCallback((insertKey: string): string => {
+    return identityMigrationsRef.current.get(insertKey) ?? insertKey
+  }, [])
+
+  const commitCitingIdentityMigration = useCallback(
+    (fromEphemeralKey: string, toRelativePath: string) => {
+      if (
+        !isEphemeralCitingDocumentKey(fromEphemeralKey)
+        || !isPersistableCitingDocumentPath(toRelativePath)
+      ) {
+        return
+      }
+      identityMigrationsRef.current.set(fromEphemeralKey, toRelativePath)
+      setEphemeralBaselines((current) => {
+        const migrating = current.filter((item) => item.citingDocumentPath === fromEphemeralKey)
+        if (migrating.length > 0) {
+          setWorkspaceSettings((settings) => ({
+            ...settings,
+            editor: {
+              ...settings.editor,
+              documentSourceBaselines: migrating.reduce(
+                (baselines, item) =>
+                  rememberDocumentSourceBaseline(baselines, {
+                    ...item,
+                    citingDocumentPath: toRelativePath,
+                  }),
+                settings.editor.documentSourceBaselines,
+              ),
+            },
+          }))
+        }
+        return current.filter((item) => item.citingDocumentPath !== fromEphemeralKey)
+      })
+    },
+    [setWorkspaceSettings],
+  )
+
   const rememberSourceAfterInsert = useCallback(
     (absolutePath: string) => {
       if (!workspacePath || !window.desktopAPI || !citingDocumentKey) return
       const ticket = readTicket()
+      const insertKey = citingDocumentKey
       const relative = toWorkspaceRelativePath(
         workspacePath,
         absolutePath,
@@ -135,29 +134,31 @@ export function useSourceTracking({
           if (!sourceRegistrationTicketMatches(ticket, readTicket())) return
           const modifiedTime = result.ok ? result.data?.modifiedTime : undefined
           if (typeof modifiedTime !== 'number') return
-          const baseline = {
-            citingDocumentPath: citingDocumentKey,
-            sourcePath: relative,
-            modifiedTime,
-          }
-          if (isPersistableCitingDocumentPath(citingDocumentKey)) {
+          const targetKey = resolveCitingKeyForCallback(insertKey)
+          if (isPersistableCitingDocumentPath(targetKey)) {
             setWorkspaceSettings((current) =>
               mergeDocumentSourceBaselineIntoSettings(
                 current,
-                citingDocumentKey,
+                targetKey,
                 relative,
                 modifiedTime,
               ),
             )
             return
           }
-          setEphemeralBaselines((current) => rememberDocumentSourceBaseline(current, baseline))
+          setEphemeralBaselines((current) =>
+            rememberDocumentSourceBaseline(current, {
+              citingDocumentPath: targetKey,
+              sourcePath: relative,
+              modifiedTime,
+            }),
+          )
         })
         .catch(() => {
           /* stat 失败静默跳过，不改正文、不抛未处理 rejection */
         })
     },
-    [citingDocumentKey, setWorkspaceSettings, workspacePath],
+    [citingDocumentKey, resolveCitingKeyForCallback, setWorkspaceSettings, workspacePath],
   )
 
   const applySourceRelocation = useCallback(
@@ -205,9 +206,9 @@ export function useSourceTracking({
   return {
     rememberSourceAfterInsert,
     notifySourceRecordsCleared,
+    commitCitingIdentityMigration,
     ephemeralBaselines,
     readSourceRegistrationTicket: readTicket,
     applySourceRelocation,
   }
 }
-
