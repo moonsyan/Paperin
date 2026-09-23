@@ -39,6 +39,11 @@ describe('verify-ci-config', () => {
       true,
     )
 
+    const noBuild = release.replace(/^[ \t]*- run: npm run build[ \t]*\r?\n/m, '')
+    expect(
+      validateReleaseWorkflowGates(noBuild).some((e) => e.includes('smoke 前执行 npm run build')),
+    ).toBe(true)
+
     const directPublish = release.replace('draft: true', 'draft: false')
     expect(validateReleaseWorkflowGates(directPublish).length).toBeGreaterThan(0)
   })

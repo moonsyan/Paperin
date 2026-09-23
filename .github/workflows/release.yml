@@ -71,6 +71,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # smoke 依赖 out/main/index.js；与 build.yml 一致，先构建再冒烟
+      - run: npm run build
       - run: npm run smoke
 
   build-win:

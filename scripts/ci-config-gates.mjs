@@ -80,6 +80,12 @@ export function validateReleaseWorkflowGates(content) {
   if (!hasSmokeStep) {
     errors.push('release.yml 的 candidate-acceptance job 缺少 npm run smoke（候选验收步骤）')
   }
+  const hasBuildBeforeSmoke =
+    acceptanceSection
+    && /npm run build[\s\S]*?- run: npm run smoke\s*$/m.test(acceptanceSection)
+  if (hasSmokeStep && !hasBuildBeforeSmoke) {
+    errors.push('release.yml 的 candidate-acceptance 须在 smoke 前执行 npm run build')
+  }
   if (!content.includes('candidate-release:')) {
     errors.push('release.yml 缺少 candidate-release job（候选 draft 发布）')
   }
