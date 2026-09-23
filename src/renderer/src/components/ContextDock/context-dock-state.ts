@@ -11,9 +11,9 @@ export interface ContextDockState {
   panel: ContextDockPanel
   width: number
   /**
-   * 轻量大纲形态（NEXT-UI-SPEC §5.2 / T13）：仅当活动面板为大纲时生效，
-   * 宽度钳制到 200–240px 的窄栏展示。是同一 dock 的呈现变化，
-   * 不创建第二套大纲状态、滚动监听或持久化机制。
+   * 轻量大纲形态（NEXT-UI-SPEC §5.2 / T13）：仅当活动面板为大纲时生效。
+   * 进入时收到建议窄栏（≤240）；可拖范围 200–420。呈现变化（藏字数等），
+   * 不创建第二套大纲状态。
    */
   compact: boolean
 }
@@ -25,9 +25,10 @@ export const DEFAULT_CONTEXT_DOCK_STATE: ContextDockState = {
   compact: false,
 }
 
-/** 轻量形态的宽度钳制范围 */
+/** 轻量形态默认窄栏；可拖下限仍为 200，上限与完整面板一致，避免顶在 240 时左拖无反馈 */
 export const MIN_COMPACT_WIDTH = 200
 export const MAX_COMPACT_WIDTH = 240
+export const DEFAULT_COMPACT_WIDTH = 220
 
 const CONTEXT_DOCK_VISIBILITIES: readonly ContextDockVisibility[] = [
   'expanded',
@@ -37,17 +38,30 @@ const CONTEXT_DOCK_VISIBILITIES: readonly ContextDockVisibility[] = [
 export const MIN_CONTEXT_DOCK_WIDTH = 260
 export const MAX_CONTEXT_DOCK_WIDTH = 420
 
-export const resizeContextDock = (state: ContextDockState, width: number): ContextDockState => ({
-  ...state,
-  width: Math.min(MAX_CONTEXT_DOCK_WIDTH, Math.max(MIN_CONTEXT_DOCK_WIDTH, Math.round(width))),
-})
+/** 当前形态下的可拖宽度上下限（轻量 200–420 / 完整 260–420） */
+export const getContextDockWidthBounds = (
+  compact: boolean,
+): { min: number; max: number } =>
+  compact
+    ? { min: MIN_COMPACT_WIDTH, max: MAX_CONTEXT_DOCK_WIDTH }
+    : { min: MIN_CONTEXT_DOCK_WIDTH, max: MAX_CONTEXT_DOCK_WIDTH }
+
+export const resizeContextDock = (state: ContextDockState, width: number): ContextDockState => {
+  const { min, max } = getContextDockWidthBounds(state.compact)
+  return {
+    ...state,
+    width: Math.min(max, Math.max(min, Math.round(width))),
+  }
+}
 
 const isContextDockVisibility = (value: unknown): value is ContextDockVisibility =>
   typeof value === 'string' && CONTEXT_DOCK_VISIBILITIES.includes(value as ContextDockVisibility)
 
-const clampWidth = (value: unknown): number => {
+const clampWidth = (value: unknown, compact: boolean): number => {
   if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_CONTEXT_DOCK_STATE.width
-  if (value < MIN_CONTEXT_DOCK_WIDTH || value > MAX_CONTEXT_DOCK_WIDTH) {
+  const min = compact ? MIN_COMPACT_WIDTH : MIN_CONTEXT_DOCK_WIDTH
+  const max = MAX_CONTEXT_DOCK_WIDTH
+  if (value < min || value > max) {
     return DEFAULT_CONTEXT_DOCK_STATE.width
   }
   return Math.round(value)
@@ -64,15 +78,23 @@ export const parseContextDockState = (value: unknown): ContextDockState => {
     : DEFAULT_CONTEXT_DOCK_STATE.visibility
   // 旧 schema 无 compact 字段：缺省 false（完整形态），向后兼容
   const compact = source.compact === true
-  return { visibility, panel, width: clampWidth(source.width), compact }
+  return { visibility, panel, width: clampWidth(source.width, compact), compact }
 }
 
 /** 切换轻量/完整形态（仅大纲面板时有意义） */
-export const setDockCompact = (state: ContextDockState, compact: boolean): ContextDockState => ({
-  ...state,
-  compact,
-})
-
+export const setDockCompact = (state: ContextDockState, compact: boolean): ContextDockState => {
+  if (compact) {
+    // 进入轻量：宽于建议窄栏时收到 240，左右都有可拖余量；已在窄栏内则保持
+    let width = state.width
+    if (width > MAX_COMPACT_WIDTH) width = MAX_COMPACT_WIDTH
+    if (width < MIN_COMPACT_WIDTH) width = DEFAULT_COMPACT_WIDTH
+    return { ...state, compact: true, width }
+  }
+  if (state.width < MIN_CONTEXT_DOCK_WIDTH) {
+    return { ...state, compact: false, width: MIN_CONTEXT_DOCK_WIDTH }
+  }
+  return { ...state, compact: false }
+}
 export const selectContextPanel = (
   state: ContextDockState,
   panel: ContextDockPanel,

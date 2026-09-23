@@ -91,15 +91,39 @@ describe('ContextDock compact（轻量大纲形态，T13）', () => {
     expect(parsed.compact).toBe(true)
   })
 
-  it('setDockCompact 切换形态且不改动其他字段', () => {
-    const next = setDockCompact(DEFAULT_CONTEXT_DOCK_STATE, true)
-    expect(next).toEqual({ ...DEFAULT_CONTEXT_DOCK_STATE, compact: true })
-    expect(setDockCompact(next, false).compact).toBe(false)
+  it('持久化 compact 宽度允许 200–420', () => {
+    expect(
+      parseContextDockState({ visibility: 'expanded', panel: 'outline', width: 220, compact: true }),
+    ).toMatchObject({ width: 220, compact: true })
+    expect(
+      parseContextDockState({ visibility: 'expanded', panel: 'outline', width: 312, compact: true }),
+    ).toMatchObject({ width: 312, compact: true })
   })
 
-  it('compact 与宽度互相独立：resize 不改形态，切换不改宽度', () => {
-    const compacted = setDockCompact(resizeContextDock(DEFAULT_CONTEXT_DOCK_STATE, 380), true)
-    expect(compacted.width).toBe(380)
-    expect(setDockCompact(compacted, false).width).toBe(380)
+  it('进入轻量时宽于建议窄栏则收到 240', () => {
+    const next = setDockCompact(DEFAULT_CONTEXT_DOCK_STATE, true)
+    expect(next).toEqual({ ...DEFAULT_CONTEXT_DOCK_STATE, compact: true, width: 240 })
+    expect(setDockCompact(next, false)).toEqual({ ...DEFAULT_CONTEXT_DOCK_STATE, width: 260 })
+  })
+
+  it('进入轻量时已在窄栏内则保持宽度', () => {
+    const narrow = { ...DEFAULT_CONTEXT_DOCK_STATE, width: 220 }
+    expect(setDockCompact(narrow, true)).toEqual({ ...narrow, compact: true, width: 220 })
+  })
+
+  it('compact 下拖拽下限 200、上限与完整面板同为 420', () => {
+    const compactState = { ...DEFAULT_CONTEXT_DOCK_STATE, compact: true, width: 240 }
+    expect(resizeContextDock(compactState, 100)).toMatchObject({ width: 200, compact: true })
+    expect(resizeContextDock(compactState, 999)).toMatchObject({ width: 420, compact: true })
+    expect(resizeContextDock(compactState, 220.4)).toMatchObject({ width: 220, compact: true })
+  })
+
+  it('退出 compact 时若宽度低于完整面板下限则抬到 260', () => {
+    const narrow = { ...DEFAULT_CONTEXT_DOCK_STATE, compact: true, width: 220 }
+    expect(setDockCompact(narrow, false)).toEqual({
+      ...DEFAULT_CONTEXT_DOCK_STATE,
+      compact: false,
+      width: 260,
+    })
   })
 })

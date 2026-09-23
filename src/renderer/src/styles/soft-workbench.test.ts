@@ -24,4 +24,12 @@ describe('Soft Workbench production skin', () => {
     expect(stylesheet).toContain('color: var(--text-1)')
     expect(stylesheet).toContain('box-shadow: inset 3px 0 0 var(--accent)')
   })
+
+  it('does not cap context-dock width below the resize contract', () => {
+    // soft-workbench 曾写 min(var(--context-dock-w), 300px)，状态可到 420
+    // 但视觉卡在 300，拖左边框看起来完全无效
+    expect(stylesheet).not.toMatch(
+      /\.context-dock\s*\{[^}]*min\(\s*var\(--context-dock-w[^)]*\),\s*300px\s*\)/s,
+    )
+  })
 })

@@ -318,8 +318,8 @@ button.menu-item-more {
 }
 
 .context-dock {
-  width: min(var(--context-dock-w, 312px), 300px);
-  min-width: min(var(--context-dock-w, 312px), 300px);
+  /* 宽度只跟 --context-dock-w（拖拽 260–420）走；禁止再 min(..., 300px)
+   * 封顶，否则状态宽度变了、视觉不变，表现为「右侧面板拖不动」。 */
   background: var(--bg-sidebar);
   border-left-color: color-mix(in srgb, var(--border) 88%, transparent);
 }

@@ -229,13 +229,15 @@ export function AppComposition(): JSX.Element {
   /** dock 状态更新统一出口：窄窗口下 dock 展开 → 侧栏抽屉退出（互斥） */
   const handleDockStateChange = useCallback<Dispatch<SetStateAction<typeof contextDockState>>>(
     (update) => {
-      const next = typeof update === 'function' ? update(contextDockState) : update
-      if (next.visibility === 'expanded' && contextDockState.visibility !== 'expanded') {
-        notifyDockOpened()
-      }
-      setContextDockState(next)
+      setContextDockState((current) => {
+        const next = typeof update === 'function' ? update(current) : update
+        if (next.visibility === 'expanded' && current.visibility !== 'expanded') {
+          notifyDockOpened()
+        }
+        return next
+      })
     },
-    [contextDockState, notifyDockOpened, setContextDockState],
+    [notifyDockOpened, setContextDockState],
   )
 
   // === 工作区索引 ===

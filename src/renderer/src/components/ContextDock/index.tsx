@@ -3,7 +3,7 @@ import type {
   CSSProperties,
   Dispatch,
   KeyboardEvent as ReactKeyboardEvent,
-  PointerEvent as ReactPointerEvent,
+  MouseEvent as ReactMouseEvent,
   SetStateAction,
 } from 'react'
 
@@ -14,10 +14,7 @@ import {
   isRenderableContextDockPanel,
 } from './ContextDockPanels'
 import {
-  MAX_CONTEXT_DOCK_WIDTH,
-  MAX_COMPACT_WIDTH,
-  MIN_CONTEXT_DOCK_WIDTH,
-  MIN_COMPACT_WIDTH,
+  getContextDockWidthBounds,
   hideContextDock,
   resizeContextDock,
   restoreContextDock,
@@ -59,12 +56,10 @@ export function ContextDock({
     .filter(isRenderableContextDockPanel)
   const activePanel = panels.find((panel) => panel.id === state.panel) ?? panels[0]
   const effectivelyCollapsed = collapsed || panels.length === 0
-  // 轻量大纲形态：仅大纲面板生效；宽度钳制到窄栏范围（用户宽度保留，
-  // 退出 compact 后恢复原值）
+  // 轻量大纲：展示与拖拽共用 state.width（进入时收到建议窄栏，之后可拖到 420）
   const compact = state.compact === true && activePanel?.id === 'outline'
-  const effectiveWidth = compact
-    ? Math.min(MAX_COMPACT_WIDTH, Math.max(MIN_COMPACT_WIDTH, state.width))
-    : state.width
+  const { min: widthMin, max: widthMax } = getContextDockWidthBounds(compact)
+  const effectiveWidth = Math.min(widthMax, Math.max(widthMin, state.width))
 
   useEffect(() => () => {
     resizeCleanupRef.current?.()
@@ -75,41 +70,49 @@ export function ContextDock({
     onStateChange((current) => selectContextPanel(current, panel))
   }
 
-  const handleResizeStart = (event: ReactPointerEvent<HTMLDivElement>): void => {
-    if (hidden) return
+  const handleResizeStart = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    if (hidden || event.button !== 0) return
     event.preventDefault()
     resizeCleanupRef.current?.()
     const startX = event.clientX
-    const startWidth = state.width
+    const startWidth = effectiveWidth
+    const dock = event.currentTarget.closest('.context-dock')
     const previousCursor = document.body.style.cursor
     const previousUserSelect = document.body.style.userSelect
-    const handleMove = (moveEvent: PointerEvent): void => {
-      onStateChange((current) => resizeContextDock(current, startWidth - (moveEvent.clientX - startX)))
+    const handleMove = (moveEvent: MouseEvent): void => {
+      if (!Number.isFinite(moveEvent.clientX)) return
+      onStateChange((current) => {
+        const next = resizeContextDock({ ...current, compact }, startWidth - (moveEvent.clientX - startX))
+        return { ...next, compact: current.compact }
+      })
     }
     const cleanup = (): void => {
-      document.removeEventListener('pointermove', handleMove)
-      document.removeEventListener('pointerup', handleEnd)
-      document.removeEventListener('pointercancel', handleEnd)
+      document.removeEventListener('mousemove', handleMove)
+      document.removeEventListener('mouseup', handleEnd)
       document.body.style.cursor = previousCursor
       document.body.style.userSelect = previousUserSelect
+      dock?.classList.remove('context-dock-resizing')
     }
     const handleEnd = (): void => {
       cleanup()
       if (resizeCleanupRef.current === cleanup) resizeCleanupRef.current = null
     }
+    dock?.classList.add('context-dock-resizing')
     document.body.style.cursor = 'col-resize'
     document.body.style.userSelect = 'none'
     resizeCleanupRef.current = cleanup
-    document.addEventListener('pointermove', handleMove)
-    document.addEventListener('pointerup', handleEnd)
-    document.addEventListener('pointercancel', handleEnd)
+    document.addEventListener('mousemove', handleMove)
+    document.addEventListener('mouseup', handleEnd)
   }
 
   const handleResizeKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
     event.preventDefault()
     const delta = event.key === 'ArrowLeft' ? 16 : -16
-    onStateChange((current) => resizeContextDock(current, current.width + delta))
+    onStateChange((current) => {
+      const next = resizeContextDock({ ...current, compact }, effectiveWidth + delta)
+      return { ...next, compact: current.compact }
+    })
   }
 
   const handleContentKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
@@ -140,11 +143,11 @@ export function ContextDock({
           role="separator"
           aria-orientation="vertical"
           aria-label="调整上下文面板宽度"
-          aria-valuemin={MIN_CONTEXT_DOCK_WIDTH}
-          aria-valuemax={compact ? MAX_COMPACT_WIDTH : MAX_CONTEXT_DOCK_WIDTH}
+          aria-valuemin={widthMin}
+          aria-valuemax={widthMax}
           aria-valuenow={effectiveWidth}
           tabIndex={0}
-          onPointerDown={handleResizeStart}
+          onMouseDown={handleResizeStart}
           onKeyDown={handleResizeKeyDown}
         />
       )}

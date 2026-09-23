@@ -26,6 +26,16 @@ const renderDock = (state = DEFAULT_CONTEXT_DOCK_STATE) => {
   return { ...view, onStateChange }
 }
 
+/** jsdom 下为 document 级拖拽注入可靠 clientX */
+const dispatchMouseMove = (clientX: number): void => {
+  const event = new MouseEvent('mousemove', { clientX, bubbles: true })
+  document.dispatchEvent(event)
+}
+
+const dispatchMouseUp = (): void => {
+  document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+}
+
 describe('ContextDock', () => {
   beforeEach(() => {
     cleanup()
@@ -192,7 +202,7 @@ describe('ContextDock', () => {
     expect(screen.getByRole('button', { name: '隐藏上下文面板' })).toBeTruthy()
   })
 
-  it('cleans resize listeners and body styles on pointer cancellation and unmount', () => {
+  it('cleans resize listeners and body styles on mouseup and unmount', () => {
     document.body.style.cursor = 'wait'
     document.body.style.userSelect = 'text'
     const { onStateChange, unmount } = renderDock()
@@ -201,23 +211,90 @@ describe('ContextDock', () => {
     expect(separator.getAttribute('aria-valuemax')).toBe('420')
     expect(separator.getAttribute('aria-valuenow')).toBe('312')
 
-    fireEvent.pointerDown(separator, { clientX: 400 })
-    fireEvent.pointerMove(document, { clientX: 384 })
+    fireEvent.mouseDown(separator, { clientX: 400, button: 0 })
+    dispatchMouseMove(384)
     expect(onStateChange).toHaveBeenCalledTimes(1)
-    fireEvent.pointerCancel(document)
+    dispatchMouseUp()
     expect(document.body.style.cursor).toBe('wait')
     expect(document.body.style.userSelect).toBe('text')
-    fireEvent.pointerMove(document, { clientX: 360 })
+    dispatchMouseMove(360)
     expect(onStateChange).toHaveBeenCalledTimes(1)
 
-    fireEvent.pointerDown(separator, { clientX: 400 })
-    fireEvent.pointerMove(document, { clientX: 384 })
+    fireEvent.mouseDown(separator, { clientX: 400, button: 0 })
+    dispatchMouseMove(384)
     expect(onStateChange).toHaveBeenCalledTimes(2)
     unmount()
     expect(document.body.style.cursor).toBe('wait')
     expect(document.body.style.userSelect).toBe('text')
-    fireEvent.pointerMove(document, { clientX: 360 })
+    dispatchMouseMove(360)
     expect(onStateChange).toHaveBeenCalledTimes(2)
+  })
+
+  it('widens when dragging the separator left and shrinks when dragging right', () => {
+    const { onStateChange } = renderDock()
+    const separator = screen.getByRole('separator', { name: '调整上下文面板宽度' })
+
+    fireEvent.mouseDown(separator, { clientX: 800, button: 0 })
+    dispatchMouseMove(760)
+    const widen = onStateChange.mock.calls[0][0] as (
+      state: typeof DEFAULT_CONTEXT_DOCK_STATE,
+    ) => typeof DEFAULT_CONTEXT_DOCK_STATE
+    expect(widen(DEFAULT_CONTEXT_DOCK_STATE).width).toBe(352)
+
+    dispatchMouseUp()
+    onStateChange.mockClear()
+
+    fireEvent.mouseDown(separator, { clientX: 800, button: 0 })
+    dispatchMouseMove(840)
+    const shrink = onStateChange.mock.calls[0][0] as (
+      state: typeof DEFAULT_CONTEXT_DOCK_STATE,
+    ) => typeof DEFAULT_CONTEXT_DOCK_STATE
+    expect(shrink(DEFAULT_CONTEXT_DOCK_STATE).width).toBe(272)
+  })
+
+  it('轻量大纲下以有效宽度为起点，可向两侧拖过原 240 上限', () => {
+    const compactState = { ...DEFAULT_CONTEXT_DOCK_STATE, compact: true, width: 240 }
+    const { onStateChange } = renderDock(compactState)
+    const separator = screen.getByRole('separator', { name: '调整上下文面板宽度' })
+    expect(separator.getAttribute('aria-valuemin')).toBe('200')
+    expect(separator.getAttribute('aria-valuemax')).toBe('420')
+    expect(separator.getAttribute('aria-valuenow')).toBe('240')
+
+    fireEvent.mouseDown(separator, { clientX: 800, button: 0 })
+    dispatchMouseMove(820)
+    const shrink = onStateChange.mock.calls[0][0] as (
+      state: typeof DEFAULT_CONTEXT_DOCK_STATE,
+    ) => typeof DEFAULT_CONTEXT_DOCK_STATE
+    expect(shrink(compactState).width).toBe(220)
+
+    dispatchMouseUp()
+    onStateChange.mockClear()
+
+    fireEvent.mouseDown(separator, { clientX: 800, button: 0 })
+    dispatchMouseMove(760)
+    const widen = onStateChange.mock.calls[0][0] as (
+      state: typeof DEFAULT_CONTEXT_DOCK_STATE,
+    ) => typeof DEFAULT_CONTEXT_DOCK_STATE
+    expect(widen(compactState).width).toBe(280)
+  })
+
+  it('轻量大纲下键盘调宽以有效宽度为基线', () => {
+    const compactState = { ...DEFAULT_CONTEXT_DOCK_STATE, compact: true, width: 240 }
+    const { onStateChange } = renderDock(compactState)
+    const separator = screen.getByRole('separator', { name: '调整上下文面板宽度' })
+
+    fireEvent.keyDown(separator, { key: 'ArrowRight' })
+    const shrink = onStateChange.mock.calls[0][0] as (
+      state: typeof DEFAULT_CONTEXT_DOCK_STATE,
+    ) => typeof DEFAULT_CONTEXT_DOCK_STATE
+    expect(shrink(compactState).width).toBe(224)
+
+    onStateChange.mockClear()
+    fireEvent.keyDown(separator, { key: 'ArrowLeft' })
+    const widen = onStateChange.mock.calls[0][0] as (
+      state: typeof DEFAULT_CONTEXT_DOCK_STATE,
+    ) => typeof DEFAULT_CONTEXT_DOCK_STATE
+    expect(widen(compactState).width).toBe(256)
   })
 
   it('collapses on Escape and restores focus to the active panel button', () => {
