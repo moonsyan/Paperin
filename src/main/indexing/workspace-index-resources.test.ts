@@ -3,6 +3,7 @@ import { performance } from 'perf_hooks'
 import { parseDocumentIndex } from './document-index-parser'
 import {
   buildResourceDependencyIndex,
+  buildResourceLookupIndexes,
   collectDocumentsAffectedByChanges,
   refreshDocumentResources,
 } from './workspace-index-resources'
@@ -91,17 +92,17 @@ describe('workspace-index-resources', () => {
       })
     }
     const paths = Object.keys(documents)
-    const index = buildResourceDependencyIndex(documents)
+    const indexes = buildResourceLookupIndexes('D:/notes', documents)
     const started = performance.now()
     const affected = collectDocumentsAffectedByChanges(
       'D:/notes',
       documents,
-      index,
+      indexes.dependency,
       { kind: 'changes', markdownPaths: paths, resourcePaths: [] },
+      { wikiStem: indexes.wikiStem, relativeTarget: indexes.relativeTarget },
     )
     const elapsed = performance.now() - started
     expect(affected.size).toBe(0)
-    // 旧实现约 7s+；索引查找应远低于 1s（留余量给 CI）
     expect(elapsed).toBeLessThan(1000)
   })
 

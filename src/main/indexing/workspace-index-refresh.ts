@@ -1,6 +1,6 @@
 import { parseDocumentIndex } from './document-index-parser'
 import {
-  buildResourceDependencyIndex,
+  buildResourceLookupIndexes,
   collectDocumentsAffectedByChanges,
   refreshDocumentResources,
   type WorkspaceIndexInvalidation,
@@ -144,12 +144,13 @@ export const runWorkspaceIndexRefresh = async (
       markWorkspaceCoverageIncomplete(coverage)
       coverage.skipped['file-budget'] += files.length - MAX_FILES
     }
-    const dependencyIndex = buildResourceDependencyIndex(state.documents)
+    const lookupIndexes = buildResourceLookupIndexes(root, state.documents)
     const resourceRevalidate = collectDocumentsAffectedByChanges(
       root,
       state.documents,
-      dependencyIndex,
+      lookupIndexes.dependency,
       invalidation,
+      { wikiStem: lookupIndexes.wikiStem, relativeTarget: lookupIndexes.relativeTarget },
     )
     const documents: Record<string, IndexedDocument> = {}
     const diagnostics: DiagnosticRecord[] = []

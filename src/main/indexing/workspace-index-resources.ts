@@ -12,25 +12,10 @@ export type WorkspaceIndexInvalidation =
   | { kind: 'rescan'; reason: 'directory' | 'unknown' }
   | { kind: 'changes'; markdownPaths: readonly string[]; resourcePaths: readonly string[] }
 
-export const buildResourceDependencyIndex = (
-  documents: Record<string, IndexedDocument>,
-): ResourceDependencyIndex => {
-  const index: ResourceDependencyIndex = new Map()
-  const add = (resourcePath: string, sourcePath: string): void => {
-    const key = normalizeResourceKey(resourcePath)
-    const set = index.get(key)
-    if (set) set.add(sourcePath)
-    else index.set(key, new Set([sourcePath]))
-  }
-  for (const document of Object.values(documents)) {
-    for (const link of document.outgoingLinks) {
-      if (link.resolvedPath) add(link.resolvedPath, document.path)
-    }
-    for (const ref of document.imageRefs) {
-      if (ref.resolvedPath) add(ref.resolvedPath, document.path)
-    }
-  }
-  return index
+export interface ResourceLookupIndexes {
+  dependency: ResourceDependencyIndex
+  wikiStem: Map<string, Set<string>>
+  relativeTarget: Map<string, Set<string>>
 }
 
 const relativeCandidateKey = (root: string, sourcePath: string, target: string): string | null => {
@@ -42,50 +27,52 @@ const relativeCandidateKey = (root: string, sourcePath: string, target: string):
   return normalizeResourceKey(candidate)
 }
 
-/** Wiki 茎（小写）→ 引用该茎的文档路径 */
-const buildWikiStemIndex = (
-  documents: Record<string, IndexedDocument>,
-): Map<string, Set<string>> => {
-  const index = new Map<string, Set<string>>()
-  for (const document of Object.values(documents)) {
-    for (const link of document.outgoingLinks) {
-      if (link.kind !== 'wiki') continue
-      const stem = link.target.trim().toLowerCase()
-      if (!stem) continue
-      const set = index.get(stem)
-      if (set) set.add(document.path)
-      else index.set(stem, new Set([document.path]))
-    }
-  }
-  return index
+const addToIndex = (index: Map<string, Set<string>>, key: string, sourcePath: string): void => {
+  const set = index.get(key)
+  if (set) set.add(sourcePath)
+  else index.set(key, new Set([sourcePath]))
 }
 
-/**
- * 未解析相对目标键 → 引用文档（已 resolved 的已在 dependencyIndex）。
- * 变更路径命中候选键时需重解析。
- */
-const buildRelativeTargetIndex = (
+/** 单次遍历文档构建依赖 / wiki 茎 / 未解析相对目标三类索引 */
+export const buildResourceLookupIndexes = (
   root: string,
   documents: Record<string, IndexedDocument>,
-): Map<string, Set<string>> => {
-  const index = new Map<string, Set<string>>()
-  const add = (key: string | null, sourcePath: string): void => {
-    if (!key) return
-    const set = index.get(key)
-    if (set) set.add(sourcePath)
-    else index.set(key, new Set([sourcePath]))
-  }
+): ResourceLookupIndexes => {
+  const dependency: ResourceDependencyIndex = new Map()
+  const wikiStem = new Map<string, Set<string>>()
+  const relativeTarget = new Map<string, Set<string>>()
+
   for (const document of Object.values(documents)) {
     for (const link of document.outgoingLinks) {
-      if (link.resolvedPath) continue
-      add(relativeCandidateKey(root, document.path, link.target), document.path)
+      if (link.resolvedPath) {
+        addToIndex(dependency, normalizeResourceKey(link.resolvedPath), document.path)
+      } else {
+        const key = relativeCandidateKey(root, document.path, link.target)
+        if (key) addToIndex(relativeTarget, key, document.path)
+      }
+      if (link.kind === 'wiki') {
+        const stem = link.target.trim().toLowerCase()
+        if (stem) addToIndex(wikiStem, stem, document.path)
+      }
     }
     for (const ref of document.imageRefs) {
-      if (ref.resolvedPath) continue
-      add(relativeCandidateKey(root, document.path, ref.target), document.path)
+      if (ref.resolvedPath) {
+        addToIndex(dependency, normalizeResourceKey(ref.resolvedPath), document.path)
+      } else {
+        const key = relativeCandidateKey(root, document.path, ref.target)
+        if (key) addToIndex(relativeTarget, key, document.path)
+      }
     }
   }
-  return index
+
+  return { dependency, wikiStem, relativeTarget }
+}
+
+export const buildResourceDependencyIndex = (
+  documents: Record<string, IndexedDocument>,
+): ResourceDependencyIndex => {
+  // 无 root 时相对目标索引为空；仅依赖已 resolved 路径（兼容旧调用）
+  return buildResourceLookupIndexes('', documents).dependency
 }
 
 const addAll = (target: Set<string>, sources: Set<string> | undefined): void => {
@@ -95,27 +82,33 @@ const addAll = (target: Set<string>, sources: Set<string> | undefined): void => 
   })
 }
 
-/** 目标路径变化时，找出需重新解析资源引用的文档（不重读正文）；O(变更 + 命中)，禁止按变更全表扫文档 */
+/** 目标路径变化时，找出需重新解析资源引用的文档（不重读正文）；O(变更 + 命中) */
 export const collectDocumentsAffectedByChanges = (
   root: string,
   documents: Record<string, IndexedDocument>,
   dependencyIndex: ResourceDependencyIndex,
   invalidation: WorkspaceIndexInvalidation | undefined,
+  lookupIndexes?: Pick<ResourceLookupIndexes, 'wikiStem' | 'relativeTarget'>,
 ): Set<string> => {
   if (!invalidation || invalidation.kind === 'rescan') {
     return new Set(Object.keys(documents))
   }
 
-  const wikiStemIndex = buildWikiStemIndex(documents)
-  const relativeTargetIndex = buildRelativeTargetIndex(root, documents)
+  const indexes =
+    lookupIndexes ??
+    (() => {
+      const built = buildResourceLookupIndexes(root, documents)
+      return { wikiStem: built.wikiStem, relativeTarget: built.relativeTarget }
+    })()
+
   const affected = new Set<string>()
 
   const considerPath = (changedPath: string): void => {
     const key = normalizeResourceKey(changedPath)
     addAll(affected, dependencyIndex.get(key))
-    addAll(affected, relativeTargetIndex.get(key))
+    addAll(affected, indexes.relativeTarget.get(key))
     const stem = basename(changedPath).replace(/\.(?:md|markdown)$/i, '').toLowerCase()
-    if (stem) addAll(affected, wikiStemIndex.get(stem))
+    if (stem) addAll(affected, indexes.wikiStem.get(stem))
   }
 
   for (const path of invalidation.markdownPaths) considerPath(path)
