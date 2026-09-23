@@ -1,12 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'fs/promises'
+import { lstat, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import {
   DEFAULT_WORKSPACE_SETTINGS,
   type WorkspaceLayoutState,
 } from '../../shared/workspace-state'
-import { WorkspaceStateStore } from './workspace-state-store'
+import { WorkspaceStateStore, WorkspaceStateStoreError } from './workspace-state-store'
+
+/** 创建目录 junction/symlink；环境不支持时返回 false。 */
+const tryLinkDirectory = async (target: string, linkPath: string): Promise<boolean> => {
+  try {
+    await symlink(target, linkPath, process.platform === 'win32' ? 'junction' : 'dir')
+    return (await lstat(linkPath)).isSymbolicLink() || process.platform === 'win32'
+  } catch {
+    return false
+  }
+}
 
 describe('工作区状态存储', () => {
   let rootPath = ''
@@ -143,6 +153,52 @@ describe('工作区状态存储', () => {
     const settings = (await store.load(rootPath)).settings
     expect(settings.editor.attachmentDirectory).toBe('from-a')
     expect(settings.appearance.theme).toBe('dark')
+  })
+
+  it('.paperin 为库外 junction 时不得读写根外状态 JSON', async ({ skip }) => {
+    const parent = await mkdtemp(join(tmpdir(), 'paperin-state-escape-'))
+    const workspace = join(parent, 'workspace')
+    const outside = join(parent, 'outside-workspace')
+    await mkdir(workspace)
+    await mkdir(outside)
+    const linked = join(workspace, '.paperin')
+    if (!(await tryLinkDirectory(outside, linked))) {
+      await rm(parent, { recursive: true, force: true })
+      console.warn('SKIP: 无法创建 junction/symlink，环境不支持目录链接')
+      skip()
+      return
+    }
+
+    const probeQuery = 'OUTSIDE_STATE_PROBE'
+    await writeFile(
+      join(outside, 'settings.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        appearance: { theme: 'inherit' },
+        editor: { lastSearchQuery: probeQuery },
+      }),
+      'utf-8',
+    )
+
+    const store = new WorkspaceStateStore()
+    try {
+      const loaded = await store.load(workspace)
+      expect(loaded.settings.editor.lastSearchQuery).not.toBe(probeQuery)
+      expect(loaded.settings).toEqual(DEFAULT_WORKSPACE_SETTINGS)
+
+      const next = {
+        ...DEFAULT_WORKSPACE_SETTINGS,
+        editor: { ...DEFAULT_WORKSPACE_SETTINGS.editor, lastSearchQuery: 'INSIDE_WRITE' },
+      }
+      await expect(store.writeSettings(workspace, next)).rejects.toBeInstanceOf(WorkspaceStateStoreError)
+
+      const outsideRaw = JSON.parse(await readFile(join(outside, 'settings.json'), 'utf-8')) as {
+        editor: { lastSearchQuery?: string }
+      }
+      expect(outsideRaw.editor.lastSearchQuery).toBe(probeQuery)
+    } finally {
+      await rm(parent, { recursive: true, force: true })
+    }
   })
 
 })

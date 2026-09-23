@@ -49,7 +49,7 @@ Paperin 已有完整的 Electron 本地桌面架构和较密集的自动测试�
 | --- | --- | --- |
 | P0 | 修复工作区规范路径比较 | **已完成**：不存在目标使用最近存在父目录的真实路径比较；短路径/长路径、junction 换靶和多窗口越权有回归；`npm run smoke` 退出 0 |
 | P0 | 修正生产搜索性能夹具授权 | **已完成**：夹具调用真实 `trustDirectory` 与 `isPathTrusted`，搜索 IPC 不再因测试装配返回 `INVALID_TARGET` |
-| P0 | 修复工作区状态目录越界 A01 | **已复现**：`.paperin` 为 junction 时，状态 JSON 可在工作区外读写；先补永久失败测试，再统一真实路径与换靶校验 |
+| P0 | 修复工作区状态目录越界 A01 | **已完成**：`WorkspaceStateStore` 对 `.paperin`/目标/临时文件做 realpath 边界校验；库外 junction 时读回退默认、写抛 `INVALID_PATH`；永久回归覆盖 |
 | P0 | 诊断 5000 篇性能退化 | 分段指标、语料复用与冷/暖门禁已落地；2026-09-23 watcher 稳定 P95 两次超过阈值，合成 tree/index/search 也为红。先 profiling，再修复；不得用历史绿灯或放宽阈值替代 |
 | P0 | 升级易受攻击的间接依赖 | **已完成**：生产依赖审计无 moderate 及以上漏洞；`js-yaml` 由 4.3.1 升至 4.3.2，锁文件门禁拒绝回退 |
 | P0 | 清理失效 `demo:soft*` 脚本 | **已完成**：`package.json` 不再引用不存在的 `design/soft-workbench` |

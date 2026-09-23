@@ -29,7 +29,7 @@ export interface WorkspaceScopeDependencies {
 /** 沿候选路径向上找到最近存在的父目录，用其真实路径拼回不存在的后缀。
  *  新建文件、短路径别名和尚未落盘的子目录都必须和钉住的真实根比较；
  *  整条链都不存在时返回 null，不得把失败的 realpath 当成授权。 */
-const resolveCandidateForComparison = async (candidate: string): Promise<string | null> => {
+export const resolveCandidateForComparison = async (candidate: string): Promise<string | null> => {
   let current = resolve(candidate)
   const suffix: string[] = []
   while (true) {

@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, stat, unlink, writeFile } from 'fs/promises'
+import { mkdir, readFile, realpath, rename, stat, unlink, writeFile } from 'fs/promises'
 import { join, resolve } from 'path'
 import {
   DEFAULT_WORKSPACE_DOCUMENTS,
@@ -12,6 +12,7 @@ import {
   type WorkspaceSettingsState,
   type WorkspaceStateBundle,
 } from '../../shared/workspace-state'
+import { isInsideRoot, resolveCandidateForComparison } from '../ipc/workspace-scope'
 
 const WORKSPACE_STATE_DIRECTORY = '.paperin'
 const MAX_STATE_FILE_SIZE = 1024 * 1024
@@ -19,7 +20,7 @@ const MAX_STATE_FILE_SIZE = 1024 * 1024
 type WorkspaceStateFile = 'settings.json' | 'workspace.json' | 'documents.json'
 
 export class WorkspaceStateStoreError extends Error {
-  constructor(public readonly code: 'VALUE_TOO_LARGE' | 'WRITE_FAILED') {
+  constructor(public readonly code: 'VALUE_TOO_LARGE' | 'WRITE_FAILED' | 'INVALID_PATH') {
     super(code)
   }
 }
@@ -53,7 +54,7 @@ export class WorkspaceStateStore {
 
   writeSettings(rootPath: string, value: WorkspaceSettingsState): Promise<void> {
     return this.enqueue(rootPath, 'settings.json', () =>
-      this.writeStateFile(this.stateDirectory(rootPath), join(this.stateDirectory(rootPath), 'settings.json'), parseWorkspaceSettings(value)),
+      this.writeStateFile(rootPath, 'settings.json', parseWorkspaceSettings(value)),
     )
   }
 
@@ -76,20 +77,20 @@ export class WorkspaceStateStore {
         DEFAULT_WORKSPACE_SETTINGS,
       )
       const next = parseWorkspaceSettings(await updater(current))
-      await this.writeStateFile(this.stateDirectory(rootPath), join(this.stateDirectory(rootPath), 'settings.json'), next)
+      await this.writeStateFile(rootPath, 'settings.json', next)
       return next
     })
   }
 
   writeLayout(rootPath: string, value: WorkspaceLayoutState): Promise<void> {
     return this.enqueue(rootPath, 'workspace.json', () =>
-      this.writeStateFile(this.stateDirectory(rootPath), join(this.stateDirectory(rootPath), 'workspace.json'), parseWorkspaceLayout(value)),
+      this.writeStateFile(rootPath, 'workspace.json', parseWorkspaceLayout(value)),
     )
   }
 
   writeDocuments(rootPath: string, value: WorkspaceDocumentsState): Promise<void> {
     return this.enqueue(rootPath, 'documents.json', () =>
-      this.writeStateFile(this.stateDirectory(rootPath), join(this.stateDirectory(rootPath), 'documents.json'), parseWorkspaceDocuments(value)),
+      this.writeStateFile(rootPath, 'documents.json', parseWorkspaceDocuments(value)),
     )
   }
 
@@ -114,13 +115,29 @@ export class WorkspaceStateStore {
     return join(resolve(rootPath), WORKSPACE_STATE_DIRECTORY)
   }
 
+  /** 真实根内才允许读写；`.paperin` 指向库外时拒绝。 */
+  private async resolveAuthorizedStatePath(
+    rootPath: string,
+    candidate: string,
+  ): Promise<string | null> {
+    const realRoot = await realpath(resolve(rootPath)).catch(() => null)
+    if (!realRoot) return null
+    const realCandidate = await resolveCandidateForComparison(candidate)
+    if (!realCandidate || !isInsideRoot(realRoot, realCandidate)) return null
+    return realCandidate
+  }
+
   private async readStateFile<T>(
     rootPath: string,
     fileName: WorkspaceStateFile,
     parse: (value: unknown) => T,
     fallback: T,
   ): Promise<T> {
-    const path = join(this.stateDirectory(rootPath), fileName)
+    const lexicalPath = join(this.stateDirectory(rootPath), fileName)
+    const path = await this.resolveAuthorizedStatePath(rootPath, lexicalPath)
+    if (!path) {
+      return structuredClone(fallback)
+    }
     let raw: string
     try {
       const fileStat = await stat(path)
@@ -151,8 +168,8 @@ export class WorkspaceStateStore {
   }
 
   private async writeStateFile(
-    directory: string,
-    targetPath: string,
+    rootPath: string,
+    fileName: WorkspaceStateFile,
     value: WorkspaceSettingsState | WorkspaceLayoutState | WorkspaceDocumentsState,
   ): Promise<void> {
     const serialized = `${JSON.stringify(value, null, 2)}\n`
@@ -160,13 +177,37 @@ export class WorkspaceStateStore {
       throw new WorkspaceStateStoreError('VALUE_TOO_LARGE')
     }
 
-    await mkdir(directory, { recursive: true })
-    const temporaryPath = `${targetPath}.${process.pid}-${Date.now()}-${Math.random()}.tmp`
+    const directoryLexical = this.stateDirectory(rootPath)
+    const targetLexical = join(directoryLexical, fileName)
+    const authorizedDirectory = await this.resolveAuthorizedStatePath(rootPath, directoryLexical)
+    const authorizedTarget = await this.resolveAuthorizedStatePath(rootPath, targetLexical)
+    if (!authorizedDirectory || !authorizedTarget) {
+      throw new WorkspaceStateStoreError('INVALID_PATH')
+    }
+
+    await mkdir(authorizedDirectory, { recursive: true })
+    // mkdir 后再次校验，防止目录被换成库外 junction
+    const directoryAfterMkdir = await this.resolveAuthorizedStatePath(rootPath, directoryLexical)
+    const targetAfterMkdir = await this.resolveAuthorizedStatePath(rootPath, targetLexical)
+    if (!directoryAfterMkdir || !targetAfterMkdir) {
+      throw new WorkspaceStateStoreError('INVALID_PATH')
+    }
+
+    const temporaryPath = `${targetAfterMkdir}.${process.pid}-${Date.now()}-${Math.random()}.tmp`
+    const authorizedTemporary = await this.resolveAuthorizedStatePath(rootPath, temporaryPath)
+    if (!authorizedTemporary) {
+      throw new WorkspaceStateStoreError('INVALID_PATH')
+    }
     try {
-      await writeFile(temporaryPath, serialized, 'utf-8')
-      await rename(temporaryPath, targetPath)
-    } catch {
-      await unlink(temporaryPath).catch(() => undefined)
+      await writeFile(authorizedTemporary, serialized, 'utf-8')
+      const targetBeforeRename = await this.resolveAuthorizedStatePath(rootPath, targetLexical)
+      if (!targetBeforeRename) {
+        throw new WorkspaceStateStoreError('INVALID_PATH')
+      }
+      await rename(authorizedTemporary, targetBeforeRename)
+    } catch (err) {
+      await unlink(authorizedTemporary).catch(() => undefined)
+      if (err instanceof WorkspaceStateStoreError) throw err
       throw new WorkspaceStateStoreError('WRITE_FAILED')
     }
   }
