@@ -1,6 +1,11 @@
-import { basename, dirname, relative, resolve } from 'path'
+import { basename } from 'path'
 import type { IndexedDocument } from '../../shared/workspace-index'
 import type { WorkspaceIndexServiceDeps } from './workspace-index-service'
+import {
+  dirnameWorkspacePath,
+  relativeWorkspacePath,
+  resolveWorkspacePath,
+} from './workspace-path'
 
 export const normalizeResourceKey = (path: string): string =>
   path.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
@@ -20,9 +25,9 @@ export interface ResourceLookupIndexes {
 
 const relativeCandidateKey = (root: string, sourcePath: string, target: string): string | null => {
   if (/^(?:[a-z]+:|\\\\)/i.test(target)) return null
-  const resolvedRoot = resolve(root)
-  const candidate = resolve(dirname(sourcePath), target)
-  const fromRoot = relative(resolvedRoot, candidate)
+  const resolvedRoot = resolveWorkspacePath(root)
+  const candidate = resolveWorkspacePath(dirnameWorkspacePath(sourcePath), target)
+  const fromRoot = relativeWorkspacePath(resolvedRoot, candidate)
   if (fromRoot === '..' || fromRoot.startsWith('../') || fromRoot.startsWith('..\\')) return null
   return normalizeResourceKey(candidate)
 }

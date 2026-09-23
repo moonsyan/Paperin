@@ -5,7 +5,7 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync, readdirSync, statSync } from 'node:fs'
-import { basename, isAbsolute, join, resolve } from 'node:path'
+import { basename, isAbsolute, join, resolve, win32 as pathWin32 } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const NSIS_SILENT_FLAG = '/S'
@@ -142,11 +142,19 @@ const PROGRAM_FILES_HINT = /^[A-Z]:\\Program Files(?: \(x86\))?\\Paperin$/i
 
 /**
  * 真实安装只允许临时目录或标准 Paperin 安装目录（由调用方传入绝对路径）。
+ * Windows 盘符路径在非 win32 宿主上也按字面量校验，避免 path.resolve 拼进 cwd。
  * @param {string} candidate
  */
 export function assertAllowedInstallDirectory(candidate) {
-  const normalized = resolve(String(candidate))
-  if (!isAbsolute(normalized)) {
+  const raw = String(candidate)
+  const looksWindowsAbs = /^[A-Za-z]:[\\/]/.test(raw) || raw.startsWith('\\\\')
+  const normalized = looksWindowsAbs
+    ? pathWin32.normalize(raw.replace(/\//g, '\\'))
+    : resolve(raw)
+  if (!looksWindowsAbs && !isAbsolute(normalized)) {
+    throw new Error('install-dir 必须是绝对路径')
+  }
+  if (looksWindowsAbs && !pathWin32.isAbsolute(normalized)) {
     throw new Error('install-dir 必须是绝对路径')
   }
   if (TEMP_DIR_HINT.test(normalized) || PROGRAM_FILES_HINT.test(normalized)) {

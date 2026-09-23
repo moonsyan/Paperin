@@ -1,7 +1,12 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { dirname, isAbsolute, relative, resolve } from 'path'
 import { createWorkspaceIndexService } from './workspace-index-service'
 import type { WorkspaceIndexServiceDeps } from './workspace-index-service'
+import {
+  dirnameWorkspacePath,
+  isAbsoluteWorkspacePath,
+  relativeWorkspacePath,
+  resolveWorkspacePath,
+} from './workspace-path'
 
 interface FakeFile {
   content: string
@@ -36,10 +41,18 @@ const createDeps = (
     },
     async resolveResourcePath(root, target, sourcePath) {
       if (/^(?:[a-z]+:|\\\\)/i.test(target)) return null
-      const resolvedRoot = resolve(root)
-      const candidate = resolve(sourcePath ? dirname(sourcePath) : resolvedRoot, target)
-      const fromRoot = relative(resolvedRoot, candidate)
-      if (fromRoot === '..' || fromRoot.startsWith('../') || fromRoot.startsWith('..\\') || isAbsolute(fromRoot)) {
+      const resolvedRoot = resolveWorkspacePath(root)
+      const candidate = resolveWorkspacePath(
+        sourcePath ? dirnameWorkspacePath(sourcePath) : resolvedRoot,
+        target,
+      )
+      const fromRoot = relativeWorkspacePath(resolvedRoot, candidate)
+      if (
+        fromRoot === '..'
+        || fromRoot.startsWith('../')
+        || fromRoot.startsWith('..\\')
+        || isAbsoluteWorkspacePath(fromRoot)
+      ) {
         return null
       }
       const key = candidate.replace(/\\/g, '/')

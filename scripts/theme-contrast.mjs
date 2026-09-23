@@ -164,7 +164,10 @@ export const readThemeTokens = async (fileName) => {
 
 export const listThemeFiles = async () => {
   const entries = await readdir(THEMES_DIR)
-  return entries.filter((name) => name.endsWith('.css')).sort()
+  // code-palette-* 只提供代码高亮语义色，不是完整 UI 主题，不参与对比度 / 标题栏门禁
+  return entries
+    .filter((name) => name.endsWith('.css') && !name.startsWith('code-palette-'))
+    .sort()
 }
 
 /** 主题中缺失的必需 token */

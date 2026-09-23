@@ -1,7 +1,13 @@
 import { readdir, stat } from 'fs/promises'
-import { dirname, isAbsolute, relative, resolve } from 'path'
+import { resolve } from 'path'
 import { isTraversableWorkspaceDirectory, readTextAutoEncoding } from '../ipc/file-io'
 import type { WorkspaceFileMeta, WorkspaceIndexServiceDeps } from './workspace-index-service'
+import {
+  dirnameWorkspacePath,
+  isAbsoluteWorkspacePath,
+  relativeWorkspacePath,
+  resolveWorkspacePath,
+} from './workspace-path'
 
 type WorkspaceIndexFilesystemDependencies = Pick<
   WorkspaceIndexServiceDeps,
@@ -44,10 +50,18 @@ export const createWorkspaceIndexFilesystemDependencies = (): WorkspaceIndexFile
 
   async resolveResourcePath(root, target, sourcePath) {
     if (/^(?:[a-z]+:|\\\\)/i.test(target)) return null
-    const resolvedRoot = resolve(root)
-    const candidate = resolve(sourcePath ? dirname(sourcePath) : resolvedRoot, target)
-    const fromRoot = relative(resolvedRoot, candidate)
-    if (fromRoot === '..' || fromRoot.startsWith(`..\\`) || fromRoot.startsWith('../') || isAbsolute(fromRoot)) {
+    const resolvedRoot = resolveWorkspacePath(root)
+    const candidate = resolveWorkspacePath(
+      sourcePath ? dirnameWorkspacePath(sourcePath) : resolvedRoot,
+      target,
+    )
+    const fromRoot = relativeWorkspacePath(resolvedRoot, candidate)
+    if (
+      fromRoot === '..'
+      || fromRoot.startsWith('..\\')
+      || fromRoot.startsWith('../')
+      || isAbsoluteWorkspacePath(fromRoot)
+    ) {
       return null
     }
     const resourceStat = await stat(candidate).catch(() => null)
