@@ -6,6 +6,7 @@ import {
   getTabNavigationTargetId,
   getClosableTabIds,
   initializeDocumentBaseline,
+  replaceModeForSwitch,
   reorderTabs,
   reorderTabsWithinGroup,
   requiresCloseConfirmation,
@@ -149,5 +150,10 @@ describe('文档标签状态', () => {
       saved: true,
     })
     expect(initialized.content === '# 已编辑').toBe(false)
+  })
+
+  it('切换到已保存标签应重新采纳编辑器基线，避免序列化漂移标脏', () => {
+    expect(replaceModeForSwitch({ saved: true })).toBe('initialize')
+    expect(replaceModeForSwitch({ saved: false })).toBe('ignore')
   })
 })

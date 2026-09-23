@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react'
 import type { MutableRefObject, RefObject } from 'react'
 import type { PendingDraft } from '../../hooks/useDraftPersistence'
 import type { DocumentSaveQueue } from '../../lib/document-save-queue'
+import { replaceModeForSwitch } from '../../lib/document-tabs'
 import type { WorkspaceDocumentsState } from '../../../../shared/workspace-state'
 import type { EditorHandle } from '../../components/Editor'
 import type { DocumentState } from './useDocumentState'
@@ -64,7 +65,7 @@ export function useDocumentTabs(options: UseDocumentTabsOptions): DocumentTabsAp
     setToast, workspacePathRef, workspaceDocumentsRef, setWorkspaceDocuments,
     latestWorkspaceSelectionRef, openingWorkspaceFilesRef,
   } = options
-  const { activeFileIdRef, contentsRef, openFilesRef, setActiveFileId, setDocTitle } = state
+  const { activeFileIdRef, contentsRef, openFilesRef, setActiveFileId, setDocTitle, savedMap } = state
   const {
     captureWorkspaceDocumentView,
     restoreWorkspaceDocumentView,
@@ -123,10 +124,11 @@ export function useDocumentTabs(options: UseDocumentTabsOptions): DocumentTabsAp
     setActiveFileId(id)
     const file = openFilesRef.current.find((candidate) => candidate.id === id)
     setDocTitle(file?.name ?? '未命名文档')
-    replaceEditorContent(id, contentsRef.current[id] ?? '')
+    const mode = replaceModeForSwitch({ saved: savedMap[id] !== false })
+    replaceEditorContent(id, contentsRef.current[id] ?? '', mode)
     restoreWorkspaceDocumentView(id)
     focusEditorSoon()
-  }, [activeFileIdRef, captureWorkspaceDocumentView, contentsRef, editorRef, flushEditorContent, focusEditorSoon, latestWorkspaceSelectionRef, openFilesRef, replaceEditorContent, restoreWorkspaceDocumentView, setActiveFileId, setDocTitle, setToast, titleRef])
+  }, [activeFileIdRef, captureWorkspaceDocumentView, contentsRef, editorRef, flushEditorContent, focusEditorSoon, latestWorkspaceSelectionRef, openFilesRef, replaceEditorContent, restoreWorkspaceDocumentView, savedMap, setActiveFileId, setDocTitle, setToast, titleRef])
   const opening = useDocumentTabOpening({
     state, titleRef, replaceEditorContent, pinPreviewTab,
     discardPreviewTab: closing.discardPreviewTab, switchFile, leaveCurrentDocument, focusEditorSoon, recordRecent, setToast,

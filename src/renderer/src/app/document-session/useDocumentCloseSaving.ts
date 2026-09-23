@@ -26,12 +26,13 @@ export function useDocumentCloseSaving({
     if (!file) return true
     const wasActive = id === activeFileIdRef.current
     const targetSession = activeSessionRef.current
-    const targetEditor = editorRef.current
-    // 旧关闭请求不得作用于切换后重建的编辑器、迁移路径或卸载后的会话。
+    // 旧关闭请求不得作用于切换后的文档会话或卸载后的组件。
+    // 不比较 editorRef.current 对象身份：确认框打开会触发重渲染，
+    // Editor 的 useImperativeHandle 每次都会换新句柄，否则「不保存/保存」都会误判失败。
     const isTargetCurrent = () => mounted.current
       && openFilesRef.current.some((candidate) => candidate.id === id && candidate.path === file.path)
       && (wasActive
-        ? activeFileIdRef.current === id && activeSessionRef.current === targetSession && editorRef.current === targetEditor
+        ? activeFileIdRef.current === id && activeSessionRef.current === targetSession
         : activeFileIdRef.current !== id)
     const canCloseSavedContent = (savedContent: string): boolean => {
       if (!isTargetCurrent()) return false

@@ -12,6 +12,8 @@ import {
   extractFrontmatterRaw,
 } from '../lib/frontmatter-parser'
 import { resolveWikiTarget, collectMdFiles } from '../lib/wiki-resolver'
+import { listDemoWikiLinkFiles, resolveDemoWikiTarget } from '../lib/demo-wiki'
+import { DEMO_FILES } from '../data/demo-files'
 import type { WorkspaceInfo } from '../components/Sidebar'
 
 // ---------------------------------------------------------------------------
@@ -31,6 +33,7 @@ export interface UseEditorFeaturesOptions {
   replaceEditorContent: (id: string, content: string, mode?: 'ignore' | 'initialize' | 'update') => void
   setToast: (message: string) => void
   handleSelectWorkspaceFile: (path: string, pinned?: boolean) => Promise<boolean>
+  handleSelectDemoFile: (id: string, pinned?: boolean) => void
 }
 
 export interface UseEditorFeaturesResult {
@@ -77,6 +80,7 @@ export function useEditorFeatures({
   replaceEditorContent,
   setToast,
   handleSelectWorkspaceFile,
+  handleSelectDemoFile,
 }: UseEditorFeaturesOptions): UseEditorFeaturesResult {
   // --- 中文排版检查 ---
   const typographyIssues = useMemo(
@@ -160,14 +164,21 @@ export function useEditorFeatures({
   }, [editorAreaRef])
 
   // --- Wiki 链接 ---
+  const demoWikiFiles = useMemo(
+    () => Object.values(DEMO_FILES).map((file) => ({ id: file.id, name: file.name })),
+    [],
+  )
+
   const wikiLinkFileList = useMemo(() => {
-    if (!workspace?.tree) return []
-    const files = collectMdFiles(workspace.tree)
-    return files.map((path) => ({
-      name: path.replace(/\\/g, '/').split('/').pop()?.replace(/\.(md|markdown)$/i, '') ?? '',
-      path,
-    }))
-  }, [workspace?.tree])
+    if (workspace?.tree) {
+      const files = collectMdFiles(workspace.tree)
+      return files.map((path) => ({
+        name: path.replace(/\\/g, '/').split('/').pop()?.replace(/\.(md|markdown)$/i, '') ?? '',
+        path,
+      }))
+    }
+    return listDemoWikiLinkFiles(demoWikiFiles)
+  }, [demoWikiFiles, workspace?.tree])
 
   const wikiClickOpenRef = useCallback(
     (path: string) => { void handleSelectWorkspaceFile(path) },
@@ -176,23 +187,33 @@ export function useEditorFeatures({
 
   const handleWikiLinkClick = useCallback(
     (target: string) => {
-      if (!workspace?.tree) return
-      const result = resolveWikiTarget(target, workspace.path, activeFilePath, workspace.tree)
-      if (result.resolved) {
-        wikiClickOpenRef(result.path)
-      } else {
+      if (workspace?.tree) {
+        const result = resolveWikiTarget(target, workspace.path, activeFilePath, workspace.tree)
+        if (result.resolved) {
+          wikiClickOpenRef(result.path)
+          return
+        }
         setToast(`无法找到链接的目标文件：${target}`)
+        return
       }
+      const demo = resolveDemoWikiTarget(target, demoWikiFiles)
+      if (demo.resolved) {
+        handleSelectDemoFile(demo.id)
+        return
+      }
+      setToast(`无法找到链接的目标文件：${target}`)
     },
-    [workspace, activeFilePath, setToast, wikiClickOpenRef],
+    [activeFilePath, demoWikiFiles, handleSelectDemoFile, setToast, wikiClickOpenRef, workspace],
   )
 
   const wikiResolveTest = useMemo(() => {
-    if (!workspace?.tree) return undefined
-    const tree = workspace.tree
-    const rootPath = workspace.path
-    return (target: string) => resolveWikiTarget(target, rootPath, activeFilePath, tree).resolved
-  }, [workspace, activeFilePath])
+    if (workspace?.tree) {
+      const tree = workspace.tree
+      const rootPath = workspace.path
+      return (target: string) => resolveWikiTarget(target, rootPath, activeFilePath, tree).resolved
+    }
+    return (target: string) => resolveDemoWikiTarget(target, demoWikiFiles).resolved
+  }, [activeFilePath, demoWikiFiles, workspace])
 
   return {
     typographyIssues,

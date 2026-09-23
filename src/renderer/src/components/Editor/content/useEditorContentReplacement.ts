@@ -144,7 +144,7 @@ export const useEditorContentReplacement = ({
     releaseExportViewport(view)
     refreshViewportRange()
     view.dispatch(view.state.tr.setMeta(viewportChangedKey, true))
-    convertWikiTextInDoc(view)
+    convertWikiTextInDoc(view, { sync: true })
     view.dispatch(view.state.tr.setMeta(sectionFoldKey, { reset: true }))
     resetOverlays()
     if (flush) dirtyRef.current = false

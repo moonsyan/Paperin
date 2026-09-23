@@ -48,6 +48,7 @@ const createHarness = (overrides: HarnessOverrides = {}) => {
       getMarkdown: () => null,
       hasPendingChanges: () =>
         overrides.hasPendingChanges ? overrides.hasPendingChanges() : false,
+      consumeDirtyChange: () => false,
     },
   }
   const savedWith: Array<[string, string]> = []
@@ -195,6 +196,27 @@ describe('useDocumentSaving 大文档快照契约（T05）', () => {
     const { result } = renderHook(() => useDocumentCloseSaving(options))
     await expect(result.current('file-1')).resolves.toBe(choice !== 'cancel')
     expect(window.desktopAPI.document.saveAs).toHaveBeenCalledTimes(choice === 'save' ? 1 : 0)
+  })
+
+  it('确认框等待期间编辑器句柄因重渲染更换时，不保存仍应关闭未命名文档', async () => {
+    stubDesktopAPI()
+    const { options } = createHarness()
+    options.state.openFilesRef.current = [{ id: 'file-1', name: '未命名 1.md' }]
+    options.state.contentsRef.current = { 'file-1': '有内容' }
+    options.state.initialOrSavedRef.current = { 'file-1': '' }
+    vi.mocked(requestConfirm).mockImplementation(async () => {
+      // 弹层打开会触发整树重渲染；Editor 的 useImperativeHandle 每次都会换新句柄
+      const nextHandle = {
+        isReady: () => true,
+        getMarkdown: () => null,
+        hasPendingChanges: () => false,
+        consumeDirtyChange: () => false,
+      }
+      ;(options.editorRef as { current: typeof nextHandle }).current = nextHandle
+      return 'discard'
+    })
+    const { result } = renderHook(() => useDocumentCloseSaving(options))
+    await expect(result.current('file-1')).resolves.toBe(true)
   })
 
   it('另存为调用拒绝时保持文档打开并提示重试', async () => {

@@ -176,8 +176,14 @@ export const wikiTextConvertPlugin = $prose(() => {
  * 内容替换（切换文档）后重新转换 [[...]] 文本为 wiki_link 节点。
  * wikiTextConvertPlugin 只在编辑器创建时运行一次，切换文档不会再次触发，
  * 因此 Editor.replaceContent 替换内容后必须手动调用本函数。
+ *
+ * sync=true：在采纳保存基线之前同步完成转换，避免异步转换把干净文档标脏。
  */
-export function convertWikiTextInDoc(view: EditorView): void {
+export function convertWikiTextInDoc(view: EditorView, options?: { sync?: boolean }): void {
+  if (options?.sync) {
+    convertWikiText(view)
+    return
+  }
   setTimeout(() => convertWikiText(view), 0)
 }
 

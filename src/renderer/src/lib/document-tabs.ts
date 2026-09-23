@@ -23,6 +23,13 @@ export const initializeDocumentBaseline = (
   }
 }
 
+/**
+ * 切换到已保存文档时重新 initialize，把编辑器往返序列化结果写回基线，
+ * 避免 Wiki 转换等程序性事务把标签标成 dirty。脏文档保持 ignore，以免冲掉未保存基线。
+ */
+export const replaceModeForSwitch = (input: { saved: boolean }): 'initialize' | 'ignore' =>
+  input.saved ? 'initialize' : 'ignore'
+
 export const pinPreviewOpenFile = (openFiles: OpenFile[], fileId: string): OpenFile[] =>
   openFiles.map((file) => (file.id === fileId && file.preview ? { ...file, preview: false } : file))
 

@@ -455,7 +455,9 @@ export function AppComposition(): JSX.Element {
   } = useEditorFeatures({
     editorRef, editorAreaRef, activeFileId, activeContent,
     deferredContent: activeContent, activeFilePath: activeFile?.path,
-    workspace, liveContentOf, replaceEditorContent, setToast, handleSelectWorkspaceFile: openWorkspaceFile,
+    workspace, liveContentOf, replaceEditorContent, setToast,
+    handleSelectWorkspaceFile: openWorkspaceFile,
+    handleSelectDemoFile,
   })
 
   // === 写作统计 ===

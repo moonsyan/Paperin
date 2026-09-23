@@ -5,6 +5,7 @@ import {
   findDiscardablePreview,
   getClosableTabIds,
   reorderTabsWithinGroup,
+  replaceModeForSwitch,
   shouldPreserveActivePreview,
   togglePinnedTab,
 } from '../../lib/document-tabs'
@@ -69,6 +70,7 @@ export function useDocumentTabClosing({
     contentsRef,
     initialOrSavedRef: initialOrSaved,
     openFilesRef,
+    savedMap,
     setActiveFileId,
     setContents,
     setDocTitle,
@@ -137,8 +139,9 @@ export function useDocumentTabClosing({
       return
     }
     setDocTitle(nextActive.name)
-    replaceEditorContent(nextActive.id, contentsRef.current[nextActive.id] ?? '')
-  }, [activeFileIdRef, clearDraft, contentsRef, draftPendingRef, initialOrSaved, openFilesRef, replaceEditorContent, saveQueueRef, setActiveFileId, setContents, setContentHashMap, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap])
+    const mode = replaceModeForSwitch({ saved: savedMap[nextActive.id] !== false })
+    replaceEditorContent(nextActive.id, contentsRef.current[nextActive.id] ?? '', mode)
+  }, [activeFileIdRef, clearDraft, contentsRef, draftPendingRef, initialOrSaved, openFilesRef, replaceEditorContent, saveQueueRef, savedMap, setActiveFileId, setContents, setContentHashMap, setDocTitle, setEncodingMap, setFileMtime, setOpenFiles, setSavedMap])
 
   const closeSaveEpochRef = useRef(0)
 
