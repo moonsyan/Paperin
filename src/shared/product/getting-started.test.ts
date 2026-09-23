@@ -31,6 +31,16 @@ describe('首次打开入门说明', () => {
     expect(markdown).not.toContain('实时多人协作已经')
   })
 
+  it('小任务区分演示熟悉与开库后的完整闭环，且不承诺无库即可搜索引用', () => {
+    expect(markdown).toContain('先熟悉界面')
+    expect(markdown).toContain('完整闭环')
+    expect(markdown).toContain('打开知识库文件夹')
+    expect(markdown).toContain('另存为')
+    expect(markdown).toContain('用不了全文搜索')
+    expect(markdown).not.toContain('硬编码关闭拼写检查')
+    expect(markdown).toContain('打开后正文编辑面会启用拼写检查')
+  })
+
   it('仓库入门文档与首次打开看到的正文一致', () => {
     const documented = readFileSync(join(process.cwd(), 'docs/getting-started.md'), 'utf8').replace(/\r\n/g, '\n')
     expect(documented.trimEnd()).toBe(markdown.trimEnd())
