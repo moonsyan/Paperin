@@ -42,17 +42,17 @@ Mermaid 代码块在渲染前去掉共同缩进、零宽字符、误包的围栏
 
 图片、发布、导出、版本历史、设置、写作统计、关系图谱、工作区全文搜索这些能力平时不占界面，只靠菜单、快捷键和命令面板触达，最容易在重构中「悄悄失去入口」或「失去作用域判断」。它们统一登记为命令，作用域由 `CommandContext` 在**执行前**判定：
 
-| 能力                                       | 命令 id                                                                         | scope       | 无上下文的入口表现      |
-| ---------------------------------------- | ----------------------------------------------------------------------------- | ----------- | -------------- |
-| 图片管理                                     | `images`                                                                      | `app`       | 始终可用（弹层自带空状态）  |
-| 设置                                       | `settings`                                                                    | `app`       | 始终可用           |
-| 支持摘要                                     | `supportSummary`                                                              | `app`       | 始终可用（预览后复制/导出） |
-| 写作统计                                     | `stats`                                                                       | `app`       | 始终可用（无内容时展示零值） |
-| 发布                                       | `publish`                                                                     | `document`  | 菜单灰显；快捷键给提示    |
-| 导出 PDF / HTML / Markdown / DOCX / Pandoc | `exportPdf` / `exportHtml` / `exportMarkdown` / `exportDocx` / `exportPandoc` | `document`  | 同上             |
-| 版本历史                                     | `versionHistory`                                                              | `document`  | 同上（快照按文件路径归档）  |
-| 另存为                                      | `saveAs`                                                                      | `document`  | 同上             |
-| 关系图谱                                     | `graph`                                                                       | `workspace` | 菜单灰显；快捷键/右键给提示 |
+| 能力                                       | 命令 id                                                                         | scope       | 无上下文的入口表现            |
+| ---------------------------------------- | ----------------------------------------------------------------------------- | ----------- | -------------------- |
+| 图片管理                                     | `images`                                                                      | `app`       | 始终可用（弹层自带空状态）        |
+| 设置                                       | `settings`                                                                    | `app`       | 始终可用                 |
+| 支持摘要                                     | `supportSummary`                                                              | `app`       | 始终可用（预览后复制/导出）       |
+| 写作统计                                     | `stats`                                                                       | `app`       | 始终可用（无内容时展示零值）       |
+| 发布                                       | `publish`                                                                     | `document`  | 菜单灰显；快捷键给提示          |
+| 导出 PDF / HTML / Markdown / DOCX / Pandoc | `exportPdf` / `exportHtml` / `exportMarkdown` / `exportDocx` / `exportPandoc` | `document`  | 同上                   |
+| 版本历史                                     | `versionHistory`                                                              | `document`  | 同上（快照按文件路径归档）        |
+| 另存为                                      | `saveAs`                                                                      | `document`  | 同上                   |
+| 关系图谱                                     | `graph`                                                                       | `workspace` | 菜单灰显；快捷键/右键给提示       |
 | 工作区全文搜索                                  | `wsSearch`                                                                    | `workspace` | 同上（要求打开工作区，当前搜索独立读盘） |
 
 三档 `scope` 的判定口径（`app/commands/command-context.ts`）：
