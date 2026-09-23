@@ -18,6 +18,7 @@ import {
   sourceRelocationBindingMatches,
 } from '../lib/source-relocation'
 import { toWorkspaceRelativePath } from '../lib/workspace-state'
+import { remapSourceTrackingPath } from '../../../shared/source-tracking'
 
 export interface UseSourceTrackingOptions {
   workspacePath: string | undefined
@@ -38,6 +39,12 @@ export interface UseSourceTrackingReturn {
   commitCitingIdentityMigration: (fromEphemeralKey: string, toRelativePath: string) => void
   /** 未保存文档在内存中的来源基线。 */
   ephemeralBaselines: DocumentSourceBaseline[]
+  /** 库内路径 rename/move 后同步 remap 内存基线中的来源路径。 */
+  remapEphemeralSourcePaths: (
+    oldRelativePath: string,
+    newRelativePath: string,
+    caseInsensitive: boolean,
+  ) => void
   readSourceRegistrationTicket: () => SourceRegistrationTicket
   applySourceRelocation: (
     binding: SourceRelocationBinding,
@@ -144,6 +151,10 @@ export function useSourceTracking({
                 modifiedTime,
               ),
             )
+            // 晚回包已落到持久路径：清理身份映射，避免长会话只增不减
+            if (targetKey !== insertKey) {
+              identityMigrationsRef.current.delete(insertKey)
+            }
             return
           }
           setEphemeralBaselines((current) =>
@@ -203,11 +214,27 @@ export function useSourceTracking({
     [citingDocumentKey, setWorkspaceSettings],
   )
 
+  const remapEphemeralSourcePaths = useCallback(
+    (oldRelativePath: string, newRelativePath: string, caseInsensitive: boolean) => {
+      setEphemeralBaselines((current) => {
+        if (current.length === 0) return current
+        return remapSourceTrackingPath(
+          { documentSourceBaselines: current, legacySourceSnapshots: [] },
+          oldRelativePath,
+          newRelativePath,
+          caseInsensitive,
+        ).documentSourceBaselines
+      })
+    },
+    [],
+  )
+
   return {
     rememberSourceAfterInsert,
     notifySourceRecordsCleared,
     commitCitingIdentityMigration,
     ephemeralBaselines,
+    remapEphemeralSourcePaths,
     readSourceRegistrationTicket: readTicket,
     applySourceRelocation,
   }

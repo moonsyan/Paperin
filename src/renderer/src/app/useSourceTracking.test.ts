@@ -345,5 +345,31 @@ describe('useSourceTracking 身份迁移 A02/A03', () => {
     })
     expect(result.current.ephemeralBaselines).toEqual([])
   })
+
+  it('rename/move 同步 remap 内存 ephemeral 来源路径', async () => {
+    const { result, statQueue } = renderIdentity({
+      citing: '@unsaved:draft-a',
+      docId: 'draft-a',
+    })
+    const deferred = createStatDeferred()
+    statQueue.push(deferred)
+    act(() => {
+      result.current.rememberSourceAfterInsert(SOURCE_ABS)
+    })
+    await act(async () => {
+      deferred.resolve({ ok: true, data: { modifiedTime: 42 } })
+    })
+    await waitFor(() => {
+      expect(result.current.ephemeralBaselines).toEqual([
+        { citingDocumentPath: '@unsaved:draft-a', sourcePath: '资料/source.md', modifiedTime: 42 },
+      ])
+    })
+    act(() => {
+      result.current.remapEphemeralSourcePaths('资料/source.md', '归档/source.md', true)
+    })
+    expect(result.current.ephemeralBaselines).toEqual([
+      { citingDocumentPath: '@unsaved:draft-a', sourcePath: '归档/source.md', modifiedTime: 42 },
+    ])
+  })
 })
-
+

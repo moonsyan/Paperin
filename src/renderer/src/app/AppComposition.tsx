@@ -267,6 +267,7 @@ export function AppComposition(): JSX.Element {
     notifySourceRecordsCleared,
     commitCitingIdentityMigration,
     ephemeralBaselines,
+    remapEphemeralSourcePaths,
     readSourceRegistrationTicket,
     applySourceRelocation,
   } = useSourceTracking({
@@ -492,6 +493,7 @@ export function AppComposition(): JSX.Element {
       const oldRelative = toWorkspaceRelativePath(root, oldAbsolutePath, caseInsensitive)
       const newRelative = toWorkspaceRelativePath(root, newAbsolutePath, caseInsensitive)
       if (!oldRelative || !newRelative || oldRelative === newRelative) return
+      remapEphemeralSourcePaths(oldRelative, newRelative, caseInsensitive)
       setWorkspaceSettings((current) => {
         const remapped = remapSourceTrackingPath(
           {
@@ -512,7 +514,7 @@ export function AppComposition(): JSX.Element {
         }
       })
     },
-    [setWorkspaceSettings, workspace?.path],
+    [remapEphemeralSourcePaths, setWorkspaceSettings, workspace?.path],
   )
 
   const { createFile: handleCreateFile, renameFile: handleRenameFile, moveFile: handleMoveFile, deleteFile: handleDeleteFile, openInNewWindow: handleOpenInNewWindow } = useWorkspaceController({
