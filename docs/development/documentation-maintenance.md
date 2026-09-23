@@ -1,8 +1,8 @@
 # 文档维护与全量核对
 
-核对日期：2026-09-23（Asia/Shanghai）。代码基线 `e7ed2e9`。本轮对仓库全部当前 Markdown 做事实同步：对齐战略、审查证据与四类事实（已实现 / 存在风险 / 尚未验证 / 未来设想）；纠正仍把来源/索引写成「待实施」或拼写检查已生效的表述；同步应用欢迎正文与设置提示中的 A09 边界。
+核对日期：2026-09-23（Asia/Shanghai）。代码基线以 [PROJECT-STATUS](../PROJECT-STATUS.md) 为准。本文件说明文档事实来源与核对范围：对齐战略、审查证据与四类事实（已实现 / 存在风险 / 尚未验证 / 未来设想）；入口文档与欢迎正文须反映当前代码，不以冻结审查反例冒充未修复。
 
-**不做：** 修改产品业务逻辑（除欢迎文案与设置说明）、性能阈值、历史冻结审阅正文、性能/主题原始 JSON、用户 `.paperin`。兼容夹具生成物不在本清单。
+**不做：** 修改产品业务逻辑（欢迎文案与设置说明除外）、性能阈值、历史冻结审阅正文、性能/主题原始 JSON、用户 `.paperin`。兼容夹具生成物不在本清单。
 
 历史批次：2026-09-22 曾以 `60cc417` 完成 37 份核对；其细则保留在 Git，不再当作当前完成状态。
 
@@ -28,22 +28,22 @@
 | --- | --- |
 | `AGENT.md` | 保留短入口，指向 `AGENTS.md` |
 | `AGENTS.md` | 当前/计划/历史与欢迎同步规则不变 |
-| `README.md` | 定位对齐战略；门禁与拼写 A09；文档导航 |
+| `README.md` | 定位对齐战略；门禁与拼写当前行为；文档导航 |
 | `CONTRIBUTING.md` | 门禁与本地数据边界；指向最新状态/战略 |
 | `CHANGELOG.md` | 增加 2026-09-23 复审与全量同步条目 |
-| `PRIVACY.md` | 日志路径风险；拼写检查当前无效 |
+| `PRIVACY.md` | 日志路径风险；拼写打开后可能下载词典 |
 | `SECURITY.md` | 指向 09-23 审查；区分 backup/journal |
-| `THIRD-PARTY-NOTICES.md` | 拼写词典下载附 A09 前提 |
+| `THIRD-PARTY-NOTICES.md` | 拼写词典下载随设置开关 |
 | `docs/README.md` | 导航含战略、审查、接收方矩阵、旧战略 stub |
 | `docs/IMPLEMENTATION-PLAN.md` | 执行入口与 A01–A10 优先项 |
 | `docs/PRODUCT-STRATEGY-REVIEW-2026-09-23.md` | **当前战略** |
 | `docs/PRODUCT-STRATEGY-REVIEW-2026-09-22.md` | **兼容 stub，保留不删** |
-| `docs/PRODUCT-WORKFLOW.md` | 已落地 vs A01–A10 缺口 |
+| `docs/PRODUCT-WORKFLOW.md` | 已落地 vs 仍 UNVERIFIED 项 |
 | `docs/PROJECT-STATUS.md` | 新鲜门禁、阻断表、行数 |
 | `docs/TECH-STACK.md` | 依赖与 Node 口径 |
-| `docs/UI-INTERACTION-SPEC.md` | 来源反馈与拼写 A09 |
+| `docs/UI-INTERACTION-SPEC.md` | 来源反馈、首次使用与拼写当前行为 |
 | `docs/ACCESSIBILITY-SMOKE.md` | 静态数量；真人未测 |
-| `docs/getting-started.md` | 与 `getting-started.ts` 同步 A09 |
+| `docs/getting-started.md` | 与 `getting-started.ts` 全文一致 |
 | `docs/command-panels.md` | 现有命令与来源清理 |
 | `docs/coexistence.md` | 逐篇基线 + A02/A03/A08 |
 | `docs/compatibility-matrix.md` | 已落地行与当前门禁注记 |
@@ -73,7 +73,7 @@
 | 文件 | 本轮处理 |
 | --- | --- |
 | `src/shared/product/getting-started.ts` | 与 `docs/getting-started.md` 同句 |
-| `src/renderer/.../SettingsDialog/EditorPanel.tsx` | 拼写提示对齐 A09 |
+| `src/renderer/.../SettingsDialog/EditorPanel.tsx` | 拼写提示对齐当前生效行为 |
 
 `.gitignore` 已忽略 `**/.paperin/`。LICENSE 与性能/主题原始 JSON 保留。
 
@@ -97,6 +97,6 @@
 
 ## 本轮验证预期
 
-文档与欢迎文案变更后：入门一致性测试；适用时 `npm run typecheck`。全量 `npm run test` 已知因 A10（安装脚本 shebang / Vite SSR）为红，**不因文档同步改为声称全绿**。性能门禁保持红灯记录。
+文档与欢迎文案变更后：入门一致性测试；适用时 `npm run typecheck`。默认 `npm run test` 以 [PROJECT-STATUS](../PROJECT-STATUS.md) 新鲜结果为准。合成 `perf:regression` 仍可能因 I/O 波动红灯，**不因文档同步放宽阈值或声称全绿**。
 
 返回 [文档索引](../README.md) · [开发资料](_index.md) · [项目状态](../PROJECT-STATUS.md)。

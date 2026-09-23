@@ -67,7 +67,7 @@
 | 安全响应渠道 | **已提供** | `SECURITY.md`：GitHub 私密安全公告；不要求公开用户文件、路径或 token。无另行公布的安全邮箱 |
 | 更新日志与贡献说明 | **0.7.0 已写入** | `CHANGELOG.md`、`CONTRIBUTING.md` 记录候选版本事实和当前贡献方式。安装循环仍为 UNVERIFIED，因此这不是正式公开发布 |
 
-当前代码事实：生产环境默认检查更新、自动下载并在退出时安装；`autoDownload` 与 `autoInstallOnAppQuit` 由 `shouldCheckForUpdates` / `shouldInstallUpdateOnQuit` 显式赋值，开发环境恒为 `false`。设置「自动检查更新」关闭后下次启动不调用更新服务器，也不在退出时安装已下载包。默认图片模式为本地附件；SM.MS token 经主进程 `safeStorage` 加密，渲染进程拿不到明文。拼写检查开关默认关闭；当前正文硬编码关闭，打开开关暂不产生正文效果，也尚未触发词典下载（A09）。正式隐私说明见仓库根目录 `PRIVACY.md`。
+当前代码事实：生产环境默认检查更新、自动下载并在退出时安装；`autoDownload` 与 `autoInstallOnAppQuit` 由 `shouldCheckForUpdates` / `shouldInstallUpdateOnQuit` 显式赋值，开发环境恒为 `false`。设置「自动检查更新」关闭后下次启动不调用更新服务器，也不在退出时安装已下载包。默认图片模式为本地附件；SM.MS token 经主进程 `safeStorage` 加密，渲染进程拿不到明文。拼写检查开关默认关闭；打开后正文启用拼写检查（代码块除外），所选语言可能下载词典且不上传正文。正式隐私说明见仓库根目录 `PRIVACY.md`。
 
 ## Windows 候选记录
 

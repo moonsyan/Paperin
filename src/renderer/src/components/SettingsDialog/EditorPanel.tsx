@@ -103,7 +103,7 @@ export function EditorPanel({
       <button type="button" className="settings-row settings-row-toggle" aria-pressed={spellcheck} onClick={() => onSpellcheckChange(!spellcheck)}>
         <span className="settings-label">
           拼写检查（多语言词典）
-          <span className="settings-hint">默认关闭。当前正文仍硬编码关闭拼写检查，打开开关暂不产生正文效果，也尚未触发词典下载；修复后才可能下载对应语言词典（不上传正文）。代码块与行内代码自动排除，中文不在词典范围</span>
+          <span className="settings-hint">默认关闭。打开后正文启用拼写检查（代码块与行内代码除外）；所选语言可能下载词典，不上传正文。中文通常不在内置词典范围</span>
         </span>
         <span className={`switch ${spellcheck ? 'on' : ''}`} />
       </button>
