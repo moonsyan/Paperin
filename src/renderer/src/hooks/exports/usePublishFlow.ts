@@ -25,6 +25,7 @@ import {
   awaitRichContentForExport,
   runExclusiveExport,
 } from './useExportSession'
+import { readExportSource, reviewExportMarkdown } from './review-export'
 
 type ExportSession = ReturnType<typeof createExportSession>
 
@@ -36,10 +37,14 @@ type ExportSession = ReturnType<typeof createExportSession>
  *   改由 resolveCollectionEntries 读盘 + renderMarkdownToHtml 拼接；
  * - 目录选择独立进行——用户取消不产生任何写入；
  * - 富文本复制不写文件，只走剪贴板，失败时回退 Markdown 纯文本。
+ *
+ * 写出前与 Markdown/HTML 共用 reviewExportMarkdown（空图、危险 URL、缺附件确认）。
  */
 export function usePublishFlow({
   editorRef,
   activeFileIdRef,
+  contents,
+  dirOfFile,
   setToast,
   exportSessionRef,
   buildPublishedHtml,
@@ -49,6 +54,8 @@ export function usePublishFlow({
 }: {
   editorRef: MutableRefObject<EditorHandle | null>
   activeFileIdRef: MutableRefObject<string>
+  contents: Record<string, string>
+  dirOfFile: (fileId: string) => string | undefined
   setToast: Dispatch<SetStateAction<string>>
   exportSessionRef: MutableRefObject<ExportSession | null>
   buildPublishedHtml: (
@@ -63,6 +70,31 @@ export function usePublishFlow({
 }) {
   const getDeliveryReportRef = useRef(getDeliveryReport)
   getDeliveryReportRef.current = getDeliveryReport
+
+  const reviewMarkdownContent = useCallback(
+    async (content: string, directory: string | undefined) => {
+      return reviewExportMarkdown({
+        content,
+        directory,
+        stat: window.desktopAPI ? (path) => window.desktopAPI!.document.stat(path) : null,
+        notify: setToast,
+        confirm: (message) => window.confirm(message),
+      })
+    },
+    [setToast],
+  )
+
+  const reviewActiveDocument = useCallback(async () => {
+    const fileId = activeFileIdRef.current
+    const directory = dirOfFile(fileId)
+    const content = readExportSource({
+      editorMarkdown: editorRef.current?.isReady() ? editorRef.current.getMarkdown() : null,
+      fallback: contents[fileId] ?? '',
+      directory,
+    })
+    return reviewMarkdownContent(content, directory)
+  }, [activeFileIdRef, contents, dirOfFile, editorRef, reviewMarkdownContent])
+
   /** 发布：导出 HTML 资源包。目录选择独立进行——用户取消不产生任何写入。
    *  范围为目录/标签集合时由 resolveCollectionEntries 读盘收集并合并为单文档 */
   const handlePublishBundle = useCallback(
@@ -92,6 +124,11 @@ export function usePublishFlow({
               setToast('集合范围内没有可发布的文档')
               return
             }
+            for (const entry of entries) {
+              const directory = dirOfFile(entry.path)
+              const review = await reviewMarkdownContent(entry.content, directory)
+              if (!review.ok) return
+            }
             const body = buildCollectionHtml(
               entries.map((entry) => ({ ...entry, content: renderMarkdownToHtml(entry.content) })),
             )
@@ -99,6 +136,8 @@ export function usePublishFlow({
               scope.kind === 'tag' ? `标签「${scope.tag}」合集` : '目录合集'
             html = await buildPublishedHtml(options, { body, title })
           } else {
+            const review = await reviewActiveDocument()
+            if (!review.ok) return
             setToast('导出中：等待公式/图表渲染…')
             if (!(await awaitRichContentForExport(editorRef, activeFileIdRef))) {
               setToast('导出期间切换了文档，已取消，请重新导出')
@@ -147,7 +186,18 @@ export function usePublishFlow({
         }
       })
     },
-    [activeFileIdRef, buildPublishedHtml, editorRef, exportSessionRef, inlineImagesInHtml, resolveCollectionEntries, setToast],
+    [
+      activeFileIdRef,
+      buildPublishedHtml,
+      dirOfFile,
+      editorRef,
+      exportSessionRef,
+      inlineImagesInHtml,
+      resolveCollectionEntries,
+      reviewActiveDocument,
+      reviewMarkdownContent,
+      setToast,
+    ],
   )
 
   /** 发布：复制富文本（text/html + text/plain）。不把原始 HTML 写入正文 */
@@ -157,6 +207,8 @@ export function usePublishFlow({
       const session = exportSessionRef.current
       if (!session) return
       await runExclusiveExport(session, editorRef, setToast, '复制失败，请稍后重试', async () => {
+        const review = await reviewActiveDocument()
+        if (!review.ok) return
         setToast('复制中：等待公式/图表渲染…')
         if (!(await awaitRichContentForExport(editorRef, activeFileIdRef))) {
           setToast('复制期间切换了文档，已取消，请重新操作')
@@ -184,7 +236,15 @@ export function usePublishFlow({
         }
       })
     },
-    [activeFileIdRef, buildPublishedHtml, editorRef, exportSessionRef, inlineImagesInHtml, setToast],
+    [
+      activeFileIdRef,
+      buildPublishedHtml,
+      editorRef,
+      exportSessionRef,
+      inlineImagesInHtml,
+      reviewActiveDocument,
+      setToast,
+    ],
   )
 
   return { handlePublishBundle, handleCopyRichText }

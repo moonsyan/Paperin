@@ -96,6 +96,8 @@ export function useExports({
   const { handlePublishBundle, handleCopyRichText } = usePublishFlow({
     editorRef,
     activeFileIdRef,
+    contents,
+    dirOfFile,
     setToast,
     exportSessionRef,
     buildPublishedHtml,

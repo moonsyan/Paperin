@@ -7,14 +7,19 @@ import { createExportSession } from '../../lib/export-session'
 import * as exportBundle from '../../lib/export-bundle'
 import { usePublishFlow } from './usePublishFlow'
 
-const makeEditorRef = (): MutableRefObject<EditorHandle | null> => ({
+const makeEditorRef = (markdown = '# doc'): MutableRefObject<EditorHandle | null> => ({
   current: {
     isReady: () => true,
-    getMarkdown: () => '# doc',
+    getMarkdown: () => markdown,
     ensureRichContent: vi.fn(async () => {}),
     restoreExportViewport: vi.fn(),
   } as unknown as EditorHandle,
 })
+
+const publishBase = {
+  contents: { 'file-a': '# doc', a: '# doc' } as Record<string, string>,
+  dirOfFile: () => undefined as string | undefined,
+}
 
 describe('usePublishFlow（R04 缺图与写入一致）', () => {
   beforeEach(() => {
@@ -41,6 +46,7 @@ describe('usePublishFlow（R04 缺图与写入一致）', () => {
       usePublishFlow({
         editorRef: makeEditorRef(),
         activeFileIdRef,
+        ...publishBase,
         setToast,
         exportSessionRef,
         buildPublishedHtml: vi.fn(async () => '<img src="mdimg://missing">'),
@@ -86,6 +92,7 @@ describe('usePublishFlow（R04 缺图与写入一致）', () => {
       usePublishFlow({
         editorRef: makeEditorRef(),
         activeFileIdRef,
+        ...publishBase,
         setToast,
         exportSessionRef,
         buildPublishedHtml: vi.fn(async () => '<p>ok</p>'),
@@ -127,6 +134,7 @@ describe('usePublishFlow（R04 缺图与写入一致）', () => {
       usePublishFlow({
         editorRef,
         activeFileIdRef,
+        ...publishBase,
         setToast,
         exportSessionRef,
         buildPublishedHtml: vi.fn(async () => '<p>x</p>'),
@@ -170,6 +178,7 @@ describe('usePublishFlow（R04 缺图与写入一致）', () => {
       usePublishFlow({
         editorRef: makeEditorRef(),
         activeFileIdRef,
+        ...publishBase,
         setToast,
         exportSessionRef,
         buildPublishedHtml: vi.fn(async () => '<p>x</p>'),
@@ -214,6 +223,7 @@ describe('usePublishFlow（R04 缺图与写入一致）', () => {
       usePublishFlow({
         editorRef: makeEditorRef(),
         activeFileIdRef: { current: 'file-a' },
+        ...publishBase,
         setToast: vi.fn(),
         exportSessionRef: { current: createExportSession() },
         buildPublishedHtml: vi.fn(async () => '<title>t</title>'),
@@ -242,5 +252,36 @@ describe('usePublishFlow（R04 缺图与写入一致）', () => {
     )
     expect(buildExportBundleSpy.mock.calls[0]?.[3]?.report?.json).not.toMatch(/D:\\\\|content|query/)
     buildExportBundleSpy.mockRestore()
+  })
+
+  it('危险链接预检阻止发布且不选目录', async () => {
+    const pickExportDirectory = vi.fn()
+    Object.defineProperty(window, 'desktopAPI', {
+      configurable: true,
+      value: { document: { pickExportDirectory, stat: vi.fn(async () => ({ ok: true })) } },
+    })
+    const setToast = vi.fn()
+    const { result } = renderHook(() =>
+      usePublishFlow({
+        editorRef: makeEditorRef('[点我](javascript:alert(1))'),
+        activeFileIdRef: { current: 'file-a' },
+        contents: { 'file-a': '[点我](javascript:alert(1))' },
+        dirOfFile: () => 'D:/ws',
+        setToast,
+        exportSessionRef: { current: createExportSession() },
+        buildPublishedHtml: vi.fn(async () => '<p>x</p>'),
+        inlineImagesInHtml: vi.fn(async () => ({ html: '<p>x</p>', failed: 0 })),
+      }),
+    )
+    await act(async () => {
+      await result.current.handlePublishBundle({
+        template: 'blog',
+        includeToc: true,
+        inlineImages: true,
+        cleanWikiLinks: true,
+      })
+    })
+    expect(pickExportDirectory).not.toHaveBeenCalled()
+    expect(setToast).toHaveBeenCalledWith(expect.stringMatching(/不安全|停止导出/))
   })
 })

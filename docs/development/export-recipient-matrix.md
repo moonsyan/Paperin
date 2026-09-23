@@ -1,6 +1,6 @@
 # 导出接收方兼容矩阵（P2-03 骨架）
 
-> 更新时间：2026-09-23。本文记录 Paperin **写出侧**已有预检/转换边界与**接收方软件**实测状态；不宣称 Word/PDF 阅读器/浏览器组合已全部验收。写出侧普通格式与资源包预检入口仍未完全对齐（审查 A07）。导出行为细节见 [export-formats](../export-formats.md)，能力总表见 [compatibility-matrix](../compatibility-matrix.md)，新鲜未验证项见 [PROJECT-STATUS](../PROJECT-STATUS.md)。
+> 更新时间：2026-09-23。本文记录 Paperin **写出侧**已有预检/转换边界与**接收方软件**实测状态；不宣称 Word/PDF 阅读器/浏览器组合已全部验收。写出侧 Markdown / HTML / PDF / DOCX / Pandoc / **发布资源包与富文本复制**均经 `reviewExportMarkdown`（空图、危险 URL、缺附件确认）；接收方打开仍为 **UNVERIFIED**。导出行为细节见 [export-formats](../export-formats.md)，能力总表见 [compatibility-matrix](../compatibility-matrix.md)，新鲜未验证项见 [PROJECT-STATUS](../PROJECT-STATUS.md)。
 
 ## 固定交付夹具（计划）
 
@@ -13,7 +13,7 @@
 | 格式 | Paperin 保证（写出侧） | Paperin 不保证 | 典型接收方 | 接收方实测 |
 | --- | --- | --- | --- | --- |
 | Markdown `.md` | 另存为新文件；空图片、`javascript:` 等不安全链接阻止写出；缺本地附件需确认；未完成任务保留正文并事后提醒 | 不替用户清理 Wiki/私有语法；不保证第三方对 GFM 扩展的解读一致 | Typora、Obsidian、VS Code、Git 托管预览 | **UNVERIFIED** |
-| HTML 单篇 / 资源包 | 预检同 Markdown；抓取编辑器已渲染 DOM（单篇）或集合渲染器（标签/目录合集）；资源包含 `index.html`、`assets/`、脱敏 `reports/paperin-delivery-report.json` | 集合路径公式/Mermaid 为降级标注而非 KaTeX/脚本执行；自定义 CSS 去脚本片段；不执行页面内脚本 | Chrome、Edge、Firefox、Safari、静态托管 | **UNVERIFIED** |
+| HTML 单篇 / 资源包 | 预检同 Markdown（含发布资源包与富文本复制）；抓取编辑器已渲染 DOM（单篇）或集合渲染器（标签/目录合集）；资源包含 `index.html`、`assets/`、脱敏 `reports/paperin-delivery-report.json` | 集合路径公式/Mermaid 为降级标注而非 KaTeX/脚本执行；自定义 CSS 去脚本片段；不执行页面内脚本 | Chrome、Edge、Firefox、Safari、静态托管 | **UNVERIFIED** |
 | PDF | 预检后由 Chromium 打印管线生成；依赖当前主题与已渲染正文 | 页眉页脚、字体嵌入、分页与打印边距因 OS/驱动而异；集合与单篇路径差异同 HTML | Adobe Acrobat、Edge 内置、macOS 预览、Evince | **UNVERIFIED** |
 | DOCX | 预检后由内置 OOXML 路径生成；本地图优先内嵌，失败时占位文本并在 UI 说明 | 复杂公式、Mermaid、高级样式与 Word 版本特性不一一映射；不依赖本机安装 Word 即可写出 | Microsoft Word、LibreOffice Writer、WPS | **UNVERIFIED** |
 | Pandoc（EPUB / LaTeX 等） | 预检后调用用户环境 Pandoc；未安装则明确失败，不伪造成功 | 模板、宏包、中文字体与引擎由用户 Pandoc/TeX 栈决定 | Calibre、TeX Live、用户 CI | **UNVERIFIED** |
