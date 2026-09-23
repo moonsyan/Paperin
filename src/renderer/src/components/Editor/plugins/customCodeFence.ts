@@ -3,6 +3,7 @@ import { TextSelection, type EditorState, type Transaction } from '@milkdown/kit
 import { InputRule, inputRules } from '@milkdown/kit/prose/inputrules'
 import { keymap } from '@milkdown/kit/prose/keymap'
 import { $prose } from '@milkdown/kit/utils'
+import { normalizeCodeLanguage } from '../../../lib/code-language'
 
 const createCodeBlockSelection = (
   tr: Transaction,
@@ -58,7 +59,7 @@ export const customCodeFenceRule = $prose((ctx) => {
         /^(```|~~~)([A-Za-z0-9+#.-]*)[\s]$/,
         (state, match, start, end) => {
           if (!codeBlockType) return null
-          const language = (match[2] ?? '').toLowerCase()
+          const language = normalizeCodeLanguage(match[2] ?? '')
           const node = codeBlockType.create({ language })
           const tr = state.tr.replaceRangeWith(start, end, node)
           const mappedStart = Math.min(tr.mapping.map(start), tr.doc.content.size)
@@ -81,7 +82,7 @@ export const createCodeFenceEnterTransaction = (state: EditorState): Transaction
   const codeBlockType = state.schema.nodes.code_block
   if (!match || !codeBlockType) return null
 
-  const language = (match[2] ?? '').toLowerCase()
+  const language = normalizeCodeLanguage(match[2] ?? '')
   const node = codeBlockType.create({ language })
   const blockStart = $from.before()
   const blockEnd = $from.after()

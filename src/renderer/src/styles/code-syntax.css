@@ -1,0 +1,66 @@
+/**
+ * Prism token → 语义 --code-*（禁止在此写死主题 hex）。
+ * 新增角色：先加主题变量，再加一行映射。
+ */
+
+.milkdown pre code {
+  color: var(--code-fg, var(--text-1));
+}
+
+.milkdown pre code .token.comment,
+.milkdown pre code .token.prolog,
+.milkdown pre code .token.doctype,
+.milkdown pre code .token.cdata {
+  color: var(--code-comment, var(--text-3));
+  font-style: italic;
+}
+
+.milkdown pre code .token.keyword,
+.milkdown pre code .token.builtin,
+.milkdown pre code .token.important {
+  color: var(--code-keyword, var(--accent-h));
+  font-weight: 500;
+}
+
+.milkdown pre code .token.operator,
+.milkdown pre code .token.entity,
+.milkdown pre code .token.url {
+  color: var(--code-punctuation, var(--text-2));
+}
+
+.milkdown pre code .token.string,
+.milkdown pre code .token.char,
+.milkdown pre code .token.attr-value,
+.milkdown pre code .token.inserted {
+  color: var(--code-string, var(--text-2));
+}
+
+.milkdown pre code .token.number,
+.milkdown pre code .token.boolean,
+.milkdown pre code .token.constant {
+  color: var(--code-number, var(--text-2));
+}
+
+.milkdown pre code .token.function,
+.milkdown pre code .token.function-name {
+  color: var(--code-function, var(--text-2));
+}
+
+.milkdown pre code .token.class-name,
+.milkdown pre code .token.type,
+.milkdown pre code .token.tag,
+.milkdown pre code .token.property,
+.milkdown pre code .token.attr-name,
+.milkdown pre code .token.variable,
+.milkdown pre code .token.parameter {
+  color: var(--code-property, var(--text-2));
+}
+
+.milkdown pre code .token.punctuation,
+.milkdown pre code .token.bracket {
+  color: var(--code-punctuation, var(--text-3));
+}
+
+.milkdown pre code .token.deleted {
+  color: var(--code-deleted, var(--danger));
+}

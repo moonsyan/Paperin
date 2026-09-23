@@ -1,0 +1,17 @@
+/**
+ * 深色系代码高亮默认色板：同色相提亮，关键字仍跟主题 accent。
+ */
+[data-theme='dark'],
+[data-theme='github'],
+[data-theme='atom'],
+[data-theme='pine'] {
+  --code-fg: var(--text-1);
+  --code-comment: var(--text-3);
+  --code-keyword: var(--accent-h);
+  --code-string: #8fbf96;
+  --code-number: #d0a57a;
+  --code-function: #9aabd4;
+  --code-property: #c9a88a;
+  --code-punctuation: var(--text-3);
+  --code-deleted: #e08a7e;
+}

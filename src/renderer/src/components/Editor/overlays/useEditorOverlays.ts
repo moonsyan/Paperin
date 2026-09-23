@@ -16,6 +16,7 @@ import {
 } from '@milkdown/kit/preset/commonmark'
 import { callCommand } from '@milkdown/kit/utils'
 import { isImeComposing } from '../../../lib/keyboard'
+import { normalizeCodeLanguage } from '../../../lib/code-language'
 import { EditorOverlays, type CodePanelState, type FullscreenCodeState, type SelectionToolbarState, type TablePanelState } from './EditorOverlays'
 import { filterWikiSuggestions, type WikiSuggestion } from './WikiAutocomplete'
 import {
@@ -366,6 +367,7 @@ export const useEditorOverlays = ({
     if (!codePanel) return
     const editor = editorRef.current?.status === EditorStatus.Created ? editorRef.current : null
     if (!editor) return
+    const normalized = normalizeCodeLanguage(language)
     const view = editor.ctx.get(editorViewCtx)
     try {
       const position = view.posAtDOM(codePanel.pre, 0)
@@ -376,7 +378,7 @@ export const useEditorOverlays = ({
         view.dispatch(
           view.state.tr.setNodeMarkup($position.before(depth), undefined, {
             ...node.attrs,
-            language: language.trim(),
+            language: normalized,
           }),
         )
         break
@@ -384,8 +386,8 @@ export const useEditorOverlays = ({
     } catch {
       // DOM 位置解析失败时保持当前浮层状态。
     }
-    const trimmed = language.trim()
-    setCodePanel((current) => (current ? { ...current, language: trimmed } : current))
+    setCodePanel((current) => (current ? { ...current, language: normalized } : current))
+    setLangInput(normalized)
   }
 
   const getCodeText = (pre: HTMLElement): string => {

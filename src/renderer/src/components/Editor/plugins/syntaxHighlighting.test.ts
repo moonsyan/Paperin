@@ -14,4 +14,35 @@ describe('configureCodeBlockRefractor', () => {
       children: [{ type: 'text', value: 'graph TD' }],
     })
   })
+
+  it('注册技术文档常用扩展语言', () => {
+    configureCodeBlockRefractor(refractor)
+
+    for (const language of [
+      'toml',
+      'tsx',
+      'jsx',
+      'graphql',
+      'docker',
+      'dockerfile',
+      'powershell',
+      'dart',
+      'json5',
+      'http',
+      'nginx',
+      'protobuf',
+      'cmake',
+      'wasm',
+      'hcl',
+      'elixir',
+      'haskell',
+      'scala',
+      'zig',
+      'json',
+      'yaml',
+      'yml',
+    ]) {
+      expect(refractor.registered(language), language).toBe(true)
+    }
+  })
 })

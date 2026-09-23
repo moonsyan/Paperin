@@ -1,0 +1,20 @@
+/**
+ * 浅色系代码高亮默认色板（写作台版方案 A）。
+ * 关键字用 accent；其余低饱和。深色主题见 code-palette-dark.css。
+ */
+:root,
+[data-theme='default'],
+[data-theme='ocean'],
+[data-theme='rose'],
+[data-theme='typewriter'],
+[data-theme='mist'] {
+  --code-fg: var(--text-1);
+  --code-comment: var(--text-3);
+  --code-keyword: var(--accent-h);
+  --code-string: #5a8f66;
+  --code-number: #a67c52;
+  --code-function: #5f73a8;
+  --code-property: #9a7358;
+  --code-punctuation: var(--text-3);
+  --code-deleted: #b06060;
+}
