@@ -3,6 +3,9 @@
 本文件只记录已经发生的版本事实。`0.7.0` 是第一个打 tag 的候选版本。推送 `v0.7.0` 只会生成 GitHub Draft Release；安装、升级和卸载循环仍未在隔离环境完成，不能把这份日志当成“已公开稳定发布”。
 
 ## 未发布 — Mermaid 卡住渲染与编辑源码无响应（2026-09-24）
+- 直调 mermaidAPI.render，避免 mermaid.render 外层队列被挂起任务堵死。
+- 视口变化时块未变则复用 widget；flowchart 关闭 htmlLabels 降低 Electron 卡死概率；8s 看门狗离开「正在渲染」。
+
 
 - 渲染队列改为 setTimeout(0) 让出主线程，避免 requestIdleCallback 在繁忙时把串行队列拖死导致一直「正在渲染」。
 - SVG 提交失败不再静默 return；初始化/加载失败清缓存以便重试。

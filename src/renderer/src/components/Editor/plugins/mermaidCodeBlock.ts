@@ -8,19 +8,18 @@ import { viewportChangedKey, streamInsertKey, readVisibleRange } from '../viewpo
 
 const MERMAID_RENDER_DELAY = 420
 const MERMAID_RENDER_TIMEOUT = 4000
-/** 单次 mermaid.render 超时：串行队列内一次挂起不能阻塞后续所有图表 */
-const MERMAID_SINGLE_RENDER_TIMEOUT = 15_000
+/** 单次渲染超时：须短于用户耐心；超时后走错误态，不再静默停在「正在渲染」 */
+const MERMAID_SINGLE_RENDER_TIMEOUT = 8_000
 let diagramSequence = 0
 let mermaidPromise: Promise<typeof import('mermaid').default> | null = null
 /**
- * C-5：mermaid.render 内部使用共享临时容器，并发调用（多图表同时渲染、
- * 文档加载瞬间多个装饰同时 renderNow）会互相污染，报
- * "fragments are not allowed in template" 或串图。全部经此队列串行执行。
+ * 自建串行队列。故意不走 mermaid.render() 外层队列：
+ * 后者在单次 mermaidAPI.render 挂起时会永久堵住后续所有图，
+ * 而我们的 Promise.race 超时无法取消已入队的内部任务。
  */
 let mermaidRenderQueue: Promise<void> = Promise.resolve()
 const enqueueMermaidRender = (render: () => Promise<void>): Promise<void> => {
   const task = mermaidRenderQueue.then(yieldToEventLoop).then(render)
-  // 队列保活：单次渲染失败不阻断后续渲染；返回给调用方的是未吞错的 task
   mermaidRenderQueue = task.catch(() => undefined)
   return task
 }
@@ -121,8 +120,14 @@ const getErrorMessage = (error: unknown): string => mermaidStatusText(error)
 
 const observeThemeChanges = () => {
   if (themeObserver || typeof MutationObserver === 'undefined') return
+  let themeRenderTimer: ReturnType<typeof setTimeout> | undefined
   themeObserver = new MutationObserver(() => {
-    activePreviews.forEach((preview) => preview.renderNow())
+    // 主题属性可能被连续写入；合并成一次重绘，避免 renderVersion 抖动导致永远无法提交
+    if (themeRenderTimer) clearTimeout(themeRenderTimer)
+    themeRenderTimer = setTimeout(() => {
+      themeRenderTimer = undefined
+      activePreviews.forEach((preview) => preview.renderNow())
+    }, 50)
   })
   themeObserver.observe(document.documentElement, {
     attributes: true,
@@ -227,11 +232,25 @@ class MermaidPreview {
     this.preview.replaceChildren(this.status)
     this.status.classList.remove('is-error')
     this.status.textContent = '正在渲染图表…'
+    // 即便 mermaidAPI 卡住主线程以外的异步路径，也要在超时后离开「正在渲染」
+    const watchdog = setTimeout(() => {
+      if (
+        version === this.renderVersion &&
+        activePreviews.has(this) &&
+        this.status.textContent === '正在渲染图表…'
+      ) {
+        this.preview.replaceChildren(this.status)
+        this.status.textContent = getErrorMessage(new Error('渲染超时'))
+        this.status.classList.add('is-error')
+      }
+    }, MERMAID_SINGLE_RENDER_TIMEOUT)
     const draw = async (mermaid: Awaited<ReturnType<typeof getMermaid>>, text: string) => {
       const id = `paperin-mermaid-${diagramSequence++}`
       let timeoutHandle: ReturnType<typeof setTimeout> | undefined
+      // 直调 mermaidAPI.render，避开 mermaid.render 外层 executionQueue 中毒
+      const renderApi = mermaid.mermaidAPI.render.bind(mermaid.mermaidAPI)
       const { svg, bindFunctions } = await Promise.race([
-        mermaid.render(id, text),
+        renderApi(id, text),
         new Promise<never>((_, reject) => {
           timeoutHandle = setTimeout(() => reject(new Error('渲染超时')), MERMAID_SINGLE_RENDER_TIMEOUT)
         }),
@@ -242,7 +261,6 @@ class MermaidPreview {
       const safeSvg = sanitizeMermaidSvg(svg)
       if (!safeSvg) throw new Error('图表结果不是可显示的 SVG')
       if (!shouldCommitMermaidRender(activePreviews.has(this), version, this.renderVersion)) return
-      // 用容器 innerHTML 解析已消毒的 SVG，避免 text/html 二次解析偶发找不到根节点却静默卡住“正在渲染”
       const holder = document.createElement('div')
       holder.innerHTML = safeSvg
       const parsedSvg = holder.querySelector('svg')
@@ -273,6 +291,7 @@ class MermaidPreview {
         this.status.classList.add('is-error')
       })
       .finally(() => {
+        clearTimeout(watchdog)
         if (!shouldCommitMermaidRender(activePreviews.has(this), version, this.renderVersion)) return
         renderListeners.forEach((listener) => listener())
       })
@@ -456,9 +475,15 @@ export const mermaidPreviewPlugin = new Plugin({
           blocks: mapBlocks(previousState.blocks, tr),
         }
       }
-      // 3.1 Tier 1：滚动跨越视口边界后，只在视口内重建 mermaid 预览（getMermaidBlocks 已限区间）
+      // 视口变化：块集合未变则复用 widget，避免反复销毁导致永远停在「正在渲染」
       if (tr.getMeta(viewportChangedKey)) {
         const blocks = getMermaidBlocks(state.doc)
+        if (haveSameBlocks(previousState.blocks, blocks)) {
+          return {
+            decorations: previousState.decorations.map(tr.mapping, tr.doc),
+            blocks,
+          }
+        }
         return { decorations: buildMermaidDecorations(state.doc, blocks), blocks }
       }
       if (!tr.docChanged) {

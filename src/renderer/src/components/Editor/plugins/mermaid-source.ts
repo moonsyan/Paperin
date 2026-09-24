@@ -27,7 +27,9 @@ export function mermaidThemeOptions(theme: string) {
     suppressErrorRendering: true,
     fontFamily: CJK_FONT,
     theme: theme === 'dark' ? 'dark' as const : 'default' as const,
-    flowchart: { htmlLabels: true, useMaxWidth: true, wrappingWidth: 240, padding: 16 },
+    // htmlLabels 在 Electron 里对含中文/HTML 的 flowchart 偶发主线程卡死，
+    // 表现为一直「正在渲染」且按钮无响应；改用文本标签更稳。
+    flowchart: { htmlLabels: false, useMaxWidth: true, wrappingWidth: 240, padding: 16 },
     sequence: { useMaxWidth: true },
   }
 }
