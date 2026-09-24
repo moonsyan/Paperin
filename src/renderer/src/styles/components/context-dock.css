@@ -47,9 +47,10 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  /* 跨过与编辑区的接缝，保证点在竖线上也能抓住 */
-  left: -6px;
-  width: 12px;
+  /* 完全落在面板内侧：勿再向编辑区伸出，否则会盖住编辑区右侧滚动条，
+   * 滚轮与拖宽抢同一命中区。内侧 6px 仍够抓住左边框。 */
+  left: 0;
+  width: 6px;
   cursor: col-resize;
   z-index: 5;
   touch-action: none;
