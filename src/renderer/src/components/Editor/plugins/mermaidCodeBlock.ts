@@ -77,7 +77,12 @@ export const mermaidDecorationKey = (pos: number, source: string): string => {
 
 const getMermaid = () => {
   if (!mermaidPromise) {
-    mermaidPromise = import('mermaid').then(({ default: mermaid }) => mermaid)
+    mermaidPromise = import('mermaid')
+      .then(({ default: mermaid }) => mermaid)
+      .catch((error: unknown) => {
+        mermaidPromise = null
+        throw error
+      })
   }
   return mermaidPromise
 }
@@ -92,21 +97,25 @@ let mermaidReadyTheme: string | null = null
 const ensureMermaidReady = (theme: string): Promise<void> => {
   if (mermaidReadyTheme === theme && mermaidReadyPromise) return mermaidReadyPromise
   mermaidReadyTheme = theme
-  mermaidReadyPromise = getMermaid().then((mermaid) => {
-    mermaid.initialize(mermaidThemeOptions(theme))
-  })
+  mermaidReadyPromise = getMermaid()
+    .then((mermaid) => {
+      mermaid.initialize(mermaidThemeOptions(theme))
+    })
+    .catch((error: unknown) => {
+      // 初始化失败必须清掉缓存，否则后续所有图永久卡在同一拒绝 Promise 上
+      mermaidReadyPromise = null
+      mermaidReadyTheme = null
+      throw error
+    })
   return mermaidReadyPromise
 }
 
 /**
- * 渲染之间让出主线程：用 requestIdleCallback（超时兜底）让浏览器先处理
- * 输入事件与重绘，再继续下一个图的渲染。多图文档打开时用户点击左侧文件、
- * 滚动页面不再被整条串行队列冻结。
+ * 渲染之间让出主线程。优先 setTimeout(0)：requestIdleCallback 在重绘/长任务
+ * 压力下可能把整条 Mermaid 串行队列拖到“永远等空闲”，表现为一直“正在渲染”。
  */
 const yieldToEventLoop = (): Promise<void> =>
-  typeof requestIdleCallback === 'function'
-    ? new Promise<void>((resolve) => requestIdleCallback(() => resolve(), { timeout: 200 }))
-    : new Promise<void>((resolve) => setTimeout(resolve, 0))
+  new Promise<void>((resolve) => setTimeout(resolve, 0))
 
 const getErrorMessage = (error: unknown): string => mermaidStatusText(error)
 
@@ -155,6 +164,8 @@ class MermaidPreview {
     button.textContent = '编辑源码'
     button.setAttribute('aria-label', '编辑 Mermaid 源码')
     button.setAttribute('aria-pressed', 'false')
+    // mousedown 先截获，避免 ProseMirror 选区抢焦点导致 click 丢失（表现为“编辑源码没反应”）
+    button.addEventListener('mousedown', this.handleToggleSourcePointer)
     button.addEventListener('click', this.handleToggleSource)
     toolbar.append(label, button)
 
@@ -231,14 +242,18 @@ class MermaidPreview {
       const safeSvg = sanitizeMermaidSvg(svg)
       if (!safeSvg) throw new Error('图表结果不是可显示的 SVG')
       if (!shouldCommitMermaidRender(activePreviews.has(this), version, this.renderVersion)) return
-      const parsedSvg = new DOMParser().parseFromString(safeSvg, 'text/html').body.querySelector('svg')
-      if (!parsedSvg) return
+      // 用容器 innerHTML 解析已消毒的 SVG，避免 text/html 二次解析偶发找不到根节点却静默卡住“正在渲染”
+      const holder = document.createElement('div')
+      holder.innerHTML = safeSvg
+      const parsedSvg = holder.querySelector('svg')
+      if (!parsedSvg) throw new Error('图表结果不是可显示的 SVG')
       this.preview.replaceChildren(parsedSvg)
       bindFunctions?.(this.preview)
     }
     this.renderPromise = getMermaid()
       .then(() =>
         enqueueMermaidRender(async () => {
+          if (!shouldCommitMermaidRender(activePreviews.has(this), version, this.renderVersion)) return
           const theme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'default'
           await ensureMermaidReady(theme)
           const mermaid = await getMermaid()
@@ -268,6 +283,7 @@ class MermaidPreview {
     if (this.renderTimer) clearTimeout(this.renderTimer)
     // 失效所有尚未完成的异步 render，避免切换文档后旧结果回写到复用的 widget。
     this.renderVersion += 1
+    this.button.removeEventListener('mousedown', this.handleToggleSourcePointer)
     this.button.removeEventListener('click', this.handleToggleSource)
     activePreviews.delete(this)
     if (activePreviews.size === 0 && themeObserver) {
@@ -276,10 +292,32 @@ class MermaidPreview {
     }
   }
 
-  getSourcePosition = (): number | undefined => this.getPos()
+  getSourcePosition = (): number | undefined => this.resolveCodeBlockPos()
+
+  /**
+   * widget getPos 在装饰映射抖动时可能短暂 undefined；回退到紧随其后的源码 pre。
+   */
+  private resolveCodeBlockPos = (): number | undefined => {
+    const fromWidget = this.getPos()
+    if (typeof fromWidget === 'number') return fromWidget
+    const pre = this.dom.nextElementSibling
+    if (!(pre instanceof HTMLElement) || !pre.classList.contains('mermaid-source-block')) {
+      return undefined
+    }
+    try {
+      const inside = this.view.posAtDOM(pre, 0)
+      const $pos = this.view.state.doc.resolve(inside)
+      for (let depth = $pos.depth; depth > 0; depth -= 1) {
+        if ($pos.node(depth).type.name === 'code_block') return $pos.before(depth)
+      }
+    } catch {
+      return undefined
+    }
+    return undefined
+  }
 
   syncSelection = () => {
-    const codePos = this.getPos()
+    const codePos = this.resolveCodeBlockPos()
     if (typeof codePos !== 'number') return
     const codeNode = this.view.state.doc.nodeAt(codePos)
     const { from, to } = this.view.state.selection
@@ -298,16 +336,33 @@ class MermaidPreview {
     if (isInsideCodeBlock) this.setSourceEditing(true)
   }
 
-  private handleToggleSource = () => {
+  private handleToggleSourcePointer = (event: MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
+  private handleToggleSource = (event?: MouseEvent) => {
+    event?.preventDefault()
+    event?.stopPropagation()
     if (this.isEditingSource) {
       this.showPreview()
       this.button.focus()
       return
     }
-    const codePos = this.getPos()
-    if (typeof codePos !== 'number') return
+    const codePos = this.resolveCodeBlockPos()
+    if (typeof codePos !== 'number') {
+      this.status.classList.add('is-error')
+      this.status.textContent = '无法定位源码块，请滚动后再试或重新打开文档'
+      this.preview.replaceChildren(this.status)
+      return
+    }
     const codeNode = this.view.state.doc.nodeAt(codePos)
-    if (!codeNode || codeNode.type.name !== 'code_block') return
+    if (!codeNode || codeNode.type.name !== 'code_block') {
+      this.status.classList.add('is-error')
+      this.status.textContent = '源码块已失效，请重新打开文档'
+      this.preview.replaceChildren(this.status)
+      return
+    }
     this.setSourceEditing(true)
     this.view.dispatch(
       this.view.state.tr

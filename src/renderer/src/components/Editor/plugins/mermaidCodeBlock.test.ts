@@ -93,6 +93,16 @@ describe('Mermaid 预览渲染触发', () => {
     expect(status?.textContent).toBe('正在渲染图表…')
   })
 
+  it('点击编辑源码会进入源码态（按钮文案切换为查看图表）', async () => {
+    const { root } = await buildEditor('```mermaid\ngraph TD\n  A --> B\n```')
+    const button = root.querySelector('.mermaid-source-toggle') as HTMLButtonElement | null
+    expect(button).toBeTruthy()
+    button!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    button!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    expect(button!.textContent).toBe('查看图表')
+    expect(root.querySelector('.mermaid-block')?.classList.contains('is-editing-source')).toBe(true)
+  })
+
   it('无 mermaid 代码块时不创建预览组件', async () => {
     const { root } = await buildEditor('# 纯文本\n\n普通段落。')
     expect(root.querySelector('.mermaid-block')).toBeNull()
