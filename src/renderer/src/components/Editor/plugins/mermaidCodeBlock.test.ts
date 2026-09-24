@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest'
+import { EditorState } from '@milkdown/kit/prose/state'
 import {
   Editor as MilkdownCore,
   defaultValueCtx,
@@ -83,25 +84,81 @@ describe('Mermaid 预览渲染触发', () => {
     return { view, root, scrollEl }
   }
 
-  it('widget 创建后状态文案立即为"正在渲染"（不再依赖 IO 门控）', async () => {
+  it('widget 创建后状态文案立即为准备/渲染态（不再依赖 IO 门控）', async () => {
     const { root } = await buildEditor('```mermaid\ngraph TD\n  A --> B\n```')
     const widget = root.querySelector('.mermaid-block')
     expect(widget).toBeTruthy()
     const status = root.querySelector('.mermaid-status')
-    // C-7：去掉 IO 视口门控后，构造期就会调用 renderNow，
-    // 状态文案应当立刻切换为"正在渲染图表…"，而不是停留在"进入视口"占位文案。
-    expect(status?.textContent).toBe('正在渲染图表…')
+    expect(status?.textContent).toMatch(/准备渲染|正在加载|正在绘制|正在渲染|输入 Mermaid/)
   })
 
   it('点击编辑源码会进入源码态（按钮文案切换为查看图表）', async () => {
     const { root } = await buildEditor('```mermaid\ngraph TD\n  A --> B\n```')
     const button = root.querySelector('.mermaid-source-toggle') as HTMLButtonElement | null
     expect(button).toBeTruthy()
-    button!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
-    button!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+    button!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 }))
+    button!.click()
     expect(button!.textContent).toBe('查看图表')
     expect(root.querySelector('.mermaid-block')?.classList.contains('is-editing-source')).toBe(true)
   })
+
+  it('主线程延迟后同一次鼠标点击不会把源码态切回图表', async () => {
+    const { root } = await buildEditor('```mermaid\ngraph TD\n  A --> B\n```')
+    const button = root.querySelector('.mermaid-source-toggle') as HTMLButtonElement
+    button.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 }))
+    expect(button.textContent).toBe('编辑源码')
+
+    await new Promise((resolve) => setTimeout(resolve, 450))
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+
+    expect(button.textContent).toBe('查看图表')
+    expect(root.querySelector('.mermaid-block')?.classList.contains('is-editing-source')).toBe(true)
+  })
+
+  it('键盘激活按钮的 click 不依赖鼠标按下事件', async () => {
+    const { root } = await buildEditor('```mermaid\ngraph TD\n  A --> B\n```')
+    const button = root.querySelector('.mermaid-source-toggle') as HTMLButtonElement
+
+    button.click()
+
+    expect(button.textContent).toBe('查看图表')
+    expect(root.querySelector('.mermaid-block')?.classList.contains('is-editing-source')).toBe(true)
+  })
+
+  it('关闭旧编辑器不会使另一编辑器的可见 Mermaid 永远停在加载态', async () => {
+    const oldEditor = await buildEditor('# 旧文档')
+    const newEditor = await buildEditor('```mermaid\ngraph TD\n  A --> B\n```')
+    oldEditor.view.destroy()
+
+    const status = newEditor.root.querySelector('.mermaid-status') as HTMLElement
+    const deadline = Date.now() + 5_000
+    while (/准备渲染|正在加载|正在绘制|正在渲染/.test(status.textContent ?? '') && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+
+    expect(newEditor.root.querySelector('.mermaid-preview svg') || !/准备渲染|正在加载|正在绘制|正在渲染/.test(status.textContent ?? '')).toBeTruthy()
+    newEditor.view.destroy()
+  }, 10_000)
+
+  it('整篇替换重建插件视图后，保留的 Mermaid widget 仍能完成渲染', async () => {
+    const { root, view } = await buildEditor('```mermaid\ngraph TD\n  A --> B\n```')
+    const originalWidget = root.querySelector('.mermaid-block')
+    view.updateState(EditorState.create({
+      schema: view.state.schema,
+      doc: view.state.doc,
+      plugins: view.state.plugins,
+    }))
+    expect(root.querySelector('.mermaid-block')).toBe(originalWidget)
+
+    const status = root.querySelector('.mermaid-status') as HTMLElement
+    const deadline = Date.now() + 5_000
+    while (/准备渲染|正在加载|正在绘制|正在渲染/.test(status.textContent ?? '') && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+
+    expect(root.querySelector('.mermaid-preview svg') || !/准备渲染|正在加载|正在绘制|正在渲染/.test(status.textContent ?? '')).toBeTruthy()
+    view.destroy()
+  }, 10_000)
 
   it('无 mermaid 代码块时不创建预览组件', async () => {
     const { root } = await buildEditor('# 纯文本\n\n普通段落。')

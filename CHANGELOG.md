@@ -3,13 +3,10 @@
 本文件只记录已经发生的版本事实。`0.7.0` 是第一个打 tag 的候选版本。推送 `v0.7.0` 只会生成 GitHub Draft Release；安装、升级和卸载循环仍未在隔离环境完成，不能把这份日志当成“已公开稳定发布”。
 
 ## 未发布 — Mermaid 卡住渲染与编辑源码无响应（2026-09-24）
-- 直调 mermaidAPI.render，避免 mermaid.render 外层队列被挂起任务堵死。
-- 视口变化时块未变则复用 widget；flowchart 关闭 htmlLabels 降低 Electron 卡死概率；8s 看门狗离开「正在渲染」。
 
-
-- 渲染队列改为 setTimeout(0) 让出主线程，避免 requestIdleCallback 在繁忙时把串行队列拖死导致一直「正在渲染」。
-- SVG 提交失败不再静默 return；初始化/加载失败清缓存以便重试。
-- 「编辑源码」用 mousedown 防抢焦点，并用源码 pre 回退定位，避免 getPos 失效时点击无反应。
+- Mermaid 在隔离的同源文档中完成布局测量，再仅将消毒后的 SVG 放回编辑器，避免编辑器全局样式把图表层间距错误放大。
+- 增加与 `renderVersion` 解耦的全局卡死扫描；状态文案区分「准备 / 加载库 / 绘制」。
+- 编辑器整篇替换时保留 Mermaid widget 的活动渲染；旧编辑器的插件视图重建不再销毁仍在页面中的预览。源码按钮只在 click 时切换，mousedown 仅防止选区抢焦点，慢帧不再二次切换；工具栏保留 `pointer-events: auto`。
 
 ## 未发布 — 文件树默认折叠与展开记忆（2026-09-24）
 

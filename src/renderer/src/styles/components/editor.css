@@ -617,6 +617,8 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--bg-quote);
+  position: relative;
+  z-index: 1;
   /* 取消 overflow:hidden，长图（高图）随内容自适应高度，不再被裁切/遮挡 */
 }
 .milkdown .mermaid-toolbar {
@@ -628,6 +630,9 @@
   padding: 0 10px;
   border-bottom: 1px solid var(--border);
   color: var(--text-3);
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
 }
 .milkdown .mermaid-label {
   font-family: var(--font-mono);
@@ -646,6 +651,9 @@
   font: inherit;
   font-size: .75rem;
   cursor: pointer;
+  pointer-events: auto;
+  position: relative;
+  z-index: 3;
 }
 .milkdown .mermaid-source-toggle:hover {
   background: var(--bg-hover);

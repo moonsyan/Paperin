@@ -44,11 +44,10 @@ describe('Mermaid 真实渲染落定', () => {
     while (Date.now() < deadline) {
       hasSvg = Boolean(root.querySelector('.mermaid-preview svg'))
       status = root.querySelector('.mermaid-status')?.textContent ?? ''
-      if (hasSvg || (status && status !== '正在渲染图表…')) break
+      if (hasSvg || (status && !/准备渲染|正在加载|正在绘制|正在渲染/.test(status))) break
       await new Promise((r) => setTimeout(r, 100))
     }
-    // eslint-disable-next-line no-console
     console.log('result', { hasSvg, status })
-    expect(hasSvg || (status.length > 0 && status !== '正在渲染图表…')).toBe(true)
+    expect(hasSvg || (status.length > 0 && !/准备渲染|正在加载|正在绘制|正在渲染/.test(status))).toBe(true)
   }, 25000)
 })

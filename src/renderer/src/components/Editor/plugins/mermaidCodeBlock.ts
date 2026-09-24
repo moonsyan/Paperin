@@ -3,15 +3,31 @@ import type { Node as ProseNode } from '@milkdown/kit/prose/model'
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
 import type { EditorView } from '@milkdown/kit/prose/view'
 import { analyzeDecorationChange } from './decoOptimize'
+import {
+  decideMermaidRender,
+  mermaidThemeFromDocument,
+  shouldCommitMermaidRender,
+  shouldRerenderMermaidForTheme,
+} from './mermaid-render-lifecycle'
 import { isMermaidErrorSvg, mermaidFailureKind, mermaidStatusText, mermaidThemeOptions, sanitizeMermaidSource, sanitizeMermaidSvg } from './mermaid-source'
 import { viewportChangedKey, streamInsertKey, readVisibleRange } from '../viewport/editorViewport'
+
+export {
+  decideMermaidRender,
+  mermaidThemeFromDocument,
+  shouldCommitMermaidRender,
+  shouldRerenderMermaidForTheme,
+} from './mermaid-render-lifecycle'
+export type { MermaidRenderDecision } from './mermaid-render-lifecycle'
 
 const MERMAID_RENDER_DELAY = 420
 const MERMAID_RENDER_TIMEOUT = 4000
 /** 单次渲染超时：须短于用户耐心；超时后走错误态，不再静默停在「正在渲染」 */
-const MERMAID_SINGLE_RENDER_TIMEOUT = 8_000
+const MERMAID_SINGLE_RENDER_TIMEOUT = 4_000
+/** 同源重新开渲的最短间隔，避免装饰重建把看门狗永远清零 */
+const MERMAID_RERENDER_COOLDOWN_MS = 1_500
 let diagramSequence = 0
-let mermaidPromise: Promise<typeof import('mermaid').default> | null = null
+type MermaidRuntime = typeof import('mermaid').default
 /**
  * 自建串行队列。故意不走 mermaid.render() 外层队列：
  * 后者在单次 mermaidAPI.render 挂起时会永久堵住后续所有图，
@@ -26,6 +42,22 @@ const enqueueMermaidRender = (render: () => Promise<void>): Promise<void> => {
 const activePreviews = new Set<MermaidPreview>()
 const renderListeners = new Set<() => void>()
 let themeObserver: MutationObserver | null = null
+let stuckWatchTimer: ReturnType<typeof setInterval> | null = null
+
+const ensureStuckWatch = () => {
+  if (stuckWatchTimer || typeof setInterval === 'undefined') return
+  // 与单次 renderVersion 解耦：装饰重建会重置代次，只有全局扫描能保证离开「正在渲染」
+  stuckWatchTimer = setInterval(() => {
+    const now = Date.now()
+    activePreviews.forEach((preview) => preview.failIfStuck(now))
+  }, 1000)
+}
+
+const stopStuckWatchIfIdle = () => {
+  if (activePreviews.size > 0 || !stuckWatchTimer) return
+  clearInterval(stuckWatchTimer)
+  stuckWatchTimer = null
+}
 
 type MermaidBlock = {
   pos: number
@@ -53,13 +85,6 @@ export const shouldRemoveMermaidSource = (
   hasRenderedSvg: boolean,
 ): boolean => hasPreviewBlock && !isEditingSource && hasRenderedSvg
 
-/** 只有仍挂在当前渲染集合中的、且未被更新代次淘汰的结果才能写回 DOM。 */
-export const shouldCommitMermaidRender = (
-  isActive: boolean,
-  renderVersion: number,
-  currentVersion: number,
-): boolean => isActive && renderVersion === currentVersion
-
 /**
  * 装饰 key 同时包含源码指纹。切换文档时若位置相同但源码不同，
  * ProseMirror 不得复用旧 Mermaid widget，否则旧 SVG 会短暂甚至永久串到新文档。
@@ -74,39 +99,40 @@ export const mermaidDecorationKey = (pos: number, source: string): string => {
   return `mermaid-preview-${pos}-${(hash >>> 0).toString(16)}`
 }
 
-const getMermaid = () => {
-  if (!mermaidPromise) {
-    mermaidPromise = import('mermaid')
-      .then(({ default: mermaid }) => mermaid)
-      .catch((error: unknown) => {
-        mermaidPromise = null
-        throw error
-      })
-  }
-  return mermaidPromise
-}
+export const mermaidSandboxDocument = (runtimeUrl: string): string =>
+  `<!doctype html><html><head><script src="${runtimeUrl}"></script></head><body></body></html>`
 
 /**
- * C-5 续：mermaid.initialize 非并发安全且开销大，原来在每个 diagram 的
- * renderNow 里重复调用，多图文档会被反复重建内部状态。改为按主题只初始化
- * 一次（主题切换时重新初始化），用 Promise 守护避免并发重复初始化。
+ * Mermaid 会把 flowchart 标签临时插入当前文档并据此测量布局。
+ * 编辑器的排版规则会参与这个测量并把层间距放大；在同源 iframe 中渲染后只取回 SVG，
+ * 既隔离页面 CSS，又不改变用户的 Mermaid 源码。
  */
-let mermaidReadyPromise: Promise<void> | null = null
-let mermaidReadyTheme: string | null = null
-const ensureMermaidReady = (theme: string): Promise<void> => {
-  if (mermaidReadyTheme === theme && mermaidReadyPromise) return mermaidReadyPromise
-  mermaidReadyTheme = theme
-  mermaidReadyPromise = getMermaid()
-    .then((mermaid) => {
-      mermaid.initialize(mermaidThemeOptions(theme))
-    })
-    .catch((error: unknown) => {
-      // 初始化失败必须清掉缓存，否则后续所有图永久卡在同一拒绝 Promise 上
-      mermaidReadyPromise = null
-      mermaidReadyTheme = null
-      throw error
-    })
-  return mermaidReadyPromise
+const renderMermaidInSandbox = async (id: string, source: string, theme: string) => {
+  const frame = document.createElement('iframe')
+  frame.setAttribute('aria-hidden', 'true')
+  frame.tabIndex = -1
+  frame.style.cssText =
+    'position:fixed;left:-10000px;top:0;width:1px;height:1px;border:0;visibility:hidden;pointer-events:none'
+  frame.srcdoc = mermaidSandboxDocument(new URL('mermaid.min.js', window.location.href).toString())
+
+  const loaded = new Promise<void>((resolve, reject) => {
+    frame.addEventListener('load', () => resolve(), { once: true })
+    frame.addEventListener('error', () => reject(new Error('Mermaid 运行时加载失败')), { once: true })
+  })
+  document.body.appendChild(frame)
+
+  try {
+    await loaded
+    const frameDocument = frame.contentDocument
+    const frameWindow = frame.contentWindow as (Window & { mermaid?: MermaidRuntime }) | null
+    const mermaid = frameWindow?.mermaid
+    if (!frameDocument?.body || !mermaid) throw new Error('Mermaid 运行时加载失败')
+
+    mermaid.initialize(mermaidThemeOptions(theme))
+    return await mermaid.mermaidAPI.render(id, source, frameDocument.body)
+  } finally {
+    frame.remove()
+  }
 }
 
 /**
@@ -121,12 +147,19 @@ const getErrorMessage = (error: unknown): string => mermaidStatusText(error)
 const observeThemeChanges = () => {
   if (themeObserver || typeof MutationObserver === 'undefined') return
   let themeRenderTimer: ReturnType<typeof setTimeout> | undefined
+  let lastTheme: string | null = document.documentElement.dataset.theme ?? null
   themeObserver = new MutationObserver(() => {
-    // 主题属性可能被连续写入；合并成一次重绘，避免 renderVersion 抖动导致永远无法提交
+    const nextTheme = document.documentElement.dataset.theme ?? ''
+    if (!shouldRerenderMermaidForTheme(lastTheme, nextTheme)) {
+      lastTheme = nextTheme || lastTheme
+      return
+    }
+    lastTheme = nextTheme
+    // 主题属性可能被连续写入；合并成一次强制重绘
     if (themeRenderTimer) clearTimeout(themeRenderTimer)
     themeRenderTimer = setTimeout(() => {
       themeRenderTimer = undefined
-      activePreviews.forEach((preview) => preview.renderNow())
+      activePreviews.forEach((preview) => preview.renderNow({ force: true }))
     }, 50)
   })
   themeObserver.observe(document.documentElement, {
@@ -147,8 +180,13 @@ class MermaidPreview {
   private renderTimer: ReturnType<typeof setTimeout> | undefined
   private renderPromise: Promise<void> | null = null
   private renderVersion = 0
+  private inFlightPrepared: string | null = null
+  private committedPrepared: string | null = null
   private isEditingSource = false
   private attachWaits = 0
+  /** 本次进入加载态的时刻；供全局扫描看门狗使用，不受 renderVersion 抖动影响 */
+  private loadingStartedAt = 0
+  private lastStartAt = 0
 
   constructor(view: EditorView, getPos: () => number | undefined, source: string) {
     this.view = view
@@ -169,9 +207,8 @@ class MermaidPreview {
     button.textContent = '编辑源码'
     button.setAttribute('aria-label', '编辑 Mermaid 源码')
     button.setAttribute('aria-pressed', 'false')
-    // mousedown 先截获，避免 ProseMirror 选区抢焦点导致 click 丢失（表现为“编辑源码没反应”）
-    button.addEventListener('mousedown', this.handleToggleSourcePointer)
-    button.addEventListener('click', this.handleToggleSource)
+    button.addEventListener('mousedown', this.handleToggleSourcePointer, true)
+    button.addEventListener('click', this.handleToggleSourceClick, true)
     toolbar.append(label, button)
 
     const preview = document.createElement('div')
@@ -179,7 +216,7 @@ class MermaidPreview {
     preview.setAttribute('aria-live', 'polite')
     const status = document.createElement('div')
     status.className = 'mermaid-status'
-    status.textContent = '正在渲染图表…'
+    status.textContent = '准备渲染…'
     preview.append(status)
     container.append(toolbar, preview)
 
@@ -187,32 +224,69 @@ class MermaidPreview {
     this.preview = preview
     this.status = status
     this.button = button
+    this.loadingStartedAt = Date.now()
     activePreviews.add(this)
+    ensureStuckWatch()
     observeThemeChanges()
-    void this.renderNow()
+    this.renderPromise = new Promise((resolve) => {
+      window.setTimeout(() => {
+        void this.renderNow().then(resolve, () => resolve())
+      }, 0)
+    })
+  }
+
+  /** 全局扫描：装饰重建清零代次后仍能把卡死态打成错误 */
+  failIfStuck = (now: number) => {
+    if (this.isEditingSource) return
+    if (this.preview.querySelector('svg')) return
+    if (!this.loadingStartedAt) return
+    if (now - this.loadingStartedAt < MERMAID_SINGLE_RENDER_TIMEOUT) return
+    const text = this.status.textContent ?? ''
+    if (!/准备渲染|正在加载|正在绘制|正在渲染/.test(text)) return
+    this.markFailed(getErrorMessage(new Error('渲染超时')))
+  }
+
+  private markFailed(message: string) {
+    this.inFlightPrepared = null
+    this.renderPromise = null
+    this.loadingStartedAt = 0
+    this.preview.replaceChildren(this.status)
+    this.status.textContent = message
+    this.status.classList.add('is-error')
+  }
+
+  private setLoadingStatus(message: string) {
+    if (this.preview.querySelector('svg')) return
+    this.preview.replaceChildren(this.status)
+    this.status.classList.remove('is-error')
+    this.status.textContent = message
+    if (!this.loadingStartedAt) this.loadingStartedAt = Date.now()
   }
 
   updateSource(source: string) {
     if (source === this.source) return
     this.source = source
     this.renderVersion += 1
+    this.inFlightPrepared = null
+    this.committedPrepared = null
     if (this.renderTimer) clearTimeout(this.renderTimer)
-    // 编辑源码时维持既有 SVG，停止输入后再更新，避免干扰光标与视觉闪烁。
     this.renderTimer = setTimeout(() => {
       this.renderTimer = undefined
       this.renderNow()
     }, MERMAID_RENDER_DELAY)
   }
 
-  renderNow = (): Promise<void> => {
+  renderNow = (options?: { force?: boolean }): Promise<void> => {
     if (this.renderTimer) {
       clearTimeout(this.renderTimer)
       this.renderTimer = undefined
     }
-    this.renderVersion += 1
-    const version = this.renderVersion
+    const force = options?.force === true
     const prepared = sanitizeMermaidSource(this.source)
     if (!prepared) {
+      this.inFlightPrepared = null
+      this.committedPrepared = null
+      this.loadingStartedAt = 0
       this.preview.replaceChildren(this.status)
       this.status.classList.remove('is-error')
       this.status.textContent = '输入 Mermaid 图表源码'
@@ -221,36 +295,54 @@ class MermaidPreview {
     }
     if (!this.dom.isConnected && this.attachWaits < 8) {
       this.attachWaits += 1
+      this.setLoadingStatus('准备渲染…')
       this.renderPromise = new Promise((resolve) => {
         requestAnimationFrame(() => {
-          void this.renderNow().then(resolve, () => resolve())
+          void this.renderNow(options).then(resolve, () => resolve())
         })
       })
       return this.renderPromise
     }
     this.attachWaits = 0
-    this.preview.replaceChildren(this.status)
-    this.status.classList.remove('is-error')
-    this.status.textContent = '正在渲染图表…'
-    // 即便 mermaidAPI 卡住主线程以外的异步路径，也要在超时后离开「正在渲染」
-    const watchdog = setTimeout(() => {
-      if (
-        version === this.renderVersion &&
-        activePreviews.has(this) &&
-        this.status.textContent === '正在渲染图表…'
-      ) {
-        this.preview.replaceChildren(this.status)
-        this.status.textContent = getErrorMessage(new Error('渲染超时'))
-        this.status.classList.add('is-error')
-      }
-    }, MERMAID_SINGLE_RENDER_TIMEOUT)
-    const draw = async (mermaid: Awaited<ReturnType<typeof getMermaid>>, text: string) => {
+
+    const decision = decideMermaidRender({
+      prepared,
+      force,
+      inFlightPrepared: this.inFlightPrepared,
+      hasInFlightPromise: Boolean(this.renderPromise) && this.inFlightPrepared === prepared,
+      committedPrepared: this.committedPrepared,
+      hasSvg: Boolean(this.preview.querySelector('svg')),
+    })
+    if (decision.action === 'reuse-inflight' && this.renderPromise) return this.renderPromise
+    if (decision.action === 'reuse-committed') {
+      this.loadingStartedAt = 0
+      this.renderPromise = Promise.resolve()
+      return this.renderPromise
+    }
+
+    const now = Date.now()
+    if (
+      !force &&
+      this.lastStartAt > 0 &&
+      now - this.lastStartAt < MERMAID_RERENDER_COOLDOWN_MS &&
+      (this.inFlightPrepared === prepared || Boolean(this.renderPromise))
+    ) {
+      return this.renderPromise ?? Promise.resolve()
+    }
+
+    this.renderVersion += 1
+    const version = this.renderVersion
+    this.inFlightPrepared = prepared
+    this.lastStartAt = now
+    this.loadingStartedAt = now
+    this.setLoadingStatus('正在加载 Mermaid…')
+
+    const draw = async (text: string, theme: string) => {
+      this.setLoadingStatus('正在绘制图表…')
       const id = `paperin-mermaid-${diagramSequence++}`
       let timeoutHandle: ReturnType<typeof setTimeout> | undefined
-      // 直调 mermaidAPI.render，避开 mermaid.render 外层 executionQueue 中毒
-      const renderApi = mermaid.mermaidAPI.render.bind(mermaid.mermaidAPI)
       const { svg, bindFunctions } = await Promise.race([
-        renderApi(id, text),
+        renderMermaidInSandbox(id, text, theme),
         new Promise<never>((_, reject) => {
           timeoutHandle = setTimeout(() => reject(new Error('渲染超时')), MERMAID_SINGLE_RENDER_TIMEOUT)
         }),
@@ -266,32 +358,30 @@ class MermaidPreview {
       const parsedSvg = holder.querySelector('svg')
       if (!parsedSvg) throw new Error('图表结果不是可显示的 SVG')
       this.preview.replaceChildren(parsedSvg)
+      this.committedPrepared = text
+      this.inFlightPrepared = null
+      this.loadingStartedAt = 0
       bindFunctions?.(this.preview)
     }
-    this.renderPromise = getMermaid()
-      .then(() =>
-        enqueueMermaidRender(async () => {
-          if (!shouldCommitMermaidRender(activePreviews.has(this), version, this.renderVersion)) return
-          const theme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'default'
-          await ensureMermaidReady(theme)
-          const mermaid = await getMermaid()
-          try {
-            await draw(mermaid, prepared)
-          } catch (error) {
-            const message = error instanceof Error ? error.message : ''
-            if (mermaidFailureKind(message) !== 'temporary') throw error
-            await draw(mermaid, prepared)
-          }
-        }),
-      )
+    this.renderPromise = enqueueMermaidRender(async () => {
+      if (!shouldCommitMermaidRender(activePreviews.has(this), version, this.renderVersion)) return
+      const theme = mermaidThemeFromDocument(document.documentElement.dataset.theme)
+      try {
+        await draw(prepared, theme)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : ''
+        if (mermaidFailureKind(message) !== 'temporary') throw error
+        await draw(prepared, theme)
+      }
+    })
       .catch((error: unknown) => {
         if (!shouldCommitMermaidRender(activePreviews.has(this), version, this.renderVersion)) return
-        this.preview.replaceChildren(this.status)
-        this.status.textContent = getErrorMessage(error)
-        this.status.classList.add('is-error')
+        this.markFailed(getErrorMessage(error))
       })
       .finally(() => {
-        clearTimeout(watchdog)
+        if (this.inFlightPrepared === prepared && version === this.renderVersion) {
+          this.inFlightPrepared = null
+        }
         if (!shouldCommitMermaidRender(activePreviews.has(this), version, this.renderVersion)) return
         renderListeners.forEach((listener) => listener())
       })
@@ -300,11 +390,14 @@ class MermaidPreview {
 
   destroy = () => {
     if (this.renderTimer) clearTimeout(this.renderTimer)
-    // 失效所有尚未完成的异步 render，避免切换文档后旧结果回写到复用的 widget。
     this.renderVersion += 1
-    this.button.removeEventListener('mousedown', this.handleToggleSourcePointer)
-    this.button.removeEventListener('click', this.handleToggleSource)
+    this.inFlightPrepared = null
+    this.committedPrepared = null
+    this.loadingStartedAt = 0
+    this.button.removeEventListener('mousedown', this.handleToggleSourcePointer, true)
+    this.button.removeEventListener('click', this.handleToggleSourceClick, true)
     activePreviews.delete(this)
+    stopStuckWatchIfIdle()
     if (activePreviews.size === 0 && themeObserver) {
       themeObserver.disconnect()
       themeObserver = null
@@ -313,9 +406,8 @@ class MermaidPreview {
 
   getSourcePosition = (): number | undefined => this.resolveCodeBlockPos()
 
-  /**
-   * widget getPos 在装饰映射抖动时可能短暂 undefined；回退到紧随其后的源码 pre。
-   */
+  belongsTo = (view: EditorView): boolean => this.view === view
+
   private resolveCodeBlockPos = (): number | undefined => {
     const fromWidget = this.getPos()
     if (typeof fromWidget === 'number') return fromWidget
@@ -345,24 +437,30 @@ class MermaidPreview {
       codeNode.type.name === 'code_block' &&
       isSelectionInsideMermaidBlock(from, to, codePos, codeNode.nodeSize)
     if (this.isEditingSource) {
-      // 源码编辑态：选区移出代码块后切回预览
       if (isInsideCodeBlock) return
       this.showPreview()
       return
     }
-    // 预览态：键盘/搜索把光标带入隐藏的源码块时自动切换源码编辑，
-    // 否则光标在 display:none 的 pre 里消失，用户会盲改源码（H4）
     if (isInsideCodeBlock) this.setSourceEditing(true)
   }
 
+  toggleSourceFromUi = (): void => {
+    this.handleToggleSource()
+  }
+
   private handleToggleSourcePointer = (event: MouseEvent) => {
+    if (event.button !== 0) return
     event.preventDefault()
     event.stopPropagation()
   }
 
-  private handleToggleSource = (event?: MouseEvent) => {
-    event?.preventDefault()
-    event?.stopPropagation()
+  private handleToggleSourceClick = (event: MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+    this.handleToggleSource()
+  }
+
+  private handleToggleSource = () => {
     if (this.isEditingSource) {
       this.showPreview()
       this.button.focus()
@@ -370,16 +468,12 @@ class MermaidPreview {
     }
     const codePos = this.resolveCodeBlockPos()
     if (typeof codePos !== 'number') {
-      this.status.classList.add('is-error')
-      this.status.textContent = '无法定位源码块，请滚动后再试或重新打开文档'
-      this.preview.replaceChildren(this.status)
+      this.markFailed('无法定位源码块，请滚动后再试或重新打开文档')
       return
     }
     const codeNode = this.view.state.doc.nodeAt(codePos)
     if (!codeNode || codeNode.type.name !== 'code_block') {
-      this.status.classList.add('is-error')
-      this.status.textContent = '源码块已失效，请重新打开文档'
-      this.preview.replaceChildren(this.status)
+      this.markFailed('源码块已失效，请重新打开文档')
       return
     }
     this.setSourceEditing(true)
@@ -393,7 +487,7 @@ class MermaidPreview {
 
   private showPreview() {
     this.setSourceEditing(false)
-    this.renderNow()
+    void this.renderNow({ force: true })
   }
 
   private setSourceEditing(editing: boolean) {
@@ -455,6 +549,9 @@ const mapBlocks = (blocks: MermaidBlock[], tr: Transaction): MermaidBlock[] =>
 const haveSameBlocks = (left: MermaidBlock[], right: MermaidBlock[]): boolean =>
   left.length === right.length &&
   left.every((block, index) => block.pos === right[index].pos && block.language === right[index].language)
+
+const previewsForView = (view: EditorView): MermaidPreview[] =>
+  Array.from(activePreviews).filter((preview) => preview.belongsTo(view))
 
 export const mermaidPreviewKey = new PluginKey('mermaid-preview')
 
@@ -531,11 +628,12 @@ export const mermaidPreviewPlugin = new Plugin({
     decorations: (state) =>
       (mermaidPreviewKey.getState(state) as MermaidPreviewState | undefined)?.decorations,
   },
-  view: () => ({
+  view: (ownerView) => ({
     update: (view, previousState) => {
-      activePreviews.forEach((preview) => preview.syncSelection())
+      const previews = previewsForView(ownerView)
+      previews.forEach((preview) => preview.syncSelection())
       if (previousState.doc.eq(view.state.doc)) return
-      activePreviews.forEach((preview) => {
+      previews.forEach((preview) => {
         const pos = preview.getSourcePosition()
         if (typeof pos !== 'number') return
         const node = view.state.doc.nodeAt(pos)
@@ -543,9 +641,7 @@ export const mermaidPreviewPlugin = new Plugin({
         preview.updateSource(node.textContent)
       })
     },
-    destroy: () => {
-      activePreviews.forEach((preview) => preview.destroy())
-    },
+    // updateState 重建插件视图时仍可能复用 widget；实际移除由 widget.destroy 清理。
   }),
 })
 
