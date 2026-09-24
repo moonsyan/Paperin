@@ -666,10 +666,10 @@
 }
 .milkdown .mermaid-preview svg {
   display: block;
-  /* Mermaid 会在 svg 上写 width/max-width:100%。按容器挤压时，HTML 标签不会跟着缩放，图就会叠在一起。 */
-  width: auto !important;
-  max-width: none !important;
-  height: auto !important;
+  /* 保留 Mermaid 内联的内容宽度；窄编辑区时再按容器缩放，避免长图被压成极小节点。 */
+  width: 100%;
+  max-width: 100%;
+  height: auto;
   margin: 0 auto;
 }
 .milkdown .mermaid-block.is-editing-source {
