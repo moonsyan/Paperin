@@ -29,6 +29,12 @@ export interface DesktopAPI {
   document: {
     open(): Promise<FileResult>
     openFolder(path?: string): Promise<FolderResult>
+    /** 侧栏懒加载：列举工作区内某目录下一层 */
+    listDir(path: string): Promise<{
+      ok: boolean
+      data?: { entries: FolderTreeNode[] }
+      error?: { code: string; message?: string }
+    }>
     read(path: string): Promise<FileResult>
     /** 读取拖入的文件：路径经预加载层 webUtils 解析，伪造 File 返回 INVALID_PATH */
     readDropped(file: File): Promise<FileResult>
@@ -227,9 +233,14 @@ export interface FolderTreeNode {
   path: string
   /** 存在则为文件夹，否则为 .md 文件 */
   children?: FolderTreeNode[]
+  /**
+   * 仅文件夹有意义：false = 子项尚未按需加载；
+   * true = children 已是该层完整列举。缺省视为已加载（兼容旧数据）。
+   */
+  childrenLoaded?: boolean
 }
 
-/** 打开文件夹结果（truncated：目录树超出节点预算被截断） */
+/** 打开文件夹结果（truncated：历史字段；懒加载打开路径恒为 false） */
 export interface FolderResult {
   ok: boolean
   data?: {

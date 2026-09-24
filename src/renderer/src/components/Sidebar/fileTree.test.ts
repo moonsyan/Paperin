@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import type { FolderTreeNode } from '../../../../preload/api'
 import {
   buildWorkspaceFileTree,
   collectFolderKeys,
   collectFolderKeysUnder,
   countTreeFiles,
   findNodeByKey,
+  replaceFolderChildren,
   type UiNode,
 } from './fileTree'
 
@@ -87,6 +89,31 @@ describe('工作区文件树', () => {
     ])
     const root = findNodeByKey(nodes, 'D:\\笔记\\项目')!
     expect(collectFolderKeysUnder(root)).toEqual(['D:\\笔记\\项目', 'D:\\笔记\\项目\\子目录'])
+  })
+
+  it('replaceFolderChildren 合并懒加载子项并标记已加载', () => {
+    const tree: FolderTreeNode[] = [
+      {
+        name: '项目',
+        path: 'D:\\笔记\\项目',
+        children: [],
+        childrenLoaded: false,
+      },
+      { name: '根.md', path: 'D:\\笔记\\根.md' },
+    ]
+    const next = replaceFolderChildren(
+      tree,
+      'D:\\笔记\\项目',
+      [{ name: 'a.md', path: 'D:\\笔记\\项目\\a.md' }],
+      true,
+    )
+    expect(next[0]).toEqual({
+      name: '项目',
+      path: 'D:\\笔记\\项目',
+      children: [{ name: 'a.md', path: 'D:\\笔记\\项目\\a.md' }],
+      childrenLoaded: true,
+    })
+    expect(next[1]).toEqual({ name: '根.md', path: 'D:\\笔记\\根.md' })
   })
 })
 

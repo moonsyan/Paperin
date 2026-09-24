@@ -9,7 +9,7 @@ import { withinCallerWorkspace } from './workspace-scope'
 import {
   carryKnownFileState,
   forgetKnownFileState,
-  walkMarkdownTree,
+  listMarkdownDir,
 } from './file-io'
 import { forgetLinkIndexCache } from './workspace-link-index'
 import { forgetTagIndexCache } from './workspace-tag-index'
@@ -80,8 +80,8 @@ export const registerWorkspaceHandlers = ({
     if (!folderStat.isDirectory()) return { ok: false, error: { code: 'NOT_DIRECTORY' } }
 
     try {
-      const budget = { nodes: 0, truncated: false }
-      const children = await walkMarkdownTree(folderPath, 0, budget)
+      // 方案 B：打开只拉根下一层；子目录由 file:list-dir 按需展开
+      const children = await listMarkdownDir(folderPath)
       trustDirectory(folderPath, { essential: true })
       const previousRoot = workspaceRootFor?.(webContentsId)
       const rootChanged = previousRoot !== folderPath
@@ -98,9 +98,29 @@ export const registerWorkspaceHandlers = ({
           path: folderPath,
           name: folderPath.split(/[/\\]/).pop() || 'workspace',
           tree: children,
-          truncated: budget.truncated,
+          truncated: false,
         },
       }
+    } catch (error) {
+      recordSupportIpcFailure('IO_ERROR')
+      return { ok: false, error: { code: 'IO_ERROR', message: String(error) } }
+    }
+  })
+
+  ipcMain.handle(CHANNELS.FILE_LIST_DIR, async (event, args: { path?: string }) => {
+    if (!args || typeof args.path !== 'string' || !args.path) {
+      return { ok: false, error: { code: 'INVALID_PATH' } }
+    }
+    if (!(await withinWindow(event, args.path))) {
+      return { ok: false, error: { code: 'INVALID_PATH' } }
+    }
+    const dirStat = await stat(args.path).catch(() => null)
+    if (!dirStat?.isDirectory()) {
+      return { ok: false, error: { code: 'NOT_DIRECTORY' } }
+    }
+    try {
+      const entries = await listMarkdownDir(args.path)
+      return { ok: true, data: { entries } }
     } catch (error) {
       recordSupportIpcFailure('IO_ERROR')
       return { ok: false, error: { code: 'IO_ERROR', message: String(error) } }

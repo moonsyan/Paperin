@@ -69,9 +69,12 @@ const desktopAPI = {
       report?: { fileName: string; json: string }
     }) => ipcRenderer.invoke(CHANNELS.FILE_EXPORT_BUNDLE, request),
 
-    /** 打开文件夹（返回 Markdown 目录树）；传 path 时跳过对话框（会话恢复用） */
+    /** 打开文件夹（返回根下一层 Markdown 目录树）；传 path 时跳过对话框（会话恢复用） */
     openFolder: (path?: string) =>
       ipcRenderer.invoke(CHANNELS.FILE_OPEN_FOLDER, path ? { path } : undefined),
+
+    /** 侧栏懒加载：列举工作区内某目录下一层 */
+    listDir: (path: string) => ipcRenderer.invoke(CHANNELS.FILE_LIST_DIR, { path }),
 
     /** 按路径直接读取文件（仅限已授权路径：工作区/对话框/会话信任清单） */
     read: (path: string) => ipcRenderer.invoke(CHANNELS.FILE_READ, path),

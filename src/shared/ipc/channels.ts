@@ -2,6 +2,8 @@
 export const CHANNELS = {
   FILE_OPEN: 'file:open',
   FILE_OPEN_FOLDER: 'file:open-folder',
+  /** 侧栏懒加载：列举目录下一层 Markdown/子目录 */
+  FILE_LIST_DIR: 'file:list-dir',
   FILE_READ: 'file:read',
   FILE_READ_DROPPED: 'file:read-dropped',
   FILE_READ_IMAGE_INLINE: 'file:read-image-inline',

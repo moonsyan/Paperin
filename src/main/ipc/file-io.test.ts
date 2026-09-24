@@ -17,6 +17,8 @@ import {
   rememberFileState,
   UnsupportedEncodingError,
   walkMarkdownTree,
+  listMarkdownDir,
+  directoryHasMarkdown,
   writeFileAtomically,
   shouldPreserveFileIdentity,
 } from './file-io'
@@ -281,9 +283,62 @@ describe('Markdown 目录树', () => {
         name: '笔记',
         path: notesDirectory,
         children: [{ name: '内容.markdown', path: join(notesDirectory, '内容.markdown') }],
+        childrenLoaded: true,
       },
       { name: '首页.md', path: join(directory, '首页.md') },
     ])
+  })
+
+  it('listMarkdownDir 只返回一层，深层目录标记未加载', async () => {
+    const directory = await createTemporaryDirectory()
+    const notesDirectory = join(directory, '笔记')
+    const nested = join(notesDirectory, '子目录')
+    const emptyDirectory = join(directory, '空目录')
+    const imagesOnly = join(directory, '仅图片')
+    await mkdir(nested, { recursive: true })
+    await mkdir(emptyDirectory)
+    await mkdir(imagesOnly)
+    await writeFile(join(directory, '首页.md'), '# 首页')
+    await writeFile(join(notesDirectory, '内容.md'), '# 内容')
+    await writeFile(join(nested, '深层.md'), '# 深层')
+    await writeFile(join(imagesOnly, 'a.png'), 'x')
+
+    const root = await listMarkdownDir(directory)
+    expect(root).toEqual([
+      {
+        name: '笔记',
+        path: notesDirectory,
+        children: [],
+        childrenLoaded: false,
+      },
+      { name: '首页.md', path: join(directory, '首页.md') },
+    ])
+    expect(root.some((node) => node.name === '空目录')).toBe(false)
+    expect(root.some((node) => node.name === '仅图片')).toBe(false)
+
+    const notes = await listMarkdownDir(notesDirectory)
+    expect(notes).toEqual([
+      {
+        name: '子目录',
+        path: nested,
+        children: [],
+        childrenLoaded: false,
+      },
+      { name: '内容.md', path: join(notesDirectory, '内容.md') },
+    ])
+    expect(await directoryHasMarkdown(imagesOnly)).toBe(false)
+  })
+
+  it('listMarkdownDir 同级大量目录不受节点预算截断', async () => {
+    const directory = await createTemporaryDirectory()
+    for (let index = 0; index < 30; index++) {
+      const folder = join(directory, `${String(index).padStart(2, '0')}-夹`)
+      await mkdir(folder)
+      await writeFile(join(folder, '笔记.md'), `# ${index}`)
+    }
+    const root = await listMarkdownDir(directory)
+    expect(root).toHaveLength(30)
+    expect(root.every((node) => node.childrenLoaded === false)).toBe(true)
   })
 
   it('后台文件预算不会被目录节点挤占', async () => {

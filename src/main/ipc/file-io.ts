@@ -53,7 +53,13 @@ export const inspectSaveConflict = (input: {
 export interface FolderTreeNode {
   name: string
   path: string
+  /** 存在则为文件夹，否则为 .md 文件 */
   children?: FolderTreeNode[]
+  /**
+   * 仅文件夹有意义：false = 子项尚未按需加载（侧栏懒加载）；
+   * true = children 已是该层完整列举。缺省视为已加载（兼容旧整树 walk）。
+   */
+  childrenLoaded?: boolean
 }
 
 export interface TreeBudget {
@@ -352,6 +358,60 @@ export const isTraversableWorkspaceDirectory = async (
   return Boolean(stats?.isDirectory() && !stats.isSymbolicLink())
 }
 
+/** 子树中是否存在至少一个 Markdown 文件（找到即停，供单层列举过滤空附件夹）。 */
+export const directoryHasMarkdown = async (dir: string): Promise<boolean> => {
+  let entries: Dirent[]
+  try {
+    entries = await readdir(dir, { withFileTypes: true })
+  } catch {
+    return false
+  }
+  for (const entry of entries) {
+    if (!entry.isSymbolicLink() && entry.isFile() && /\.(md|markdown)$/i.test(entry.name)) {
+      return true
+    }
+  }
+  for (const entry of entries) {
+    if (!(await isTraversableWorkspaceDirectory(dir, entry))) continue
+    if (await directoryHasMarkdown(join(dir, entry.name))) return true
+  }
+  return false
+}
+
+/**
+ * 侧栏懒加载：只列举目录下一层（可遍历子目录 + Markdown 文件）。
+ * 不套用整树深度/节点预算；子目录带 childrenLoaded=false，展开时再调本函数。
+ */
+export const listMarkdownDir = async (dir: string): Promise<FolderTreeNode[]> => {
+  let entries: Dirent[]
+  try {
+    entries = await readdir(dir, { withFileTypes: true })
+  } catch {
+    return []
+  }
+  const byName = (left: { name: string }, right: { name: string }) =>
+    left.name.localeCompare(right.name, 'zh-CN')
+  const dirs: Dirent[] = []
+  for (const entry of entries) {
+    if (await isTraversableWorkspaceDirectory(dir, entry)) dirs.push(entry)
+  }
+  dirs.sort(byName)
+  const files = entries
+    .filter((entry) => !entry.isSymbolicLink() && entry.isFile() && /\.(md|markdown)$/i.test(entry.name))
+    .sort(byName)
+
+  const nodes: FolderTreeNode[] = []
+  for (const entry of dirs) {
+    const path = join(dir, entry.name)
+    if (!(await directoryHasMarkdown(path))) continue
+    nodes.push({ name: entry.name, path, children: [], childrenLoaded: false })
+  }
+  for (const entry of files) {
+    nodes.push({ name: entry.name, path: join(dir, entry.name) })
+  }
+  return nodes
+}
+
 export const walkMarkdownTree = async (
   dir: string,
   depth: number,
@@ -389,7 +449,7 @@ export const walkMarkdownTree = async (
     if (budget.truncated || reachedFileLimit()) break
     const children = await walkMarkdownTree(join(dir, entry.name), depth + 1, budget, limits)
     if (children.length === 0) continue
-    nodes.push({ name: entry.name, path: join(dir, entry.name), children })
+    nodes.push({ name: entry.name, path: join(dir, entry.name), children, childrenLoaded: true })
     budget.nodes++
     if (budget.nodes >= maxNodes) {
       budget.truncated = true

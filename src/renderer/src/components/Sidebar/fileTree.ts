@@ -1,5 +1,6 @@
 import type { FolderTreeNode } from '../../../../preload/api'
 import type { DemoFolder } from '../../data/demo-files'
+import { sameDesktopFilePath } from '../../lib/desktop-file-path'
 
 export interface UiNode {
   key: string
@@ -8,6 +9,8 @@ export interface UiNode {
   demoId?: string
   path?: string
   children?: UiNode[]
+  /** 工作区文件夹：false = 尚未 listDir；缺省/true = 已加载 */
+  childrenLoaded?: boolean
 }
 
 export const buildDemoFileTree = (
@@ -18,6 +21,7 @@ export const buildDemoFileTree = (
     key: `demo:${folder.label}`,
     name: folder.label,
     kind: 'folder',
+    childrenLoaded: true,
     children: folder.fileIds.map((id) => ({
       key: id,
       name: demoFileNames[id] ?? id,
@@ -26,13 +30,17 @@ export const buildDemoFileTree = (
     })),
   }))
 
-const toUiNode = (node: FolderTreeNode): UiNode => ({
-  key: node.path,
-  name: node.name,
-  kind: node.children ? 'folder' : 'file',
-  path: node.path,
-  children: node.children?.map(toUiNode),
-})
+const toUiNode = (node: FolderTreeNode): UiNode => {
+  const isFolder = Array.isArray(node.children)
+  return {
+    key: node.path,
+    name: node.name,
+    kind: isFolder ? 'folder' : 'file',
+    path: node.path,
+    children: node.children?.map(toUiNode),
+    childrenLoaded: isFolder ? node.childrenLoaded !== false : undefined,
+  }
+}
 
 /** 递归统计树中的文件叶子数（不含目录与外部文件）——
  *  侧栏底部「N 个文档」必须统计叶子而不是根层数组长度 */
@@ -52,13 +60,37 @@ export const buildWorkspaceFileTree = (
   const name = workspaceName ?? pathSegments[pathSegments.length - 1] ?? workspacePath
 
   return [{
-  key: workspacePath,
-  name,
-  kind: 'folder',
-  path: workspacePath,
-  children: tree.map(toUiNode),
+    key: workspacePath,
+    name,
+    kind: 'folder',
+    path: workspacePath,
+    childrenLoaded: true,
+    children: tree.map(toUiNode),
   }]
 }
+
+/**
+ * 将 listDir 结果写入工作区树中对应文件夹（不可变）。
+ * win32 下路径大小写不敏感。
+ */
+export const replaceFolderChildren = (
+  tree: FolderTreeNode[],
+  folderPath: string,
+  children: FolderTreeNode[],
+  win32 = false,
+): FolderTreeNode[] =>
+  tree.map((node) => {
+    if (Array.isArray(node.children) && sameDesktopFilePath(node.path, folderPath, win32)) {
+      return { ...node, children, childrenLoaded: true }
+    }
+    if (node.children?.length) {
+      return {
+        ...node,
+        children: replaceFolderChildren(node.children, folderPath, children, win32),
+      }
+    }
+    return node
+  })
 
 export const collectFolderKeys = (nodes: UiNode[]): string[] => {
   const keys: string[] = []
