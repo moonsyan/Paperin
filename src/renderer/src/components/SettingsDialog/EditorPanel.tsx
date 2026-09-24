@@ -147,8 +147,8 @@ export function EditorPanel({
       </button>
       <button type="button" className="settings-row settings-row-toggle" aria-pressed={collapseFoldersOnOpen} onClick={() => onCollapseFoldersOnOpenChange(!collapseFoldersOnOpen)}>
         <span className="settings-label">
-          默认打开文件夹全部折叠
-          <span className="settings-hint">折叠文件夹时一并折叠其所有子文件夹；展开并只展开被点击的文件夹</span>
+          默认折叠子文件夹（根保持展开）
+          <span className="settings-hint">无记忆时打开库根展开、子文件夹折叠；折叠时级联子夹，展开只动当前项；展开路径会记住并在下次打开时恢复</span>
         </span>
         <span className={`switch ${collapseFoldersOnOpen ? 'on' : ''}`} />
       </button>

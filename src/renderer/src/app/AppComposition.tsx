@@ -17,6 +17,7 @@ import type { PublishOptions, PublishScope } from '../lib/export-bundle'
 import { buildDeliveryReport } from '../lib/delivery-report'
 import { normalizeWorkspaceRelativePath, isEphemeralCitingDocumentKey, isPersistableCitingDocumentPath } from '../../../shared/workspace-state'
 import { resolveCitingDocumentKey } from '../lib/citing-document-key'
+import { replaceFolderChildren } from '../components/Sidebar/fileTree'
 import {
   buildReviewInputsFromIndex,
   reviewCurrentDocumentInSettings,
@@ -120,11 +121,12 @@ export function AppComposition(): JSX.Element {
   const {
     workspace, setWorkspace, workspaceSettings, setWorkspaceSettings,
     setWorkspaceDocuments, workspaceCollapsedKeys, setWorkspaceCollapsedKeys,
+    workspaceExpandedKeys, setWorkspaceExpandedKeys,
     workspaceStateReady, setWorkspaceStateReady, workspacePathRef,
-    workspaceDocumentsRef, currentCollapsedKeys, effectiveTheme,
+    workspaceDocumentsRef, currentCollapsedKeys, currentExpandedKeys, effectiveTheme,
     setSidebarCollapsedKeys, sidebarActiveTab, setSidebarActiveTab,
     contextDockState, setContextDockState, handleThemeChange,
-    handleWorkspaceThemeEnabledChange, handleCollapsedKeysChange,
+    handleWorkspaceThemeEnabledChange, handleCollapsedKeysChange, handleExpandedKeysChange,
     toast, setToast,
   } = useWorkspaceState({ theme, setTheme, settingsReady: persistReady })
 
@@ -193,7 +195,7 @@ export function AppComposition(): JSX.Element {
     editorRef, titleRef, settingsReady: persistReady, autosave, setToast,
     recordRecent, workspacePathRef, workspaceDocumentsRef, setWorkspace,
     setWorkspaceStateReady, setWorkspaceSettings, setWorkspaceDocuments,
-    setWorkspaceCollapsedKeys, setSidebarWidth, setSidebarActiveTab,
+    setWorkspaceCollapsedKeys, setWorkspaceExpandedKeys, setSidebarWidth, setSidebarActiveTab,
     setContextDockState, setSearchCount, setSearchCurrent, setSearchMode,
     restoringWorkspaceRef: graphAutoActivateRef,
     draftSessionIdRef,
@@ -449,6 +451,27 @@ export function AppComposition(): JSX.Element {
     return handleSelectWorkspaceFile(path, pinned)
   }, [handleSelectWorkspaceFile, setGraphTabActive])
 
+  const loadingFolderPathsRef = useRef(new Set<string>())
+  const handleLoadFolderChildren = useCallback(async (dirPath: string) => {
+    if (!window.desktopAPI || loadingFolderPathsRef.current.has(dirPath)) return
+    loadingFolderPathsRef.current.add(dirPath)
+    try {
+      const result = await window.desktopAPI.document.listDir(dirPath)
+      if (!result.ok || !result.data) return
+      const entries = result.data.entries
+      const win32 = window.desktopAPI.platform === 'win32'
+      setWorkspace((current) => {
+        if (!current) return current
+        return {
+          ...current,
+          tree: replaceFolderChildren(current.tree, dirPath, entries, win32),
+        }
+      })
+    } finally {
+      loadingFolderPathsRef.current.delete(dirPath)
+    }
+  }, [setWorkspace])
+
   // === 编辑器增强 ===
   const {
     typographyIssues, handleOpenTypographyIssue, handleFixTypography,
@@ -568,7 +591,18 @@ export function AppComposition(): JSX.Element {
     workspace,
     draftSessionId: draftSessionIdRef.current,
   })
-  useWorkspaceLayoutPersistence({ workspace, workspaceStateReady, collapsedKeys: workspaceCollapsedKeys, openFiles, activeFileId, sidebarWidth, sidebarActiveView: sidebarActiveTab, contextDock: contextDockState, setToast })
+  useWorkspaceLayoutPersistence({
+    workspace,
+    workspaceStateReady,
+    collapsedKeys: workspaceCollapsedKeys,
+    expandedKeys: workspaceExpandedKeys,
+    openFiles,
+    activeFileId,
+    sidebarWidth,
+    sidebarActiveView: sidebarActiveTab,
+    contextDock: contextDockState,
+    setToast,
+  })
 
   const { tagFilter, handleToggleTagFilter } = useTagFilter(workspace?.path, tagIndex)
 
@@ -634,13 +668,18 @@ export function AppComposition(): JSX.Element {
           activeContent={activeContent}
           activePathKind={activePathKind} onRevealActiveFile={revealActiveFileInSidebar}
           workspace={workspace} demoFileNames={DEMO_FILE_NAMES}
-          currentCollapsedKeys={currentCollapsedKeys} onCollapsedKeysChange={handleCollapsedKeysChange} collapseFoldersOnOpen={settings.collapseFoldersOnOpen}
+          currentCollapsedKeys={currentCollapsedKeys}
+          onCollapsedKeysChange={handleCollapsedKeysChange}
+          currentExpandedKeys={currentExpandedKeys}
+          onExpandedKeysChange={handleExpandedKeysChange}
+          collapseFoldersOnOpen={settings.collapseFoldersOnOpen}
           onOpenSearch={() => setPaletteOpen(true)} searchShortcut={settings.shortcuts.commandPalette} recentFiles={recentFiles}
           favorites={favorites} onToggleFavorite={handleToggleFavorite}
           onOpenSettings={() => setSettingsOpen(true)}
           onSelectDemoFile={handleSelectDemoFile} onSelectWorkspaceFile={(p, pinned) => void openWorkspaceFile(p, pinned)}
           onCreateFile={(dir) => void handleCreateFile(dir)} onRenameFile={(p, n) => void handleRenameFile(p, n)}
           onDeleteFile={(p) => void handleDeleteFile(p)} onMoveFile={(p, d) => void handleMoveFile(p, d)} onOpenInNewWindow={handleOpenInNewWindow}
+          onLoadFolderChildren={handleLoadFolderChildren}
           graphTabOpen={graphTabOpen} graphTabActive={graphTabActive} onGraphTabClose={closeGraphView}
           onGraphOpenNode={(path) => { setGraphTabActive(false); void reveal({ path }) }}
           linkGraph={linkGraph} linksTruncated={linksTruncated} graphSettings={settings.graphSettings} onGraphSettingsChange={settings.setGraphSettings}

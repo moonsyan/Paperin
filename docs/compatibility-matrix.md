@@ -11,7 +11,7 @@
 | 多标签、dirty、关闭确认 | DocumentRecord store + TabBar | record store、TabBar、document-session、close-save；活动会话序号保护异步保存；关窗超时作废许可但等在途写入结束 | 已迁移；P0 首批回归 | 多窗口、IME、卸载和关闭时序冒烟 |
 | 编辑器适配层 | Milkdown `EditorHandle` | adapter、快捷键与应用动作测试 | 已迁移 | 输入法与焦点人工验证 |
 | 草稿恢复与会话持久化 | settings store + draft hooks | draft/session tests；settings 写锁不从仍存活的进程抢夺 | 保留 | 重启恢复 |
-| 工作区文件树、最近文件、收藏 | workspace hooks/components | workspace tests、收藏行为测试 | 文件树、最近编辑、星标收藏/取消、右键入口和按工作区恢复已实现 | 跨库路径迁移、5000 文件 UI 性能 |
+| 工作区文件树、最近文件、收藏 | workspace hooks/components；布局 `expandedDirectories` | workspace / useSidebarCollapse / workspace-state 测试 | 文件树懒加载；无记忆时根展开子夹全折；展开路径可持久化并预加载恢复；最近编辑、星标收藏；打开库后台索引仍 `load`→`refresh`（与树解耦） | 跨库路径迁移、5000 文件 UI 性能 |
 | 工作区壳层、当前文件来源与 dirty 上下文 | `WorkspaceShell` + `CurrentFileBanner` | 组件 Testing Library 契约测试 | 已迁移 | 多窗口、窄窗口与外部文件冒烟 |
 | 保存状态文案 | 顶栏、路径条、状态栏共用 `document-save-status.ts` | 保存回执与状态组件测试 | 已有：已保存/未保存、示例、未命名、保存中、冲突、编码、失败 | 九主题与缩放人工看 |
 | 工作区全文搜索 | `WorkspaceSearchDialog`、`workspace-search-handler`、`WorkspaceIndexService` 语料 | `workspace-search-coverage.test.ts`、`workspace-index-service.test.ts`（语料复用）、`useWorkspaceSearch.test.ts` | 已有：共享 `WorkspaceCoverage`；暖搜索优先 Main 内存语料（`getSearchSnapshot`），未缓存/超预算读盘 fallback；结构索引缓存不含正文 `lines` | 2026-09-22 P0-02 后本机搜索 P95 约 17 ms（暖语料）；watcher 稳定 P95 仍偶发超 5000 ms；60 题 Hit@5 未测 |
@@ -38,8 +38,8 @@
 
 | 场景 | 文件树 UI | 全文搜索 | 后台索引 |
 |---|---|---|---|
-| Markdown 文件数 | 最多展示 **2000 节点**（含目录节点） | 最多扫描 **5000** 篇 `.md` | 最多索引 **5000** 篇 |
-| 目录深度 | **5** 层（超出标记 `truncated`） | 同左 | 无深度上限（仅文件数） |
+| Markdown 文件数 | **按需一层列举，无节点硬顶**（打开只扫根；展开再拉子目录） | 最多扫描 **5000** 篇 `.md` | 最多索引 **5000** 篇 |
+| 目录深度 | **无硬顶**（懒加载逐层展开；展开记忆会预加载祖先链） | 同左（搜索自有 walk，无 UI 深度顶） | 无深度上限（仅文件数）；打开库后独立后台维护，与侧栏是否展开无关 |
 | 单文件大小 | 打开/编辑不受此限 | 超过 **2 MiB** 跳过并计 `file-size` | 超过 **2 MiB** 跳过并计 `file-size` |
 | 命中/结果 | — | 最多 **200** 条匹配（`matchCapped`） | — |
 

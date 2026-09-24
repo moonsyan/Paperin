@@ -3,6 +3,7 @@ import type { OpenFile } from '../components/Sidebar'
 import {
   updateWorkspaceDocumentView,
   createWorkspaceLayoutSnapshot,
+  expandRelativePathsWithAncestors,
   resolveEffectiveTheme,
   resolveWorkspacePath,
   toWorkspaceRelativePath,
@@ -39,6 +40,7 @@ describe('渲染层工作区状态转换', () => {
       sidebarWidth: 320,
       sidebarActiveView: 'files',
       collapsedDirectories: ['C:\\notes\\docs\\archive', 'C:\\other'],
+      expandedDirectories: ['C:\\notes\\docs', 'C:\\other'],
       contextDock: { visibility: 'expanded', panel: 'outline', width: 312, compact: false },
       caseInsensitive: true,
     })
@@ -46,6 +48,21 @@ describe('渲染层工作区状态转换', () => {
     expect(snapshot.tabs).toEqual([{ path: 'docs/a.md', pinned: true }])
     expect(snapshot.activeTab).toBe('docs/a.md')
     expect(snapshot.sidebar.collapsedDirectories).toEqual(['docs/archive'])
+    expect(snapshot.sidebar.expandedDirectories).toEqual(['docs'])
+  })
+
+  it('展开记忆为 null 时不写入 expandedDirectories 字段', () => {
+    const snapshot = createWorkspaceLayoutSnapshot({
+      rootPath: 'C:\\notes',
+      openFiles: [],
+      activeFileId: '',
+      sidebarWidth: 290,
+      sidebarActiveView: 'files',
+      collapsedDirectories: [],
+      expandedDirectories: null,
+      caseInsensitive: true,
+    })
+    expect(snapshot.sidebar.expandedDirectories).toBeUndefined()
   })
 
   it('主题为 inherit 时使用全局主题', () => {
@@ -60,6 +77,15 @@ describe('渲染层工作区状态转换', () => {
       'D:\\notes\\docs\\a.md',
     )
     expect(resolveWorkspacePath('/notes', '../secret.md', 'linux')).toBeNull()
+  })
+
+  it('展开记忆相对路径补全祖先并按深度排序', () => {
+    expect(expandRelativePathsWithAncestors(['docs/api', 'docs'])).toEqual([
+      'docs',
+      'docs/api',
+    ])
+    expect(expandRelativePathsWithAncestors(['a/b/c'])).toEqual(['a', 'a/b', 'a/b/c'])
+    expect(expandRelativePathsWithAncestors(['../evil', ''])).toEqual([])
   })
 
   it('只记录工作区内真实文件的视图状态', () => {

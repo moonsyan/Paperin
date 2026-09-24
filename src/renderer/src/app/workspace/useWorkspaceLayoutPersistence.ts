@@ -9,8 +9,13 @@ export interface UseWorkspaceLayoutPersistenceOptions {
   workspace: WorkspaceInfo | null
   /** 工作区状态首次加载完成（加载前不得覆盖主进程已有布局） */
   workspaceStateReady: boolean
-  /** 当前树作用域的折叠记录 */
+  /** 当前树作用域的折叠记录（兼容写入 collapsedDirectories） */
   collapsedKeys: string[] | null
+  /**
+   * 展开路径记忆：null = 无记忆（不写 expandedDirectories 字段）；
+   * 数组（含空）= 有记忆并写入。
+   */
+  expandedKeys: string[] | null
   openFiles: OpenFile[]
   activeFileId: string
   sidebarWidth: number
@@ -19,12 +24,13 @@ export interface UseWorkspaceLayoutPersistenceOptions {
   setToast: Dispatch<SetStateAction<string>>
 }
 
-/** 工作区布局持久化：打开列表/活动标签/侧栏宽度/折叠目录（防抖 500ms）。
+/** 工作区布局持久化：打开列表/活动标签/侧栏宽度/折叠与展开目录（防抖 500ms）。
  *  布局快照属于工作区域；依赖文档会话的打开列表与活动标签作为输入。 */
 export function useWorkspaceLayoutPersistence({
   workspace,
   workspaceStateReady,
   collapsedKeys,
+  expandedKeys,
   openFiles,
   activeFileId,
   sidebarWidth,
@@ -33,7 +39,7 @@ export function useWorkspaceLayoutPersistence({
   setToast,
 }: UseWorkspaceLayoutPersistenceOptions): void {
   useEffect(() => {
-    if (!workspace || !workspaceStateReady || collapsedKeys == null) return
+    if (!workspace || !workspaceStateReady) return
     const layout = createWorkspaceLayoutSnapshot({
       rootPath: workspace.path,
       openFiles,
@@ -41,7 +47,8 @@ export function useWorkspaceLayoutPersistence({
       sidebarWidth,
       sidebarActiveView,
       contextDock,
-      collapsedDirectories: collapsedKeys,
+      collapsedDirectories: collapsedKeys ?? [],
+      expandedDirectories: expandedKeys,
       caseInsensitive: window.desktopAPI?.platform === 'win32',
     })
     const timer = setTimeout(() => {
@@ -53,6 +60,7 @@ export function useWorkspaceLayoutPersistence({
   }, [
     activeFileId,
     collapsedKeys,
+    expandedKeys,
     openFiles,
     sidebarActiveView,
     contextDock,

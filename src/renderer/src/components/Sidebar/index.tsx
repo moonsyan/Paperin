@@ -4,8 +4,27 @@ import {
   buildWorkspaceFileTree,
   countTreeFiles,
   filterTreeByPaths,
+  findNodeByKey,
   type UiNode,
 } from './fileTree'
+
+/** 已展开且尚未加载子项的工作区文件夹 */
+const collectExpandedUnloadedFolders = (
+  nodes: UiNode[],
+  collapsedKeys: Set<string>,
+): UiNode[] => {
+  const out: UiNode[] = []
+  const visit = (items: UiNode[]) => {
+    for (const node of items) {
+      if (node.kind !== 'folder') continue
+      const open = !collapsedKeys.has(node.key)
+      if (open && node.childrenLoaded === false) out.push(node)
+      if (open && node.children) visit(node.children)
+    }
+  }
+  visit(nodes)
+  return out
+}
 import { formatShortcutHint } from '../../data/shortcuts'
 import type { SidebarProps } from './types'
 import { collectExternalOpenFiles } from './sidebar-file-model'
@@ -49,8 +68,11 @@ export function Sidebar({
   onMoveFile,
   onOpenInNewWindow,
   initialCollapsedKeys,
+  initialExpandedKeys,
   onCollapsedKeysChange,
+  onExpandedKeysChange,
   collapseFoldersOnOpen = true,
+  onLoadFolderChildren,
   tagFilter = null,
   onClearTagFilter,
   collapsed = false,
@@ -141,11 +163,31 @@ export function Sidebar({
   // 折叠记录与级联切换（作用域解析在 App 完成）
   const treeNodes = workspace ? workspaceNodes : demoNodes
   const { collapsedKeys, toggleCollapse } = useSidebarCollapse({
+    initialExpandedKeys,
     initialCollapsedKeys,
     collapseFoldersOnOpen,
     treeNodes,
     onCollapsedKeysChange,
+    onExpandedKeysChange,
   })
+
+  const handleToggleCollapse = (key: string) => {
+    const wasCollapsed = collapsedKeys.has(key)
+    toggleCollapse(key)
+    if (!wasCollapsed || !onLoadFolderChildren) return
+    const node = findNodeByKey(treeNodes, key)
+    if (node?.kind === 'folder' && node.childrenLoaded === false && node.path) {
+      void onLoadFolderChildren(node.path)
+    }
+  }
+
+  // 已展开但尚未 listDir 的文件夹（含「默认不折叠」起步态）自动拉下一层
+  useEffect(() => {
+    if (!onLoadFolderChildren) return
+    for (const node of collectExpandedUnloadedFolders(treeNodes, collapsedKeys)) {
+      if (node.path) void onLoadFolderChildren(node.path)
+    }
+  }, [treeNodes, collapsedKeys, onLoadFolderChildren])
 
   /* ==================== 渲染：文件树 ==================== */
 
@@ -168,7 +210,7 @@ export function Sidebar({
     interactive: Boolean(workspace),
     activeFileId,
     collapsedKeys,
-    onToggleCollapse: toggleCollapse,
+    onToggleCollapse: handleToggleCollapse,
     onOpenFile: openTreeFile,
     onContextMenu: openCtxMenu,
     onMoveFile,

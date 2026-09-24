@@ -29,6 +29,7 @@ export interface DocumentSessionOptions {
   setWorkspaceSettings: Dispatch<SetStateAction<WorkspaceSettingsState>>
   setWorkspaceDocuments: Dispatch<SetStateAction<WorkspaceDocumentsState>>
   setWorkspaceCollapsedKeys: Dispatch<SetStateAction<string[] | null>>
+  setWorkspaceExpandedKeys: Dispatch<SetStateAction<string[] | null>>
   setSidebarWidth: Dispatch<SetStateAction<number>>
   setSidebarActiveTab: Dispatch<SetStateAction<SidebarView>>
   setContextDockState: Dispatch<SetStateAction<ContextDockState>>

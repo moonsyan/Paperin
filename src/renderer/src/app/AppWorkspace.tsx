@@ -62,6 +62,9 @@ export interface AppWorkspaceProps {
   demoFileNames: Record<string, string>
   currentCollapsedKeys: string[] | null
   onCollapsedKeysChange: (keys: string[]) => void
+  /** 工作区展开路径记忆；undefined 表示演示树走旧折叠模型 */
+  currentExpandedKeys?: string[] | null
+  onExpandedKeysChange?: (keys: string[]) => void
   collapseFoldersOnOpen: boolean
   // 侧栏五段式导航
   onOpenSearch: () => void
@@ -79,6 +82,8 @@ export interface AppWorkspaceProps {
   onDeleteFile: (path: string) => void
   onMoveFile: (path: string, targetDir: string) => void
   onOpenInNewWindow: (path: string) => void
+  /** 展开未加载文件夹时拉取下一层 */
+  onLoadFolderChildren?: (dirPath: string) => void | Promise<void>
   // 图谱
   graphTabOpen: boolean
   graphTabActive: boolean
@@ -175,9 +180,11 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
     searchMode, searchEpoch, searchCount, searchCurrent, searchPref, searchHandlers, onCloseSearch,
     openFiles, activeFileId, activeFilePath, activeContent,
     activePathKind, onRevealActiveFile,
-    workspace, demoFileNames, currentCollapsedKeys, onCollapsedKeysChange, collapseFoldersOnOpen,
+    workspace, demoFileNames, currentCollapsedKeys, onCollapsedKeysChange,
+    currentExpandedKeys, onExpandedKeysChange, collapseFoldersOnOpen,
     onOpenSearch, searchShortcut, recentFiles, favorites, onToggleFavorite, onOpenSettings,
     onSelectDemoFile, onSelectWorkspaceFile, onCreateFile, onRenameFile, onDeleteFile, onMoveFile, onOpenInNewWindow,
+    onLoadFolderChildren,
     graphTabOpen, graphTabActive, onGraphTabClose, onGraphOpenNode,
     linkGraph, linksTruncated, graphSettings, onGraphSettingsChange,
     editorRef, onEditorChange, onCursorChange, onRichRender, blankClickToEnd, codeLineNumbers,
@@ -241,8 +248,23 @@ export function AppWorkspace(props: AppWorkspaceProps): JSX.Element {
         onDeleteFile={onDeleteFile}
         onMoveFile={onMoveFile}
         onOpenInNewWindow={onOpenInNewWindow}
-        initialCollapsedKeys={currentCollapsedKeys}
+        onLoadFolderChildren={onLoadFolderChildren}
+        initialExpandedKeys={
+          workspace
+            ? (currentExpandedKeys !== null || currentCollapsedKeys === null
+              ? (currentExpandedKeys ?? null)
+              : undefined)
+            : undefined
+        }
+        initialCollapsedKeys={
+          workspace
+            ? (currentExpandedKeys === null && currentCollapsedKeys !== null
+              ? currentCollapsedKeys
+              : undefined)
+            : currentCollapsedKeys
+        }
         onCollapsedKeysChange={onCollapsedKeysChange}
+        onExpandedKeysChange={onExpandedKeysChange}
         collapseFoldersOnOpen={collapseFoldersOnOpen}
         onOpenSearch={onOpenSearch}
         recentFiles={recentFiles}

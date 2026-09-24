@@ -96,6 +96,56 @@ describe('工作区状态校验', () => {
     ).toHaveLength(1)
   })
 
+  it('展开目录：缺省无记忆，空数组有记忆，超限截断并去重', () => {
+    expect(
+      parseWorkspaceLayout({
+        schemaVersion: 2,
+        sidebar: { width: 290, activeView: 'files', collapsedDirectories: [] },
+      }).sidebar.expandedDirectories,
+    ).toBeUndefined()
+
+    const emptyMemory = parseWorkspaceLayout({
+      schemaVersion: 2,
+      sidebar: {
+        width: 290,
+        activeView: 'files',
+        collapsedDirectories: [],
+        expandedDirectories: [],
+      },
+    })
+    expect(emptyMemory.sidebar.expandedDirectories).toEqual([])
+
+    const expandedDirectories = Array.from(
+      { length: 2005 },
+      (_, index) => `open/${index}`,
+    )
+    expandedDirectories.splice(1, 0, 'open/0')
+    const capped = parseWorkspaceLayout({
+      schemaVersion: 2,
+      sidebar: {
+        width: 290,
+        activeView: 'files',
+        collapsedDirectories: [],
+        expandedDirectories,
+      },
+    })
+    expect(capped.sidebar.expandedDirectories).toHaveLength(2000)
+    expect(
+      capped.sidebar.expandedDirectories?.filter((path) => path === 'open/0'),
+    ).toHaveLength(1)
+    expect(
+      parseWorkspaceLayout({
+        schemaVersion: 2,
+        sidebar: {
+          width: 290,
+          activeView: 'files',
+          collapsedDirectories: [],
+          expandedDirectories: ['docs\\api', '../evil', 'docs/api'],
+        },
+      }).sidebar.expandedDirectories,
+    ).toEqual(['docs/api'])
+  })
+
   it('修正无效活动标签和侧栏配置', () => {
     const layout = parseWorkspaceLayout({
       schemaVersion: 1,

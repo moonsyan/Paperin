@@ -32,29 +32,73 @@ const nodes: UiNode[] = [
 const ALL_FOLDER_KEYS = ['root', 'root/a', 'root/a/b', 'root/c']
 
 describe('useSidebarCollapse', () => {
-  it('无记录且开关注启用时全部折叠', () => {
+  it('无展开记忆且开关注启用时折叠非顶层文件夹（根保持展开）', () => {
     const { result } = renderHook(() =>
-      useSidebarCollapse({ initialCollapsedKeys: null, collapseFoldersOnOpen: true, treeNodes: nodes }),
+      useSidebarCollapse({ initialExpandedKeys: null, collapseFoldersOnOpen: true, treeNodes: nodes }),
     )
-    expect(Array.from(result.current.collapsedKeys).sort()).toEqual([...ALL_FOLDER_KEYS].sort())
+    expect(result.current.collapsedKeys.has('root')).toBe(false)
+    expect(Array.from(result.current.collapsedKeys).sort()).toEqual(['root/a', 'root/a/b', 'root/c'])
   })
 
-  it('无记录且开关注停用时全部展开', () => {
+  it('无展开记忆且开关注停用时全部展开', () => {
     const { result } = renderHook(() =>
-      useSidebarCollapse({ initialCollapsedKeys: null, collapseFoldersOnOpen: false, treeNodes: nodes }),
+      useSidebarCollapse({ initialExpandedKeys: null, collapseFoldersOnOpen: false, treeNodes: nodes }),
     )
     expect(result.current.collapsedKeys.size).toBe(0)
   })
 
-  it('有记录时严格沿用记录，不受开关注影响', () => {
+  it('有展开记忆时按展开集推导折叠，不受开关注影响', () => {
     const { result } = renderHook(() =>
       useSidebarCollapse({
-        initialCollapsedKeys: ['root/c'],
+        initialExpandedKeys: ['root/a'],
         collapseFoldersOnOpen: true,
         treeNodes: nodes,
       }),
     )
-    expect(Array.from(result.current.collapsedKeys)).toEqual(['root/c'])
+    expect(result.current.collapsedKeys.has('root')).toBe(false)
+    expect(result.current.collapsedKeys.has('root/a')).toBe(false)
+    expect(result.current.collapsedKeys.has('root/a/b')).toBe(true)
+    expect(result.current.collapsedKeys.has('root/c')).toBe(true)
+  })
+
+  it('展开记忆为空数组时非根全部折叠', () => {
+    const { result } = renderHook(() =>
+      useSidebarCollapse({
+        initialExpandedKeys: [],
+        collapseFoldersOnOpen: false,
+        treeNodes: nodes,
+      }),
+    )
+    expect(Array.from(result.current.collapsedKeys).sort()).toEqual(['root/a', 'root/a/b', 'root/c'])
+  })
+
+  it('懒加载新文件夹节点默认折叠（有展开记忆时）', () => {
+    const shallow: UiNode[] = [
+      {
+        key: 'root',
+        name: 'root',
+        kind: 'folder',
+        path: 'root',
+        children: [
+          { key: 'root/a', name: 'a', kind: 'folder', path: 'root/a', children: [], childrenLoaded: false },
+        ],
+      },
+    ]
+    const { result, rerender } = renderHook(
+      ({ treeNodes }: { treeNodes: UiNode[] }) =>
+        useSidebarCollapse({
+          initialExpandedKeys: ['root/a'],
+          collapseFoldersOnOpen: true,
+          treeNodes,
+        }),
+      { initialProps: { treeNodes: shallow } },
+    )
+    expect(result.current.collapsedKeys.has('root/a')).toBe(false)
+
+    rerender({ treeNodes: nodes })
+    expect(result.current.collapsedKeys.has('root/a')).toBe(false)
+    expect(result.current.collapsedKeys.has('root/a/b')).toBe(true)
+    expect(result.current.collapsedKeys.has('root/c')).toBe(true)
   })
 
   it('记录为内联字面量（引用不稳定）时渲染收敛，不进入无限更新循环', () => {
@@ -62,25 +106,25 @@ describe('useSidebarCollapse', () => {
     const { result } = renderHook(() => {
       renders += 1
       return useSidebarCollapse({
-        // 故意每次渲染都传新数组：守卫必须按内容而非引用比较
-        initialCollapsedKeys: ['root/c'],
+        initialExpandedKeys: ['root/a'],
         collapseFoldersOnOpen: true,
         treeNodes: nodes,
       })
     })
-    expect(Array.from(result.current.collapsedKeys)).toEqual(['root/c'])
-    // 首次应用记录触发一次重渲染，守卫随后按内容命中即停止
+    expect(result.current.collapsedKeys.has('root/a')).toBe(false)
     expect(renders).toBeLessThanOrEqual(2)
   })
 
-  it('点击折叠本文件夹及其后代一并折叠，并写回记录', () => {
+  it('点击折叠本文件夹及其后代一并折叠，并写回折叠与展开记录', () => {
     const onCollapsedKeysChange = vi.fn()
+    const onExpandedKeysChange = vi.fn()
     const { result } = renderHook(() =>
       useSidebarCollapse({
-        initialCollapsedKeys: null,
+        initialExpandedKeys: null,
         collapseFoldersOnOpen: false,
         treeNodes: nodes,
         onCollapsedKeysChange,
+        onExpandedKeysChange,
       }),
     )
     act(() => result.current.toggleCollapse('root/a'))
@@ -88,6 +132,10 @@ describe('useSidebarCollapse', () => {
     expect(onCollapsedKeysChange).toHaveBeenCalledWith(
       expect.arrayContaining(['root/a', 'root/a/b']),
     )
+    expect(onExpandedKeysChange).toHaveBeenCalledWith(
+      expect.arrayContaining(['root/c']),
+    )
+    expect(onExpandedKeysChange.mock.calls[0][0]).not.toContain('root/a')
   })
 
   it('点击展开只展开自身，后代保持原状', () => {
@@ -99,20 +147,31 @@ describe('useSidebarCollapse', () => {
       }),
     )
     act(() => result.current.toggleCollapse('root/a'))
-    // root/a 展开，root/a/b 仍保持折叠
     expect(result.current.collapsedKeys.has('root/a')).toBe(false)
     expect(result.current.collapsedKeys.has('root/a/b')).toBe(true)
     expect(result.current.collapsedKeys.has('root')).toBe(true)
   })
 
-  it('切换折叠开关会按新开关重算初始态（无记录时）', () => {
+  it('切换折叠开关会按新开关重算初始态（无记忆时）', () => {
     const { result, rerender } = renderHook(
       ({ collapseFoldersOnOpen }: { collapseFoldersOnOpen: boolean }) =>
-        useSidebarCollapse({ initialCollapsedKeys: null, collapseFoldersOnOpen, treeNodes: nodes }),
+        useSidebarCollapse({ initialExpandedKeys: null, collapseFoldersOnOpen, treeNodes: nodes }),
       { initialProps: { collapseFoldersOnOpen: true } },
     )
-    expect(result.current.collapsedKeys.size).toBe(4)
+    expect(result.current.collapsedKeys.size).toBe(3)
+    expect(result.current.collapsedKeys.has('root')).toBe(false)
     rerender({ collapseFoldersOnOpen: false })
     expect(result.current.collapsedKeys.size).toBe(0)
+  })
+
+  it('旧折叠列表模型：有记录时严格沿用', () => {
+    const { result } = renderHook(() =>
+      useSidebarCollapse({
+        initialCollapsedKeys: ['root/c'],
+        collapseFoldersOnOpen: true,
+        treeNodes: nodes,
+      }),
+    )
+    expect(Array.from(result.current.collapsedKeys)).toEqual(['root/c'])
   })
 })

@@ -19,6 +19,8 @@ interface WorkspaceLayoutSnapshotOptions {
   sidebarActiveView: SidebarView
   contextDock?: ContextDockState
   collapsedDirectories: string[]
+  /** null/undefined = 不写入展开记忆字段；数组（含空）= 写入 */
+  expandedDirectories?: string[] | null
   caseInsensitive: boolean
 }
 
@@ -61,6 +63,26 @@ export const resolveWorkspacePath = (
   return `${root}${separator}${normalized.replace(/\//g, separator)}`
 }
 
+/**
+ * 展开记忆相对路径补全祖先，并按深度升序（便于逐级 listDir）。
+ * 例：['docs/api'] → ['docs', 'docs/api']
+ */
+export const expandRelativePathsWithAncestors = (relativePaths: readonly string[]): string[] => {
+  const out = new Set<string>()
+  for (const relative of relativePaths) {
+    const normalized = normalizeWorkspaceRelativePath(relative)
+    if (!normalized) continue
+    const parts = normalized.split('/')
+    for (let i = 1; i <= parts.length; i += 1) {
+      out.add(parts.slice(0, i).join('/'))
+    }
+  }
+  return Array.from(out).sort((left, right) => {
+    const depth = left.split('/').length - right.split('/').length
+    return depth !== 0 ? depth : left.localeCompare(right)
+  })
+}
+
 export const resolveEffectiveTheme = (
   globalTheme: string,
   workspaceTheme: string,
@@ -74,6 +96,7 @@ export const createWorkspaceLayoutSnapshot = ({
   sidebarActiveView: _sidebarActiveView,
   contextDock,
   collapsedDirectories,
+  expandedDirectories,
   caseInsensitive,
 }: WorkspaceLayoutSnapshotOptions): WorkspaceLayoutState => {
   const tabs = openFiles.flatMap((file) => {
@@ -89,6 +112,12 @@ export const createWorkspaceLayoutSnapshot = ({
     const relativePath = toWorkspaceRelativePath(rootPath, path, caseInsensitive)
     return relativePath ? [relativePath] : []
   })
+  const expanded = expandedDirectories == null
+    ? undefined
+    : expandedDirectories.flatMap((path) => {
+      const relativePath = toWorkspaceRelativePath(rootPath, path, caseInsensitive)
+      return relativePath ? [relativePath] : []
+    })
 
   return {
     schemaVersion: 2,
@@ -98,6 +127,7 @@ export const createWorkspaceLayoutSnapshot = ({
       width: sidebarWidth,
       activeView: 'files',
       collapsedDirectories: collapsed,
+      ...(expanded !== undefined ? { expandedDirectories: expanded } : {}),
     },
     contextDock: contextDock ?? {
       width: 312,

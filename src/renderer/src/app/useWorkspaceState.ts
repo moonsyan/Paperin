@@ -12,6 +12,7 @@ import type {
   WorkspaceSettingsState,
 } from '../../../shared/workspace-state'
 import type { WorkspaceInfo } from '../components/Sidebar'
+import { buildWorkspaceFileTree, collectFolderKeys } from '../components/Sidebar/fileTree'
 import type { ContextDockState } from '../components/ContextDock/context-dock-state'
 
 export interface UseWorkspaceStateOptions {
@@ -32,6 +33,9 @@ export interface UseWorkspaceStateReturn {
   setWorkspaceDocuments: Dispatch<SetStateAction<WorkspaceDocumentsState>>
   workspaceCollapsedKeys: string[] | null
   setWorkspaceCollapsedKeys: Dispatch<SetStateAction<string[] | null>>
+  /** 工作区展开路径记忆；null = 无记忆 */
+  workspaceExpandedKeys: string[] | null
+  setWorkspaceExpandedKeys: Dispatch<SetStateAction<string[] | null>>
   workspaceStateReady: boolean
   setWorkspaceStateReady: Dispatch<SetStateAction<boolean>>
   /** workspace.path 的 ref 镜像（供异步回调/编辑器路径解析读取最新值） */
@@ -40,6 +44,8 @@ export interface UseWorkspaceStateReturn {
   workspaceDocumentsRef: MutableRefObject<WorkspaceDocumentsState>
   /** 当前树作用域的折叠记录 */
   currentCollapsedKeys: string[] | null
+  /** 当前工作区展开记忆（演示树为 undefined） */
+  currentExpandedKeys: string[] | null | undefined
   /** 有效主题（解析继承后） */
   effectiveTheme: string
   /* 侧栏 */
@@ -53,6 +59,7 @@ export interface UseWorkspaceStateReturn {
   handleThemeChange: (nextTheme: string) => void
   handleWorkspaceThemeEnabledChange: (enabled: boolean) => void
   handleCollapsedKeysChange: (keys: string[]) => void
+  handleExpandedKeysChange: (keys: string[]) => void
   toast: string
   setToast: Dispatch<SetStateAction<string>>
 }
@@ -76,6 +83,7 @@ export function useWorkspaceState({
     documents: {},
   })
   const [workspaceCollapsedKeys, setWorkspaceCollapsedKeys] = useState<string[] | null>(null)
+  const [workspaceExpandedKeys, setWorkspaceExpandedKeys] = useState<string[] | null>(null)
   const [workspaceStateReady, setWorkspaceStateReady] = useState(false)
 
   /* ── ref 镜像（供异步回调读取最新工作区状态） ── */
@@ -97,14 +105,31 @@ export function useWorkspaceState({
   /* ── 衍生值 ── */
   const effectiveTheme = resolveEffectiveTheme(theme, workspaceSettings.appearance.theme)
 
-  const workspacePathRefForCollapsed = useMemo(() => workspace?.path, [workspace?.path])
-
-  /** 当前树作用域的折叠记录：null = 该工作区（或演示树）从未记录过折叠状态 → 全部折叠 */
+  /** 当前树作用域的折叠记录：null = 该工作区（或演示树）从未记录过折叠状态 */
   const currentCollapsedKeys = useMemo(() => {
-    if (workspace) return workspaceCollapsedKeys
+    if (workspace) {
+      if (workspaceExpandedKeys !== null) {
+        const folders = collectFolderKeys(
+          buildWorkspaceFileTree(workspace.path, workspace.tree),
+        )
+        const expanded = new Set(workspaceExpandedKeys)
+        return folders.filter((key) => key !== workspace.path && !expanded.has(key))
+      }
+      return workspaceCollapsedKeys
+    }
     if (sidebarCollapsedKeys == null) return null
     return sidebarCollapsedKeys[DEMO_TREE_SCOPE] ?? null
-  }, [sidebarCollapsedKeys, workspace, workspaceCollapsedKeys])
+  }, [
+    sidebarCollapsedKeys,
+    workspace,
+    workspaceCollapsedKeys,
+    workspaceExpandedKeys,
+  ])
+
+  const currentExpandedKeys = useMemo(() => {
+    if (!workspace) return undefined
+    return workspaceExpandedKeys
+  }, [workspace, workspaceExpandedKeys])
 
   /* ── 持久化效果 ── */
 
@@ -158,15 +183,41 @@ export function useWorkspaceState({
     })
   }, [effectiveTheme, workspaceSettings.editor])
 
-  /** 折叠记录按当前树作用域写入：不同工作区互不干扰 */
+  /** 折叠记录按当前树作用域写入；工作区同时推导展开记忆（含定位文件）。 */
   const handleCollapsedKeysChange = useCallback((keys: string[]) => {
-    if (workspacePathRefForCollapsed) {
+    if (workspace) {
       setWorkspaceCollapsedKeys(keys)
+      const folders = collectFolderKeys(
+        buildWorkspaceFileTree(workspace.path, workspace.tree),
+      )
+      const knownFolders = new Set(folders)
+      const knownExpanded = folders.filter(
+        (key) => key !== workspace.path && !keys.includes(key),
+      )
+      setWorkspaceExpandedKeys((prev) => {
+        const preserved = (prev ?? []).filter((path) => !knownFolders.has(path))
+        return [...knownExpanded, ...preserved]
+      })
       return
     }
-    const scope = workspacePathRefForCollapsed ?? DEMO_TREE_SCOPE
+    const scope = DEMO_TREE_SCOPE
     setSidebarCollapsedKeys((prev) => ({ ...(prev ?? {}), [scope]: keys }))
-  }, [workspacePathRefForCollapsed])
+  }, [workspace])
+
+  /**
+   * 展开记忆写回：合并「当前树已知展开」与「尚未加载但仍在记忆中的路径」，
+   * 避免懒加载丢深层展开记录。首次交互即从无记忆升级为有记忆。
+   */
+  const handleExpandedKeysChange = useCallback((knownExpanded: string[]) => {
+    if (!workspace) return
+    const knownFolders = new Set(
+      collectFolderKeys(buildWorkspaceFileTree(workspace.path, workspace.tree)),
+    )
+    setWorkspaceExpandedKeys((prev) => {
+      const preserved = (prev ?? []).filter((path) => !knownFolders.has(path))
+      return [...knownExpanded, ...preserved]
+    })
+  }, [workspace])
 
   return {
     workspace,
@@ -177,11 +228,14 @@ export function useWorkspaceState({
     setWorkspaceDocuments,
     workspaceCollapsedKeys,
     setWorkspaceCollapsedKeys,
+    workspaceExpandedKeys,
+    setWorkspaceExpandedKeys,
     workspaceStateReady,
     setWorkspaceStateReady,
     workspacePathRef,
     workspaceDocumentsRef,
     currentCollapsedKeys,
+    currentExpandedKeys,
     effectiveTheme,
     sidebarCollapsedKeys,
     setSidebarCollapsedKeys,
@@ -192,6 +246,7 @@ export function useWorkspaceState({
     handleThemeChange,
     handleWorkspaceThemeEnabledChange,
     handleCollapsedKeysChange,
+    handleExpandedKeysChange,
     toast,
     setToast,
   }

@@ -9,7 +9,12 @@ import {
 } from '../../../../shared/workspace-state'
 import { createLatestRequestGuard } from '../../../../shared/latest-request'
 import type { OpenFile, WorkspaceInfo } from '../../components/Sidebar'
-import { resolveWorkspacePath, toWorkspaceRelativePath } from '../../lib/workspace-state'
+import { replaceFolderChildren } from '../../components/Sidebar/fileTree'
+import {
+  expandRelativePathsWithAncestors,
+  resolveWorkspacePath,
+  toWorkspaceRelativePath,
+} from '../../lib/workspace-state'
 import type { DocumentState } from './useDocumentState'
 import { sameFilePath } from './filePath'
 
@@ -22,7 +27,8 @@ export interface UseWorkspaceFolderOpenOptions {
   setWorkspaceStateReady: (ready: boolean) => void
   setWorkspaceSettings: (next: WorkspaceSettingsState) => void
   setWorkspaceDocuments: (next: WorkspaceDocumentsState) => void
-  setWorkspaceCollapsedKeys: (keys: string[]) => void
+  setWorkspaceCollapsedKeys: (keys: string[] | null) => void
+  setWorkspaceExpandedKeys: (keys: string[] | null) => void
   setSidebarWidth: (width: number) => void
   setSidebarActiveTab: (view: SidebarView) => void
   setContextDockState: (state: ContextDockState) => void
@@ -51,6 +57,7 @@ export function useWorkspaceFolderOpen({
   setWorkspaceSettings,
   setWorkspaceDocuments,
   setWorkspaceCollapsedKeys,
+  setWorkspaceExpandedKeys,
   setSidebarWidth,
   setSidebarActiveTab,
   setContextDockState,
@@ -175,16 +182,38 @@ export function useWorkspaceFolderOpen({
           if (bundle.layout.contextDock) {
             setContextDockState(bundle.layout.contextDock)
           }
-          setWorkspaceCollapsedKeys(
-            bundle.layout.sidebar.collapsedDirectories.flatMap((relativePath) => {
+          const collapsedAbsolute = bundle.layout.sidebar.collapsedDirectories.flatMap(
+            (relativePath) => {
               const absolutePath = resolveWorkspacePath(
                 folderPath,
                 relativePath,
                 window.desktopAPI.platform,
               )
               return absolutePath ? [absolutePath] : []
-            }),
+            },
           )
+          const expandedRelative = bundle.layout.sidebar.expandedDirectories
+          if (expandedRelative !== undefined) {
+            const withAncestors = expandRelativePathsWithAncestors(expandedRelative)
+            const expandedAbsolute = withAncestors.flatMap((relativePath) => {
+              const absolutePath = resolveWorkspacePath(
+                folderPath,
+                relativePath,
+                window.desktopAPI.platform,
+              )
+              return absolutePath ? [absolutePath] : []
+            })
+            setWorkspaceExpandedKeys(expandedAbsolute)
+            setWorkspaceCollapsedKeys(null)
+          } else if (collapsedAbsolute.length > 0) {
+            // 旧布局：仅有折叠列表 → 沿用折叠模型，不当作「无记忆」
+            setWorkspaceExpandedKeys(null)
+            setWorkspaceCollapsedKeys(collapsedAbsolute)
+          } else {
+            // 无展开字段且折叠为空 → 无记忆，走默认「根展开、子夹全折」
+            setWorkspaceExpandedKeys(null)
+            setWorkspaceCollapsedKeys(null)
+          }
           const existingOutsideWorkspace = openFilesRef.current.filter((file) => {
             if (!file.path) return true
             return toWorkspaceRelativePath(
@@ -246,10 +275,40 @@ export function useWorkspaceFolderOpen({
           setWorkspaceSettings(DEFAULT_WORKSPACE_SETTINGS)
           workspaceDocumentsRef.current = emptyDocuments
           setWorkspaceDocuments(emptyDocuments)
-          setWorkspaceCollapsedKeys([])
+          setWorkspaceExpandedKeys(null)
+          setWorkspaceCollapsedKeys(null)
         }
         workspacePathRef.current = folderPath
-        setWorkspace({ path: folderPath, name, tree })
+
+        // 有展开记忆时按路径逐级 listDir，再挂树（否则深层展开节点不存在）
+        let nextTree = tree
+        const expandedToPreload = stateResult.ok && stateResult.data
+          ? stateResult.data.layout.sidebar.expandedDirectories
+          : undefined
+        if (expandedToPreload && expandedToPreload.length > 0 && window.desktopAPI) {
+          const win32 = window.desktopAPI.platform === 'win32'
+          const dirs = expandRelativePathsWithAncestors(expandedToPreload)
+          for (const relative of dirs) {
+            if (!isCurrentRequest()) return
+            const absolutePath = resolveWorkspacePath(
+              folderPath,
+              relative,
+              window.desktopAPI.platform,
+            )
+            if (!absolutePath) continue
+            const listed = await window.desktopAPI.document.listDir(absolutePath)
+            if (!isCurrentRequest()) return
+            if (!listed.ok || !listed.data) continue
+            nextTree = replaceFolderChildren(
+              nextTree,
+              absolutePath,
+              listed.data.entries,
+              win32,
+            )
+          }
+        }
+
+        setWorkspace({ path: folderPath, name, tree: nextTree })
         setWorkspaceStateReady(true)
         // preserveActiveTab：会话恢复路径的活动文档由 restoreFromSessionData
         // 统一决定（含未命名/工作区外文件的回退链）；这里不等待地异步完成，
@@ -304,6 +363,7 @@ export function useWorkspaceFolderOpen({
       setToast,
       setWorkspace,
       setWorkspaceCollapsedKeys,
+      setWorkspaceExpandedKeys,
       setWorkspaceDocuments,
       setWorkspaceSettings,
       setWorkspaceStateReady,

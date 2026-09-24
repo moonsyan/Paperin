@@ -30,8 +30,14 @@ export interface SidebarProps {
   onMoveFile?: (path: string, targetDir: string) => void
   onOpenInNewWindow?: (path: string) => void
   initialCollapsedKeys?: string[] | null
+  /** 展开路径记忆；传入（含 null）启用展开记忆模型 */
+  initialExpandedKeys?: string[] | null
   onCollapsedKeysChange?: (keys: string[]) => void
+  /** 当前已知展开路径写回（调用方合并未加载路径） */
+  onExpandedKeysChange?: (keys: string[]) => void
   collapseFoldersOnOpen?: boolean
+  /** 展开未加载的工作区文件夹时拉取下一层 */
+  onLoadFolderChildren?: (dirPath: string) => void | Promise<void>
   tagFilter?: { tag: string; paths: string[] } | null
   onClearTagFilter?: () => void
   collapsed?: boolean

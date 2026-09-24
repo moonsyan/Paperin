@@ -57,7 +57,7 @@ interface SettingsDialogProps {
   /** 代码块行号开关 */
   codeLineNumbers: boolean
   onCodeLineNumbersChange: (value: boolean) => void
-  /** 默认打开文件夹全部折叠（递归折叠/初始折叠） */
+  /** 默认折叠子文件夹（根保持展开）；仅无展开记忆时生效 */
   collapseFoldersOnOpen: boolean
   onCollapseFoldersOnOpenChange: (value: boolean) => void
   /** 全局字数目标（null = 未设置；单文档可在状态栏覆盖） */

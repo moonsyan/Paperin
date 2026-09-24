@@ -3,24 +3,32 @@ import { collectFolderKeys, collectFolderKeysUnder, findNodeByKey, type UiNode }
 
 /**
  * Sidebar 折叠状态：
- * - 记录由 App 按树作用域（工作区路径/演示树）解析后传入：
- *   null = 当前树无记录（新打开的工作区/从未折叠过）→ 按开关决定初始态；
- *   有记录 → 原样恢复。
- * - 用户手动折叠/展开时实时写回当前作用域。
- *
- * 作用域解析在 App 完成，这里不做"记录匹配"判定——旧逻辑把空数组记录
- * 误判为匹配当前树，导致新工作区被全部平铺展开。
+ * - 展开记忆模型（initialExpandedKeys !== undefined）：
+ *   null = 无记忆 → 按开关决定初始态（根展开、子夹全折 / 全展）；
+ *   string[] = 有记忆 → collapsed = 全部非根文件夹 − 展开集；懒加载新节点默认折。
+ * - 旧折叠列表模型（仅 initialCollapsedKeys，演示树 / 旧布局迁移）：
+ *   null = 无记录；有记录原样恢复。
  */
 
 export interface UseSidebarCollapseOptions {
-  /** 当前树的折叠记录；null = 无记录，undefined = 尚未加载 */
+  /**
+   * 展开路径记忆；传入该 prop（含 null）即启用展开记忆模型。
+   * undefined = 不使用本模型，回退 initialCollapsedKeys。
+   */
+  initialExpandedKeys?: string[] | null
+  /** 旧折叠记录；仅在未传入 initialExpandedKeys 时生效 */
   initialCollapsedKeys?: string[] | null
-  /** 「默认打开文件夹全部折叠」开关，仅在无记录时决定初始态 */
+  /** 「默认打开文件夹全部折叠」开关，仅在无记忆时决定初始态 */
   collapseFoldersOnOpen: boolean
   /** 当前渲染的树（工作区树或演示树），用于枚举文件夹 key 与级联查找 */
   treeNodes: UiNode[]
   /** 折叠状态变更写回（持久化到当前树作用域） */
   onCollapsedKeysChange?: (keys: string[]) => void
+  /**
+   * 当前树上已知的展开路径写回（不含根）；调用方合并尚未加载的展开记忆。
+   * 仅在用户切换折叠时触发。
+   */
+  onExpandedKeysChange?: (keys: string[]) => void
 }
 
 export interface UseSidebarCollapseResult {
@@ -34,31 +42,64 @@ export interface UseSidebarCollapseResult {
   toggleCollapse: (key: string) => void
 }
 
+const rootKeySet = (treeNodes: UiNode[]): Set<string> =>
+  new Set(treeNodes.filter((node) => node.kind === 'folder').map((node) => node.key))
+
+/** 由展开集推导折叠集：非根且不在展开集中的文件夹一律折叠。 */
+export const collapsedKeysFromExpanded = (
+  allFolderKeys: readonly string[],
+  rootKeys: ReadonlySet<string>,
+  expandedKeys: readonly string[],
+): Set<string> => {
+  const expanded = new Set(expandedKeys)
+  return new Set(
+    allFolderKeys.filter((key) => !rootKeys.has(key) && !expanded.has(key)),
+  )
+}
+
+/** 无记忆时的默认折叠：根展开，其余全折（或开关关闭时全展）。 */
+export const defaultCollapsedKeys = (
+  allFolderKeys: readonly string[],
+  rootKeys: ReadonlySet<string>,
+  collapseFoldersOnOpen: boolean,
+): Set<string> => {
+  if (!collapseFoldersOnOpen) return new Set()
+  return new Set(allFolderKeys.filter((key) => !rootKeys.has(key)))
+}
+
 export function useSidebarCollapse({
+  initialExpandedKeys,
   initialCollapsedKeys,
   collapseFoldersOnOpen,
   treeNodes,
   onCollapsedKeysChange,
+  onExpandedKeysChange,
 }: UseSidebarCollapseOptions): UseSidebarCollapseResult {
-  const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(
-    () => new Set(initialCollapsedKeys ?? []),
-  )
+  const useExpandedModel = initialExpandedKeys !== undefined
 
-  /** 当前渲染树的全部文件夹 key（含嵌套子文件夹） */
+  const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(() => {
+    const roots = rootKeySet(treeNodes)
+    const all = collectFolderKeys(treeNodes)
+    if (useExpandedModel) {
+      return initialExpandedKeys == null
+        ? defaultCollapsedKeys(all, roots, collapseFoldersOnOpen)
+        : collapsedKeysFromExpanded(all, roots, initialExpandedKeys)
+    }
+    return new Set(initialCollapsedKeys ?? [])
+  })
+
   const allFolderKeys = useMemo(() => collectFolderKeys(treeNodes), [treeNodes])
+  const rootKeys = useMemo(() => rootKeySet(treeNodes), [treeNodes])
 
-  /**
-   * 折叠记录的内容签名。
-   *
-   * 守卫必须比较签名而非数组引用：调用方若传入内联数组字面量，
-   * 每次渲染都是新引用，effect 依赖随之变化并再次 setState，
-   * 将形成无限更新循环（表现为堆内存耗尽）。引用稳定性不是本 hook
-   * 可以假定的契约。
-   */
-  const recordSig = initialCollapsedKeys == null ? null : initialCollapsedKeys.join('\u0000')
+  const expandedSig = useExpandedModel
+    ? (initialExpandedKeys == null ? null : initialExpandedKeys.join('\u0000'))
+    : undefined
+  const collapsedSig = !useExpandedModel
+    ? (initialCollapsedKeys == null ? null : initialCollapsedKeys.join('\u0000'))
+    : undefined
 
-  /** 应用记录的指纹：记录内容 + 树结构 + 开关都未变时不重算 */
   const appliedCollapseRef = useRef<{
+    mode: 'expanded' | 'collapsed'
     recordSig: string | null
     treeSig: string
     collapse: boolean
@@ -67,40 +108,51 @@ export function useSidebarCollapse({
   useEffect(() => {
     if (allFolderKeys.length === 0) return
     const treeSig = allFolderKeys.join('\u0000')
+    const recordSig = useExpandedModel ? (expandedSig ?? null) : (collapsedSig ?? null)
+    const mode = useExpandedModel ? 'expanded' : 'collapsed'
     const prev = appliedCollapseRef.current
-    // 设置异步加载完成后记录到达、更换工作区、切换折叠开关、
-    // 用户手动折叠/展开时才会变化
     if (
       prev &&
+      prev.mode === mode &&
       prev.treeSig === treeSig &&
       prev.recordSig === recordSig &&
       prev.collapse === collapseFoldersOnOpen
     ) {
       return
     }
-    appliedCollapseRef.current = { recordSig, treeSig, collapse: collapseFoldersOnOpen }
-    // 修复：用户展开文件夹后被立即重新折叠。
-    // 有持久记录时严格沿用记录（用户上次的折叠/展开态），不受开关影响；
-    // 无记录时按「默认打开文件夹全部折叠」开关决定初始态。
+    appliedCollapseRef.current = { mode, recordSig, treeSig, collapse: collapseFoldersOnOpen }
+
+    if (useExpandedModel) {
+      setCollapsedKeys(
+        initialExpandedKeys == null
+          ? defaultCollapsedKeys(allFolderKeys, rootKeys, collapseFoldersOnOpen)
+          : collapsedKeysFromExpanded(allFolderKeys, rootKeys, initialExpandedKeys),
+      )
+      return
+    }
+
     setCollapsedKeys(
       initialCollapsedKeys == null
-        ? collapseFoldersOnOpen
-          ? new Set(allFolderKeys)
-          : new Set<string>()
+        ? defaultCollapsedKeys(allFolderKeys, rootKeys, collapseFoldersOnOpen)
         : new Set(initialCollapsedKeys),
     )
-  }, [initialCollapsedKeys, recordSig, allFolderKeys, collapseFoldersOnOpen])
+  }, [
+    allFolderKeys,
+    collapseFoldersOnOpen,
+    collapsedSig,
+    expandedSig,
+    initialCollapsedKeys,
+    initialExpandedKeys,
+    rootKeys,
+    useExpandedModel,
+  ])
 
   const toggleCollapse = useCallback(
     (key: string) => {
-      // 在 updater 外基于当前状态算好 next，再一次性提交与写回，
-      // 避免把回调副作用放进 updater（StrictMode 下 updater 会执行两次）
       const next = new Set(collapsedKeys)
       if (next.has(key)) {
-        // 展开：仅展开被点击的文件夹，子文件夹保持原状
         next.delete(key)
       } else {
-        // 折叠：本文件夹及其所有后代文件夹一并折叠
         next.add(key)
         const target = findNodeByKey(treeNodes, key)
         if (target) {
@@ -111,8 +163,21 @@ export function useSidebarCollapse({
       }
       setCollapsedKeys(next)
       onCollapsedKeysChange?.(Array.from(next))
+      if (onExpandedKeysChange) {
+        const knownExpanded = allFolderKeys.filter(
+          (folderKey) => !next.has(folderKey) && !rootKeys.has(folderKey),
+        )
+        onExpandedKeysChange(knownExpanded)
+      }
     },
-    [collapsedKeys, onCollapsedKeysChange, treeNodes],
+    [
+      allFolderKeys,
+      collapsedKeys,
+      onCollapsedKeysChange,
+      onExpandedKeysChange,
+      rootKeys,
+      treeNodes,
+    ],
   )
 
   return { collapsedKeys, toggleCollapse }

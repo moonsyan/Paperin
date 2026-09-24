@@ -39,6 +39,8 @@ export const WORKSPACE_STATE_SCHEMA_VERSION = 1 as const
 export const WORKSPACE_LAYOUT_SCHEMA_VERSION = 2 as const
 export const MAX_WORKSPACE_TABS = 200
 export const MAX_COLLAPSED_DIRECTORIES = 2000
+/** 展开目录记忆上限；与折叠列表共用同一数量级，避免布局膨胀 */
+export const MAX_EXPANDED_DIRECTORIES = MAX_COLLAPSED_DIRECTORIES
 export const MAX_DOCUMENT_VIEW_STATES = 500
 export const MAX_RECENT_CITATIONS = 8
 /** @deprecated 使用 MAX_LEGACY_SOURCE_SNAPSHOTS；仅兼容旧测试引用。 */
@@ -105,6 +107,13 @@ export interface WorkspaceLayoutState {
     width: number
     activeView: SidebarView
     collapsedDirectories: string[]
+    /**
+     * 侧栏展开目录记忆（工作区相对路径）。
+     * - 缺省 / undefined：无记忆 → 打开时按「默认折叠子文件夹」开关处理
+     * - []：有记忆且非根全部折叠
+     * - 非空：展开列出的路径（及其祖先）
+     */
+    expandedDirectories?: string[]
   }
   contextDock?: ContextDockState
 }
@@ -245,6 +254,22 @@ const SIDEBAR_VIEWS: readonly SidebarView[] = ['files', 'outline', 'links', 'tag
 const isSidebarView = (value: unknown): value is SidebarView =>
   typeof value === 'string' && (SIDEBAR_VIEWS as readonly string[]).includes(value)
 
+/** 解析并去重工作区相对目录列表，超过上限截断。 */
+const parseRelativeDirectoryList = (value: unknown, max: number): string[] => {
+  const requested = Array.isArray(value) ? value : []
+  const directories: string[] = []
+  const seen = new Set<string>()
+  for (const candidate of requested) {
+    if (typeof candidate !== 'string') continue
+    const path = normalizeWorkspaceRelativePath(candidate)
+    if (!path || seen.has(path)) continue
+    seen.add(path)
+    directories.push(path)
+    if (directories.length >= max) break
+  }
+  return directories
+}
+
 export const parseWorkspaceLayout = (value: unknown): WorkspaceLayoutState => {
   const source = isRecord(value) ? value : {}
   const sourceTabs = Array.isArray(source.tabs) ? source.tabs : []
@@ -269,19 +294,14 @@ export const parseWorkspaceLayout = (value: unknown): WorkspaceLayoutState => {
 
   const sidebar = isRecord(source.sidebar) ? source.sidebar : {}
   const legacyActiveView = isSidebarView(sidebar.activeView) ? sidebar.activeView : 'files'
-  const requestedCollapsed = Array.isArray(sidebar.collapsedDirectories)
-    ? sidebar.collapsedDirectories
-    : []
-  const collapsedDirectories: string[] = []
-  const seenDirectories = new Set<string>()
-  for (const candidate of requestedCollapsed) {
-    if (typeof candidate !== 'string') continue
-    const path = normalizeWorkspaceRelativePath(candidate)
-    if (!path || seenDirectories.has(path)) continue
-    seenDirectories.add(path)
-    collapsedDirectories.push(path)
-    if (collapsedDirectories.length >= MAX_COLLAPSED_DIRECTORIES) break
-  }
+  const collapsedDirectories = parseRelativeDirectoryList(
+    sidebar.collapsedDirectories,
+    MAX_COLLAPSED_DIRECTORIES,
+  )
+  // 字段缺失 = 无展开记忆；显式数组（含空）= 有记忆
+  const expandedDirectories = Object.prototype.hasOwnProperty.call(sidebar, 'expandedDirectories')
+    ? parseRelativeDirectoryList(sidebar.expandedDirectories, MAX_EXPANDED_DIRECTORIES)
+    : undefined
 
   const dock = isRecord(source.contextDock) ? source.contextDock : null
   const contextPanel = dock && isPanelId(dock.panel)
@@ -311,6 +331,7 @@ export const parseWorkspaceLayout = (value: unknown): WorkspaceLayoutState => {
       ),
       activeView: 'files',
       collapsedDirectories,
+      ...(expandedDirectories !== undefined ? { expandedDirectories } : {}),
     },
     contextDock: {
       width: contextWidth,
