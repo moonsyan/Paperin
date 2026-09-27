@@ -39,7 +39,11 @@ describe('Sidebar file-only view', () => {
         openFiles={[]}
       />,
     )
-    fireEvent.click(screen.getByRole('treeitem', { name: 'notes' }))
+    // 无记忆时根目录默认展开；再点根会折叠，导致 today.md 消失。
+    const root = screen.getByRole('treeitem', { name: 'notes' })
+    if (root.getAttribute('aria-expanded') === 'false') {
+      fireEvent.click(root)
+    }
     const row = screen.getByRole('treeitem', { name: 'today.md' })
     fireEvent.contextMenu(row, { clientX: 10, clientY: 10 })
     expect(screen.getByRole('menu')).toBeTruthy()
