@@ -674,8 +674,9 @@
 }
 .milkdown .mermaid-preview svg {
   display: block;
-  /* 保留 Mermaid 内联的内容宽度；窄编辑区时再按容器缩放，避免长图被压成极小节点。 */
-  width: 100%;
+  /* 按 SVG 内容宽度显示；窄编辑区才缩到容器宽。
+   * 勿写 width:100%：大 viewBox + 撑满容器会变成「画布很大、图很小」。 */
+  width: auto;
   max-width: 100%;
   height: auto;
   margin: 0 auto;
@@ -689,8 +690,14 @@
   background: transparent;
   overflow: visible;
 }
+/* 默认隐藏源码：只靠相邻选择器会在中间夹节点时失效，打开文档就像「默认看源码」。 */
+.milkdown .mermaid-source-block {
+  display: none;
+}
+.milkdown .mermaid-source-block.is-source-visible {
+  display: block;
+}
 .milkdown .mermaid-block.is-editing-source .mermaid-preview,
-.milkdown .mermaid-block:not(.is-editing-source) + .mermaid-source-block,
 .milkdown .mermaid-block.is-editing-source .mermaid-label {
   display: none;
 }

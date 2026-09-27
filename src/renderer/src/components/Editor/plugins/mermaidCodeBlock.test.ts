@@ -92,6 +92,16 @@ describe('Mermaid 预览渲染触发', () => {
     expect(status?.textContent).toMatch(/准备渲染|正在加载|正在绘制|正在渲染|输入 Mermaid/)
   })
 
+  it('创建后默认是图表预览，不进入源码编辑态', async () => {
+    const { root } = await buildEditor('```mermaid\ngraph TD\n  A --> B\n```')
+    const block = root.querySelector('.mermaid-block')
+    const button = root.querySelector('.mermaid-source-toggle') as HTMLButtonElement | null
+    const source = root.querySelector('.mermaid-source-block')
+    expect(block?.classList.contains('is-editing-source')).toBe(false)
+    expect(button?.textContent).toBe('编辑源码')
+    expect(source?.classList.contains('is-source-visible')).toBe(false)
+  })
+
   it('点击编辑源码会进入源码态（按钮文案切换为查看图表）', async () => {
     const { root } = await buildEditor('```mermaid\ngraph TD\n  A --> B\n```')
     const button = root.querySelector('.mermaid-source-toggle') as HTMLButtonElement | null
@@ -100,6 +110,7 @@ describe('Mermaid 预览渲染触发', () => {
     button!.click()
     expect(button!.textContent).toBe('查看图表')
     expect(root.querySelector('.mermaid-block')?.classList.contains('is-editing-source')).toBe(true)
+    expect(root.querySelector('.mermaid-source-block')?.classList.contains('is-source-visible')).toBe(true)
   })
 
   it('主线程延迟后同一次鼠标点击不会把源码态切回图表', async () => {

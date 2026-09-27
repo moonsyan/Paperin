@@ -29,8 +29,9 @@ export function mermaidThemeOptions(theme: string) {
     theme: theme === 'dark' ? 'dark' as const : 'default' as const,
     // htmlLabels 在 Electron 里对含中文/HTML 的 flowchart 偶发主线程卡死，
     // 表现为一直「正在渲染」且按钮无响应；改用文本标签更稳。
-    flowchart: { htmlLabels: false, useMaxWidth: true, wrappingWidth: 240, padding: 16 },
-    sequence: { useMaxWidth: true },
+    // useMaxWidth:false：避免 SVG 被写成 width:100%，再叠编辑区样式变成大画布小图。
+    flowchart: { htmlLabels: false, useMaxWidth: false, wrappingWidth: 240, padding: 16 },
+    sequence: { useMaxWidth: false },
   }
 }
 

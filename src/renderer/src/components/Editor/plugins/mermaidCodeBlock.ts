@@ -102,37 +102,90 @@ export const mermaidDecorationKey = (pos: number, source: string): string => {
 export const mermaidSandboxDocument = (runtimeUrl: string): string =>
   `<!doctype html><html><head><script src="${runtimeUrl}"></script></head><body></body></html>`
 
+/** 沙箱可视测量区：过小（曾用 1×1）会让 flowchart 量出异常 viewBox，表现为大画布小图。 */
+const MERMAID_SANDBOX_WIDTH = 1200
+const MERMAID_SANDBOX_HEIGHT = 800
+
+type MermaidSandbox = {
+  frame: HTMLIFrameElement
+  mermaid: MermaidRuntime
+}
+
+let sharedSandbox: MermaidSandbox | null = null
+let sharedSandboxLoading: Promise<MermaidSandbox> | null = null
+
+const detachSharedSandbox = () => {
+  sharedSandbox?.frame.remove()
+  sharedSandbox = null
+}
+
+const loadMermaidSandbox = async (): Promise<MermaidSandbox> => {
+  if (sharedSandbox?.frame.isConnected) return sharedSandbox
+  if (sharedSandboxLoading) return sharedSandboxLoading
+
+  let loading!: Promise<MermaidSandbox>
+  loading = (async () => {
+    detachSharedSandbox()
+    const frame = document.createElement('iframe')
+    frame.setAttribute('aria-hidden', 'true')
+    frame.tabIndex = -1
+    frame.style.cssText = [
+      'position:fixed',
+      'left:-10000px',
+      'top:0',
+      `width:${MERMAID_SANDBOX_WIDTH}px`,
+      `height:${MERMAID_SANDBOX_HEIGHT}px`,
+      'border:0',
+      'visibility:hidden',
+      'pointer-events:none',
+    ].join(';')
+    frame.srcdoc = mermaidSandboxDocument(new URL('mermaid.min.js', window.location.href).toString())
+
+    const loaded = new Promise<void>((resolve, reject) => {
+      frame.addEventListener('load', () => resolve(), { once: true })
+      frame.addEventListener('error', () => reject(new Error('Mermaid 运行时加载失败')), { once: true })
+    })
+    document.body.appendChild(frame)
+
+    try {
+      await loaded
+      const frameDocument = frame.contentDocument
+      const frameWindow = frame.contentWindow as (Window & { mermaid?: MermaidRuntime }) | null
+      const mermaid = frameWindow?.mermaid
+      if (!frameDocument?.body || !mermaid) throw new Error('Mermaid 运行时加载失败')
+      const sandbox = { frame, mermaid }
+      sharedSandbox = sandbox
+      return sandbox
+    } catch (error) {
+      frame.remove()
+      sharedSandbox = null
+      throw error
+    } finally {
+      if (sharedSandboxLoading === loading) sharedSandboxLoading = null
+    }
+  })()
+
+  sharedSandboxLoading = loading
+  return loading
+}
+
 /**
  * Mermaid 会把 flowchart 标签临时插入当前文档并据此测量布局。
  * 编辑器的排版规则会参与这个测量并把层间距放大；在同源 iframe 中渲染后只取回 SVG，
  * 既隔离页面 CSS，又不改变用户的 Mermaid 源码。
+ * 沙箱复用：避免每张图都重新拉 mermaid.min.js，降低「一直正在渲染」概率。
  */
 const renderMermaidInSandbox = async (id: string, source: string, theme: string) => {
-  const frame = document.createElement('iframe')
-  frame.setAttribute('aria-hidden', 'true')
-  frame.tabIndex = -1
-  frame.style.cssText =
-    'position:fixed;left:-10000px;top:0;width:1px;height:1px;border:0;visibility:hidden;pointer-events:none'
-  frame.srcdoc = mermaidSandboxDocument(new URL('mermaid.min.js', window.location.href).toString())
-
-  const loaded = new Promise<void>((resolve, reject) => {
-    frame.addEventListener('load', () => resolve(), { once: true })
-    frame.addEventListener('error', () => reject(new Error('Mermaid 运行时加载失败')), { once: true })
-  })
-  document.body.appendChild(frame)
-
-  try {
-    await loaded
-    const frameDocument = frame.contentDocument
-    const frameWindow = frame.contentWindow as (Window & { mermaid?: MermaidRuntime }) | null
-    const mermaid = frameWindow?.mermaid
-    if (!frameDocument?.body || !mermaid) throw new Error('Mermaid 运行时加载失败')
-
-    mermaid.initialize(mermaidThemeOptions(theme))
-    return await mermaid.mermaidAPI.render(id, source, frameDocument.body)
-  } finally {
-    frame.remove()
+  const sandbox = await loadMermaidSandbox()
+  const frameDocument = sandbox.frame.contentDocument
+  if (!frameDocument?.body) {
+    detachSharedSandbox()
+    throw new Error('Mermaid 运行时加载失败')
   }
+  // 清掉上一次残留节点，避免测量互相干扰
+  frameDocument.body.replaceChildren()
+  sandbox.mermaid.initialize(mermaidThemeOptions(theme))
+  return await sandbox.mermaid.mermaidAPI.render(id, source, frameDocument.body)
 }
 
 /**
@@ -394,6 +447,7 @@ class MermaidPreview {
     this.inFlightPrepared = null
     this.committedPrepared = null
     this.loadingStartedAt = 0
+    this.resolveSourceBlockElement()?.classList.remove('is-source-visible')
     this.button.removeEventListener('mousedown', this.handleToggleSourcePointer, true)
     this.button.removeEventListener('click', this.handleToggleSourceClick, true)
     activePreviews.delete(this)
@@ -408,13 +462,22 @@ class MermaidPreview {
 
   belongsTo = (view: EditorView): boolean => this.view === view
 
+  private resolveSourceBlockElement = (): HTMLElement | null => {
+    let sibling: Element | null = this.dom.nextElementSibling
+    while (sibling) {
+      if (sibling instanceof HTMLElement && sibling.classList.contains('mermaid-source-block')) {
+        return sibling
+      }
+      sibling = sibling.nextElementSibling
+    }
+    return null
+  }
+
   private resolveCodeBlockPos = (): number | undefined => {
     const fromWidget = this.getPos()
     if (typeof fromWidget === 'number') return fromWidget
-    const pre = this.dom.nextElementSibling
-    if (!(pre instanceof HTMLElement) || !pre.classList.contains('mermaid-source-block')) {
-      return undefined
-    }
+    const pre = this.resolveSourceBlockElement()
+    if (!pre) return undefined
     try {
       const inside = this.view.posAtDOM(pre, 0)
       const $pos = this.view.state.doc.resolve(inside)
@@ -428,20 +491,21 @@ class MermaidPreview {
   }
 
   syncSelection = () => {
+    // 默认始终预览图：不因选区落在源码块就自动切到源码态（打开文档/恢复光标常会误触）。
+    // 进入源码只走工具栏「编辑源码」；选区离开时再回到预览。
+    if (!this.isEditingSource) return
     const codePos = this.resolveCodeBlockPos()
-    if (typeof codePos !== 'number') return
+    if (typeof codePos !== 'number') {
+      this.showPreview()
+      return
+    }
     const codeNode = this.view.state.doc.nodeAt(codePos)
     const { from, to } = this.view.state.selection
     const isInsideCodeBlock =
       codeNode &&
       codeNode.type.name === 'code_block' &&
       isSelectionInsideMermaidBlock(from, to, codePos, codeNode.nodeSize)
-    if (this.isEditingSource) {
-      if (isInsideCodeBlock) return
-      this.showPreview()
-      return
-    }
-    if (isInsideCodeBlock) this.setSourceEditing(true)
+    if (!isInsideCodeBlock) this.showPreview()
   }
 
   toggleSourceFromUi = (): void => {
@@ -466,6 +530,14 @@ class MermaidPreview {
       this.button.focus()
       return
     }
+    // 切源码时作废进行中的渲染，避免卡在「正在绘制」时点击无反馈
+    if (this.renderTimer) {
+      clearTimeout(this.renderTimer)
+      this.renderTimer = undefined
+    }
+    this.renderVersion += 1
+    this.inFlightPrepared = null
+    this.loadingStartedAt = 0
     const codePos = this.resolveCodeBlockPos()
     if (typeof codePos !== 'number') {
       this.markFailed('无法定位源码块，请滚动后再试或重新打开文档')
@@ -493,6 +565,7 @@ class MermaidPreview {
   private setSourceEditing(editing: boolean) {
     this.isEditingSource = editing
     this.dom.classList.toggle('is-editing-source', editing)
+    this.resolveSourceBlockElement()?.classList.toggle('is-source-visible', editing)
     this.button.textContent = editing ? '查看图表' : '编辑源码'
     this.button.setAttribute('aria-pressed', String(editing))
     this.button.setAttribute('aria-label', editing ? '查看 Mermaid 图表' : '编辑 Mermaid 源码')

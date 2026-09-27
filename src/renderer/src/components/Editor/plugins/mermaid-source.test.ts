@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import { isMermaidErrorSvg, mermaidFailureKind, mermaidStatusText, sanitizeMermaidSource, sanitizeMermaidSvg } from './mermaid-source'
+import {
+  isMermaidErrorSvg,
+  mermaidFailureKind,
+  mermaidStatusText,
+  mermaidThemeOptions,
+  sanitizeMermaidSource,
+  sanitizeMermaidSvg,
+} from './mermaid-source'
 
 describe('sanitizeMermaidSource', () => {
   it('去掉共同缩进、零宽字符和会改全局配置的 init', () => {
@@ -15,6 +22,15 @@ describe('sanitizeMermaidSource', () => {
 
   it('不把围栏本身交给 Mermaid', () => {
     expect(sanitizeMermaidSource('```mermaid\ngraph LR\n  A-->B\n```')).toBe('graph LR\n  A-->B')
+  })
+})
+
+describe('mermaidThemeOptions', () => {
+  it('关闭 useMaxWidth，避免 SVG 被写成 100% 宽导致大画布小图', () => {
+    const options = mermaidThemeOptions('default')
+    expect(options.flowchart.useMaxWidth).toBe(false)
+    expect(options.flowchart.htmlLabels).toBe(false)
+    expect(options.sequence.useMaxWidth).toBe(false)
   })
 })
 
