@@ -123,8 +123,8 @@ const loadMermaidSandbox = async (): Promise<MermaidSandbox> => {
   if (sharedSandbox?.frame.isConnected) return sharedSandbox
   if (sharedSandboxLoading) return sharedSandboxLoading
 
-  let loading!: Promise<MermaidSandbox>
-  loading = (async () => {
+  const slot: { promise?: Promise<MermaidSandbox> } = {}
+  slot.promise = (async () => {
     detachSharedSandbox()
     const frame = document.createElement('iframe')
     frame.setAttribute('aria-hidden', 'true')
@@ -161,12 +161,12 @@ const loadMermaidSandbox = async (): Promise<MermaidSandbox> => {
       sharedSandbox = null
       throw error
     } finally {
-      if (sharedSandboxLoading === loading) sharedSandboxLoading = null
+      if (sharedSandboxLoading === slot.promise) sharedSandboxLoading = null
     }
   })()
 
-  sharedSandboxLoading = loading
-  return loading
+  sharedSandboxLoading = slot.promise
+  return slot.promise
 }
 
 /**
