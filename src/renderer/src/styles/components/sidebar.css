@@ -1,13 +1,17 @@
 /* ====== Sidebar ====== */
 .sidebar {
   width: var(--sidebar-w);
-  /* 跟随编辑区缩放同步（字体/图标/间距整体缩放） */
-  zoom: var(--editor-zoom, 1);
+  /* 不用 CSS zoom：Chromium 下 zoom + overflow 会算错可滚高度，
+   * 文件一多只看得见顶部两三个根目录，后面的文件夹被裁掉且滚不到。
+   * 侧栏用字号/行高跟 --editor-zoom；宽度仍由 --sidebar-w 与拖拽条补偿。 */
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  min-height: 0;
+  align-self: stretch;
+  font-size: calc(15px * var(--editor-zoom, 1));
   transition: width 250ms var(--ease), background var(--dur) var(--ease);
   overflow: hidden;
 }
@@ -163,7 +167,13 @@
   outline-offset: -2px;
 }
 
-.sidebar-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.sidebar-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
 .sidebar-body::-webkit-scrollbar { width: 4px; }
 .sidebar-body::-webkit-scrollbar-thumb { background: var(--text-4); border-radius: 2px; }
 
