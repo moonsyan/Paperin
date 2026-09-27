@@ -11,7 +11,7 @@
 | 多标签、dirty、关闭确认 | DocumentRecord store + TabBar | record store、TabBar、document-session、close-save；活动会话序号保护异步保存；关窗超时作废许可但等在途写入结束 | 已迁移；P0 首批回归 | 多窗口、IME、卸载和关闭时序冒烟 |
 | 编辑器适配层 | Milkdown `EditorHandle` | adapter、快捷键与应用动作测试 | 已迁移 | 输入法与焦点人工验证 |
 | 草稿恢复与会话持久化 | settings store + draft hooks | draft/session tests；settings 写锁不从仍存活的进程抢夺 | 保留 | 重启恢复 |
-| 工作区文件树、最近文件、收藏 | workspace hooks/components；布局 `expandedDirectories` | workspace / useSidebarCollapse / workspace-state 测试 | 文件树懒加载；无记忆时根展开子夹全折；展开路径可持久化并预加载恢复；最近编辑、星标收藏；打开库后台索引仍 `load`→`refresh`（与树解耦） | 跨库路径迁移、5000 文件 UI 性能 |
+| 工作区文件树、最近文件、收藏 | workspace hooks/components；布局 `expandedDirectories`；侧栏不用 CSS `zoom` | workspace / useSidebarCollapse / workspace-state / `sidebar-scroll.css` 测试 | 文件树懒加载；无记忆时根展开子夹全折；展开路径可持久化并预加载恢复；最近编辑、星标收藏；大目录可滚完整树；打开库后台索引仍 `load`→`refresh`（与树解耦） | 跨库路径迁移、5000 文件 UI 性能 |
 | 工作区壳层、当前文件来源与 dirty 上下文 | `WorkspaceShell` + `CurrentFileBanner` | 组件 Testing Library 契约测试 | 已迁移 | 多窗口、窄窗口与外部文件冒烟 |
 | 保存状态文案 | 顶栏、路径条、状态栏共用 `document-save-status.ts` | 保存回执与状态组件测试 | 已有：已保存/未保存、示例、未命名、保存中、冲突、编码、失败 | 九主题与缩放人工看 |
 | 工作区全文搜索 | `WorkspaceSearchDialog`、`workspace-search-handler`、`WorkspaceIndexService` 语料 | `workspace-search-coverage.test.ts`、`workspace-index-service.test.ts`（语料复用）、`useWorkspaceSearch.test.ts` | 已有：共享 `WorkspaceCoverage`；暖搜索优先 Main 内存语料（`getSearchSnapshot`），未缓存/超预算读盘 fallback；结构索引缓存不含正文 `lines` | 2026-09-22 P0-02 后本机搜索 P95 约 17 ms（暖语料）；watcher 稳定 P95 仍偶发超 5000 ms；60 题 Hit@5 未测 |
@@ -22,7 +22,7 @@
 | 写作模板 | 命令 `newTemplate:article`、`newTemplate:decision` | 命令注册表测试 | 已有：两份普通 Markdown，不覆盖已打开文件 | 用户无需讲解完成起步未测 |
 | HTML/PDF/DOCX/EPUB/LaTeX/发布 | `hooks/exports/`、导出 IPC | `export-preflight`、`review-export` 测试；对话框目标真实路径在写出前复核 | 已有：Markdown、HTML、PDF、Word、Pandoc 导出前检查；说明见 `export-formats.md` | 各平台打开导出文件的人工检查 |
 | 发布配置与交付报告 | `publish-profile`、`delivery-report`、`PublishDialog`、export bundle IPC | `publish-profile`、`delivery-report`、`export-handlers`、PublishDialog 测试 | 已有：最多 20 条配置；资源包含脱敏 JSON 报告，拒绝 `../`/空/超过 1 MiB | 接收方阅读报告与集合导出人工检查 |
-| GFM、任务列表、表格、代码、公式、Mermaid、脚注、frontmatter | Milkdown plugins | editor plugin tests、`markdownPaste`、`structured-code`、`mermaid-source` | 保留 | 粘贴 Markdown 原文按标记排版；网页 HTML 用 DOMParser 转换，不执行脚本。JSON/YAML 可格式化、压成一行并按缩进折叠，折叠不改文件，复制导出去掉按钮。Mermaid 渲染前清理缩进、零宽字符和 init；主题 CSS 里的 `.error-icon` 不算失败。覆盖中文与异常输入 |
+| GFM、任务列表、表格、代码、公式、Mermaid、脚注、frontmatter | Milkdown plugins | editor plugin tests、`markdownPaste`、`structured-code`、`mermaid-source`、`mermaid-rendering.css` | 保留 | 粘贴 Markdown 原文按标记排版；网页 HTML 用 DOMParser 转换，不执行脚本。JSON/YAML 可格式化、压成一行并按缩进折叠，折叠不改文件，复制导出去掉按钮。Mermaid 默认预览图表，源码块默认隐藏；渲染前清理缩进、零宽字符和 init；沙箱复用测量；`useMaxWidth` 关闭；主题 CSS 里的 `.error-icon` 不算失败。覆盖中文与异常输入 |
 | 性能/兼容夹具 | `src/main/testing/fixtures/`、`shared/testing/r09-fixture-contract.ts` | `fixtures.test.ts`、`document-collection.test.ts`（多结构导出）、`summarizeStability` | 已有：普通、2 MiB±1、长段落/短节点/超长行/中文 emoji/混合语法 5 MiB；稳定性汇总函数 | 8 小时采样与第二台 16 GB 设备为 **UNVERIFIED** |
 | 常见来源合成兼容夹具（P1-02） | `src/main/testing/fixtures/compatibility/` | `compatibility-fixtures.test.ts`、`scripts/smoke-electron.mjs --compatibility` | 已有：Typora/标准 MD、Obsidian 子集、Notion MD+CSV、思源、语雀各 ≥10 篇合成样本；Vitest 与 Electron 只读 smoke 均断言 Markdown/附件 hash 不变；路径限制在夹具根内；**不**等同真实用户导出兼容 | 真实导出版本矩阵、五分钟用户任务为 **UNVERIFIED** |
 | Renderer CSP | `src/renderer/index.html` | Electron smoke | 保留 | `data:` 仅在 `font-src`/`img-src` 按已知内嵌资源放行；脚本与连接仍只允许显式来源 |
